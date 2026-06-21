@@ -1,0 +1,218 @@
+import { Router } from 'express';
+import { AccountType, Role, VoucherType } from '@prisma/client';
+import { z } from 'zod';
+import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
+import { authenticate, requireRoles } from '../../middleware/auth.js';
+import * as accountingService from './accounting.service.js';
+
+export const accountingRouter = Router();
+
+accountingRouter.use(authenticate, requireRoles(Role.ADMIN, Role.BRANCH_OWNER));
+
+function assertBranch(req: import('express').Request, branchId: number) {
+  if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+    throw Object.assign(new Error('Cross-branch access denied'), { statusCode: 403 });
+  }
+}
+
+accountingRouter.get(
+  '/:branchId/categories',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const categories = await accountingService.listAccountCategories(branchId);
+    res.json(categories);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/categories',
+  validateBody(z.object({ name: z.string().min(1) })),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const category = await accountingService.createAccountCategory(branchId, req.body.name);
+    res.status(201).json(category);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/accounts',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const accounts = await accountingService.listAccounts(branchId);
+    res.json(accounts);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/accounts',
+  validateBody(
+    z.object({
+      categoryId: z.number().int(),
+      name: z.string().min(1),
+      code: z.string().min(1),
+      type: z.nativeEnum(AccountType),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const account = await accountingService.createAccount({ branchId, ...req.body });
+    res.status(201).json(account);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/vouchers',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const vouchers = await accountingService.listVouchers(branchId);
+    res.json(vouchers);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/vouchers',
+  validateBody(
+    z.object({
+      type: z.nativeEnum(VoucherType),
+      debitAccountId: z.number().int(),
+      creditAccountId: z.number().int(),
+      amount: z.number().positive(),
+      description: z.string().optional(),
+      reference: z.string().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const voucher = await accountingService.createVoucher({
+      branchId,
+      ...req.body,
+      createdById: req.user!.userId,
+    });
+    res.status(201).json(voucher);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/trial-balance',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const trialBalance = await accountingService.getTrialBalance(branchId);
+    res.json(trialBalance);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/banks',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const banks = await accountingService.listBankAccounts(branchId);
+    res.json(banks);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/banks',
+  validateBody(
+    z.object({
+      name: z.string().min(1),
+      accountNumber: z.string().optional(),
+      openingBalance: z.number().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const bank = await accountingService.createBankAccount({ branchId, ...req.body });
+    res.status(201).json(bank);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/ledger/:accountId',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const ledger = await accountingService.getLedgerEntries(
+      parseInt(param(req.params.accountId), 10),
+      branchId
+    );
+    res.json(ledger);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/trial-balance/approve',
+  validateBody(z.object({ period: z.string().min(1), notes: z.string().optional() })),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const approval = await accountingService.approveTrialBalance({
+      branchId,
+      period: req.body.period,
+      notes: req.body.notes,
+      approvedById: req.user!.userId,
+    });
+    res.status(201).json(approval);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/trial-balance/approvals',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const approvals = await accountingService.listTrialBalanceApprovals(branchId);
+    res.json(approvals);
+  })
+);
+
+accountingRouter.patch(
+  '/:branchId/banks/:id',
+  validateBody(
+    z.object({
+      name: z.string().optional(),
+      accountNumber: z.string().optional(),
+      runningBalance: z.number().optional(),
+      isActive: z.boolean().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const bank = await accountingService.updateBankAccount(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.body
+    );
+    res.json(bank);
+  })
+);
+
+accountingRouter.patch(
+  '/:branchId/accounts/:id',
+  validateBody(
+    z.object({
+      name: z.string().optional(),
+      code: z.string().optional(),
+      isActive: z.boolean().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const account = await accountingService.updateAccount(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.body
+    );
+    res.json(account);
+  })
+);

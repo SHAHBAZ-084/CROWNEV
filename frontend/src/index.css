@@ -1,0 +1,68 @@
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+
+@theme {
+  --color-brand: #b34700;
+  --color-brand-light: #e8590c;
+  --color-accent: #e8590c;
+  --color-accent-hover: #c44d0a;
+  --color-accent-soft: #ffa94d;
+  --color-surface: #ffffff;
+  --color-surface-alt: #fff4ec;
+  --color-success: #1e8449;
+  --color-warning: #c0392b;
+  --color-text: #1a1a1a;
+  --color-text-muted: #6b5a4d;
+  --color-border: #f0c9a8;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 1px 3px rgb(179 71 0 / 5%), 0 8px 24px rgb(179 71 0 / 7%);
+  --shadow-card-hover: 0 4px 12px rgb(232 89 12 / 12%), 0 16px 40px rgb(179 71 0 / 10%);
+  --radius-card: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #fff4ec 25%, #ffe8d6 50%, #fff4ec 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  nav, aside, .no-print { display: none !important; }
+}

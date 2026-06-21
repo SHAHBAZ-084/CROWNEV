@@ -1,0 +1,760 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  BRANCH_OWNER
+  CUSTOMER
+}
+
+enum OtpType {
+  REGISTRATION
+  PASSWORD_RESET
+}
+
+enum ProductType {
+  BIKE
+  PART
+}
+
+enum OrderType {
+  ONLINE
+  POS
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  DONE
+  CANCELLED
+}
+
+enum VoucherType {
+  PAYMENT
+  RECEIPT
+  JOURNAL
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum StockAdjustmentReason {
+  CORRECTION
+  DAMAGE
+  THEFT
+  RETURN
+  OTHER
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum WalkInLedgerType {
+  DEBIT
+  CREDIT
+}
+
+enum TestimonialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContactStatus {
+  NEW
+  READ
+  REPLIED
+}
+
+// ─── 1. User ─────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(CUSTOMER)
+  firstName    String
+  lastName     String
+  phone        String?
+  city         String?
+  isVerified   Boolean  @default(false)
+  googleId     String?  @unique
+  branchId     Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch              Branch?           @relation("BranchOwner", fields: [branchId], references: [id])
+  ownedBranch         Branch?           @relation("BranchOwnerUser")
+  orders              Order[]
+  serviceBookings     ServiceBooking[]
+  stockAdjustments    StockAdjustment[]
+  vouchers            Voucher[]
+  trialBalanceApprovals TrialBalanceApproval[]
+
+  @@index([email])
+  @@index([branchId])
+  @@index([role])
+}
+
+// ─── 2. OtpVerification ──────────────────────────────────────────────────────
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  type      OtpType
+  payload   Json?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+}
+
+// ─── 3. Branch ───────────────────────────────────────────────────────────────
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String
+  phone     String
+  whatsapp  String?
+  description String?  @db.Text
+  isActive  Boolean  @default(true)
+  ownerId   String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner              User?              @relation("BranchOwnerUser", fields: [ownerId], references: [id])
+  staff              User[]             @relation("BranchOwner")
+  inventory          Inventory[]
+  branchProducts     BranchProduct[]
+  orders             Order[]
+  services           Service[]
+  serviceCategories  ServiceCategory[]
+  serviceBookings    ServiceBooking[]
+  suppliers          Supplier[]
+  purchases          Purchase[]
+  stockAdjustments   StockAdjustment[]
+  walkInCustomers    WalkInCustomer[]
+  bankAccounts       BankAccount[]
+  accountCategories  AccountCategory[]
+  accounts           Account[]
+  ledgers            Ledger[]
+  vouchers           Voucher[]
+  trialBalanceApprovals TrialBalanceApproval[]
+  contactMessages    ContactMessage[]
+
+  @@index([isActive])
+}
+
+// ─── 4. Part (shared catalog) ────────────────────────────────────────────────
+
+model Part {
+  id          Int      @id @default(autoincrement())
+  publicId    String   @unique @default(uuid())
+  itemCode    String   @unique
+  name        String
+  description String?
+  costPrice   Decimal  @db.Decimal(12, 2)
+  alertAt     Int      @default(5)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory           Inventory[]
+  bikePartDetails     BikePartDetail[]
+  serviceBookingParts ServiceBookingPart[]
+  purchaseItems       PurchaseItem[]
+  stockAdjustments    StockAdjustment[]
+
+  @@index([itemCode])
+  @@index([alertAt])
+}
+
+// ─── 5. Inventory (branch-scoped stock) ──────────────────────────────────────
+
+model Inventory {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  partId    Int
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  part   Part   @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, partId])
+  @@index([branchId])
+  @@index([partId])
+}
+
+// ─── 6. Product (shared catalog) ─────────────────────────────────────────────
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  slug        String      @unique
+  type        ProductType
+  brandId     Int?
+  categoryId  Int?
+  price       Decimal     @db.Decimal(12, 2)
+  salePrice   Decimal?    @db.Decimal(12, 2)
+  description String?
+  // EV specs for bikes (motor, battery, speed, range, weight, colors)
+  specs       Json?
+  colorOptions Json?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  brand          Brand?          @relation(fields: [brandId], references: [id])
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  branchProducts BranchProduct[]
+  bikePartDetails BikePartDetail[]
+  orderItems     OrderItem[]
+  purchaseItems  PurchaseItem[]
+
+  @@index([type])
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+// ─── 7. BranchProduct (branch listing of products) ───────────────────────────
+
+model BranchProduct {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  productId String
+  isListed  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, productId])
+  @@index([branchId])
+}
+
+// ─── 8. BikePartDetail (part compatibility with bikes) ───────────────────────
+
+model BikePartDetail {
+  id               Int    @id @default(autoincrement())
+  productId        String // the part product
+  partId           Int?   // optional link to Part catalog entry
+  modelCompatibility String?
+  compatibleBikeIds Json? // array of bike product IDs
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  part    Part?   @relation(fields: [partId], references: [id])
+
+  @@index([productId])
+}
+
+// ─── 9. ProductCategory (hierarchical) ───────────────────────────────────────
+
+model ProductCategory {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  parentId  Int?
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([parentId])
+}
+
+// ─── 10. Brand ───────────────────────────────────────────────────────────────
+
+model Brand {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  products Product[]
+}
+
+// ─── 11. ProductImage ────────────────────────────────────────────────────────
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId String
+  url       String
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ─── 12. Order ───────────────────────────────────────────────────────────────
+
+model Order {
+  id                    Int           @id @default(autoincrement())
+  publicId              String        @unique @default(uuid())
+  trackingId            String        @unique
+  branchId              Int
+  userId                String?
+  walkInCustomerId      Int?
+  type                  OrderType
+  status                OrderStatus   @default(PENDING)
+  paymentMethod         PaymentMethod
+  paymentStatus         PaymentStatus @default(PENDING)
+  bankTransferScreenshot String?
+  subtotal              Decimal       @db.Decimal(12, 2)
+  total                 Decimal       @db.Decimal(12, 2)
+  notes                 String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  branch           Branch            @relation(fields: [branchId], references: [id])
+  user             User?             @relation(fields: [userId], references: [id])
+  walkInCustomer   WalkInCustomer?   @relation(fields: [walkInCustomerId], references: [id])
+  items            OrderItem[]
+  walkInLedger     WalkInCustomerLedger[]
+
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([trackingId])
+  @@index([userId])
+}
+
+// ─── 13. OrderItem ───────────────────────────────────────────────────────────
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  total     Decimal @db.Decimal(12, 2)
+  color     String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+// ─── 14. Service ─────────────────────────────────────────────────────────────
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  branchId    Int
+  categoryId  Int?
+  name        String
+  description String?
+  basePrice   Decimal  @db.Decimal(12, 2)
+  duration    Int      // minutes
+  checklist   Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch   Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
+  bookings ServiceBooking[]
+
+  @@index([branchId])
+}
+
+// ─── 15. ServiceCategory ─────────────────────────────────────────────────────
+
+model ServiceCategory {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  name      String
+  createdAt DateTime @default(now())
+
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([branchId])
+}
+
+// ─── 16. ServiceBooking ──────────────────────────────────────────────────────
+
+model ServiceBooking {
+  id          Int           @id @default(autoincrement())
+  branchId    Int
+  serviceId   Int
+  userId      String?
+  customerName  String?
+  customerPhone String?
+  date        DateTime      @db.Date
+  time        String
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  branch  Branch               @relation(fields: [branchId], references: [id])
+  service Service              @relation(fields: [serviceId], references: [id])
+  user    User?                @relation(fields: [userId], references: [id])
+  parts   ServiceBookingPart[]
+
+  @@index([branchId])
+  @@index([status])
+  @@index([date])
+}
+
+// ─── 17. ServiceBookingPart ──────────────────────────────────────────────────
+
+model ServiceBookingPart {
+  id        Int @id @default(autoincrement())
+  bookingId Int
+  partId    Int
+  quantity  Int
+
+  booking ServiceBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  part    Part           @relation(fields: [partId], references: [id])
+
+  @@index([bookingId])
+}
+
+// ─── 18. Supplier ────────────────────────────────────────────────────────────
+
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  branchId      Int
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+
+  @@index([branchId])
+}
+
+// ─── 19. Purchase ────────────────────────────────────────────────────────────
+
+model Purchase {
+  id            Int      @id @default(autoincrement())
+  branchId      Int
+  supplierId    Int
+  invoiceNumber String?
+  documentRef   String?
+  total         Decimal  @db.Decimal(12, 2)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  branch   Branch         @relation(fields: [branchId], references: [id])
+  supplier Supplier       @relation(fields: [supplierId], references: [id])
+  items    PurchaseItem[]
+
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+// ─── 20. PurchaseItem ────────────────────────────────────────────────────────
+
+model PurchaseItem {
+  id            Int     @id @default(autoincrement())
+  purchaseId    Int
+  partId        Int?
+  productId     String?
+  quantity      Int
+  unitCost      Decimal @db.Decimal(12, 2)
+  engineNumber  String?
+  chassisNumber String?
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  part     Part?    @relation(fields: [partId], references: [id])
+  product  Product? @relation(fields: [productId], references: [id])
+
+  @@index([purchaseId])
+}
+
+// ─── 21. StockAdjustment ─────────────────────────────────────────────────────
+
+model StockAdjustment {
+  id             Int                   @id @default(autoincrement())
+  branchId       Int
+  partId         Int
+  quantityChange Int
+  reason         StockAdjustmentReason
+  notes          String?
+  adjustedById   String
+  createdAt      DateTime              @default(now())
+
+  branch     Branch @relation(fields: [branchId], references: [id])
+  part       Part   @relation(fields: [partId], references: [id])
+  adjustedBy User   @relation(fields: [adjustedById], references: [id])
+
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+// ─── 22. WalkInCustomer ──────────────────────────────────────────────────────
+
+model WalkInCustomer {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  name      String
+  cnic      String
+  phone     String?
+  email     String?
+  address   String?
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch  Branch                 @relation(fields: [branchId], references: [id])
+  orders  Order[]
+  ledger  WalkInCustomerLedger[]
+
+  @@unique([branchId, cnic])
+  @@index([branchId])
+}
+
+// ─── 23. WalkInCustomerLedger ────────────────────────────────────────────────
+
+model WalkInCustomerLedger {
+  id               Int              @id @default(autoincrement())
+  walkInCustomerId Int
+  orderId          Int?
+  type             WalkInLedgerType
+  amount           Decimal          @db.Decimal(12, 2)
+  balance          Decimal          @db.Decimal(12, 2)
+  notes            String?
+  createdAt        DateTime         @default(now())
+
+  walkInCustomer WalkInCustomer @relation(fields: [walkInCustomerId], references: [id], onDelete: Cascade)
+  order          Order?         @relation(fields: [orderId], references: [id])
+
+  @@index([walkInCustomerId])
+  @@index([createdAt])
+}
+
+// ─── 24. BankAccount ─────────────────────────────────────────────────────────
+
+model BankAccount {
+  id              Int      @id @default(autoincrement())
+  branchId        Int
+  name            String
+  accountNumber   String?
+  openingBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  runningBalance  Decimal  @default(0) @db.Decimal(12, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+}
+
+// ─── 25. AccountCategory (Chart of Accounts) ─────────────────────────────────
+
+model AccountCategory {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  name      String
+  createdAt DateTime @default(now())
+
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@index([branchId])
+}
+
+// ─── 26. Account ─────────────────────────────────────────────────────────────
+
+model Account {
+  id         Int         @id @default(autoincrement())
+  branchId   Int
+  categoryId Int
+  name       String
+  code       String
+  type       AccountType
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+
+  branch       Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  category     AccountCategory @relation(fields: [categoryId], references: [id])
+  ledger       Ledger?
+  debitVouchers  Voucher[] @relation("DebitAccount")
+  creditVouchers Voucher[] @relation("CreditAccount")
+
+  @@unique([branchId, code])
+  @@index([branchId])
+}
+
+// ─── 27. Ledger (one per account) ────────────────────────────────────────────
+
+model Ledger {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  accountId Int      @unique
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  updatedAt DateTime @updatedAt
+
+  branch  Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  account Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  entries LedgerEntry[]
+
+  @@index([branchId])
+}
+
+// ─── 28. LedgerEntry (append-only) ───────────────────────────────────────────
+
+model LedgerEntry {
+  id        Int             @id @default(autoincrement())
+  ledgerId  Int
+  voucherId Int?
+  type      LedgerEntryType
+  amount    Decimal         @db.Decimal(12, 2)
+  balance   Decimal         @db.Decimal(12, 2)
+  notes     String?
+  createdAt DateTime        @default(now())
+
+  ledger  Ledger   @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  voucher Voucher? @relation(fields: [voucherId], references: [id])
+
+  @@index([ledgerId])
+  @@index([createdAt])
+}
+
+// ─── 29. Voucher ─────────────────────────────────────────────────────────────
+
+model Voucher {
+  id              Int         @id @default(autoincrement())
+  branchId        Int
+  type            VoucherType
+  debitAccountId  Int
+  creditAccountId Int
+  amount          Decimal     @db.Decimal(12, 2)
+  description     String?
+  reference       String?
+  createdById     String
+  createdAt       DateTime    @default(now())
+
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  debitAccount  Account       @relation("DebitAccount", fields: [debitAccountId], references: [id])
+  creditAccount Account       @relation("CreditAccount", fields: [creditAccountId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([branchId])
+  @@index([createdAt])
+}
+
+// ─── 30. Testimonial ─────────────────────────────────────────────────────────
+
+model Testimonial {
+  id           Int               @id @default(autoincrement())
+  customerName String
+  content      String
+  rating       Int               @default(5)
+  imageUrl     String?
+  status       TestimonialStatus @default(APPROVED)
+  isActive     Boolean           @default(true)
+  sortOrder    Int               @default(0)
+  createdAt    DateTime          @default(now())
+
+  @@index([isActive])
+  @@index([status])
+}
+
+// ─── 31. ContactMessage ──────────────────────────────────────────────────────
+
+model ContactMessage {
+  id        Int           @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  message   String
+  branchId  Int?
+  status    ContactStatus @default(NEW)
+  createdAt DateTime      @default(now())
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── 32. TrialBalanceApproval ────────────────────────────────────────────────
+
+model TrialBalanceApproval {
+  id           Int      @id @default(autoincrement())
+  branchId     Int
+  period       String
+  approvedById String
+  notes        String?
+  snapshot     Json
+  createdAt    DateTime @default(now())
+
+  branch     Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  approvedBy User   @relation(fields: [approvedById], references: [id])
+
+  @@unique([branchId, period])
+  @@index([branchId])
+}
+
+// ─── 33. ContentPage (About, Privacy, Terms) ─────────────────────────────────
+
+model ContentPage {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  content   String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

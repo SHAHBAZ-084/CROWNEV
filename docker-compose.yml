@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: crown_eve_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: crown_eve
+    ports:
+      - "5432:5432"
+    volumes:
+      - crown_eve_pgdata:/var/lib/postgresql/data
+
+volumes:
+  crown_eve_pgdata:

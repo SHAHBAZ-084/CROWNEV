@@ -1,0 +1,21 @@
+{
+  "name": "crown-eve",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Crown Eve Bikes — PERN stack (PostgreSQL, Express, React, Node.js)",
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "backend:dev": "npm run dev --prefix backend",
+    "backend:build": "npm run build --prefix backend",
+    "backend:migrate": "npm run db:migrate --prefix backend",
+    "backend:seed": "npm run db:seed --prefix backend",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "frontend:build": "npm run build --prefix frontend",
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "setup": "npm run db:up && npm install --prefix backend && npm install --prefix frontend && npm run backend:migrate && npm run backend:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

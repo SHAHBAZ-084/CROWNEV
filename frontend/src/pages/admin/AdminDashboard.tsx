@@ -1,0 +1,82 @@
+import { useEffect, useState } from 'react';
+import { Building2, DollarSign, Package, AlertTriangle } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { adminApi } from '../../api/client';
+import { PageHeader } from '../../components/layout/PageTransition';
+import { StatCard } from '../../components/ui/StatCard';
+import { DataTable, StatusBadge } from '../../components/ui/DataTable';
+import { TableSkeleton } from '../../components/ui/Skeleton';
+
+export default function AdminDashboard() {
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [revenue, setRevenue] = useState<{ date: string; revenue: number }[]>([]);
+
+  useEffect(() => {
+    Promise.all([adminApi.dashboard(), adminApi.revenue(30)])
+      .then(([d, r]) => { setData(d); setRevenue(r); })
+      .catch(console.error);
+  }, []);
+
+  const recentOrders = (data?.recentOrders as Record<string, unknown>[]) ?? [];
+  const branchComparison = (data?.branchComparison as { name: string; revenue: number; orderCount: number }[]) ?? [];
+
+  return (
+    <div>
+      <PageHeader title="Admin Dashboard" subtitle="Global overview across all branches" />
+
+      {!data ? (
+        <TableSkeleton />
+      ) : (
+        <>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Total Revenue" value={Number(data.totalRevenue)} icon={DollarSign} prefix="PKR " />
+            <StatCard label="Total Orders" value={Number(data.totalOrders)} icon={Package} />
+            <StatCard label="Active Branches" value={Number(data.totalBranches)} icon={Building2} />
+            <StatCard label="Low Stock Alerts" value={Number(data.lowStockAlerts)} icon={AlertTriangle} />
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+              <h3 className="font-display font-semibold text-brand mb-4">Revenue Trend (30 days)</h3>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={revenue}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0C9A8" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v) => [`PKR ${Number(v).toLocaleString()}`, 'Revenue']} />
+                  <Line type="monotone" dataKey="revenue" stroke="#E8590C" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+              <h3 className="font-display font-semibold text-brand mb-4">Branch Comparison</h3>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={branchComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0C9A8" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="revenue" fill="#B34700" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="font-display font-semibold text-brand mb-4">Recent Orders</h3>
+            <DataTable
+              columns={[
+                { key: 'trackingId', header: 'Tracking ID' },
+                { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '—' },
+                { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+                { key: 'total', header: 'Total', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },
+              ]}
+              data={recentOrders}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
