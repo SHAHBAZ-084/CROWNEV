@@ -625,8 +625,8 @@ export function PosDetailTrialBalancePage() {
   }, [branchId]);
 
   const activeRows = rows.filter((r) => {
-    const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance).debit);
-    const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance).credit);
+    const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit);
+    const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit);
     return d > 0 || c > 0;
   });
 
@@ -634,8 +634,8 @@ export function PosDetailTrialBalancePage() {
     accountCode: String(r.accountCode),
     accountName: String(r.accountName),
     accountType: String(r.accountType),
-    debit: Number(r.debit ?? splitTrialBalanceAmount(r.balance).debit),
-    credit: Number(r.credit ?? splitTrialBalanceAmount(r.balance).credit),
+    debit: Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit),
+    credit: Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit),
   }));
 
   function handleExport(format: 'excel' | 'pdf') {
@@ -676,8 +676,8 @@ export function PosDetailTrialBalancePage() {
               </tr>
             ) : (
               activeRows.map((r) => {
-                const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance).debit);
-                const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance).credit);
+                const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit);
+                const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit);
                 return (
                   <tr key={String(r.accountId ?? r.accountCode)} className="border-b border-border/40">
                     <td className="px-4 py-2.5 font-mono text-xs">{String(r.accountCode)}</td>

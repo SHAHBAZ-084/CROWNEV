@@ -1,10 +1,11 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getLoginUrl } from '../../lib/authRedirect';
 import { useToast } from '../../contexts/ToastContext';
 import { customerApi, publicApi } from '../../api/client';
 import { Button } from '../../components/ui/Button';
-import { Input, Select, Textarea } from '../../components/ui/Input';
+import { Select, Textarea } from '../../components/ui/Input';
 import { PageHero } from '../../components/public/PageHero';
 
 export default function BookServicePage() {
@@ -12,7 +13,6 @@ export default function BookServicePage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
-  const [services, setServices] = useState<{ id: number; name: string; basePrice: string; duration: number }[]>([]);
   const [branchId, setBranchId] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,26 +20,17 @@ export default function BookServicePage() {
     publicApi.branches().then(setBranches).catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (branchId) {
-      publicApi.services(parseInt(branchId, 10)).then(setServices).catch(console.error);
-    } else setServices([]);
-  }, [branchId]);
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!user) { navigate('/login?redirect=/book-service'); return; }
+    if (!user) { navigate(getLoginUrl('/book-service')); return; }
     const fd = new FormData(e.currentTarget);
     setLoading(true);
     try {
       await customerApi.createBooking({
         branchId: parseInt(branchId, 10),
-        serviceId: parseInt(String(fd.get('serviceId')), 10),
-        date: String(fd.get('date')),
-        time: String(fd.get('time')),
-        notes: String(fd.get('notes') ?? ''),
+        notes: String(fd.get('notes') ?? '').trim() || undefined,
       });
-      toast('Service booked successfully!', 'success');
+      toast('Booking request submitted!', 'success');
       navigate('/customer/bookings');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Booking failed', 'error');
@@ -53,7 +44,7 @@ export default function BookServicePage() {
       <PageHero
         page="bookService"
         title="Book a Service"
-        subtitle="Maintenance, repair, or installation at your nearest branch"
+        subtitle="Request maintenance or repair — the branch will confirm your appointment"
       />
 
       <div className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
@@ -69,19 +60,14 @@ export default function BookServicePage() {
             {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </Select>
 
-          <Select label="Service" name="serviceId" required disabled={!branchId}>
-            <option value="">Select service</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} — PKR {Number(s.basePrice).toLocaleString()} ({s.duration} min)</option>
-            ))}
-          </Select>
+          <Textarea label="Notes (optional)" name="notes" rows={3} placeholder="Describe your issue or request…" />
 
-          <Input label="Date" name="date" type="date" required />
-          <Input label="Time" name="time" type="time" required />
-          <Textarea label="Notes (optional)" name="notes" rows={3} />
+          <p className="text-xs text-text-muted">
+            Date and time will be assigned by the branch after they review your request.
+          </p>
 
-          <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user}>
-            Book Appointment
+          <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user || !branchId}>
+            Submit Request
           </Button>
         </form>
       </div>

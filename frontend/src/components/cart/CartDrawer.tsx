@@ -1,12 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { getLoginUrl } from '../../lib/authRedirect';
 import { formatPKR } from '../../lib/format';
 import { Button } from '../ui/Button';
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { items, total, count, updateQty, removeItem } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  function handleCheckout() {
+    onClose();
+    if (!user) {
+      navigate(getLoginUrl('/checkout'));
+      return;
+    }
+    navigate('/checkout');
+  }
 
   return (
     <AnimatePresence>
@@ -78,11 +91,9 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   <span>Total</span>
                   <span className="tabular-nums">{formatPKR(total)}</span>
                 </div>
-                <Link to="/checkout" onClick={onClose}>
-                  <Button variant="accent" className="w-full" size="lg">
-                    Proceed to Checkout
-                  </Button>
-                </Link>
+                <Button variant="accent" className="w-full" size="lg" onClick={handleCheckout}>
+                  Proceed to Checkout
+                </Button>
               </div>
             )}
           </motion.aside>

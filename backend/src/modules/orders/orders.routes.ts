@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { OrderStatus, OrderType, PaymentMethod, Role } from '@prisma/client';
 import { z } from 'zod';
-import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
+import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
+import { paymentScreenshotUpload } from '../../middleware/upload.js';
 import * as ordersService from './orders.service.js';
 
 export const ordersRouter = Router();
@@ -11,6 +12,7 @@ const orderItemSchema = z.object({
   productId: z.string().uuid(),
   quantity: z.number().int().positive(),
   color: z.string().optional(),
+  chassisNumber: z.string().optional(),
 });
 
 ordersRouter.get(
@@ -22,6 +24,17 @@ ordersRouter.get(
 );
 
 ordersRouter.use(authenticate);
+
+ordersRouter.post(
+  '/upload-screenshot',
+  requireRoles(Role.CUSTOMER),
+  paymentScreenshotUpload.single('screenshot'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError(400, 'No file uploaded');
+    const url = `/uploads/payments/${req.file.filename}`;
+    res.json({ url });
+  }),
+);
 
 ordersRouter.get(
   '/pending-payments',
@@ -69,12 +82,12 @@ ordersRouter.get(
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER, Role.CUSTOMER),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
-    const order = await ordersService.getOrder(parseInt(param(req.params.id), 10), branchId);
-    if (req.user!.role === Role.CUSTOMER && order.userId !== req.user!.userId) {
-      res.status(403).json({ error: 'Access denied' });
-      return;
-    }
-    const invoice = await ordersService.getOrderInvoice(parseInt(param(req.params.id), 10), branchId);
+    const userId = req.user!.role === Role.CUSTOMER ? req.user!.userId : undefined;
+    const invoice = await ordersService.getOrderInvoice(
+      parseInt(param(req.params.id), 10),
+      userId,
+      branchId,
+    );
     res.json(invoice);
   })
 );
@@ -102,7 +115,11 @@ ordersRouter.post(
       paymentMethod: z.nativeEnum(PaymentMethod),
       items: z.array(orderItemSchema).min(1),
       notes: z.string().optional(),
-      bankTransferScreenshot: z.string().optional(),
+      bankTransferScreenshot: z.string().min(1),
+      paymentTransactionId: z.string().min(1),
+      customerName: z.string().optional(),
+      customerPhone: z.string().optional(),
+      customerAddress: z.string().optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -162,6 +179,21 @@ ordersRouter.patch(
       parseInt(param(req.params.id), 10),
       req.body.approved,
       branchId
+    );
+    res.json(order);
+  })
+);
+
+ordersRouter.patch(
+  '/:id/cargo-tracking',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(z.object({ cargoTrackingId: z.string().min(1) })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const order = await ordersService.setCargoTracking(
+      parseInt(param(req.params.id), 10),
+      req.body.cargoTrackingId,
+      branchId,
     );
     res.json(order);
   })

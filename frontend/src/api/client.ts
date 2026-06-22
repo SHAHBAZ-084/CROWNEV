@@ -1,9 +1,11 @@
 import type {
   Booking,
   Branch,
+  InvoiceData,
   LandingData,
   Order,
   Paginated,
+  PaymentChannel,
   Product,
   User,
 } from '../types';
@@ -97,6 +99,8 @@ export const publicApi = {
   categories: () => api<{ id: number; name: string; slug: string; children?: unknown[] }[]>('/products/categories'),
   brands: () => api<{ id: number; name: string; slug: string }[]>('/products/brands'),
   branches: () => api<Branch[]>('/branches/public'),
+  paymentChannels: (branchId: number) =>
+    api<PaymentChannel[]>(`/branches/public/${branchId}/payment-channels`),
   services: (branchId: number) => api<{ id: number; name: string; basePrice: string; duration: number }[]>(`/services/public/${branchId}`),
   trackOrder: (trackingId: string) => api<Order>(`/orders/track/${trackingId}`),
   contact: (data: { name: string; email: string; phone?: string; message: string; branchId?: number }) =>
@@ -108,23 +112,28 @@ export const publicApi = {
 export const customerApi = {
   orders: () => api<Paginated<Order>>('/orders'),
   order: (id: number) => api<Order>(`/orders/${id}`),
-  orderInvoice: (id: number) => api<Record<string, unknown>>(`/orders/${id}/invoice`),
+  orderInvoice: (id: number) => api<InvoiceData>(`/orders/${id}/invoice`),
+  uploadPaymentScreenshot: (file: File) => {
+    const form = new FormData();
+    form.append('screenshot', file);
+    return apiUpload<{ url: string }>('/orders/upload-screenshot', form);
+  },
   checkout: (data: {
     branchId: number;
     paymentMethod: 'CASH' | 'BANK_TRANSFER';
-    items: { productId: string; quantity: number; color?: string }[];
+    items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[];
     notes?: string;
     bankTransferScreenshot?: string;
+    paymentTransactionId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerAddress?: string;
   }) =>
     api<Order>('/orders/online', { method: 'POST', body: JSON.stringify(data) }),
   bookings: () => api<Paginated<Booking>>('/bookings'),
-  createBooking: (data: {
-    branchId: number;
-    serviceId: number;
-    date: string;
-    time: string;
-    notes?: string;
-  }) => api<Booking>('/bookings', { method: 'POST', body: JSON.stringify(data) }),
+  bookingReceipt: (id: number) => api<Record<string, unknown>>(`/bookings/${id}/receipt`),
+  createBooking: (data: { branchId: number; notes?: string }) =>
+    api<Booking>('/bookings', { method: 'POST', body: JSON.stringify(data) }),
   updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; city?: string }) =>
     authApi.updateProfile(data),
 };
@@ -226,7 +235,14 @@ export const branchApi = {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Booking>>(`/bookings${q}`);
   },
-  updateBookingStatus: (id: number, data: { branchId: number; status: string; parts?: { partId: number; quantity: number }[] }) =>
+  updateBookingStatus: (id: number, data: {
+    branchId: number;
+    status: string;
+    confirmedTime?: string;
+    date?: string;
+    serviceId?: number;
+    parts?: { partId: number; quantity: number }[];
+  }) =>
     api<Booking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
   inventory: (branchId: number) => api<Paginated<{ id?: number; quantity: number; partId: number; part: { id: number; name: string; itemCode: string; alertAt: number } }>>(`/inventory/${branchId}`),
   setStock: (branchId: number, partId: number, quantity: number) =>
@@ -255,7 +271,28 @@ export const branchApi = {
   pendingPayments: () => api<Order[]>('/orders/pending-payments'),
   approvePayment: (id: number, approved: boolean) =>
     api<Order>(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ approved }) }),
-  orderInvoice: (id: number) => api<Record<string, unknown>>(`/orders/${id}/invoice`),
+  setCargoTracking: (orderId: number, cargoTrackingId: string) =>
+    api<Order>(`/orders/${orderId}/cargo-tracking`, {
+      method: 'PATCH',
+      body: JSON.stringify({ cargoTrackingId }),
+    }),
+  orderInvoice: (id: number) => api<InvoiceData>(`/orders/${id}/invoice`),
+  paymentChannels: (branchId: number) => api<PaymentChannel[]>(`/branches/${branchId}/payment-channels`),
+  createPaymentChannel: (branchId: number, data: {
+    type: 'BANK' | 'WALLET';
+    name: string;
+    accountTitle?: string;
+    accountNumber: string;
+  }) => api<PaymentChannel>(`/branches/${branchId}/payment-channels`, { method: 'POST', body: JSON.stringify(data) }),
+  updatePaymentChannel: (branchId: number, channelId: number, data: Partial<{
+    type: 'BANK' | 'WALLET';
+    name: string;
+    accountTitle: string;
+    accountNumber: string;
+    isActive: boolean;
+  }>) => api<PaymentChannel>(`/branches/${branchId}/payment-channels/${channelId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePaymentChannel: (branchId: number, channelId: number) =>
+    api<void>(`/branches/${branchId}/payment-channels/${channelId}`, { method: 'DELETE' }),
   bookingReceipt: (id: number) => api<Record<string, unknown>>(`/bookings/${id}/receipt`),
   suppliers: (branchId: number) => api<Paginated<unknown>>(`/suppliers?branchId=${branchId}`),
   createSupplier: (data: Record<string, unknown>) =>

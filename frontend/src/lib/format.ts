@@ -10,6 +10,15 @@ export function formatDate(date: string | Date) {
   });
 }
 
+export function formatTime(value: string) {
+  const [h, m] = value.split(':');
+  const hour = parseInt(h, 10);
+  if (Number.isNaN(hour)) return value;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour % 12 || 12;
+  return `${h12}:${m ?? '00'} ${ampm}`;
+}
+
 /** Running balance: positive = Dr, negative = Cr (never show negative Dr). */
 export function formatLedgerBalance(balance: number | string) {
   const n = Number(balance);

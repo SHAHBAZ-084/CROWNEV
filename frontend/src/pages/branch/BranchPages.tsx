@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
+import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import {
   clearPendingImages,
   primaryFromImages,
@@ -19,8 +20,9 @@ import {
 } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
 import { parseEvSpecsFromForm } from '../../lib/evSpecs';
-import { formatPKR, formatLedgerBalance } from '../../lib/format';
+import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../lib/format';
 import { StatCard } from '../../components/ui/StatCard';
+import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 
 type Row = Record<string, unknown>;
 
@@ -61,7 +63,7 @@ export function BranchPOSPage() {
       .then(([vouchers, customersRes, ordersRes]) => {
         setTodayVouchers((vouchers as Row[]).filter((v) => isToday(String(v.createdAt)) && v.status !== 'CANCELLED').length);
         setTodayCustomers((customersRes.data as Row[]).filter((c) => isToday(String(c.createdAt))).length);
-        const salesToday = (ordersRes.data as Row[]).filter(
+        const salesToday = (ordersRes.data as unknown as Row[]).filter(
           (o) => isToday(String(o.createdAt)) && o.status !== 'CANCELLED',
         );
         setTodaySales(salesToday.reduce((sum, o) => sum + Number(o.total ?? 0), 0));
@@ -92,26 +94,46 @@ export function BranchPOSPage() {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
+function orderRowCustomer(r: Row): string {
+  const user = r.user as { firstName?: string; lastName?: string } | undefined;
+  if (user?.firstName) return `${user.firstName} ${user.lastName ?? ''}`.trim();
+  if (r.customerName) return String(r.customerName);
+  const walkIn = r.walkInCustomer as { name?: string } | undefined;
+  return walkIn?.name ?? '—';
+}
+
 export function BranchOrdersPage() {
   const { toast } = useToast();
   const [orders, setOrders] = useState<Row[]>([]);
-  const [statusModal, setStatusModal] = useState<Row | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [detail, setDetail] = useState<Row | null>(null);
+  const [paymentModal, setPaymentModal] = useState<Row | null>(null);
+  const [cargoModal, setCargoModal] = useState<Row | null>(null);
+  const [invoiceModal, setInvoiceModal] = useState<Row | null>(null);
+  const [invoiceData, setInvoiceData] = useState<import('../../types').InvoiceData | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [cargoId, setCargoId] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
-    branchApi.orders().then((r) => setOrders(r.data as unknown as Row[])).catch(console.error);
-  }, []);
+    const params: Record<string, string> = {};
+    if (statusFilter) params.status = statusFilter;
+    if (paymentFilter) params.paymentStatus = paymentFilter;
+    if (typeFilter) params.type = typeFilter;
+    branchApi.orders(params).then((r) => setOrders(r.data as unknown as Row[])).catch(console.error);
+  }, [statusFilter, paymentFilter, typeFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
-  async function updateStatus(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!statusModal) return;
+  async function handleApprove(approved: boolean) {
+    if (!paymentModal) return;
     setSaving(true);
     try {
-      await branchApi.updateOrderStatus(Number(statusModal.id), String(new FormData(e.currentTarget).get('status')));
-      toast('Order updated', 'success');
-      setStatusModal(null);
+      await branchApi.approvePayment(Number(paymentModal.id), approved);
+      toast(approved ? 'Payment approved' : 'Payment rejected', approved ? 'success' : 'error');
+      setPaymentModal(null);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -120,26 +142,145 @@ export function BranchOrdersPage() {
     }
   }
 
+  async function handleCargo(e: FormEvent) {
+    e.preventDefault();
+    if (!cargoModal || !cargoId.trim()) return;
+    setSaving(true);
+    try {
+      await branchApi.setCargoTracking(Number(cargoModal.id), cargoId.trim());
+      toast('Cargo tracking set — order marked delivered', 'success');
+      setCargoModal(null);
+      setCargoId('');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openInvoice(row: Row) {
+    setInvoiceModal(row);
+    setInvoiceLoading(true);
+    setInvoiceData(null);
+    try {
+      const data = await branchApi.orderInvoice(Number(row.id));
+      setInvoiceData(data);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load invoice', 'error');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }
+
+  const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
+
   return (
     <div>
-      <PageHeader title="Branch Orders" />
+      <PageHeader title="Branch Orders" subtitle="Manage online and POS orders" />
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-[140px]">
+          <option value="">All statuses</option>
+          {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </Select>
+        <Select label="" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="min-w-[140px]">
+          <option value="">All payments</option>
+          <option value="PENDING">PENDING</option>
+          <option value="APPROVED">APPROVED</option>
+          <option value="PAID">PAID</option>
+          <option value="REJECTED">REJECTED</option>
+        </Select>
+        <Select label="" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="min-w-[120px]">
+          <option value="">All types</option>
+          <option value="ONLINE">ONLINE</option>
+          <option value="POS">POS</option>
+        </Select>
+      </div>
+
       <DataTable
         columns={[
-          { key: 'trackingId', header: 'Tracking' },
+          { key: 'trackingId', header: 'Tracking', render: (r) => <span className="font-mono text-xs">{String(r.trackingId)}</span> },
+          { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'type', header: 'Type' },
+          { key: 'paymentStatus', header: 'Payment', render: (r) => <StatusBadge status={String(r.paymentStatus)} /> },
+          { key: 'type', header: 'Type', render: (r) => <span className="text-xs font-medium">{String(r.type)}</span> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setStatusModal(r)} /> },
+          {
+            key: 'actions',
+            header: '',
+            render: (r) => (
+              <div className="flex flex-wrap gap-1">
+                <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
+                {r.paymentMethod === 'BANK_TRANSFER' && r.paymentStatus === 'PENDING' && (
+                  <Button size="sm" variant="secondary" onClick={() => setPaymentModal(r)}>Verify</Button>
+                )}
+                {r.status === 'CONFIRMED' && (
+                  <Button size="sm" variant="secondary" onClick={() => { setCargoModal(r); setCargoId(''); }}>Cargo</Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => openInvoice(r)}>Invoice</Button>
+              </div>
+            ),
+          },
         ]}
         data={orders}
       />
-      <Modal open={!!statusModal} onClose={() => setStatusModal(null)} title="Update Order Status">
-        <form onSubmit={updateStatus} className="space-y-4">
-          <Select name="status" label="Status" defaultValue={String(statusModal?.status ?? 'PENDING')}>
-            {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <FormActions onCancel={() => setStatusModal(null)} loading={saving} />
+
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${String(detail?.trackingId ?? '')}`} size="lg">
+        {detail && (
+          <div className="space-y-3 text-sm">
+            <p><span className="text-text-muted">Customer:</span> {orderRowCustomer(detail)}</p>
+            <p><span className="text-text-muted">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '—')}</p>
+            <p><span className="text-text-muted">Address:</span> {String(detail.customerAddress ?? '—')}</p>
+            <p><span className="text-text-muted">Status:</span> <StatusBadge status={String(detail.status)} /></p>
+            <p><span className="text-text-muted">Payment:</span> {String(detail.paymentMethod)} — <StatusBadge status={String(detail.paymentStatus)} /></p>
+            <p><span className="text-text-muted">Total:</span> {formatPKR(Number(detail.total))}</p>
+            {detail.cargoTrackingId ? (
+              <p><span className="text-text-muted">Cargo:</span> {String(detail.cargoTrackingId)}</p>
+            ) : null}
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={!!paymentModal} onClose={() => setPaymentModal(null)} title="Verify Payment" size="lg">
+        {paymentModal && (
+          <div className="space-y-4">
+            <p className="text-sm">Customer: <strong>{orderRowCustomer(paymentModal)}</strong></p>
+            <p className="text-sm">Total: <strong>{formatPKR(Number(paymentModal.total))}</strong></p>
+            <p className="text-sm">TID: <strong className="font-mono">{String(paymentModal.paymentTransactionId ?? '—')}</strong></p>
+            {paymentModal.bankTransferScreenshot ? (
+              <img
+                src={`${BASE}${String(paymentModal.bankTransferScreenshot)}`}
+                alt="Payment screenshot"
+                className="max-h-64 rounded-lg border border-border object-contain"
+              />
+            ) : null}
+            <div className="flex gap-2">
+              <Button variant="accent" loading={saving} onClick={() => handleApprove(true)}>Approve Payment</Button>
+              <Button variant="danger" loading={saving} onClick={() => handleApprove(false)}>Reject</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={!!cargoModal} onClose={() => setCargoModal(null)} title="Set Cargo Tracking ID">
+        <form onSubmit={handleCargo} className="space-y-4">
+          <p className="text-sm text-text-muted">
+            Enter the cargo/courier tracking number (e.g. TCS, Leopard). Order will be marked as delivered.
+          </p>
+          <Input
+            label="Cargo Tracking ID"
+            value={cargoId}
+            onChange={(e) => setCargoId(e.target.value)}
+            placeholder="e.g. TCS-12345678"
+            required
+          />
+          <FormActions onCancel={() => setCargoModal(null)} loading={saving} />
         </form>
+      </Modal>
+
+      <Modal open={!!invoiceModal} onClose={() => { setInvoiceModal(null); setInvoiceData(null); }} title="Sale Invoice" size="lg">
+        <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
     </div>
   );
@@ -461,11 +602,20 @@ export function BranchBikesPage() {
 
 // ─── Bookings ────────────────────────────────────────────────────────────────
 
+function bookingRowCustomer(r: Row): string {
+  if (r.customerName) return String(r.customerName);
+  const user = r.user as { firstName?: string; lastName?: string } | undefined;
+  if (user?.firstName) return `${user.firstName} ${user.lastName ?? ''}`.trim();
+  return '—';
+}
+
 export function BranchBookingsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Row[]>([]);
+  const [services, setServices] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | null>(null);
+  const [statusValue, setStatusValue] = useState('PENDING');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -474,14 +624,34 @@ export function BranchBookingsPage() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  useEffect(() => {
+    if (branchId) branchApi.services(branchId).then((r) => setServices(r as Row[])).catch(console.error);
+  }, [branchId]);
+
+  useEffect(() => {
+    if (edit) setStatusValue(String(edit.status ?? 'PENDING'));
+  }, [edit]);
+
   async function updateStatus(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!edit || !branchId) return;
+    const fd = new FormData(e.currentTarget);
+    const status = String(fd.get('status'));
+    const confirmedTime = String(fd.get('confirmedTime') || '').trim() || undefined;
+    const date = String(fd.get('date') || '').trim() || undefined;
+    const serviceIdRaw = String(fd.get('serviceId') || '').trim();
+    if (status === 'CONFIRMED' && (!date || !confirmedTime)) {
+      toast('Please set visit date and time before confirming', 'error');
+      return;
+    }
     setSaving(true);
     try {
       await branchApi.updateBookingStatus(Number(edit.id), {
         branchId,
-        status: String(new FormData(e.currentTarget).get('status')),
+        status,
+        ...(confirmedTime && { confirmedTime }),
+        ...(date && { date }),
+        ...(serviceIdRaw && { serviceId: parseInt(serviceIdRaw, 10) }),
       });
       toast('Booking updated', 'success');
       setEdit(null);
@@ -498,21 +668,61 @@ export function BranchBookingsPage() {
       <PageHeader title="Service Bookings" />
       <DataTable
         columns={[
+          { key: 'customer', header: 'Customer', render: (r) => bookingRowCustomer(r) },
+          { key: 'notes', header: 'Notes', render: (r) => String(r.notes ?? '—').slice(0, 40) },
           { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '—' },
-          { key: 'date', header: 'Date', render: (r) => String(r.date).slice(0, 10) },
-          { key: 'time', header: 'Time' },
+          {
+            key: 'appointment',
+            header: 'Visit Schedule',
+            render: (r) => {
+              if (r.date && r.confirmedTime) {
+                return `${formatDate(String(r.date))} at ${formatTime(String(r.confirmedTime))}`;
+              }
+              if (r.confirmedTime) return formatTime(String(r.confirmedTime));
+              return '—';
+            },
+          },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setEdit(r)} /> },
         ]}
         data={bookings}
       />
-      <Modal open={!!edit} onClose={() => setEdit(null)} title="Update Booking">
-        <form onSubmit={updateStatus} className="space-y-4">
-          <Select name="status" label="Status" defaultValue={String(edit?.status ?? 'PENDING')}>
-            {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <FormActions onCancel={() => setEdit(null)} loading={saving} />
-        </form>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="Update Booking" size="lg">
+        {edit && (
+          <form onSubmit={updateStatus} className="space-y-4">
+            <p className="text-sm"><span className="text-text-muted">Customer:</span> {bookingRowCustomer(edit)}</p>
+            {edit.notes ? (
+              <p className="rounded-lg bg-surface-alt p-3 text-sm"><span className="text-text-muted">Notes:</span> {String(edit.notes)}</p>
+            ) : null}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Visit Date"
+                name="date"
+                type="date"
+                defaultValue={edit.date ? String(edit.date).slice(0, 10) : ''}
+              />
+              <Input
+                label="Visit Time"
+                name="confirmedTime"
+                type="time"
+                defaultValue={String(edit.confirmedTime ?? '')}
+              />
+            </div>
+            <p className="text-xs text-text-muted -mt-2">
+              Set when the customer should come to the branch. Required when status is Confirmed.
+            </p>
+            <Select name="status" label="Status" value={statusValue} onChange={(e) => setStatusValue(e.target.value)}>
+              {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </Select>
+            <Select name="serviceId" label="Service" defaultValue={String((edit.service as { id?: number })?.id ?? (edit as Row).serviceId ?? '')}>
+              <option value="">Assign later</option>
+              {services.map((s) => (
+                <option key={String(s.id)} value={String(s.id)}>{String(s.name)}</option>
+              ))}
+            </Select>
+            <FormActions onCancel={() => setEdit(null)} loading={saving} />
+          </form>
+        )}
       </Modal>
     </div>
   );
@@ -1015,12 +1225,63 @@ export function BranchReportsPage() {
 // ─── Payments ────────────────────────────────────────────────────────────────
 
 export function BranchPaymentsPage() {
+  const branchId = useBranchId();
   const { toast } = useToast();
+  const [channels, setChannels] = useState<Row[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
+  const [channelModal, setChannelModal] = useState<'create' | 'edit' | null>(null);
+  const [editChannel, setEditChannel] = useState<Row | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const reloadChannels = useCallback(() => {
+    if (!branchId) return;
+    branchApi.paymentChannels(branchId).then((r) => setChannels(r as unknown as Row[])).catch(console.error);
+  }, [branchId]);
 
   useEffect(() => {
     branchApi.pendingPayments().then((r) => setOrders(r as unknown as Row[])).catch(console.error);
   }, []);
+
+  useEffect(() => { reloadChannels(); }, [reloadChannels]);
+
+  async function handleChannelSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!branchId) return;
+    const fd = new FormData(e.currentTarget);
+    const body = {
+      type: String(fd.get('type')) as 'BANK' | 'WALLET',
+      name: String(fd.get('name')),
+      accountTitle: String(fd.get('accountTitle') || '') || undefined,
+      accountNumber: String(fd.get('accountNumber')),
+    };
+    setSaving(true);
+    try {
+      if (channelModal === 'edit' && editChannel) {
+        await branchApi.updatePaymentChannel(branchId, Number(editChannel.id), body);
+        toast('Payment channel updated', 'success');
+      } else {
+        await branchApi.createPaymentChannel(branchId, body);
+        toast('Payment channel added', 'success');
+      }
+      setChannelModal(null);
+      reloadChannels();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteChannel(id: number) {
+    if (!branchId || !confirm('Remove this payment channel?')) return;
+    try {
+      await branchApi.deletePaymentChannel(branchId, id);
+      toast('Removed', 'success');
+      reloadChannels();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    }
+  }
 
   async function handleApprove(id: number, approved: boolean) {
     try {
@@ -1033,26 +1294,74 @@ export function BranchPaymentsPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="Pending Payments" subtitle="Approve bank transfer orders" />
-      <DataTable
-        columns={[
-          { key: 'trackingId', header: 'Tracking' },
-          { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
-          {
-            key: 'actions',
-            header: 'Actions',
-            render: (r) => (
-              <div className="flex gap-2">
-                <Button size="sm" variant="accent" onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
-                <Button size="sm" variant="danger" onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
-              </div>
-            ),
-          },
-        ]}
-        data={orders}
-        emptyMessage="No pending payments"
-      />
+    <div className="space-y-10">
+      <div>
+        <PageHeader
+          title="Payment Channels"
+          subtitle="Bank accounts & wallets shown to customers at checkout"
+          action={
+            <Button variant="accent" onClick={() => { setEditChannel(null); setChannelModal('create'); }}>
+              Add Payment Channel
+            </Button>
+          }
+        />
+        <DataTable
+          columns={[
+            { key: 'type', header: 'Type', render: (r) => String(r.type) },
+            { key: 'name', header: 'Name' },
+            { key: 'accountTitle', header: 'Account Title', render: (r) => String(r.accountTitle ?? '—') },
+            { key: 'accountNumber', header: 'Account / Number', render: (r) => <span className="font-mono text-xs">{String(r.accountNumber)}</span> },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <RowActions
+                  onEdit={() => { setEditChannel(r); setChannelModal('edit'); }}
+                  onDelete={() => handleDeleteChannel(Number(r.id))}
+                />
+              ),
+            },
+          ]}
+          data={channels}
+          emptyMessage="No payment channels — add one for online checkout"
+        />
+      </div>
+
+      <div>
+        <PageHeader title="Pending Payments" subtitle="Approve bank transfer orders" />
+        <DataTable
+          columns={[
+            { key: 'trackingId', header: 'Tracking' },
+            { key: 'paymentTransactionId', header: 'TID', render: (r) => String(r.paymentTransactionId ?? '—') },
+            { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
+            {
+              key: 'actions',
+              header: 'Actions',
+              render: (r) => (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="accent" onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
+                  <Button size="sm" variant="danger" onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
+                </div>
+              ),
+            },
+          ]}
+          data={orders}
+          emptyMessage="No pending payments"
+        />
+      </div>
+
+      <Modal open={!!channelModal} onClose={() => setChannelModal(null)} title={channelModal === 'edit' ? 'Edit Payment Channel' : 'Add Payment Channel'}>
+        <form onSubmit={handleChannelSubmit} className="space-y-4">
+          <Select name="type" label="Type" defaultValue={String(editChannel?.type ?? 'BANK')} required>
+            <option value="BANK">Bank</option>
+            <option value="WALLET">Wallet (JazzCash, Easypaisa, etc.)</option>
+          </Select>
+          <Input name="name" label="Bank / Wallet Name" required placeholder="e.g. HBL, JazzCash" defaultValue={String(editChannel?.name ?? '')} />
+          <Input name="accountTitle" label="Account Title" placeholder="Account holder name" defaultValue={String(editChannel?.accountTitle ?? '')} />
+          <Input name="accountNumber" label="Account / Wallet Number" required defaultValue={String(editChannel?.accountNumber ?? '')} />
+          <FormActions onCancel={() => setChannelModal(null)} loading={saving} />
+        </form>
+      </Modal>
     </div>
   );
 }

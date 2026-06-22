@@ -1,5 +1,6 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { resolvePostAuthRedirect } from '../lib/authRedirect';
 import type { Role } from '../types';
 
 export function ProtectedRoute({ roles }: { roles?: Role[] }) {
@@ -24,15 +25,13 @@ export function ProtectedRoute({ roles }: { roles?: Role[] }) {
 
 export function GuestRoute() {
   const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+
   if (loading) return null;
+
   if (user) {
-    const dest =
-      user.role === 'ADMIN'
-        ? '/admin'
-        : user.role === 'BRANCH_OWNER'
-          ? '/branch'
-          : '/customer';
-    return <Navigate to={dest} replace />;
+    return <Navigate to={resolvePostAuthRedirect(searchParams.get('redirect'), user.role)} replace />;
   }
+
   return <Outlet />;
 }

@@ -35,24 +35,88 @@ export interface Branch {
   description?: string | null;
 }
 
+export interface PaymentChannel {
+  id: number;
+  type: 'BANK' | 'WALLET';
+  name: string;
+  accountTitle?: string | null;
+  accountNumber: string;
+  isActive?: boolean;
+}
+
+export interface OrderItem {
+  id?: number;
+  productId: string;
+  quantity: number;
+  unitPrice: string;
+  total: string;
+  color?: string;
+  chassisNumber?: string;
+  product?: { name: string; type: 'BIKE' | 'PART'; images?: { url: string }[] };
+}
+
 export interface Order {
   id: number;
+  publicId?: string;
   trackingId: string;
-  status: string;
+  cargoTrackingId?: string;
+  branchId?: number;
+  userId?: string;
+  type: 'ONLINE' | 'POS';
+  status: 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
+  paymentMethod: 'CASH' | 'BANK_TRANSFER';
+  paymentStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  bankTransferScreenshot?: string;
+  paymentTransactionId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  subtotal?: string;
   total: string;
-  paymentMethod: string;
-  paymentStatus: string;
-  type: string;
+  notes?: string;
   createdAt: string;
-  branch?: { name: string };
-  items?: { product: { name: string }; quantity: number; unitPrice: string }[];
+  updatedAt?: string;
+  branch?: { id?: number; name: string; location?: string; phone?: string; whatsapp?: string };
+  user?: { firstName: string; lastName: string; email: string; phone?: string };
+  walkInCustomer?: { name: string; cnic?: string; phone?: string; address?: string };
+  items?: OrderItem[];
+}
+
+export interface InvoiceData {
+  invoiceAvailable: boolean;
+  invoiceType: 'SALE';
+  currency: 'PKR';
+  invoiceNumber: string;
+  trackingId: string;
+  cargoTrackingId?: string;
+  date: string;
+  deliveredAt?: string;
+  branch: { name: string; location: string; phone: string; whatsapp?: string | null };
+  customer: { name: string; email?: string; phone?: string; address?: string };
+  items: {
+    name: string;
+    type: 'BIKE' | 'PART';
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    color?: string;
+    chassisNumber?: string;
+  }[];
+  subtotal: number;
+  total: number;
+  paymentMethod: 'CASH' | 'BANK_TRANSFER';
+  paymentStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
+  status: 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
+  notes?: string;
 }
 
 export interface Booking {
   id: number;
   status: string;
-  date: string;
-  time: string;
+  date?: string | null;
+  time?: string | null;
+  confirmedTime?: string | null;
+  notes?: string;
   service?: { name: string; basePrice: string };
   branch?: { name: string };
 }

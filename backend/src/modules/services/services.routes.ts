@@ -138,12 +138,9 @@ bookingsRouter.post(
   validateBody(
     z.object({
       branchId: z.number().int(),
-      serviceId: z.number().int(),
+      notes: z.string().optional(),
       customerName: z.string().optional(),
       customerPhone: z.string().optional(),
-      date: z.string(),
-      time: z.string(),
-      notes: z.string().optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -160,6 +157,9 @@ bookingsRouter.patch(
     z.object({
       branchId: z.number().int(),
       status: z.nativeEnum(BookingStatus),
+      confirmedTime: z.string().optional(),
+      date: z.string().optional(),
+      serviceId: z.number().int().optional(),
       parts: z.array(z.object({ partId: z.number().int(), quantity: z.number().int().positive() })).optional(),
     })
   ),
@@ -172,7 +172,10 @@ bookingsRouter.patch(
       parseInt(param(req.params.id), 10),
       req.body.branchId,
       req.body.status,
-      req.body.parts
+      req.body.parts,
+      req.body.confirmedTime,
+      req.body.date,
+      req.body.serviceId
     );
     res.json(booking);
   })

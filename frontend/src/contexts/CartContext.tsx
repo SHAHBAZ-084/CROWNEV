@@ -7,6 +7,7 @@ export interface CartItem {
   quantity: number;
   color?: string;
   imageUrl?: string;
+  productType?: 'BIKE' | 'PART';
 }
 
 interface CartContextValue {

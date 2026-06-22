@@ -39,6 +39,7 @@ export default function ProductDetailPage() {
       price,
       color: color || undefined,
       imageUrl: image,
+      productType: product!.type,
     }, qty);
     toast('Added to cart!', 'success');
   }

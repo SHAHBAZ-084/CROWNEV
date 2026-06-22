@@ -73,26 +73,20 @@ export async function listBookings(query: {
 
 export async function createBooking(data: {
   branchId: number;
-  serviceId: number;
   userId?: string;
   customerName?: string;
   customerPhone?: string;
-  date: string;
-  time: string;
   notes?: string;
 }) {
   return prisma.serviceBooking.create({
     data: {
       branchId: data.branchId,
-      serviceId: data.serviceId,
       userId: data.userId,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
-      date: new Date(data.date),
-      time: data.time,
       notes: data.notes,
     },
-    include: { service: true },
+    include: { service: true, branch: true },
   });
 }
 
@@ -100,7 +94,10 @@ export async function updateBookingStatus(
   id: number,
   branchId: number,
   status: BookingStatus,
-  parts?: { partId: number; quantity: number }[]
+  parts?: { partId: number; quantity: number }[],
+  confirmedTime?: string,
+  date?: string,
+  serviceId?: number
 ) {
   const booking = await prisma.serviceBooking.findFirst({ where: { id, branchId } });
   if (!booking) throw new AppError(404, 'Booking not found');
@@ -114,7 +111,12 @@ export async function updateBookingStatus(
 
   return prisma.serviceBooking.update({
     where: { id },
-    data: { status },
+    data: {
+      status,
+      ...(confirmedTime !== undefined && { confirmedTime }),
+      ...(date !== undefined && { date: new Date(date) }),
+      ...(serviceId !== undefined && { serviceId }),
+    },
     include: { service: true, parts: { include: { part: true } } },
   });
 }
@@ -165,23 +167,26 @@ export async function getBookingReceipt(id: number, branchId?: number) {
     bookingId: booking.id,
     date: booking.date,
     time: booking.time,
+    confirmedTime: booking.confirmedTime ?? null,
     status: booking.status,
     branch: booking.branch,
     customer: booking.user
       ? { name: `${booking.user.firstName} ${booking.user.lastName}`, phone: booking.user.phone }
       : { name: booking.customerName, phone: booking.customerPhone },
-    service: {
-      name: booking.service.name,
-      basePrice: booking.service.basePrice,
-      duration: booking.service.duration,
-    },
+    service: booking.service
+      ? {
+          name: booking.service.name,
+          basePrice: booking.service.basePrice,
+          duration: booking.service.duration,
+        }
+      : { name: 'Service request', basePrice: 0, duration: 0 },
     parts: booking.parts.map((p) => ({
       name: p.part.name,
       quantity: p.quantity,
       unitCost: p.part.costPrice,
     })),
-    serviceTotal: booking.service.basePrice,
+    serviceTotal: booking.service?.basePrice ?? 0,
     partsTotal,
-    grandTotal: Number(booking.service.basePrice) + partsTotal,
+    grandTotal: Number(booking.service?.basePrice ?? 0) + partsTotal,
   };
 }

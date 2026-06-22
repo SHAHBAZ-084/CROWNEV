@@ -13,7 +13,7 @@ import type { User } from '../types';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token, user: u } = await authApi.login(email, password);
     setToken(token);
     setUser(u);
+    return u;
   }, []);
 
   const logout = useCallback(() => {

@@ -23,3 +23,21 @@ export const productImageUpload = multer({
     else cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'));
   },
 });
+
+const paymentsDir = path.resolve(env.uploadDir, 'payments');
+fs.mkdirSync(paymentsDir, { recursive: true });
+
+export const paymentScreenshotUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, paymentsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: env.maxFileSizeMb * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (allowedMimes.has(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});

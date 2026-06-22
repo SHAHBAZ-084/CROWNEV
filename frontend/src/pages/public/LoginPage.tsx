@@ -1,7 +1,8 @@
 import { type FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { getRegisterUrl, resolvePostAuthRedirect } from '../../lib/authRedirect';
 import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -9,6 +10,8 @@ import { Input } from '../../components/ui/Input';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,8 +22,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/');
+      const user = await login(email, password);
+      navigate(resolvePostAuthRedirect(redirectTo, user.role), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -50,7 +53,7 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center text-sm text-text-muted space-y-2">
           <p><Link to="/forgot-password" className="text-brand-light hover:underline">Forgot password?</Link></p>
-          <p>No account? <Link to="/register" className="text-brand-light font-medium">Register</Link></p>
+          <p>No account? <Link to={getRegisterUrl(redirectTo ?? undefined)} className="text-brand-light font-medium">Register</Link></p>
         </div>
       </motion.div>
     </div>

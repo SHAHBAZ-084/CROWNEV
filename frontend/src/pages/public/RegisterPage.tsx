@@ -1,8 +1,9 @@
 import { type FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { authApi, setToken } from '../../api/client';
+import { getLoginUrl, resolvePostAuthRedirect } from '../../lib/authRedirect';
 import { PAKISTAN_CITIES } from '../../lib/constants';
 import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +12,8 @@ import { Input, Select } from '../../components/ui/Input';
 export default function RegisterPage() {
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const [step, setStep] = useState<'register' | 'otp'>('register');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -52,7 +55,7 @@ export default function RegisterPage() {
       const { token, user } = await authApi.verifyOtp(email, otp);
       setToken(token);
       setUser(user);
-      navigate('/customer');
+      navigate(resolvePostAuthRedirect(redirectTo, user.role), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid OTP');
     }
@@ -103,7 +106,7 @@ export default function RegisterPage() {
               <Button type="submit" variant="accent" className="w-full">Register</Button>
             </form>
             <p className="mt-4 text-center text-sm text-text-muted">
-              Already have an account? <Link to="/login" className="text-brand-light font-medium">Sign in</Link>
+              Already have an account? <Link to={redirectTo ? getLoginUrl(redirectTo) : '/login'} className="text-brand-light font-medium">Sign in</Link>
             </p>
           </>
         )}

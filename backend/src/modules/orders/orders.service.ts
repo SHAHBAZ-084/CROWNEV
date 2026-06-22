@@ -38,9 +38,9 @@ export async function listOrders(query: {
       take: limit,
       include: {
         items: { include: { product: { select: { name: true, type: true } } } },
-        user: { select: { firstName: true, lastName: true, email: true } },
-        walkInCustomer: { select: { name: true, cnic: true } },
-        branch: { select: { name: true } },
+        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+        walkInCustomer: { select: { name: true, cnic: true, phone: true } },
+        branch: { select: { name: true, location: true, phone: true } },
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -80,32 +80,79 @@ export async function getOrder(id: number, branchId?: number) {
   return order;
 }
 
-export async function getOrderInvoice(id: number, branchId?: number) {
-  const order = await getOrder(id, branchId);
+export async function getOrderInvoice(id: number, userId?: string, branchId?: number) {
+  const order = await prisma.order.findFirst({
+    where: { id, ...(branchId && { branchId }) },
+    include: {
+      items: {
+        include: {
+          product: {
+            include: { images: { where: { isPrimary: true }, take: 1 } },
+          },
+        },
+      },
+      user: true,
+      walkInCustomer: true,
+      branch: true,
+    },
+  });
+  if (!order) throw new AppError(404, 'Order not found');
+
+  if (userId && order.userId !== userId) throw new AppError(403, 'Access denied');
+
+  const invoiceAvailable =
+    order.status === OrderStatus.DELIVERED ||
+    (order.status === OrderStatus.CONFIRMED && order.paymentStatus === PaymentStatus.APPROVED) ||
+    order.paymentStatus === PaymentStatus.PAID;
+
   return {
-    invoiceType: 'SALE',
-    currency: 'PKR',
-    invoiceNumber: order.publicId,
+    invoiceType: 'SALE' as const,
+    invoiceAvailable,
+    currency: 'PKR' as const,
+    invoiceNumber: `INV-${order.publicId.slice(0, 8).toUpperCase()}`,
     trackingId: order.trackingId,
+    cargoTrackingId: order.cargoTrackingId,
     date: order.createdAt,
-    branch: order.branch,
+    deliveredAt: order.updatedAt,
+    branch: {
+      name: order.branch.name,
+      location: order.branch.location,
+      phone: order.branch.phone,
+      whatsapp: order.branch.whatsapp,
+    },
     customer: order.user
-      ? { name: `${order.user.firstName} ${order.user.lastName}`, email: order.user.email }
+      ? {
+          name: `${order.user.firstName} ${order.user.lastName}`,
+          email: order.user.email,
+          phone: order.customerPhone ?? order.user.phone,
+          address: order.customerAddress,
+        }
       : order.walkInCustomer
-        ? { name: order.walkInCustomer.name, cnic: order.walkInCustomer.cnic }
-        : { name: 'Walk-in Customer' },
+        ? {
+            name: order.walkInCustomer.name,
+            phone: order.walkInCustomer.phone,
+            address: order.walkInCustomer.address,
+          }
+        : {
+            name: order.customerName ?? 'Walk-in Customer',
+            phone: order.customerPhone,
+            address: order.customerAddress,
+          },
     items: order.items.map((i) => ({
       name: i.product.name,
+      type: i.product.type,
       quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      total: i.total,
+      unitPrice: Number(i.unitPrice),
+      total: Number(i.total),
       color: i.color,
+      chassisNumber: i.chassisNumber,
     })),
-    subtotal: order.subtotal,
-    total: order.total,
+    subtotal: Number(order.subtotal),
+    total: Number(order.total),
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
     status: order.status,
+    notes: order.notes,
   };
 }
 
@@ -117,10 +164,17 @@ export async function trackOrder(trackingId: string) {
       status: true,
       type: true,
       total: true,
+      cargoTrackingId: true,
+      paymentMethod: true,
+      paymentStatus: true,
       createdAt: true,
       updatedAt: true,
       branch: { select: { name: true, location: true, phone: true } },
-      items: { include: { product: { select: { name: true } } } },
+      items: {
+        include: {
+          product: { select: { name: true, type: true } },
+        },
+      },
     },
   });
   if (!order) throw new AppError(404, 'Order not found');
@@ -129,7 +183,7 @@ export async function trackOrder(trackingId: string) {
 
 async function validateAndPriceItems(
   branchId: number,
-  items: { productId: string; quantity: number; color?: string }[]
+  items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[]
 ) {
   const productIds = items.map((i) => i.productId);
   const products = await prisma.product.findMany({
@@ -156,6 +210,7 @@ async function validateAndPriceItems(
       unitPrice,
       total: unitPrice * item.quantity,
       color: item.color,
+      chassisNumber: item.chassisNumber,
       product,
     };
   });
@@ -165,9 +220,13 @@ export async function createOnlineOrder(data: {
   userId: string;
   branchId: number;
   paymentMethod: PaymentMethod;
-  items: { productId: string; quantity: number; color?: string }[];
+  items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[];
   notes?: string;
   bankTransferScreenshot?: string;
+  paymentTransactionId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
 }) {
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
@@ -186,6 +245,10 @@ export async function createOnlineOrder(data: {
       trackingId,
       notes: data.notes,
       bankTransferScreenshot: data.bankTransferScreenshot,
+      paymentTransactionId: data.paymentTransactionId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      customerAddress: data.customerAddress,
       items: {
         create: pricedItems.map((i) => ({
           productId: i.productId,
@@ -193,10 +256,11 @@ export async function createOnlineOrder(data: {
           unitPrice: i.unitPrice,
           total: i.total,
           color: i.color,
+          chassisNumber: i.chassisNumber,
         })),
       },
     },
-    include: { items: { include: { product: true } } },
+    include: { items: { include: { product: true } }, branch: true },
   });
 }
 
@@ -333,6 +397,31 @@ export async function approvePayment(id: number, approved: boolean, branchId?: n
   }
 
   return updated;
+}
+
+export async function setCargoTracking(id: number, cargoTrackingId: string, branchId?: number) {
+  const order = await getOrder(id, branchId);
+  if (order.status !== OrderStatus.CONFIRMED) {
+    throw new AppError(400, 'Can only set cargo tracking on confirmed orders');
+  }
+
+  const paymentOk =
+    order.paymentStatus === PaymentStatus.APPROVED ||
+    order.paymentStatus === PaymentStatus.PAID;
+
+  return prisma.order.update({
+    where: { id },
+    data: {
+      cargoTrackingId,
+      status: OrderStatus.DELIVERED,
+      invoiceGeneratedAt: paymentOk ? new Date() : undefined,
+    },
+    include: {
+      items: { include: { product: true } },
+      user: true,
+      branch: true,
+    },
+  });
 }
 
 export async function createWalkInCustomer(data: {

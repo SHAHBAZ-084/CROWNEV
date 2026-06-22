@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { Role } from '@prisma/client';
+import { PaymentChannelType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
 import * as branchesService from './branches.service.js';
+import * as paymentChannelsService from './payment-channels.service.js';
 
 export const branchesRouter = Router();
 
@@ -12,6 +13,15 @@ branchesRouter.get(
   asyncHandler(async (_req, res) => {
     const branches = await branchesService.listBranches(true);
     res.json(branches);
+  })
+);
+
+branchesRouter.get(
+  '/public/:branchId/payment-channels',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    const channels = await paymentChannelsService.listPublicPaymentChannels(branchId);
+    res.json(channels);
   })
 );
 
@@ -141,6 +151,80 @@ branchesRouter.delete(
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     await branchesService.removeStaff(parseInt(param(req.params.id), 10), param(req.params.userId));
+    res.status(204).send();
+  })
+);
+
+const paymentChannelBody = z.object({
+  type: z.nativeEnum(PaymentChannelType),
+  name: z.string().min(1),
+  accountTitle: z.string().optional(),
+  accountNumber: z.string().min(1),
+});
+
+branchesRouter.get(
+  '/:branchId/payment-channels',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const channels = await paymentChannelsService.listPaymentChannels(branchId);
+    res.json(channels);
+  })
+);
+
+branchesRouter.post(
+  '/:branchId/payment-channels',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(paymentChannelBody),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const channel = await paymentChannelsService.createPaymentChannel(branchId, req.body);
+    res.status(201).json(channel);
+  })
+);
+
+branchesRouter.patch(
+  '/:branchId/payment-channels/:channelId',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(
+    paymentChannelBody.partial().extend({ isActive: z.boolean().optional() })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const channel = await paymentChannelsService.updatePaymentChannel(
+      branchId,
+      parseInt(param(req.params.channelId), 10),
+      req.body
+    );
+    res.json(channel);
+  })
+);
+
+branchesRouter.delete(
+  '/:branchId/payment-channels/:channelId',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    await paymentChannelsService.deletePaymentChannel(
+      branchId,
+      parseInt(param(req.params.channelId), 10)
+    );
     res.status(204).send();
   })
 );
