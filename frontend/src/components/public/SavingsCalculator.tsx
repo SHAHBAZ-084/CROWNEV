@@ -1,0 +1,310 @@
+import { useMemo, useState } from 'react';
+import { Calculator } from 'lucide-react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { formatPKR } from '../../lib/format';
+
+// ─── Tunable constants (no backend) ───────────────────────────────────────────
+
+const BRAND_NAME = 'Crown Eve';
+
+const ELECTRICITY_COST_PER_UNIT_PKR = 35;
+
+const PETROL_MAINTENANCE_MONTHLY_PKR = 1500;
+const ELECTRIC_MAINTENANCE_MONTHLY_PKR = 200;
+
+const PETROL_YEAR_MAINTENANCE_FACTOR = 0.05;
+
+const PETROL_PRICE_MIN = 100;
+const PETROL_PRICE_MAX = 700;
+const PETROL_PRICE_DEFAULT = 300;
+
+const DAILY_DISTANCE_MIN = 10;
+const DAILY_DISTANCE_MAX = 100;
+const DAILY_DISTANCE_DEFAULT = 30;
+
+const MODEL_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026] as const;
+
+const ELECTRIC_BIKE_MODELS = [
+  { id: 'pro-x1', label: 'Crown Eve Pro X1', kmPerUnit: 45 },
+  { id: 'city-s', label: 'Crown Eve City S', kmPerUnit: 50 },
+  { id: 'urban-lite', label: 'Crown Eve Urban Lite', kmPerUnit: 55 },
+  { id: 'delivery-max', label: 'Crown Eve Delivery Max', kmPerUnit: 40 },
+] as const;
+
+const PETROL_BIKE_MODELS = [
+  { id: '70cc', label: '70cc Petrol Bike', kmPerLiter: 50 },
+  { id: '100cc', label: '100cc Petrol Bike', kmPerLiter: 45 },
+  { id: '125cc', label: '125cc Petrol Bike', kmPerLiter: 40 },
+  { id: '150cc', label: '150cc Petrol Bike', kmPerLiter: 35 },
+] as const;
+
+const PETROL_CHART_COLORS = ['#E8590C', '#B34700'] as const;
+const ELECTRIC_CHART_COLORS = ['#B34700', '#E8590C', '#1E8449'] as const;
+
+const inputClass =
+  'w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-brand outline-none focus:border-accent focus:ring-1 focus:ring-accent/20';
+
+const labelClass = 'mb-1 block text-xs font-medium text-brand';
+
+function clampPetrolPrice(value: number) {
+  return Math.min(PETROL_PRICE_MAX, Math.max(PETROL_PRICE_MIN, value));
+}
+
+function pct(part: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.round((part / total) * 100);
+}
+
+type ChartRow = { name: string; value: number; color: string };
+
+function DonutChart({ data }: { data: ChartRow[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-[7.5rem] w-[7.5rem] shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={34}
+              outerRadius={48}
+              paddingAngle={2}
+              stroke="none"
+            >
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value) => formatPKR(Number(value ?? 0))}
+              contentStyle={{ borderRadius: '8px', border: '1px solid #f0c9a8', fontSize: '11px' }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <ul className="min-w-0 flex-1 space-y-1 text-xs">
+        {data.map((row) => (
+          <li key={row.name} className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5 truncate text-text-muted">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+              {row.name}
+            </span>
+            <span className="shrink-0 tabular-nums text-brand">
+              {formatPKR(row.value)} <span className="text-text-muted">({pct(row.value, total)}%)</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+export function SavingsCalculator() {
+  const [electricModelId, setElectricModelId] = useState<string>(ELECTRIC_BIKE_MODELS[0].id);
+  const [petrolModelId, setPetrolModelId] = useState<string>(PETROL_BIKE_MODELS[1].id);
+  const [petrolPrice, setPetrolPrice] = useState(PETROL_PRICE_DEFAULT);
+  const [modelYear, setModelYear] = useState<number>(2024);
+  const [dailyDistance, setDailyDistance] = useState(DAILY_DISTANCE_DEFAULT);
+
+  const results = useMemo(() => {
+    const electricBike = ELECTRIC_BIKE_MODELS.find((m) => m.id === electricModelId) ?? ELECTRIC_BIKE_MODELS[0];
+    const petrolBike = PETROL_BIKE_MODELS.find((m) => m.id === petrolModelId) ?? PETROL_BIKE_MODELS[1];
+    const price = clampPetrolPrice(petrolPrice);
+
+    const monthlyDistanceKm = dailyDistance * 30;
+    const petrolFuelMonthly = (monthlyDistanceKm / petrolBike.kmPerLiter) * price;
+    const electricityMonthly = (monthlyDistanceKm / electricBike.kmPerUnit) * ELECTRICITY_COST_PER_UNIT_PKR;
+
+    const yearAge = Math.max(0, 2026 - modelYear);
+    const petrolMaintenance =
+      PETROL_MAINTENANCE_MONTHLY_PKR * (1 + yearAge * PETROL_YEAR_MAINTENANCE_FACTOR);
+    const electricMaintenance = ELECTRIC_MAINTENANCE_MONTHLY_PKR;
+
+    const petrolMonthlyTotal = petrolFuelMonthly + petrolMaintenance;
+    const electricMonthlyTotal = electricityMonthly + electricMaintenance;
+    const fuelSavings = Math.max(0, petrolFuelMonthly - electricityMonthly);
+
+    return {
+      petrolFuelMonthly,
+      electricityMonthly,
+      petrolMonthlyTotal,
+      electricMonthlyTotal,
+      fuelSavings,
+      petrolChart: [
+        { name: 'Petrol', value: petrolFuelMonthly, color: PETROL_CHART_COLORS[0] },
+        { name: 'Maint.', value: petrolMaintenance, color: PETROL_CHART_COLORS[1] },
+      ] as ChartRow[],
+      electricChart: [
+        { name: 'Maint.', value: electricMaintenance, color: ELECTRIC_CHART_COLORS[0] },
+        { name: 'Electric', value: electricityMonthly, color: ELECTRIC_CHART_COLORS[1] },
+        { name: 'Savings', value: fuelSavings, color: ELECTRIC_CHART_COLORS[2] },
+      ] as ChartRow[],
+    };
+  }, [electricModelId, petrolModelId, petrolPrice, modelYear, dailyDistance]);
+
+  return (
+    <section className="border-y border-border bg-white py-10 lg:py-12">
+      <div className="mx-auto max-w-7xl px-4 lg:px-8">
+        <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+          {/* Inputs */}
+          <div className="rounded-[var(--radius-card)] border border-border bg-surface-alt/50 p-4 shadow-[var(--shadow-card)] lg:p-5">
+            <h2 className="font-display text-lg font-bold leading-snug text-brand lg:text-xl">
+              Calculate Your Ride &amp; Save with {BRAND_NAME}
+            </h2>
+            <p className="mt-1 text-xs text-text-muted">
+              Compare monthly petrol vs electric costs — updates instantly.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Field id="electric-model" label="Electric Bike Model">
+                <select
+                  id="electric-model"
+                  value={electricModelId}
+                  onChange={(e) => setElectricModelId(e.target.value)}
+                  className={inputClass}
+                >
+                  {ELECTRIC_BIKE_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field id="petrol-model" label="Petrol Bike Model">
+                <select
+                  id="petrol-model"
+                  value={petrolModelId}
+                  onChange={(e) => setPetrolModelId(e.target.value)}
+                  className={inputClass}
+                >
+                  {PETROL_BIKE_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field id="petrol-price" label="Petrol Price (Rs/L)">
+                <input
+                  id="petrol-price"
+                  type="number"
+                  min={PETROL_PRICE_MIN}
+                  max={PETROL_PRICE_MAX}
+                  value={petrolPrice}
+                  onChange={(e) => {
+                    const n = parseFloat(e.target.value);
+                    setPetrolPrice(Number.isFinite(n) ? clampPetrolPrice(n) : PETROL_PRICE_DEFAULT);
+                  }}
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field id="model-year" label="Bike Model Year">
+                <select
+                  id="model-year"
+                  value={modelYear}
+                  onChange={(e) => setModelYear(parseInt(e.target.value, 10))}
+                  className={inputClass}
+                >
+                  {MODEL_YEARS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <div className="sm:col-span-2">
+                <div className="mb-1 flex items-center gap-2">
+                  <label htmlFor="daily-distance" className="text-xs font-medium text-brand">
+                    Daily Distance (km)
+                  </label>
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                    {dailyDistance} km
+                  </span>
+                </div>
+                <input
+                  id="daily-distance"
+                  type="range"
+                  min={DAILY_DISTANCE_MIN}
+                  max={DAILY_DISTANCE_MAX}
+                  value={dailyDistance}
+                  onChange={(e) => setDailyDistance(parseInt(e.target.value, 10))}
+                  className="h-1.5 w-full cursor-pointer accent-accent"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-border bg-white px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Petrol / mo</p>
+                <p className="font-display text-sm font-bold tabular-nums text-brand">
+                  {formatPKR(results.petrolFuelMonthly)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-white px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Electric / mo</p>
+                <p className="font-display text-sm font-bold tabular-nums text-brand">
+                  {formatPKR(results.electricityMonthly)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Results */}
+          <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-2 bg-brand px-4 py-2.5 text-white">
+              <Calculator className="h-4 w-4" />
+              <h3 className="font-display text-sm font-bold">Savings Calculator</h3>
+            </div>
+
+            <div className="grid gap-4 p-4 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Petrol Bike</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
+                  {formatPKR(results.petrolMonthlyTotal)}/mo
+                </p>
+                <div className="mt-2">
+                  <DonutChart data={results.petrolChart} />
+                </div>
+              </div>
+
+              <div className="sm:border-l sm:border-border sm:pl-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Electric Bike</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
+                  {formatPKR(results.electricMonthlyTotal)}/mo
+                </p>
+                <p className="text-[11px] text-success">
+                  Save {formatPKR(results.fuelSavings)}/mo on fuel
+                </p>
+                <div className="mt-2">
+                  <DonutChart data={results.electricChart} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

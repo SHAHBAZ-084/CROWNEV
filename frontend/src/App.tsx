@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
+import { BranchWorkspaceLayout } from './components/layout/BranchWorkspaceLayout';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
 import { ProtectedRoute, GuestRoute } from './components/ProtectedRoute';
 import { ProductGridSkeleton } from './components/ui/Skeleton';
@@ -44,13 +45,24 @@ const BranchDashboard = lazy(() => import('./pages/branch/BranchDashboard'));
 const BranchPOS = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPOSPage');
 const BranchOrders = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchOrdersPage');
 const BranchInventory = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchInventoryPage');
+const BranchBikes = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBikesPage');
 const BranchBookings = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBookingsPage');
 const BranchServices = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchServicesPage');
-const BranchAccounting = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchAccountingPage');
 const BranchReports = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchReportsPage');
 const BranchSuppliers = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchSuppliersPage');
 const BranchPurchases = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPurchasesPage');
 const BranchPayments = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPaymentsPage');
+
+const PosReceiptVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosReceiptVoucherPage');
+const PosPaymentVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosPaymentVoucherPage');
+const PosJournalVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosJournalVoucherPage');
+const PosViewVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosViewVoucherPage');
+const PosAccounts = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountsPage');
+const PosCustomers = lazyNamed(() => import('./pages/branch/PosPages'), 'PosCustomersPage');
+const PosSaleInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosSaleInvoicePage');
+const PosPurchaseInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosPurchaseInvoicePage');
+const PosAccountLedger = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountLedgerPage');
+const PosDetailTrialBalance = lazyNamed(() => import('./pages/branch/PosPages'), 'PosDetailTrialBalancePage');
 
 const CustomerDashboard = lazyNamed(() => import('./pages/customer/CustomerPages'), 'CustomerDashboard');
 const CustomerOrders = lazyNamed(() => import('./pages/customer/CustomerPages'), 'CustomerOrdersPage');
@@ -120,17 +132,42 @@ export default function App() {
               <Route element={<ProtectedRoute roles={['BRANCH_OWNER']} />}>
                 <Route element={<DashboardLayout role="BRANCH_OWNER" />}>
                   <Route path="/branch" element={<DashWrap><BranchDashboard /></DashWrap>} />
-                  <Route path="/branch/pos" element={<DashWrap><BranchPOS /></DashWrap>} />
                   <Route path="/branch/orders" element={<DashWrap><BranchOrders /></DashWrap>} />
                   <Route path="/branch/inventory" element={<DashWrap><BranchInventory /></DashWrap>} />
+                  <Route path="/branch/bikes" element={<DashWrap><BranchBikes /></DashWrap>} />
                   <Route path="/branch/bookings" element={<DashWrap><BranchBookings /></DashWrap>} />
                   <Route path="/branch/services" element={<DashWrap><BranchServices /></DashWrap>} />
                   <Route path="/branch/suppliers" element={<DashWrap><BranchSuppliers /></DashWrap>} />
                   <Route path="/branch/purchases" element={<DashWrap><BranchPurchases /></DashWrap>} />
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
-                  <Route path="/branch/accounting" element={<DashWrap><BranchAccounting /></DashWrap>} />
                   <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
                 </Route>
+                <Route element={<BranchWorkspaceLayout />}>
+                  <Route path="/branch/workspace" element={<Navigate to="/branch/workspace/pos" replace />} />
+                  <Route path="/branch/workspace/pos" element={<DashWrap><BranchPOS /></DashWrap>} />
+                  <Route path="/branch/workspace/vouchers/receipt" element={<DashWrap><PosReceiptVoucher /></DashWrap>} />
+                  <Route path="/branch/workspace/vouchers/payment" element={<DashWrap><PosPaymentVoucher /></DashWrap>} />
+                  <Route path="/branch/workspace/vouchers/journal" element={<DashWrap><PosJournalVoucher /></DashWrap>} />
+                  <Route path="/branch/workspace/vouchers/view" element={<DashWrap><PosViewVoucher /></DashWrap>} />
+                  <Route path="/branch/workspace/accounts" element={<DashWrap><PosAccounts /></DashWrap>} />
+                  <Route path="/branch/workspace/customers" element={<DashWrap><PosCustomers /></DashWrap>} />
+                  <Route path="/branch/workspace/invoices/sale" element={<DashWrap><PosSaleInvoice /></DashWrap>} />
+                  <Route path="/branch/workspace/invoices/purchase" element={<DashWrap><PosPurchaseInvoice /></DashWrap>} />
+                  <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />
+                  <Route path="/branch/workspace/reports/trial-balance" element={<DashWrap><PosDetailTrialBalance /></DashWrap>} />
+                </Route>
+                <Route path="/branch/pos" element={<Navigate to="/branch/workspace/pos" replace />} />
+                <Route path="/branch/workspace/orders" element={<Navigate to="/branch/orders" replace />} />
+                <Route path="/branch/workspace/inventory" element={<Navigate to="/branch/inventory" replace />} />
+                <Route path="/branch/workspace/bikes" element={<Navigate to="/branch/bikes" replace />} />
+                <Route path="/branch/workspace/bookings" element={<Navigate to="/branch/bookings" replace />} />
+                <Route path="/branch/workspace/services" element={<Navigate to="/branch/services" replace />} />
+                <Route path="/branch/workspace/suppliers" element={<Navigate to="/branch/suppliers" replace />} />
+                <Route path="/branch/workspace/purchases" element={<Navigate to="/branch/purchases" replace />} />
+                <Route path="/branch/workspace/payments" element={<Navigate to="/branch/payments" replace />} />
+                <Route path="/branch/workspace/reports" element={<Navigate to="/branch/reports" replace />} />
+                <Route path="/branch/workspace/accounting" element={<Navigate to="/branch" replace />} />
+                <Route path="/branch/accounting" element={<Navigate to="/branch" replace />} />
               </Route>
 
               <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>

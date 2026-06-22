@@ -216,6 +216,18 @@ walkInRouter.patch(
   })
 );
 
+walkInRouter.delete(
+  '/:branchId/customers/:id',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    const customer = await ordersService.softDeleteWalkInCustomer(
+      parseInt(param(req.params.id), 10),
+      branchId,
+    );
+    res.json(customer);
+  })
+);
+
 walkInRouter.get(
   '/:branchId/customers/:id/ledger',
   asyncHandler(async (req, res) => {

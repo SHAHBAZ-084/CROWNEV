@@ -5,6 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { customerApi, publicApi } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
+import { PageHero } from '../../components/public/PageHero';
 
 export default function BookServicePage() {
   const { user } = useAuth();
@@ -48,37 +49,42 @@ export default function BookServicePage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12 lg:px-8">
-      <h1 className="font-display text-3xl font-bold text-brand">Book a Service</h1>
-      <p className="mt-2 text-text-muted">Maintenance, repair, or installation at your nearest branch</p>
+    <div>
+      <PageHero
+        page="bookService"
+        title="Book a Service"
+        subtitle="Maintenance, repair, or installation at your nearest branch"
+      />
 
-      {!user && (
-        <div className="mt-6 rounded-xl bg-surface-alt p-4 text-sm text-text-muted">
-          Please <a href="/login" className="text-brand-light font-medium">sign in</a> to book a service.
-        </div>
-      )}
+      <div className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
+        {!user && (
+          <div className="mb-6 rounded-xl border border-border bg-surface-alt p-4 text-sm text-text-muted">
+            Please <a href="/login" className="text-brand-light font-medium">sign in</a> to book a service.
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        <Select label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} required>
-          <option value="">Select branch</option>
-          {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </Select>
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+          <Select label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} required>
+            <option value="">Select branch</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </Select>
 
-        <Select label="Service" name="serviceId" required disabled={!branchId}>
-          <option value="">Select service</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>{s.name} — PKR {Number(s.basePrice).toLocaleString()} ({s.duration} min)</option>
-          ))}
-        </Select>
+          <Select label="Service" name="serviceId" required disabled={!branchId}>
+            <option value="">Select service</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} — PKR {Number(s.basePrice).toLocaleString()} ({s.duration} min)</option>
+            ))}
+          </Select>
 
-        <Input label="Date" name="date" type="date" required />
-        <Input label="Time" name="time" type="time" required />
-        <Textarea label="Notes (optional)" name="notes" rows={3} />
+          <Input label="Date" name="date" type="date" required />
+          <Input label="Time" name="time" type="time" required />
+          <Textarea label="Notes (optional)" name="notes" rows={3} />
 
-        <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user}>
-          Book Appointment
-        </Button>
-      </form>
+          <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user}>
+            Book Appointment
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

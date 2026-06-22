@@ -9,6 +9,7 @@ import type { Product } from '../../types';
 import { formatPKR } from '../../lib/format';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { EvSpecsGrid } from '../../components/public/EvSpecsGrid';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 
 export default function ProductDetailPage() {
@@ -103,15 +104,7 @@ export default function ProductDetailPage() {
 
           {specs && Object.keys(specs).length > 0 && (
             <div className="mt-10">
-              <h2 className="font-display text-lg font-semibold text-brand mb-4">EV Specifications</h2>
-              <dl className="grid grid-cols-2 gap-3">
-                {Object.entries(specs).map(([k, v]) => (
-                  <div key={k} className="rounded-xl bg-surface-alt px-4 py-3">
-                    <dt className="text-xs text-text-muted capitalize">{k}</dt>
-                    <dd className="font-medium text-brand">{v}</dd>
-                  </div>
-                ))}
-              </dl>
+              <EvSpecsGrid specs={specs} />
             </div>
           )}
         </motion.div>

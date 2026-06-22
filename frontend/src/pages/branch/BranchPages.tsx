@@ -1,16 +1,26 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { branchApi, publicApi } from '../../api/client';
+import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
-import type { Product } from '../../types';
+import { Receipt, ShoppingCart, Users } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
-import { FormActions, RowActions } from '../../components/crud/CrudHelpers';
-import { formatPKR } from '../../lib/format';
-import { ProductGridSkeleton } from '../../components/ui/Skeleton';
+import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
+import {
+  clearPendingImages,
+  primaryFromImages,
+  ProductImageUpload,
+  type ExistingImage,
+  type PendingImage,
+  type PrimarySelection,
+} from '../../components/crud/ProductImageUpload';
+import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
+import { parseEvSpecsFromForm } from '../../lib/evSpecs';
+import { formatPKR, formatLedgerBalance } from '../../lib/format';
+import { StatCard } from '../../components/ui/StatCard';
 
 type Row = Record<string, unknown>;
 
@@ -25,79 +35,57 @@ function useBranchId() {
 
 // ─── POS ─────────────────────────────────────────────────────────────────────
 
+function isToday(date: string | Date) {
+  const d = new Date(date);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
+}
+
 export function BranchPOSPage() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<{ productId: string; name: string; price: number; qty: number }[]>([]);
-  const [loading, setLoading] = useState(false);
+  const branchId = useBranchId();
+  const [todayVouchers, setTodayVouchers] = useState(0);
+  const [todayCustomers, setTodayCustomers] = useState(0);
+  const [todaySales, setTodaySales] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    publicApi.shop().then((r) => setProducts(r.data)).catch(console.error);
-  }, []);
-
-  function addToCart(p: Product) {
-    const price = Number(p.salePrice ?? p.price);
-    setCart((c) => {
-      const existing = c.find((i) => i.productId === p.id);
-      if (existing) return c.map((i) => i.productId === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...c, { productId: p.id, name: p.name, price, qty: 1 }];
-    });
-  }
-
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-
-  async function completeSale() {
-    if (!user?.branchId || cart.length === 0) return;
+    if (!branchId) return;
     setLoading(true);
-    try {
-      const order = await branchApi.posOrder({
-        branchId: user.branchId,
-        paymentMethod: 'CASH',
-        items: cart.map((i) => ({ productId: i.productId, quantity: i.qty })),
-        isPaid: true,
-      });
-      setCart([]);
-      toast(`Sale complete! ${order.trackingId}`, 'success');
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'POS failed', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
+    Promise.all([
+      branchApi.vouchers(branchId),
+      branchApi.walkInCustomers(branchId),
+      branchApi.orders({ limit: '500' }),
+    ])
+      .then(([vouchers, customersRes, ordersRes]) => {
+        setTodayVouchers((vouchers as Row[]).filter((v) => isToday(String(v.createdAt)) && v.status !== 'CANCELLED').length);
+        setTodayCustomers((customersRes.data as Row[]).filter((c) => isToday(String(c.createdAt))).length);
+        const salesToday = (ordersRes.data as Row[]).filter(
+          (o) => isToday(String(o.createdAt)) && o.status !== 'CANCELLED',
+        );
+        setTodaySales(salesToday.reduce((sum, o) => sum + Number(o.total ?? 0), 0));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [branchId]);
 
   return (
     <div>
-      <PageHeader title="Point of Sale" subtitle="Create walk-in counter orders" />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {products.length === 0 ? <ProductGridSkeleton count={6} /> : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {products.map((p) => (
-                <button key={p.id} type="button" onClick={() => addToCart(p)} className="rounded-xl border border-border bg-white p-4 text-left shadow-sm hover:shadow-md transition-shadow">
-                  <p className="font-medium text-brand text-sm">{p.name}</p>
-                  <p className="text-brand-light font-semibold mt-1">{formatPKR(Number(p.salePrice ?? p.price))}</p>
-                </button>
-              ))}
-            </div>
-          )}
+      <PageHeader title="Point of Sale" subtitle="Today's activity at a glance" />
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-36 animate-pulse rounded-[var(--radius-card)] border border-border bg-white" />
+          ))}
         </div>
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)] h-fit sticky top-8">
-          <h3 className="font-display font-semibold text-brand">Current Sale</h3>
-          <ul className="mt-4 space-y-2 max-h-64 overflow-y-auto">
-            {cart.map((i) => (
-              <li key={i.productId} className="flex justify-between text-sm">
-                <span>{i.name} ×{i.qty}</span>
-                <span>{formatPKR(i.price * i.qty)}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 border-t border-border pt-4 font-display text-xl font-bold text-brand">{formatPKR(total)}</p>
-          <Button variant="accent" className="w-full mt-4" size="lg" onClick={completeSale} loading={loading} disabled={cart.length === 0}>
-            Complete Sale
-          </Button>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard label="Today Vouchers" value={todayVouchers} icon={Receipt} />
+          <StatCard label="Today Customers" value={todayCustomers} icon={Users} />
+          <StatCard label="Today Sales" value={todaySales} icon={ShoppingCart} prefix="PKR " />
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -227,6 +215,244 @@ export function BranchInventoryPage() {
           </Select>
           <Input name="notes" label="Notes" />
           <FormActions onCancel={() => setEditItem(null)} loading={saving} />
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── Bikes Catalog ───────────────────────────────────────────────────────────
+
+function parseBikeFormPrice(value: FormDataEntryValue | null, label: string): number {
+  const raw = String(value ?? '').trim();
+  if (!raw) throw new Error(`${label} is required`);
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n) || n <= 0 || n >= 10_000_000_000) {
+    throw new Error(`${label} must be a valid amount under 10 billion PKR`);
+  }
+  return n;
+}
+
+function parseOptionalBikePrice(value: FormDataEntryValue | null, label: string): number | undefined {
+  const raw = String(value ?? '').trim();
+  if (!raw) return undefined;
+  return parseBikeFormPrice(value, label);
+}
+
+export function BranchBikesPage() {
+  const { toast } = useToast();
+  const [bikes, setBikes] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<'create' | 'edit' | null>(null);
+  const [edit, setEdit] = useState<Row | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
+  const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    adminApi
+      .products({ type: 'BIKE' })
+      .then((r) => setBikes(r.data as unknown as Row[]))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  function resetImageState() {
+    setPendingImages((prev) => {
+      clearPendingImages(prev);
+      return [];
+    });
+    setExistingImages([]);
+    setPrimarySelection(null);
+  }
+
+  function closeModal() {
+    resetImageState();
+    setModal(null);
+    setEdit(null);
+  }
+
+  function openCreate() {
+    resetImageState();
+    setEdit(null);
+    setModal('create');
+  }
+
+  function openEdit(row: Row) {
+    resetImageState();
+    const imgs = (row.images as ExistingImage[] | undefined) ?? [];
+    setExistingImages(imgs);
+    setPrimarySelection(primaryFromImages(imgs, []));
+    setEdit(row);
+    setModal('edit');
+  }
+
+  async function removeExistingImage(imageId: number) {
+    if (!edit) return;
+    try {
+      await adminApi.deleteProductImage(String(edit.id), imageId);
+      const next = existingImages.filter((i) => i.id !== imageId);
+      setExistingImages(next);
+      if (primarySelection?.type === 'existing' && primarySelection.id === imageId) {
+        setPrimarySelection(primaryFromImages(next, pendingImages));
+      }
+      toast('Image removed', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to remove image', 'error');
+    }
+  }
+
+  async function attachImages(
+    productId: string,
+    files: PendingImage[],
+    existingCount: number,
+    primary: PrimarySelection | null,
+  ) {
+    if (!files.length) return;
+    const { urls } = await adminApi.uploadProductImages(files.map((f) => f.file));
+    const pendingPrimaryId = primary?.type === 'pending' ? primary.id : null;
+    for (let i = 0; i < urls.length; i++) {
+      const pendingId = files[i].id;
+      const isPrimary = pendingPrimaryId === pendingId;
+      await adminApi.addProductImage(productId, urls[i], isPrimary, existingCount + i);
+    }
+  }
+
+  async function applyPrimarySelection(productId: string, primary: PrimarySelection | null) {
+    if (!primary || primary.type !== 'existing') return;
+    await adminApi.setProductImagePrimary(productId, primary.id);
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    let body: Record<string, unknown>;
+    try {
+      const salePrice = parseOptionalBikePrice(fd.get('salePrice'), 'Sale price');
+      body = {
+        name: String(fd.get('name')).trim(),
+        type: 'BIKE',
+        price: parseBikeFormPrice(fd.get('price'), 'Price'),
+        description: String(fd.get('description') || '').trim() || undefined,
+        specs: parseEvSpecsFromForm(fd),
+        ...(salePrice !== undefined && { salePrice }),
+        ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
+      };
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Invalid form values', 'error');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let productId = edit ? String(edit.id) : '';
+      if (modal === 'edit' && edit) {
+        await adminApi.updateProduct(String(edit.id), body);
+      } else {
+        const created = await adminApi.createProduct(body);
+        productId = String(created.id);
+      }
+      const existingCount = modal === 'edit' ? existingImages.length : 0;
+      if (pendingImages.length) {
+        await attachImages(productId, pendingImages, existingCount, primarySelection);
+      }
+      if (primarySelection?.type === 'existing') {
+        await applyPrimarySelection(productId, primarySelection);
+      }
+      toast(modal === 'edit' ? 'Bike updated' : 'Bike added', 'success');
+      closeModal();
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Bikes Catalog"
+        subtitle="Add electric bikes with EV specifications for your branch"
+        action={<Button variant="accent" onClick={openCreate}>Add Bike</Button>}
+      />
+
+      {loading ? (
+        <ProductGridSkeleton count={4} />
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: 'image',
+              header: 'Image',
+              render: (r) => {
+                const imgs = r.images as { url: string; isPrimary?: boolean }[] | undefined;
+                const url = imgs?.find((i) => i.isPrimary)?.url ?? imgs?.[0]?.url;
+                return url ? (
+                  <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                ) : (
+                  <span className="text-xs text-text-muted">—</span>
+                );
+              },
+            },
+            { key: 'name', header: 'Name' },
+            { key: 'price', header: 'Price', render: (r) => formatPKR(Number(r.price)) },
+            {
+              key: 'specs',
+              header: 'Specs',
+              render: (r) => {
+                const specs = r.specs as Record<string, string> | null;
+                const count = specs ? Object.keys(specs).length : 0;
+                return count ? `${count} fields` : '—';
+              },
+            },
+            { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
+            { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => openEdit(r)} /> },
+          ]}
+          data={bikes}
+          emptyMessage="No bikes yet — add your first electric bike"
+        />
+      )}
+
+      <Modal
+        open={!!modal}
+        onClose={closeModal}
+        title={modal === 'edit' ? 'Edit Bike' : 'New Bike'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="space-y-4">
+            <ProductImageUpload
+              pending={pendingImages}
+              existing={existingImages}
+              primary={primarySelection}
+              onPendingChange={setPendingImages}
+              onPrimaryChange={setPrimarySelection}
+              onRemoveExisting={modal === 'edit' ? removeExistingImage : undefined}
+            />
+            <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input name="price" label="Price (PKR)" type="number" step="0.01" required defaultValue={String(edit?.price ?? '')} />
+              <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
+            </div>
+            <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
+            <EvSpecsFields specs={edit?.specs as Record<string, string> | undefined} />
+            {modal === 'edit' && (
+              <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </Select>
+            )}
+          </div>
+          <div className="sticky bottom-0 mt-6 border-t border-border bg-white pt-4">
+            <FormActions onCancel={closeModal} loading={saving} />
+          </div>
         </form>
       </Modal>
     </div>
@@ -557,7 +783,10 @@ export function BranchAccountingPage() {
     branchApi.vouchers(branchId).then((r) => setVouchers(r as Row[])).catch(console.error);
     branchApi.banks(branchId).then((r) => setBanks(r as Row[])).catch(console.error);
     branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
-    branchApi.trialBalance(branchId).then((r) => setTrial(r as Row)).catch(console.error);
+    branchApi.trialBalance(branchId).then((r) => {
+      const data = r as Row & { accounts?: Row[] };
+      setTrial(Array.isArray(data) ? (data as unknown as Row) : data);
+    }).catch(console.error);
   }, [branchId]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -571,8 +800,7 @@ export function BranchAccountingPage() {
       await branchApi.createAccount(branchId, {
         categoryId: parseInt(String(fd.get('categoryId')), 10),
         name: String(fd.get('name')),
-        code: String(fd.get('code')),
-        type: String(fd.get('type')),
+        openingBalance: parseFloat(String(fd.get('openingBalance') || '0')) || 0,
       });
       toast('Account created', 'success');
       setModal(null);
@@ -628,6 +856,19 @@ export function BranchAccountingPage() {
     }
   }
 
+  const accountDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      if (!branchId) return;
+      await branchApi.deleteAccount(branchId, Number(row.id));
+      toast('Account removed', 'success');
+      reload();
+    },
+    {
+      message: (row) =>
+        `Remove account "${String(row.name)}" from the chart? Ledger entries will be kept; only voucher cancellation removes entries.`,
+    },
+  );
+
   const tabs = [
     { id: 'accounts' as const, label: 'Accounts' },
     { id: 'vouchers' as const, label: 'Vouchers' },
@@ -651,8 +892,20 @@ export function BranchAccountingPage() {
             { key: 'code', header: 'Code' },
             { key: 'name', header: 'Name' },
             { key: 'type', header: 'Type' },
-            { key: 'balance', header: 'Balance', render: (r) => formatPKR(Number(r.balance ?? 0)) },
+            {
+              key: 'balance',
+              header: 'Balance',
+              render: (r) => formatLedgerBalance(Number((r.ledger as { balance: number })?.balance ?? 0)),
+            },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <RowActions deleteLabel="Delete" onDelete={() => accountDelete.setTarget(r)} />
+              ),
+            },
           ]} data={accounts} />
+          {accountDelete.modal}
         </>
       )}
 
@@ -691,11 +944,8 @@ export function BranchAccountingPage() {
             <option value="">Select category</option>
             {categories.map((c) => <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>)}
           </Select>
-          <Input name="code" label="Account Code" required />
           <Input name="name" label="Account Name" required />
-          <Select name="type" label="Type" required>
-            {['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'].map((t) => <option key={t} value={t}>{t}</option>)}
-          </Select>
+          <Input name="openingBalance" label="Opening Balance" type="number" step="0.01" min="0" defaultValue="0" />
           <FormActions onCancel={() => setModal(null)} loading={saving} />
         </form>
       </Modal>
@@ -707,11 +957,11 @@ export function BranchAccountingPage() {
           </Select>
           <Select name="debitAccountId" label="Debit Account" required>
             <option value="">Select</option>
-            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.code)} — {String(a.name)}</option>)}
+            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.name)}</option>)}
           </Select>
           <Select name="creditAccountId" label="Credit Account" required>
             <option value="">Select</option>
-            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.code)} — {String(a.name)}</option>)}
+            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.name)}</option>)}
           </Select>
           <Input name="amount" label="Amount" type="number" step="0.01" required />
           <Input name="description" label="Description" />

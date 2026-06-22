@@ -8,6 +8,7 @@ import { formatPKR, formatDate } from '../../lib/format';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { StatusBadge } from '../../components/ui/DataTable';
+import { PageHero } from '../../components/public/PageHero';
 
 export default function TrackOrderPage() {
   const [searchParams] = useSearchParams();
@@ -28,12 +29,13 @@ export default function TrackOrderPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="font-display text-3xl font-bold text-brand">Track Order</h1>
-        <p className="mt-2 text-text-muted">No login required — enter your tracking ID</p>
-
-        <form onSubmit={handleSubmit} className="mt-8 flex gap-2">
+    <div>
+      <PageHero
+        page="trackOrder"
+        title="Track Order"
+        subtitle="No login required — enter your tracking ID"
+      >
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             placeholder="e.g. CE-XXXXX-XXXX"
             value={trackingId}
@@ -43,14 +45,15 @@ export default function TrackOrderPage() {
           />
           <Button type="submit" variant="accent"><Search className="h-4 w-4" /></Button>
         </form>
-
         {error && <p className="mt-4 text-sm text-warning">{error}</p>}
+      </PageHero>
 
+      <div className="mx-auto max-w-lg px-4 pb-16 pt-8">
         {order && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-8 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+            className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
           >
             <div className="flex items-center justify-between">
               <p className="font-mono text-sm text-brand-light">{order.trackingId}</p>
@@ -61,7 +64,7 @@ export default function TrackOrderPage() {
             {order.branch && <p className="text-sm text-text-muted mt-1">Branch: {order.branch.name}</p>}
           </motion.div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

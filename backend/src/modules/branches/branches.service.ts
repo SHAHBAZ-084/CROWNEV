@@ -4,7 +4,9 @@ import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.
 
 export async function listBranches(activeOnly = false) {
   return prisma.branch.findMany({
-    where: activeOnly ? { isActive: true } : undefined,
+    where: activeOnly
+      ? { isActive: true, NOT: { name: { startsWith: 'Accounting Test' } } }
+      : undefined,
     include: {
       owner: { select: { id: true, firstName: true, lastName: true, email: true } },
       _count: { select: { orders: true, inventory: true } },

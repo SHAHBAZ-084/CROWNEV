@@ -269,24 +269,38 @@ export const branchApi = {
   accountingCategories: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/categories`),
   createAccountCategory: (branchId: number, name: string) =>
     api<unknown>(`/accounting/${branchId}/categories`, { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteAccountCategory: (branchId: number, id: number) =>
+    api<unknown>(`/accounting/${branchId}/categories/${id}`, { method: 'DELETE' }),
   accounts: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/accounts`),
   createAccount: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/accounts`, { method: 'POST', body: JSON.stringify(data) }),
   updateAccount: (branchId: number, id: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteAccount: (branchId: number, id: number) =>
+    api<unknown>(`/accounting/${branchId}/accounts/${id}`, { method: 'DELETE' }),
   vouchers: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/vouchers`),
   createVoucher: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/vouchers`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteVoucher: (branchId: number, voucherId: number) =>
+    api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}`, { method: 'DELETE' }),
+  restoreVoucher: (branchId: number, voucherId: number) =>
+    api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}/restore`, { method: 'POST' }),
   banks: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/banks`),
   createBank: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/banks`, { method: 'POST', body: JSON.stringify(data) }),
   updateBank: (branchId: number, id: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/banks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   trialBalance: (branchId: number) => api<unknown>(`/accounting/${branchId}/trial-balance`),
+  ledger: (branchId: number, accountId: number, params?: { fromDate?: string; toDate?: string }) => {
+    const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
+    return api<unknown>(`/accounting/${branchId}/ledger/${accountId}${q}`);
+  },
   walkInCustomers: (branchId: number) => api<Paginated<unknown>>(`/walk-in/${branchId}/customers`),
   createWalkInCustomer: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/walk-in/${branchId}/customers`, { method: 'POST', body: JSON.stringify(data) }),
   updateWalkInCustomer: (branchId: number, id: number, data: Record<string, unknown>) =>
     api<unknown>(`/walk-in/${branchId}/customers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteWalkInCustomer: (branchId: number, id: number) =>
+    api<unknown>(`/walk-in/${branchId}/customers/${id}`, { method: 'DELETE' }),
   parts: () => adminApi.parts(),
 };

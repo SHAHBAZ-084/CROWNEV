@@ -62,22 +62,25 @@ export async function getProduct(id: string) {
   return product;
 }
 
-export async function createProduct(data: {
-  name: string;
-  type: ProductType;
-  brandId?: number;
-  categoryId?: number;
-  price: number;
-  salePrice?: number;
-  description?: string;
-  specs?: object;
-  colorOptions?: object;
-}) {
+export async function createProduct(
+  data: {
+    name: string;
+    type: ProductType;
+    brandId?: number;
+    categoryId?: number;
+    price: number;
+    salePrice?: number;
+    description?: string;
+    specs?: object;
+    colorOptions?: object;
+  },
+  linkBranchId?: number
+) {
   const slug = slugify(data.name);
   const existing = await prisma.product.findUnique({ where: { slug } });
   const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
 
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: {
       name: data.name,
       slug: finalSlug,
@@ -92,6 +95,21 @@ export async function createProduct(data: {
     },
     include: { brand: true, category: true, images: true },
   });
+
+  if (linkBranchId) {
+    await prisma.branchProduct.create({
+      data: { branchId: linkBranchId, productId: product.id, isListed: true },
+    });
+  }
+
+  return product;
+}
+
+export async function branchOwnsProduct(branchId: number, productId: string) {
+  const link = await prisma.branchProduct.findUnique({
+    where: { branchId_productId: { branchId, productId } },
+  });
+  return !!link;
 }
 
 export async function updateProduct(id: string, data: Record<string, unknown>) {

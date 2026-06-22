@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 
@@ -34,7 +35,10 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-[var(--shadow-card)]"
       >
-        <h1 className="font-display text-2xl font-bold text-brand">Welcome Back</h1>
+        <div className="flex justify-center">
+          <Logo size="lg" />
+        </div>
+        <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Welcome Back</h1>
         <p className="mt-1 text-sm text-text-muted">Sign in to your Crown Eve account</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

@@ -346,7 +346,13 @@ export async function createWalkInCustomer(data: {
   return prisma.walkInCustomer.upsert({
     where: { branchId_cnic: { branchId: data.branchId, cnic: data.cnic } },
     create: data,
-    update: { name: data.name, phone: data.phone, email: data.email, address: data.address },
+    update: {
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      address: data.address,
+      isActive: true,
+    },
   });
 }
 
@@ -409,9 +415,20 @@ export async function recordWalkInPayment(data: {
   });
 }
 
+export async function softDeleteWalkInCustomer(id: number, branchId: number) {
+  const customer = await prisma.walkInCustomer.findFirst({
+    where: { id, branchId, isActive: true },
+  });
+  if (!customer) throw new AppError(404, 'Customer not found');
+  return prisma.walkInCustomer.update({
+    where: { id },
+    data: { isActive: false },
+  });
+}
+
 export async function listWalkInCustomers(branchId: number, query: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query);
-  const where = { branchId };
+  const where = { branchId, isActive: true };
 
   const [customers, total] = await Promise.all([
     prisma.walkInCustomer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),

@@ -66,3 +66,25 @@ body {
   .print-area { position: absolute; left: 0; top: 0; width: 100%; }
   nav, aside, .no-print { display: none !important; }
 }
+
+.dashboard-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(232 89 12 / 35%) transparent;
+}
+
+.dashboard-sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dashboard-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgb(232 89 12 / 30%);
+  border-radius: 999px;
+}
+
+.dashboard-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgb(232 89 12 / 50%);
+}

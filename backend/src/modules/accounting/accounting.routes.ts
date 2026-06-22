@@ -36,6 +36,19 @@ accountingRouter.post(
   })
 );
 
+accountingRouter.delete(
+  '/:branchId/categories/:id',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const category = await accountingService.softDeleteAccountCategory(
+      parseInt(param(req.params.id), 10),
+      branchId,
+    );
+    res.json(category);
+  })
+);
+
 accountingRouter.get(
   '/:branchId/accounts',
   asyncHandler(async (req, res) => {
@@ -52,8 +65,10 @@ accountingRouter.post(
     z.object({
       categoryId: z.number().int(),
       name: z.string().min(1),
-      code: z.string().min(1),
-      type: z.nativeEnum(AccountType),
+      code: z.string().min(1).optional(),
+      type: z.nativeEnum(AccountType).optional(),
+      openingBalance: z.number().min(0).optional(),
+      openingBalanceSide: z.enum(['DR', 'CR']).optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -95,6 +110,34 @@ accountingRouter.post(
       createdById: req.user!.userId,
     });
     res.status(201).json(voucher);
+  })
+);
+
+accountingRouter.delete(
+  '/:branchId/vouchers/:voucherId',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const voucher = await accountingService.cancelVoucher(
+      branchId,
+      parseInt(param(req.params.voucherId), 10),
+      req.user!.userId,
+    );
+    res.json(voucher);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/vouchers/:voucherId/restore',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const voucher = await accountingService.restoreVoucher(
+      branchId,
+      parseInt(param(req.params.voucherId), 10),
+      req.user!.userId,
+    );
+    res.json(voucher);
   })
 );
 
@@ -142,7 +185,9 @@ accountingRouter.get(
     assertBranch(req, branchId);
     const ledger = await accountingService.getLedgerEntries(
       parseInt(param(req.params.accountId), 10),
-      branchId
+      branchId,
+      req.query.fromDate as string | undefined,
+      req.query.toDate as string | undefined,
     );
     res.json(ledger);
   })
@@ -212,6 +257,19 @@ accountingRouter.patch(
       parseInt(param(req.params.id), 10),
       branchId,
       req.body
+    );
+    res.json(account);
+  })
+);
+
+accountingRouter.delete(
+  '/:branchId/accounts/:id',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const account = await accountingService.softDeleteAccount(
+      parseInt(param(req.params.id), 10),
+      branchId,
     );
     res.json(account);
   })

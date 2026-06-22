@@ -8,7 +8,10 @@ export async function getLandingData() {
       take: 6,
     }),
     prisma.branch.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        NOT: { name: { startsWith: 'Accounting Test' } },
+      },
       select: { id: true, name: true, location: true, phone: true, whatsapp: true, description: true },
       orderBy: { name: 'asc' },
     }),
@@ -25,7 +28,9 @@ export async function getLandingData() {
       take: 8,
     }),
     Promise.all([
-      prisma.branch.count({ where: { isActive: true } }),
+      prisma.branch.count({
+        where: { isActive: true, NOT: { name: { startsWith: 'Accounting Test' } } },
+      }),
       prisma.product.count({ where: { isActive: true } }),
       prisma.order.count({ where: { status: { in: ['CONFIRMED', 'DELIVERED'] } } }),
     ]),

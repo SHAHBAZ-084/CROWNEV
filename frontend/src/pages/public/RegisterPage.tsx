@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { authApi, setToken } from '../../api/client';
 import { PAKISTAN_CITIES } from '../../lib/constants';
+import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 
@@ -64,9 +65,12 @@ export default function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-[var(--shadow-card)]"
       >
+        <div className="flex justify-center">
+          <Logo size="lg" />
+        </div>
         {step === 'otp' ? (
           <>
-            <h1 className="font-display text-2xl font-bold text-brand">Verify Email</h1>
+            <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Verify Email</h1>
             <p className="mt-1 text-sm text-text-muted">OTP sent to {email}</p>
             <form onSubmit={handleVerify} className="mt-8 space-y-4">
               {error && <p className="text-sm text-warning">{error}</p>}
@@ -76,7 +80,7 @@ export default function RegisterPage() {
           </>
         ) : (
           <>
-            <h1 className="font-display text-2xl font-bold text-brand">Create Account</h1>
+            <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Create Account</h1>
             <form onSubmit={handleRegister} className="mt-8 space-y-4">
               {error && <p className="text-sm text-warning">{error}</p>}
               <div className="grid grid-cols-2 gap-3">

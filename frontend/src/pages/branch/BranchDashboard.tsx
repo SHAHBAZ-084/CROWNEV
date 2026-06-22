@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Calendar, DollarSign, Package, AlertTriangle } from 'lucide-react';
+import { Calendar, DollarSign, Package, AlertTriangle, Monitor } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { branchApi } from '../../api/client';
 import { PageHeader } from '../../components/layout/PageTransition';
+import { openBranchWorkspace } from '../../components/layout/BranchWorkspaceLayout';
 import { StatCard } from '../../components/ui/StatCard';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { TableSkeleton } from '../../components/ui/Skeleton';
+import { Button } from '../../components/ui/Button';
 
 export default function BranchDashboard() {
   const { user } = useAuth();
@@ -24,7 +26,16 @@ export default function BranchDashboard() {
 
   return (
     <div>
-      <PageHeader title="Branch Dashboard" subtitle={`Branch #${user?.branchId}`} />
+      <PageHeader
+        title="Branch Dashboard"
+        subtitle={`Branch #${user?.branchId}`}
+        action={
+          <Button variant="accent" onClick={() => openBranchWorkspace('/branch/workspace/pos')}>
+            <Monitor className="h-4 w-4" />
+            Open POS Workspace
+          </Button>
+        }
+      />
 
       {!data ? (
         <TableSkeleton />

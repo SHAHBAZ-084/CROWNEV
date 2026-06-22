@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, MapPin, MessageCircle, Star } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import type { LandingData } from '../../types';
 import { ProductCard, FeatureGrid } from '../../components/public/ProductCard';
+import { SavingsCalculator } from '../../components/public/SavingsCalculator';
+import { RidersSaySection } from '../../components/public/RidersSaySection';
+import { FindBranchSection } from '../../components/public/FindBranchSection';
 import { Button } from '../../components/ui/Button';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
@@ -109,69 +112,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {data?.testimonials && data.testimonials.length > 0 && (
-        <section className="bg-surface-alt py-20 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            <h2 className="font-display text-3xl font-bold text-brand text-center mb-12">What Riders Say</h2>
-            <div className="grid gap-6 md:grid-cols-3">
-              {data.testimonials.slice(0, 3).map((t, i) => (
-                <motion.div
-                  key={t.customerName + i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  whileHover={{ scale: 1.02, boxShadow: 'var(--shadow-card-hover)' }}
-                  className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
-                >
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: t.rating }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-accent text-accent" />
-                    ))}
-                  </div>
-                  <p className="mt-4 text-text-muted leading-relaxed">&ldquo;{t.content}&rdquo;</p>
-                  <p className="mt-4 font-semibold text-brand">{t.customerName}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      <SavingsCalculator />
 
-      {data?.branches && (
-        <section className="py-20 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            <h2 className="font-display text-3xl font-bold text-brand mb-12">Find a Branch</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {data.branches.map((b, i) => (
-                <motion.div
-                  key={b.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex gap-4 rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10">
-                    <MapPin className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-brand">{b.name}</h3>
-                    <p className="text-sm text-text-muted">{b.location}</p>
-                    <p className="text-sm text-accent mt-1">{b.phone}</p>
-                    {b.whatsapp && (
-                      <a href={`https://wa.me/${b.whatsapp.replace(/\D/g, '')}`} className="mt-1 inline-flex items-center gap-1 text-xs text-success hover:underline">
-                        <MessageCircle className="h-3 w-3" /> WhatsApp
-                      </a>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      <RidersSaySection testimonials={data?.testimonials} />
+
+      {data?.branches && <FindBranchSection branches={data.branches} />}
     </>
   );
 }

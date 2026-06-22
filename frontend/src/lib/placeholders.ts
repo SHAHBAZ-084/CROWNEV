@@ -24,5 +24,30 @@ Every Crown Eve bike is selected for Pakistani roads — heat-resistant batterie
 export const FOOTER_CONTACT = {
   email: 'info@crowneve.pk',
   phone: '+92 300 1234567',
+  whatsapp: '+923001234567',
   address: 'Head Office, F-10 Markaz, Islamabad, Pakistan',
+  whatsappMessage: "Hi Crown Eve! I'd like to know more about your electric bikes.",
+} as const;
+
+/** Homepage background video (What Riders Say section) — replace `src` with your own MP4 */
+export const BIKE_VIDEO_AD = {
+  /** Direct MP4/WebM — default is a preview clip until you add your own ad */
+  src: 'https://assets.mixkit.co/videos/preview/mixkit-man-riding-a-motorcycle-on-the-road-41757-large.mp4',
+  /** YouTube video ID — used only when `src` is empty */
+  youtubeId: '',
+  poster:
+    'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=1920&q=80',
+  title: 'Crown Eve Electric Bikes',
+  subtitle: 'Ride the future',
+} as const;
+
+/** Site logo — replace file at public/images/logo.png */
+export const SITE_LOGO = {
+  src: '/images/logo.png',
+  alt: 'Crown Hadi EV Center',
+} as const;
+
+/** Find a Branch section — dotted Pakistan map background */
+export const BRANCH_SECTION = {
+  mapBackground: '/images/pakistan-map-bg.png',
 } as const;

@@ -1,10 +1,25 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { ProductType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, optionalAuth, requireRoles } from '../../middleware/auth.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import * as productsService from './products.service.js';
+
+async function assertBranchProductAccess(req: Request, productId: string, res: Response) {
+  if (req.user!.role !== Role.BRANCH_OWNER) return true;
+  const branchId = req.user!.branchId;
+  if (!branchId) {
+    res.status(403).json({ error: 'Branch not assigned' });
+    return false;
+  }
+  const allowed = await productsService.branchOwnsProduct(branchId, productId);
+  if (!allowed) {
+    res.status(403).json({ error: 'You can only manage bikes listed at your branch' });
+    return false;
+  }
+  return true;
+}
 
 export const productsRouter = Router();
 
@@ -98,7 +113,7 @@ productsRouter.get(
 
 productsRouter.post(
   '/upload-images',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   productImageUpload.array('images', 10),
   asyncHandler(async (req, res) => {
     const files = req.files as Express.Multer.File[] | undefined;
@@ -113,20 +128,34 @@ productsRouter.post(
 
 productsRouter.post(
   '/',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   validateBody(productCreateSchema),
   asyncHandler(async (req, res) => {
-    const product = await productsService.createProduct(req.body);
+    if (req.user!.role === Role.BRANCH_OWNER) {
+      if (req.body.type !== ProductType.BIKE) {
+        res.status(403).json({ error: 'Branch owners can only add electric bikes' });
+        return;
+      }
+      if (!req.user!.branchId) {
+        res.status(403).json({ error: 'Branch not assigned' });
+        return;
+      }
+    }
+    const linkBranchId =
+      req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const product = await productsService.createProduct(req.body, linkBranchId);
     res.status(201).json(product);
   })
 );
 
 productsRouter.patch(
   '/:id',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   validateBody(productUpdateSchema),
   asyncHandler(async (req, res) => {
-    const product = await productsService.updateProduct(param(req.params.id), req.body);
+    const productId = param(req.params.id);
+    if (!(await assertBranchProductAccess(req, productId, res))) return;
+    const product = await productsService.updateProduct(productId, req.body);
     res.json(product);
   })
 );
@@ -142,7 +171,7 @@ productsRouter.delete(
 
 productsRouter.post(
   '/:id/images',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   validateBody(
     z.object({
       url: z.string().min(1),
@@ -151,8 +180,10 @@ productsRouter.post(
     })
   ),
   asyncHandler(async (req, res) => {
+    const productId = param(req.params.id);
+    if (!(await assertBranchProductAccess(req, productId, res))) return;
     const image = await productsService.addProductImage(
-      param(req.params.id),
+      productId,
       req.body.url,
       req.body.isPrimary,
       req.body.sortOrder
@@ -163,10 +194,12 @@ productsRouter.post(
 
 productsRouter.patch(
   '/:id/images/:imageId/primary',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
+    const productId = param(req.params.id);
+    if (!(await assertBranchProductAccess(req, productId, res))) return;
     const image = await productsService.setProductImagePrimary(
-      param(req.params.id),
+      productId,
       parseInt(param(req.params.imageId), 10)
     );
     res.json(image);
@@ -175,10 +208,12 @@ productsRouter.patch(
 
 productsRouter.delete(
   '/:id/images/:imageId',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
+    const productId = param(req.params.id);
+    if (!(await assertBranchProductAccess(req, productId, res))) return;
     await productsService.deleteProductImage(
-      param(req.params.id),
+      productId,
       parseInt(param(req.params.imageId), 10)
     );
     res.status(204).send();

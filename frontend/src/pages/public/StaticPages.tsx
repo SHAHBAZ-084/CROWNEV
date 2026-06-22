@@ -2,41 +2,15 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, MessageCircle } from 'lucide-react';
 import { publicApi } from '../../api/client';
-import { Accordion } from '../../components/ui/Accordion';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { LegalAccordion } from '../../components/public/LegalAccordion';
+import { LegalPageLayout } from '../../components/public/LegalPageLayout';
+import { FaqView } from '../../components/public/FaqView';
+import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
 import { COMPANY_STORY, FOUNDERS } from '../../lib/placeholders';
+import { FAQ_SECTIONS } from '../../lib/faqContent';
+import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
+import { TERMS_SECTIONS } from '../../lib/termsContent';
 import type { Branch } from '../../types';
-
-const FAQ_ITEMS = [
-  { question: 'What payment methods do you accept?', answer: 'We accept cash on delivery and bank transfer. Bank transfer orders require payment verification before dispatch.' },
-  { question: 'How do I track my order?', answer: 'Use the Track Order page with your tracking ID (e.g. CE-XXXXX). No login required.' },
-  { question: 'Can I book a service without buying a bike?', answer: 'Yes! Registered customers can book maintenance, repair, or installation at any active branch.' },
-  { question: 'What is the warranty on electric bikes?', answer: 'All Crown Eve bikes come with a standard manufacturer warranty. Contact your branch for details.' },
-  { question: 'Do you deliver across Pakistan?', answer: 'Yes, we fulfill orders through our branch network. Select your preferred branch at checkout.' },
-];
-
-export default function StaticPage({ slug }: { slug: string }) {
-  const [page, setPage] = useState<{ title: string; content: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    publicApi.page(slug)
-      .then(setPage)
-      .catch(() => setPage({ title: slug, content: 'Content coming soon.' }))
-      .finally(() => setLoading(false));
-  }, [slug]);
-
-  if (loading) return <div className="mx-auto max-w-3xl px-4 py-16"><Skeleton className="h-8 w-1/2 mb-4" /><Skeleton className="h-32 w-full" /></div>;
-
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-16 lg:px-8 lg:py-24">
-      <h1 className="font-display text-3xl font-bold text-brand">{page?.title}</h1>
-      <div className="mt-8 text-text-muted leading-relaxed whitespace-pre-wrap">
-        {page?.content}
-      </div>
-    </div>
-  );
-}
 
 export function AboutPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -146,17 +120,23 @@ export function AboutPage() {
   );
 }
 
-export function PrivacyPage() { return <StaticPage slug="privacy" />; }
-export function TermsPage() { return <StaticPage slug="terms" />; }
+export function PrivacyPage() {
+  return <PrivacyPolicyView sections={PRIVACY_SECTIONS} />;
+}
+
+export function TermsPage() {
+  return (
+    <LegalPageLayout
+      title="Terms and Conditions"
+      subtitle="Please read the following terms carefully. Using the Crown Eve website, purchasing products, or booking services constitutes acceptance of these conditions."
+    >
+      <LegalAccordion sections={TERMS_SECTIONS} />
+    </LegalPageLayout>
+  );
+}
 
 export function FAQPage() {
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-16 lg:py-24 lg:px-8">
-      <h1 className="font-display text-3xl font-bold text-brand mb-2">FAQ</h1>
-      <p className="text-text-muted mb-10">Common questions about Crown Eve Bikes</p>
-      <Accordion items={FAQ_ITEMS} />
-    </div>
-  );
+  return <FaqView sections={FAQ_SECTIONS} />;
 }
 
 export function UnauthorizedPage() {

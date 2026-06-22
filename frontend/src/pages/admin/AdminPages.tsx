@@ -8,6 +8,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
+import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
+import { parseEvSpecsFromForm } from '../../lib/evSpecs';
 import { useToast } from '../../contexts/ToastContext';
 
 type Row = Record<string, unknown>;
@@ -279,6 +281,7 @@ export function AdminProductsPage() {
         price: parseFormPrice(fd.get('price'), 'Price'),
         description: String(fd.get('description') || '').trim() || undefined,
         ...(salePrice !== undefined && { salePrice }),
+        ...(tab === 'bikes' && { specs: parseEvSpecsFromForm(fd) }),
         ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
       };
     } catch (err) {
@@ -412,6 +415,9 @@ export function AdminProductsPage() {
               <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
             </div>
             <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
+            {tab === 'bikes' && (
+              <EvSpecsFields specs={edit?.specs as Record<string, string> | undefined} />
+            )}
             {modal === 'edit' && (
               <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
                 <option value="true">Active</option>

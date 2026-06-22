@@ -10,6 +10,7 @@
     "backend:build": "npm run build --prefix backend",
     "backend:migrate": "npm run db:migrate --prefix backend",
     "backend:seed": "npm run db:seed --prefix backend",
+    "backend:test": "npm run test --prefix backend",
     "frontend:dev": "npm run dev --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
