@@ -416,10 +416,6 @@ function isSaleRevenueAccountName(name?: string | null) {
   return name?.trim().toLowerCase() === SALE_REVENUE_ACCOUNT_NAME.toLowerCase();
 }
 
-function isServiceRevenueAccountName(name?: string | null) {
-  return name?.trim().toLowerCase() === SERVICE_REVENUE_ACCOUNT_NAME.toLowerCase();
-}
-
 function isInventoryAccountName(name?: string | null) {
   return name?.trim().toLowerCase() === INVENTORY_ACCOUNT_NAME.toLowerCase();
 }
