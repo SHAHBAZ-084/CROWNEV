@@ -35,6 +35,10 @@ export async function updateStock(branchId: number, partId: number, quantity: nu
   });
 }
 
+export async function removePartFromBranch(branchId: number, partId: number) {
+  await prisma.inventory.deleteMany({ where: { branchId, partId } });
+}
+
 export async function adjustStock(data: {
   branchId: number;
   partId: number;
@@ -111,6 +115,89 @@ export async function getLowStockAlerts(branchId?: number) {
     include: { part: true, branch: { select: { id: true, name: true } } },
   });
   return inventories.filter((i: (typeof inventories)[number]) => i.quantity <= i.part.alertAt && i.part.isActive);
+}
+
+const BIKE_LOW_STOCK_THRESHOLD = 3;
+
+export type BranchStockItem = {
+  type: 'BIKE' | 'PART';
+  source: 'PRODUCT' | 'SERVICE_PART';
+  id: string | number;
+  name: string;
+  code: string;
+  quantity: number;
+  alertAt: number;
+  isLowStock: boolean;
+  isSelected: boolean;
+};
+
+export async function getBranchStock(branchId: number) {
+  const [catalogProducts, inventories, serviceParts] = await Promise.all([
+    prisma.product.findMany({
+      where: { isActive: true, type: { in: ['BIKE', 'PART'] } },
+      include: { branchProducts: { where: { branchId } } },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    }),
+    prisma.inventory.findMany({
+      where: { branchId },
+      include: { part: true },
+    }),
+    prisma.part.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+  ]);
+
+  const inventoryByPartId = new Map(inventories.map((i) => [i.partId, i]));
+
+  const productItems: BranchStockItem[] = catalogProducts.map((product) => {
+    const branchLink = product.branchProducts[0];
+    const quantity = branchLink?.stock ?? 0;
+    const isSelected = branchLink?.isListed ?? false;
+    const alertAt = product.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5;
+    return {
+      type: product.type,
+      source: 'PRODUCT',
+      id: product.id,
+      name: product.name,
+      code: product.slug,
+      quantity,
+      alertAt,
+      isLowStock: isSelected && quantity <= alertAt,
+      isSelected,
+    };
+  });
+
+  const servicePartItems: BranchStockItem[] = serviceParts.map((part) => {
+    const inventory = inventoryByPartId.get(part.id);
+    const quantity = inventory?.quantity ?? 0;
+    const isSelected = !!inventory;
+    return {
+      type: 'PART',
+      source: 'SERVICE_PART',
+      id: part.id,
+      name: part.name,
+      code: part.itemCode,
+      quantity,
+      alertAt: part.alertAt,
+      isLowStock: isSelected && quantity <= part.alertAt,
+      isSelected,
+    };
+  });
+
+  const items = [...productItems, ...servicePartItems];
+  const lowStock = items.filter((i) => i.isSelected && i.isLowStock);
+  const selectedItems = items.filter((i) => i.isSelected);
+
+  return {
+    summary: {
+      totalBikes: productItems.filter((i) => i.type === 'BIKE').length,
+      totalParts: productItems.filter((i) => i.type === 'PART').length + servicePartItems.length,
+      bikesInStock: productItems.filter((i) => i.type === 'BIKE' && i.isSelected && i.quantity > 0).length,
+      partsInStock: selectedItems.filter((i) => i.type === 'PART' && i.quantity > 0).length,
+      lowStockCount: lowStock.length,
+      totalUnits: selectedItems.reduce((sum, i) => sum + i.quantity, 0),
+    },
+    items,
+    lowStock,
+  };
 }
 
 export async function listAdjustments(branchId: number, query: { page?: string; limit?: string }) {

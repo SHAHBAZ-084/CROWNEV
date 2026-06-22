@@ -41,6 +41,14 @@ testimonialsRouter.get(
   })
 );
 
+testimonialsRouter.get(
+  '/all',
+  asyncHandler(async (_req, res) => {
+    const testimonials = await testimonialsService.listAllTestimonialsForAdmin();
+    res.json(testimonials);
+  })
+);
+
 testimonialsRouter.post(
   '/',
   validateBody(

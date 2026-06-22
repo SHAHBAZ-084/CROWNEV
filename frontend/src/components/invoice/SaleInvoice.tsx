@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Check, Download, Printer } from 'lucide-react';
 import type { InvoiceData } from '../../types';
@@ -9,8 +8,8 @@ import { Logo } from '../brand/Logo';
 
 function paymentLabel(method: InvoiceData['paymentMethod'], status: InvoiceData['paymentStatus']) {
   if (method === 'CASH') return 'Paid in Cash';
-  if (status === 'APPROVED' || status === 'PAID') return 'Paid via Bank Transfer — Verified';
-  return 'Bank Transfer — Pending verification';
+  if (status === 'APPROVED' || status === 'PAID') return 'Paid via Bank Transfer, verified';
+  return 'Bank Transfer, pending verification';
 }
 
 function showPaidStamp(data: InvoiceData) {
@@ -98,6 +97,7 @@ export function SaleInvoice({
     try {
       const canvas = await captureInvoiceElement(printRef.current);
       const imgData = canvas.toDataURL('image/png');
+      const { default: jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const w = pdf.internal.pageSize.getWidth();
       const h = (canvas.height * w) / canvas.width;
@@ -259,7 +259,7 @@ export function InvoiceModalContent({
   if (!invoice.invoiceAvailable) {
     return (
       <p className="py-8 text-center text-text-muted">
-        Invoice pending — available once the order is delivered and payment is verified.
+        Invoice pending. Available once the order is delivered and payment is verified.
       </p>
     );
   }

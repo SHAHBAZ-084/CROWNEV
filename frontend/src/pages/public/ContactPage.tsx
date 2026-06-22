@@ -32,7 +32,7 @@ const CONTACT_CARDS = [
   {
     icon: Clock,
     label: 'Business Hours',
-    value: 'Mon – Sat, 10:00 AM – 8:00 PM PKT',
+    value: 'Mon to Sat, 10:00 AM to 8:00 PM PKT',
     href: undefined,
   },
 ] as const;
@@ -156,7 +156,7 @@ export default function ContactPage() {
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-text-muted lg:text-base">
               Whether you need help choosing an electric bike, booking a service appointment, or
-              following up on an order — reach out and a Crown Eve team member will respond promptly.
+              following up on an order. Reach out and a Crown Eve team member will respond promptly.
             </p>
 
             <div className="mt-8 space-y-4">

@@ -22,7 +22,7 @@ export async function getLandingData() {
     }),
     prisma.brand.findMany({ where: { isActive: true }, take: 12 }),
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, type: 'BIKE' },
       include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
       orderBy: { createdAt: 'desc' },
       take: 8,

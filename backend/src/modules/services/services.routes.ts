@@ -152,7 +152,7 @@ bookingsRouter.post(
 
 bookingsRouter.patch(
   '/:id/status',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireRoles(Role.BRANCH_OWNER),
   validateBody(
     z.object({
       branchId: z.number().int(),
@@ -164,7 +164,8 @@ bookingsRouter.patch(
     })
   ),
   asyncHandler(async (req, res) => {
-    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== req.body.branchId) {
+    const branchId = req.user!.branchId;
+    if (!branchId || branchId !== req.body.branchId) {
       res.status(403).json({ error: 'Cross-branch access denied' });
       return;
     }

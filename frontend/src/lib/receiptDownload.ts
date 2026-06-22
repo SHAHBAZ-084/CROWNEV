@@ -1,12 +1,12 @@
 function formatDate(value: unknown): string {
-  if (!value) return '—';
+  if (!value) return '';
   const d = new Date(String(value));
   if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
   return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function formatTime(value: unknown): string {
-  if (!value) return '—';
+  if (!value) return '';
   const s = String(value);
   const [h, m] = s.split(':');
   const hour = parseInt(h, 10);
@@ -17,7 +17,7 @@ function formatTime(value: unknown): string {
 }
 
 function esc(value: unknown): string {
-  return String(value ?? '—')
+  return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

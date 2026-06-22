@@ -28,7 +28,7 @@ export default function CustomerDashboard() {
               const order = o as { id: number; trackingId: string; status: string; total: string };
               return (
                 <div key={order.id} className="rounded-lg border bg-white p-3 text-sm">
-                  <span className="font-mono">{order.trackingId}</span> — {order.status} — PKR{' '}
+                  <span className="font-mono">{order.trackingId}</span> · {order.status} · PKR{' '}
                   {Number(order.total).toLocaleString()}
                 </div>
               );
@@ -42,7 +42,7 @@ export default function CustomerDashboard() {
               const booking = b as { id: number; status: string; date: string };
               return (
                 <div key={booking.id} className="rounded-lg border bg-white p-3 text-sm">
-                  Booking #{booking.id} — {booking.status} — {booking.date?.slice(0, 10)}
+                  Booking #{booking.id} · {booking.status} · {booking.date?.slice(0, 10)}
                 </div>
               );
             })}

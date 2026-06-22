@@ -115,6 +115,7 @@ export async function exportBookings(branchId?: number, from?: string, to?: stri
     },
     include: {
       service: { select: { name: true, basePrice: true } },
+      branch: { select: { name: true } },
       user: { select: { firstName: true, lastName: true } },
     },
     orderBy: { date: 'desc' },
@@ -122,6 +123,7 @@ export async function exportBookings(branchId?: number, from?: string, to?: stri
 
   return bookings.map((b) => ({
     id: b.id,
+    branch: b.branch.name,
     service: b.service.name,
     customer: b.user ? `${b.user.firstName} ${b.user.lastName}` : b.customerName,
     date: b.date.toISOString().split('T')[0],

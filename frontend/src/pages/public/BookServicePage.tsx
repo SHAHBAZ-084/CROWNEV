@@ -44,7 +44,7 @@ export default function BookServicePage() {
       <PageHero
         page="bookService"
         title="Book a Service"
-        subtitle="Request maintenance or repair — the branch will confirm your appointment"
+        subtitle="Request maintenance or repair. The branch will confirm your appointment"
       />
 
       <div className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">

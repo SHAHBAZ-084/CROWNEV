@@ -47,7 +47,7 @@ export default function TrackOrderPage() {
       <PageHero
         page="trackOrder"
         title="Track Order"
-        subtitle="No login required — enter your tracking ID"
+        subtitle="No login required. Enter your tracking ID"
       >
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input

@@ -1,6 +1,3 @@
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatDate, formatLedgerBalance } from './format';
 
 export type ReportColumn<T> = {
@@ -21,13 +18,14 @@ function sanitizeFilename(name: string) {
   return name.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').slice(0, 80);
 }
 
-export function exportToExcel<T>(
+export async function exportToExcel<T>(
   filename: string,
   sheetName: string,
   columns: ReportColumn<T>[],
   rows: T[],
   meta?: { title?: string; subtitle?: string },
 ) {
+  const XLSX = await import('xlsx');
   const headerRow = columns.map((c) => c.header);
   const dataRows = rows.map((row) => columns.map((c) => c.value(row)));
   const sheetRows: (string | number)[][] = [];
@@ -47,12 +45,17 @@ export function exportToExcel<T>(
   );
 }
 
-export function exportToPdf<T>(
+export async function exportToPdf<T>(
   filename: string,
   columns: ReportColumn<T>[],
   rows: T[],
   meta?: { title?: string; subtitle?: string },
 ) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+
   const doc = new jsPDF({ orientation: columns.length > 5 ? 'landscape' : 'portrait', unit: 'pt' });
   let startY = 40;
 
@@ -95,17 +98,17 @@ export type LedgerExportRow = {
 };
 
 const LEDGER_COLUMNS: ReportColumn<LedgerExportRow>[] = [
-  { header: 'Date', value: (r) => (r.date ? formatDate(r.date) : '—') },
+  { header: 'Date', value: (r) => (r.date ? formatDate(r.date) : '') },
   { header: 'Voucher#', value: (r) => r.voucherNo },
-  { header: 'Ref#', value: (r) => r.ref ?? '—' },
+  { header: 'Ref#', value: (r) => r.ref ?? '' },
   { header: 'Type', value: (r) => r.type },
-  { header: 'Description', value: (r) => r.description || '—' },
+  { header: 'Description', value: (r) => r.description || '' },
   { header: 'Debit', value: (r) => (r.debit > 0 ? r.debit : '') },
   { header: 'Credit', value: (r) => (r.credit > 0 ? r.credit : '') },
   { header: 'Balance', value: (r) => formatLedgerBalance(r.balance) },
 ];
 
-export function exportLedgerReport(
+export async function exportLedgerReport(
   format: 'excel' | 'pdf',
   accountLabel: string,
   rows: LedgerExportRow[],
@@ -132,15 +135,15 @@ export function exportLedgerReport(
   ];
 
   const meta = {
-    title: `Account Ledger — ${accountLabel}`,
+    title: `Account Ledger: ${accountLabel}`,
     subtitle: rangeText || 'All dates',
   };
   const filename = `ledger_${accountLabel}${rangeText ? `_${dateRange?.from ?? ''}_${dateRange?.to ?? ''}` : ''}`;
 
   if (format === 'excel') {
-    exportToExcel(filename, 'Ledger', LEDGER_COLUMNS, exportRows, meta);
+    await exportToExcel(filename, 'Ledger', LEDGER_COLUMNS, exportRows, meta);
   } else {
-    exportToPdf(filename, LEDGER_COLUMNS, exportRows, meta);
+    await exportToPdf(filename, LEDGER_COLUMNS, exportRows, meta);
   }
 }
 
@@ -160,7 +163,7 @@ const TRIAL_BALANCE_COLUMNS: ReportColumn<TrialBalanceExportRow>[] = [
   { header: 'Credit (Cr)', value: (r) => (r.credit > 0 ? r.credit : '') },
 ];
 
-export function exportTrialBalanceReport(
+export async function exportTrialBalanceReport(
   format: 'excel' | 'pdf',
   rows: TrialBalanceExportRow[],
   totals: { totalDebit: number; totalCredit: number },
@@ -180,8 +183,8 @@ export function exportTrialBalanceReport(
   const filename = 'trial_balance';
 
   if (format === 'excel') {
-    exportToExcel(filename, 'Trial Balance', TRIAL_BALANCE_COLUMNS, exportRows, meta);
+    await exportToExcel(filename, 'Trial Balance', TRIAL_BALANCE_COLUMNS, exportRows, meta);
   } else {
-    exportToPdf(filename, TRIAL_BALANCE_COLUMNS, exportRows, meta);
+    await exportToPdf(filename, TRIAL_BALANCE_COLUMNS, exportRows, meta);
   }
 }

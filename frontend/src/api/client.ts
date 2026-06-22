@@ -201,20 +201,21 @@ export const adminApi = {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Order>>(`/orders${q}`);
   },
-  updateOrderStatus: (id: number, status: string) =>
-    api<Order>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  exportOrders: (params?: { branchId?: string }) => {
+    const q = params?.branchId ? `?branchId=${params.branchId}` : '';
+    return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
+  },
   bookings: (params?: Record<string, string>) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Booking>>(`/bookings${q}`);
   },
-  updateBookingStatus: (id: number, data: { branchId: number; status: string }) =>
-    api<Booking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
-  pendingPayments: () => api<Order[]>('/orders/pending-payments'),
-  approvePayment: (id: number, approved: boolean) =>
-    api<Order>(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ approved }) }),
+  exportBookings: (params?: { branchId?: string }) => {
+    const q = params?.branchId ? `?branchId=${params.branchId}` : '';
+    return api<Record<string, unknown>[]>(`/reports/export/bookings${q}`);
+  },
   revenue: (days = 30) => api<{ date: string; revenue: number }[]>(`/reports/revenue?days=${days}`),
   testimonials: () => api<unknown[]>('/testimonials/pending'),
-  testimonialsAll: () => api<unknown[]>('/testimonials'),
+  testimonialsAll: () => api<unknown[]>('/testimonials/all'),
   createTestimonial: (data: Record<string, unknown>) =>
     api<unknown>('/testimonials', { method: 'POST', body: JSON.stringify(data) }),
   updateTestimonial: (id: number, data: Record<string, unknown>) =>
@@ -254,8 +255,42 @@ export const branchApi = {
   deleteBooking: (id: number, branchId: number) =>
     api<void>(`/bookings/${id}?branchId=${branchId}`, { method: 'DELETE' }),
   inventory: (branchId: number) => api<Paginated<{ id?: number; quantity: number; partId: number; part: { id: number; name: string; itemCode: string; alertAt: number } }>>(`/inventory/${branchId}`),
+  branchStock: (branchId: number) => api<{
+    summary: {
+      totalBikes: number;
+      totalParts: number;
+      bikesInStock: number;
+      partsInStock: number;
+      lowStockCount: number;
+      totalUnits: number;
+    };
+    items: {
+      type: 'BIKE' | 'PART';
+      source: 'PRODUCT' | 'SERVICE_PART';
+      id: string | number;
+      name: string;
+      code: string;
+      quantity: number;
+      alertAt: number;
+      isLowStock: boolean;
+      isSelected: boolean;
+    }[];
+    lowStock: {
+      type: 'BIKE' | 'PART';
+      source: 'PRODUCT' | 'SERVICE_PART';
+      id: string | number;
+      name: string;
+      code: string;
+      quantity: number;
+      alertAt: number;
+      isLowStock: boolean;
+      isSelected: boolean;
+    }[];
+  }>(`/inventory/${branchId}/stock`),
   setStock: (branchId: number, partId: number, quantity: number) =>
     api<unknown>(`/inventory/${branchId}/${partId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
+  removePartFromBranch: (branchId: number, partId: number) =>
+    api<void>(`/inventory/${branchId}/${partId}`, { method: 'DELETE' }),
   adjustStock: (branchId: number, data: { partId: number; quantityChange: number; reason: string; notes?: string }) =>
     api<unknown>(`/inventory/${branchId}/adjust`, { method: 'POST', body: JSON.stringify(data) }),
   lowStock: (branchId: number) => api<unknown[]>(`/inventory/${branchId}/low-stock`),

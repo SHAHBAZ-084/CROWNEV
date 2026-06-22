@@ -23,7 +23,7 @@ export function FindBranchSection({ branches }: { branches: Branch[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Nationwide network</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Nationwide network</p>
               <h2 className="mt-2 font-display text-3xl font-bold text-brand lg:text-4xl">Find a Branch</h2>
               <p className="mt-2 max-w-xl text-sm text-text-muted">
                 Visit a Crown Eve showroom near you for test rides, service, and parts.

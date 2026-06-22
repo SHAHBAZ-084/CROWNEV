@@ -16,7 +16,7 @@ export const TYPE_LABELS: Record<VoucherType, string> = {
 };
 
 function accountLabel(account: Row | undefined) {
-  if (!account) return '—';
+  if (!account) return '';
   return String(account.name);
 }
 
@@ -197,7 +197,7 @@ export function ViewVoucherPanel({
     try {
       const updated = await branchApi.deleteVoucher(branchId, Number(result.id));
       setResult(updated as Row);
-      toast('Voucher cancelled — books reversed', 'success');
+      toast('Voucher cancelled. Books reversed', 'success');
       loadVouchers();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Cancel failed', 'error');

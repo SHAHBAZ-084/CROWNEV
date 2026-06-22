@@ -19,11 +19,17 @@ const sizeClass = {
 
 export function Logo({ size = 'sm', linked = false, centered = false, className = '' }: LogoProps) {
   const img = (
-    <img
-      src={SITE_LOGO.src}
-      alt={SITE_LOGO.alt}
-      className={`object-contain ${centered ? 'object-center' : 'object-left'} ${sizeClass[size]} ${className}`}
-    />
+    <picture>
+      <source srcSet={SITE_LOGO.srcLarge} media="(min-width: 1024px)" type="image/webp" />
+      <img
+        src={SITE_LOGO.src}
+        alt={SITE_LOGO.alt}
+        width={SITE_LOGO.width}
+        height={SITE_LOGO.height}
+        decoding="async"
+        className={`object-contain ${centered ? 'object-center' : 'object-left'} ${sizeClass[size]} ${className}`}
+      />
+    </picture>
   );
 
   if (linked) {

@@ -1,8 +1,9 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { branchApi, adminApi } from '../../api/client';
+import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
-import { Receipt, ShoppingCart, Users } from 'lucide-react';
+import { Receipt, ShoppingCart, Users, AlertTriangle, Bike, Package, Boxes } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -10,16 +11,6 @@ import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import {
-  clearPendingImages,
-  primaryFromImages,
-  ProductImageUpload,
-  type ExistingImage,
-  type PendingImage,
-  type PrimarySelection,
-} from '../../components/crud/ProductImageUpload';
-import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
-import { parseEvSpecsFromForm } from '../../lib/evSpecs';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../lib/format';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
@@ -34,8 +25,6 @@ const BOOKING_STATUS_ORDER: Record<string, number> = {
   DONE: 2,
   CANCELLED: 3,
 };
-const ADJUST_REASONS = ['CORRECTION', 'DAMAGE', 'THEFT', 'RETURN', 'OTHER'];
-
 function useBranchId() {
   const { user } = useAuth();
   return user?.branchId ?? null;
@@ -51,11 +40,11 @@ function isToday(date: string | Date) {
     && d.getDate() === now.getDate();
 }
 
-function StockBadge({ stock }: { stock: number }) {
+function StockBadge({ stock, alertAt = 3 }: { stock: number; alertAt?: number }) {
   if (stock <= 0) {
     return <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">Out of Stock</span>;
   }
-  if (stock <= 3) {
+  if (stock <= alertAt) {
     return <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">Low Stock: {stock} left</span>;
   }
   return <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">In Stock: {stock}</span>;
@@ -63,15 +52,10 @@ function StockBadge({ stock }: { stock: number }) {
 
 export function BranchPOSPage() {
   const branchId = useBranchId();
-  const { toast } = useToast();
   const [todayVouchers, setTodayVouchers] = useState(0);
   const [todayCustomers, setTodayCustomers] = useState(0);
   const [todaySales, setTodaySales] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<Row[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [cart, setCart] = useState<{ productId: string; name: string; price: number; quantity: number; stock: number }[]>([]);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
@@ -85,7 +69,10 @@ export function BranchPOSPage() {
         setTodayVouchers((vouchers as Row[]).filter((v) => isToday(String(v.createdAt)) && v.status !== 'CANCELLED').length);
         setTodayCustomers((customersRes.data as Row[]).filter((c) => isToday(String(c.createdAt))).length);
         const salesToday = (ordersRes.data as unknown as Row[]).filter(
-          (o) => isToday(String(o.createdAt)) && o.status !== 'CANCELLED',
+          (o) =>
+            Number(o.branchId) === branchId &&
+            isToday(String(o.createdAt)) &&
+            o.status !== 'CANCELLED',
         );
         setTodaySales(salesToday.reduce((sum, o) => sum + Number(o.total ?? 0), 0));
       })
@@ -93,62 +80,9 @@ export function BranchPOSPage() {
       .finally(() => setLoading(false));
   }, [branchId]);
 
-  useEffect(() => {
-    if (!branchId) return;
-    setProductsLoading(true);
-    adminApi
-      .products({ type: 'BIKE' })
-      .then((r) => setProducts(r.data as unknown as Row[]))
-      .catch(console.error)
-      .finally(() => setProductsLoading(false));
-  }, [branchId]);
-
-  function addToCart(product: Row) {
-    const stock = Number(product.stockAtBranch ?? 0);
-    if (stock <= 0) return;
-    const productId = String(product.id);
-    const price = Number(product.salePrice ?? product.price);
-    setCart((prev) => {
-      const existing = prev.find((i) => i.productId === productId);
-      if (existing) {
-        if (existing.quantity >= stock) {
-          toast(`Only ${stock} in stock`, 'error');
-          return prev;
-        }
-        return prev.map((i) =>
-          i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      }
-      return [...prev, { productId, name: String(product.name), price, quantity: 1, stock }];
-    });
-  }
-
-  async function completeSale() {
-    if (!branchId || cart.length === 0) return;
-    setCheckoutLoading(true);
-    try {
-      await branchApi.posOrder({
-        branchId,
-        paymentMethod: 'CASH',
-        items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        isPaid: true,
-      });
-      toast('Sale completed', 'success');
-      setCart([]);
-      const refreshed = await adminApi.products({ type: 'BIKE' });
-      setProducts(refreshed.data as unknown as Row[]);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Sale failed', 'error');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  }
-
-  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
-
   return (
     <div className="space-y-8">
-      <PageHeader title="Point of Sale" subtitle="Today's activity and quick bike sales" />
+      <PageHeader title="Point of Sale" subtitle="Today's activity for your branch" />
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -162,74 +96,6 @@ export function BranchPOSPage() {
           <StatCard label="Today Sales" value={todaySales} icon={ShoppingCart} prefix="PKR " />
         </div>
       )}
-
-      <div>
-        <h2 className="mb-4 font-display text-lg font-semibold text-brand">Sell Bikes</h2>
-        {productsLoading ? (
-          <ProductGridSkeleton count={4} />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {products.map((product) => {
-              const stock = Number(product.stockAtBranch ?? 0);
-              const outOfStock = stock <= 0;
-              const imgs = product.images as { url: string; isPrimary?: boolean }[] | undefined;
-              const image = imgs?.find((i) => i.isPrimary)?.url ?? imgs?.[0]?.url;
-              return (
-                <div
-                  key={String(product.id)}
-                  className={`overflow-hidden rounded-[var(--radius-card)] border bg-white shadow-[var(--shadow-card)] ${
-                    outOfStock ? 'border-border opacity-60' : 'border-border'
-                  }`}
-                >
-                  <div className="aspect-[4/3] bg-surface-alt">
-                    {image ? (
-                      <img src={image} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-text-muted">No image</div>
-                    )}
-                  </div>
-                  <div className="space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-display font-semibold text-brand">{String(product.name)}</h3>
-                      <StockBadge stock={stock} />
-                    </div>
-                    <p className="font-display text-lg font-bold text-brand">{formatPKR(Number(product.salePrice ?? product.price))}</p>
-                    <Button
-                      variant="accent"
-                      size="sm"
-                      className="w-full"
-                      disabled={outOfStock}
-                      onClick={() => addToCart(product)}
-                    >
-                      {outOfStock ? 'Out of Stock' : 'Add to Sale'}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {cart.length > 0 && (
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
-          <h3 className="font-display font-semibold text-brand">Current Sale</h3>
-          <ul className="mt-3 space-y-2">
-            {cart.map((item) => (
-              <li key={item.productId} className="flex items-center justify-between text-sm">
-                <span>{item.name} × {item.quantity}</span>
-                <span className="font-medium">{formatPKR(item.price * item.quantity)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-            <span className="font-display font-bold text-brand">{formatPKR(cartTotal)}</span>
-            <Button variant="accent" loading={checkoutLoading} onClick={completeSale}>
-              Complete Cash Sale
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -241,7 +107,7 @@ function orderRowCustomer(r: Row): string {
   if (user?.firstName) return `${user.firstName} ${user.lastName ?? ''}`.trim();
   if (r.customerName) return String(r.customerName);
   const walkIn = r.walkInCustomer as { name?: string } | undefined;
-  return walkIn?.name ?? '—';
+  return walkIn?.name ?? '';
 }
 
 export function BranchOrdersPage() {
@@ -290,7 +156,7 @@ export function BranchOrdersPage() {
     setSaving(true);
     try {
       await branchApi.setCargoTracking(Number(cargoModal.id), cargoId.trim());
-      toast('Cargo tracking set — order marked delivered', 'success');
+      toast('Cargo tracking set. Order marked delivered', 'success');
       setCargoModal(null);
       setCargoId('');
       reload();
@@ -372,10 +238,10 @@ export function BranchOrdersPage() {
         {detail && (
           <div className="space-y-3 text-sm">
             <p><span className="text-text-muted">Customer:</span> {orderRowCustomer(detail)}</p>
-            <p><span className="text-text-muted">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '—')}</p>
-            <p><span className="text-text-muted">Address:</span> {String(detail.customerAddress ?? '—')}</p>
+            <p><span className="text-text-muted">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '')}</p>
+            <p><span className="text-text-muted">Address:</span> {String(detail.customerAddress ?? '')}</p>
             <p><span className="text-text-muted">Status:</span> <StatusBadge status={String(detail.status)} /></p>
-            <p><span className="text-text-muted">Payment:</span> {String(detail.paymentMethod)} — <StatusBadge status={String(detail.paymentStatus)} /></p>
+            <p><span className="text-text-muted">Payment:</span> {String(detail.paymentMethod)} <StatusBadge status={String(detail.paymentStatus)} /></p>
             <p><span className="text-text-muted">Total:</span> {formatPKR(Number(detail.total))}</p>
             {detail.cargoTrackingId ? (
               <p><span className="text-text-muted">Cargo:</span> {String(detail.cargoTrackingId)}</p>
@@ -389,7 +255,7 @@ export function BranchOrdersPage() {
           <div className="space-y-4">
             <p className="text-sm">Customer: <strong>{orderRowCustomer(paymentModal)}</strong></p>
             <p className="text-sm">Total: <strong>{formatPKR(Number(paymentModal.total))}</strong></p>
-            <p className="text-sm">TID: <strong className="font-mono">{String(paymentModal.paymentTransactionId ?? '—')}</strong></p>
+            <p className="text-sm">TID: <strong className="font-mono">{String(paymentModal.paymentTransactionId ?? '')}</strong></p>
             {paymentModal.bankTransferScreenshot ? (
               <img
                 src={`${BASE}${String(paymentModal.bankTransferScreenshot)}`}
@@ -428,38 +294,146 @@ export function BranchOrdersPage() {
   );
 }
 
-// ─── Inventory ───────────────────────────────────────────────────────────────
+// ─── Stock (bikes + parts) ───────────────────────────────────────────────────
+
+type StockRow = {
+  type: 'BIKE' | 'PART';
+  source: 'PRODUCT' | 'SERVICE_PART';
+  id: string | number;
+  name: string;
+  code: string;
+  quantity: number;
+  alertAt: number;
+  isLowStock: boolean;
+  isSelected: boolean;
+};
+
+type StockFilter = 'ALL' | 'BIKE' | 'PART' | 'LOW';
 
 export function BranchInventoryPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const [items, setItems] = useState<Row[]>([]);
-  const [editItem, setEditItem] = useState<Row | null>(null);
+  const [items, setItems] = useState<StockRow[]>([]);
+  const [lowStock, setLowStock] = useState<StockRow[]>([]);
+  const [filter, setFilter] = useState<StockFilter>('ALL');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<StockRow | null>(null);
+  const [quantity, setQuantity] = useState('0');
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    if (branchId) branchApi.inventory(branchId).then((r) => setItems(r.data as unknown as Row[])).catch(console.error);
+    if (!branchId) return;
+    setLoading(true);
+    branchApi
+      .branchStock(branchId)
+      .then((data) => {
+        setItems(data.items);
+        setLowStock(data.lowStock);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [branchId]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const selectedItems = useMemo(() => items.filter((r) => r.isSelected), [items]);
+
+  const stockSummary = useMemo(
+    () => ({
+      bikes: selectedItems.filter((r) => r.type === 'BIKE').length,
+      parts: selectedItems.filter((r) => r.type === 'PART').length,
+      units: selectedItems.reduce((sum, r) => sum + r.quantity, 0),
+      lowStockCount: selectedItems.filter((r) => r.isLowStock).length,
+    }),
+    [selectedItems],
+  );
+
+  const catalogMatches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return items
+      .filter(
+        (r) =>
+          !r.isSelected &&
+          (r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)),
+      )
+      .slice(0, 10);
+  }, [items, search]);
+
+  const displayed = useMemo(() => {
+    let rows = selectedItems;
+    if (filter === 'BIKE') rows = rows.filter((r) => r.type === 'BIKE');
+    if (filter === 'PART') rows = rows.filter((r) => r.type === 'PART');
+    if (filter === 'LOW') rows = rows.filter((r) => r.isLowStock);
+    return rows;
+  }, [selectedItems, filter]);
+
+  function openEdit(row: StockRow) {
+    setEditItem(row);
+    setQuantity(String(row.quantity));
+  }
+
+  async function handleToggleSelect(row: StockRow) {
+    if (!branchId) return;
+    const key = `${row.source}-${row.id}`;
+    setTogglingId(key);
+    try {
+      if (row.source === 'PRODUCT') {
+        await branchApi.setProductListed(branchId, String(row.id), !row.isSelected);
+      } else if (row.isSelected) {
+        await branchApi.removePartFromBranch(branchId, Number(row.id));
+      } else {
+        await branchApi.setStock(branchId, Number(row.id), 0);
+      }
+      toast(row.isSelected ? 'Removed from branch stock' : 'Added to branch stock', 'success');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function handleSelectFromCatalog(row: StockRow) {
+    if (!branchId) return;
+    const key = `${row.source}-${row.id}`;
+    setSelectingId(key);
+    try {
+      if (row.source === 'PRODUCT') {
+        await branchApi.setProductListed(branchId, String(row.id), true);
+      } else {
+        await branchApi.setStock(branchId, Number(row.id), 0);
+      }
+      toast(`"${row.name}" selected. Set the stock quantity`, 'success');
+      setSearch('');
+      reload();
+      openEdit({ ...row, isSelected: true, quantity: 0 });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to select', 'error');
+    } finally {
+      setSelectingId(null);
+    }
+  }
 
   async function handleSetStock(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!branchId || !editItem) return;
-    const fd = new FormData(e.currentTarget);
-    const part = editItem.part as { id: number };
+    const qty = parseInt(quantity, 10);
+    if (!Number.isFinite(qty) || qty < 0) {
+      toast('Enter a valid quantity', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      const mode = fd.get('mode');
-      if (mode === 'set') {
-        await branchApi.setStock(branchId, part.id, parseInt(String(fd.get('quantity')), 10));
+      if (editItem.source === 'PRODUCT') {
+        await branchApi.setBikeStock(branchId, String(editItem.id), qty);
       } else {
-        await branchApi.adjustStock(branchId, {
-          partId: part.id,
-          quantityChange: parseInt(String(fd.get('quantityChange')), 10),
-          reason: String(fd.get('reason')),
-          notes: String(fd.get('notes') || '') || undefined,
-        });
+        await branchApi.setStock(branchId, Number(editItem.id), qty);
       }
       toast('Stock updated', 'success');
       setEditItem(null);
@@ -472,31 +446,207 @@ export function BranchInventoryPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="Inventory" subtitle="Branch stock quantities" />
-      <DataTable
-        columns={[
-          { key: 'part', header: 'Part', render: (r) => (r.part as { name: string }).name },
-          { key: 'code', header: 'Code', render: (r) => (r.part as { itemCode: string }).itemCode },
-          { key: 'quantity', header: 'Qty', render: (r) => <span className="font-semibold">{String(r.quantity)}</span> },
-          { key: 'alert', header: 'Alert', render: (r) => (r.part as { alertAt: number }).alertAt },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setEditItem(r)} /> },
-        ]}
-        data={items}
+    <div className="space-y-6">
+      <PageHeader
+        title="Stock"
+        subtitle="Select bikes and parts from the admin catalog for your branch, then manage quantities"
       />
-      <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Update Stock">
+
+      <p className="rounded-[var(--radius-card)] border border-border bg-surface-alt/60 px-4 py-3 text-sm text-text-muted">
+        Admin adds all bikes and parts to the catalog. You choose which ones your branch carries.
+        Search below, select an item, and set how many you have in stock.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Bikes" value={stockSummary.bikes} icon={Bike} />
+        <StatCard label="Parts" value={stockSummary.parts} icon={Package} />
+        <StatCard label="Units in Stock" value={stockSummary.units} icon={Boxes} />
+        <StatCard label="Low Stock Items" value={stockSummary.lowStockCount} icon={AlertTriangle} />
+      </div>
+
+      {lowStock.length > 0 && (
+        <div className="rounded-[var(--radius-card)] border border-orange-200 bg-orange-50/80 p-4 sm:p-5">
+          <h3 className="flex items-center gap-2 font-display font-semibold text-orange-800">
+            <AlertTriangle className="h-5 w-5" />
+            Low stock alert ({lowStock.length})
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {lowStock.slice(0, 12).map((item) => (
+              <button
+                key={`${item.type}-${item.id}`}
+                type="button"
+                onClick={() => openEdit(item)}
+                className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-900 hover:border-orange-400"
+              >
+                {item.name} ({item.quantity}/{item.alertAt})
+              </button>
+            ))}
+            {lowStock.length > 12 && (
+              <span className="self-center text-xs text-orange-700">+{lowStock.length - 12} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="w-full sm:max-w-md space-y-2">
+          <Input
+            label="Select from catalog"
+            placeholder="Search bikes or parts by name or code…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search.trim() && (
+            <div className="rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] overflow-hidden">
+              <p className="px-4 py-2 text-xs font-medium text-text-muted border-b border-border bg-surface-alt/40">
+                Catalog: click Select to add to your branch stock
+              </p>
+              {catalogMatches.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-text-muted">No matching bikes or parts in the catalog</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {catalogMatches.map((row) => {
+                    const key = `${row.source}-${row.id}`;
+                    return (
+                      <li key={key} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{row.name}</p>
+                          <p className="text-xs text-text-muted font-mono truncate">{row.code}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              row.type === 'BIKE' ? 'bg-brand/10 text-brand' : 'bg-accent/10 text-accent'
+                            }`}
+                          >
+                            {row.type}
+                          </span>
+                          <Button
+                            variant="accent"
+                            size="sm"
+                            loading={selectingId === key}
+                            onClick={() => handleSelectFromCatalog(row)}
+                          >
+                            Select
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+        <Select
+          label="Your stock"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as StockFilter)}
+          className="w-full sm:min-w-[160px] sm:w-auto"
+        >
+          <option value="ALL">All in stock</option>
+          <option value="BIKE">Bikes only</option>
+          <option value="PART">Parts only</option>
+          <option value="LOW">Low stock only</option>
+        </Select>
+      </div>
+
+      {loading ? (
+        <ProductGridSkeleton count={3} />
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: 'type',
+              header: 'Type',
+              render: (r) => (
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    r.type === 'BIKE' ? 'bg-brand/10 text-brand' : 'bg-accent/10 text-accent'
+                  }`}
+                >
+                  {String(r.type)}
+                </span>
+              ),
+            },
+            { key: 'name', header: 'Name', render: (r) => String(r.name) },
+            { key: 'code', header: 'Code', render: (r) => <span className="font-mono text-xs">{String(r.code)}</span> },
+            {
+              key: 'quantity',
+              header: 'Qty',
+              render: (r) => {
+                const qty = Number(r.quantity);
+                return (
+                  <span className={qty <= Number(r.alertAt) ? 'font-semibold text-orange-700' : 'font-semibold'}>
+                    {qty}
+                  </span>
+                );
+              },
+            },
+            { key: 'alert', header: 'Alert at', render: (r) => String(r.alertAt) },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (r) => <StockBadge stock={Number(r.quantity)} alertAt={Number(r.alertAt)} />,
+            },
+            {
+              key: 'actions',
+              header: '',
+              align: 'right',
+              render: (r) => {
+                const row = r as unknown as StockRow;
+                const key = `${row.source}-${row.id}`;
+                return (
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
+                      Update Stock
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      loading={togglingId === key}
+                      onClick={() => handleToggleSelect(row)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                );
+              },
+            },
+          ]}
+          data={displayed as unknown as Row[]}
+          emptyMessage="No bikes or parts selected yet. Search the catalog above to select items for your branch"
+        />
+      )}
+
+      <Modal
+        open={!!editItem}
+        onClose={() => setEditItem(null)}
+        title={`Update Stock: ${editItem?.name ?? ''}`}
+      >
         <form onSubmit={handleSetStock} className="space-y-4">
-          <p className="text-sm font-medium">{(editItem?.part as { name: string })?.name}</p>
-          <Select name="mode" label="Action" defaultValue="set">
-            <option value="set">Set exact quantity</option>
-            <option value="adjust">Adjust (+/-)</option>
-          </Select>
-          <Input name="quantity" label="Quantity (set mode)" type="number" min={0} defaultValue={String(editItem?.quantity ?? 0)} />
-          <Input name="quantityChange" label="Change amount (adjust mode)" type="number" defaultValue="0" />
-          <Select name="reason" label="Reason (adjust)" defaultValue="CORRECTION">
-            {ADJUST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-          </Select>
-          <Input name="notes" label="Notes" />
+          <div className="rounded-xl border border-border/70 bg-surface-alt/50 px-4 py-3 text-sm">
+            <p>
+              <span className="text-text-muted">Type:</span>{' '}
+              <strong>{editItem?.type}</strong>
+            </p>
+            <p className="mt-1">
+              <span className="text-text-muted">Code:</span>{' '}
+              <strong className="font-mono">{editItem?.code}</strong>
+            </p>
+            <p className="mt-1">
+              <span className="text-text-muted">Current:</span>{' '}
+              <strong>{editItem?.quantity ?? 0}</strong>
+            </p>
+          </div>
+          <Input
+            label="New quantity"
+            type="number"
+            min={0}
+            required
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
           <FormActions onCancel={() => setEditItem(null)} loading={saving} />
         </form>
       </Modal>
@@ -504,319 +654,10 @@ export function BranchInventoryPage() {
   );
 }
 
-// ─── Bikes Catalog ───────────────────────────────────────────────────────────
-
-function parseBikeFormPrice(value: FormDataEntryValue | null, label: string): number {
-  const raw = String(value ?? '').trim();
-  if (!raw) throw new Error(`${label} is required`);
-  const n = parseFloat(raw);
-  if (!Number.isFinite(n) || n <= 0 || n >= 10_000_000_000) {
-    throw new Error(`${label} must be a valid amount under 10 billion PKR`);
-  }
-  return n;
-}
-
-function parseOptionalBikePrice(value: FormDataEntryValue | null, label: string): number | undefined {
-  const raw = String(value ?? '').trim();
-  if (!raw) return undefined;
-  return parseBikeFormPrice(value, label);
-}
+// ─── Bikes Catalog (legacy route → Stock) ────────────────────────────────────
 
 export function BranchBikesPage() {
-  const branchId = useBranchId();
-  const { toast } = useToast();
-  const [bikes, setBikes] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<'create' | 'edit' | null>(null);
-  const [edit, setEdit] = useState<Row | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
-  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
-  const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
-  const [stockModal, setStockModal] = useState<Row | null>(null);
-  const [stockQty, setStockQty] = useState('0');
-  const [stockSaving, setStockSaving] = useState(false);
-
-  const bikeDelete = useDeleteConfirm<Row>(
-    async (row) => {
-      await adminApi.deleteProduct(String(row.id));
-      toast('Bike removed', 'success');
-      reload();
-    },
-    { message: (row) => `Remove "${String(row.name)}" from the catalog?` },
-  );
-
-  const reload = useCallback(() => {
-    setLoading(true);
-    adminApi
-      .products({ type: 'BIKE' })
-      .then((r) => setBikes(r.data as unknown as Row[]))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  function resetImageState() {
-    setPendingImages((prev) => {
-      clearPendingImages(prev);
-      return [];
-    });
-    setExistingImages([]);
-    setPrimarySelection(null);
-  }
-
-  function closeModal() {
-    resetImageState();
-    setModal(null);
-    setEdit(null);
-  }
-
-  function openCreate() {
-    resetImageState();
-    setEdit(null);
-    setModal('create');
-  }
-
-  function openEdit(row: Row) {
-    resetImageState();
-    const imgs = (row.images as ExistingImage[] | undefined) ?? [];
-    setExistingImages(imgs);
-    setPrimarySelection(primaryFromImages(imgs, []));
-    setEdit(row);
-    setModal('edit');
-  }
-
-  async function removeExistingImage(imageId: number) {
-    if (!edit) return;
-    try {
-      await adminApi.deleteProductImage(String(edit.id), imageId);
-      const next = existingImages.filter((i) => i.id !== imageId);
-      setExistingImages(next);
-      if (primarySelection?.type === 'existing' && primarySelection.id === imageId) {
-        setPrimarySelection(primaryFromImages(next, pendingImages));
-      }
-      toast('Image removed', 'success');
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to remove image', 'error');
-    }
-  }
-
-  async function attachImages(
-    productId: string,
-    files: PendingImage[],
-    existingCount: number,
-    primary: PrimarySelection | null,
-  ) {
-    if (!files.length) return;
-    const { urls } = await adminApi.uploadProductImages(files.map((f) => f.file));
-    const pendingPrimaryId = primary?.type === 'pending' ? primary.id : null;
-    for (let i = 0; i < urls.length; i++) {
-      const pendingId = files[i].id;
-      const isPrimary = pendingPrimaryId === pendingId;
-      await adminApi.addProductImage(productId, urls[i], isPrimary, existingCount + i);
-    }
-  }
-
-  async function applyPrimarySelection(productId: string, primary: PrimarySelection | null) {
-    if (!primary || primary.type !== 'existing') return;
-    await adminApi.setProductImagePrimary(productId, primary.id);
-  }
-
-  function openStockModal(row: Row) {
-    setStockModal(row);
-    setStockQty(String(row.stockAtBranch ?? 0));
-  }
-
-  async function saveStock(e: FormEvent) {
-    e.preventDefault();
-    if (!stockModal || !branchId) return;
-    const quantity = parseInt(stockQty, 10);
-    if (!Number.isFinite(quantity) || quantity < 0) {
-      toast('Enter a valid stock quantity', 'error');
-      return;
-    }
-    setStockSaving(true);
-    try {
-      await branchApi.setBikeStock(branchId, String(stockModal.id), quantity);
-      toast('Stock updated', 'success');
-      setStockModal(null);
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to update stock', 'error');
-    } finally {
-      setStockSaving(false);
-    }
-  }
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    let body: Record<string, unknown>;
-    try {
-      const salePrice = parseOptionalBikePrice(fd.get('salePrice'), 'Sale price');
-      body = {
-        name: String(fd.get('name')).trim(),
-        type: 'BIKE',
-        price: parseBikeFormPrice(fd.get('price'), 'Price'),
-        description: String(fd.get('description') || '').trim() || undefined,
-        specs: parseEvSpecsFromForm(fd),
-        ...(salePrice !== undefined && { salePrice }),
-        ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
-      };
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Invalid form values', 'error');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      let productId = edit ? String(edit.id) : '';
-      if (modal === 'edit' && edit) {
-        await adminApi.updateProduct(String(edit.id), body);
-      } else {
-        const created = await adminApi.createProduct(body);
-        productId = String(created.id);
-      }
-      const existingCount = modal === 'edit' ? existingImages.length : 0;
-      if (pendingImages.length) {
-        await attachImages(productId, pendingImages, existingCount, primarySelection);
-      }
-      if (primarySelection?.type === 'existing') {
-        await applyPrimarySelection(productId, primarySelection);
-      }
-      toast(modal === 'edit' ? 'Bike updated' : 'Bike added', 'success');
-      closeModal();
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div>
-      <PageHeader
-        title="Bikes Catalog"
-        subtitle="Add electric bikes with EV specifications for your branch"
-        action={<Button variant="accent" onClick={openCreate}>Add Bike</Button>}
-      />
-
-      {loading ? (
-        <ProductGridSkeleton count={4} />
-      ) : (
-        <DataTable
-          columns={[
-            {
-              key: 'image',
-              header: 'Image',
-              render: (r) => {
-                const imgs = r.images as { url: string; isPrimary?: boolean }[] | undefined;
-                const url = imgs?.find((i) => i.isPrimary)?.url ?? imgs?.[0]?.url;
-                return url ? (
-                  <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                ) : (
-                  <span className="text-xs text-text-muted">—</span>
-                );
-              },
-            },
-            { key: 'name', header: 'Name' },
-            { key: 'price', header: 'Price', render: (r) => formatPKR(Number(r.price)) },
-            {
-              key: 'stock',
-              header: 'Stock',
-              render: (r) => {
-                const stock = Number(r.stockAtBranch ?? 0);
-                return <StockBadge stock={stock} />;
-              },
-            },
-            {
-              key: 'specs',
-              header: 'Specs',
-              render: (r) => {
-                const specs = r.specs as Record<string, string> | null;
-                const count = specs ? Object.keys(specs).length : 0;
-                return count ? `${count} fields` : '—';
-              },
-            },
-            { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
-            {
-              key: 'actions',
-              header: '',
-              align: 'right',
-              className: 'w-28',
-              render: (r) => (
-                <div className="flex items-center justify-end gap-1">
-                  <Button variant="secondary" size="sm" onClick={() => openStockModal(r)}>Set Stock</Button>
-                  <RowActions
-                    onEdit={() => openEdit(r)}
-                    deleteLabel="Delete"
-                    onDelete={() => bikeDelete.setTarget(r)}
-                  />
-                </div>
-              ),
-            },
-          ]}
-          data={bikes}
-          emptyMessage="No bikes yet — add your first electric bike"
-        />
-      )}
-      {bikeDelete.modal}
-
-      <Modal open={!!stockModal} onClose={() => setStockModal(null)} title={`Set Stock — ${String(stockModal?.name ?? '')}`}>
-        <form onSubmit={saveStock} className="space-y-4">
-          <Input
-            label="Quantity in stock"
-            type="number"
-            min={0}
-            required
-            value={stockQty}
-            onChange={(e) => setStockQty(e.target.value)}
-          />
-          <FormActions onCancel={() => setStockModal(null)} loading={stockSaving} />
-        </form>
-      </Modal>
-
-      <Modal
-        open={!!modal}
-        onClose={closeModal}
-        title={modal === 'edit' ? 'Edit Bike' : 'New Bike'}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col">
-          <div className="space-y-4">
-            <ProductImageUpload
-              pending={pendingImages}
-              existing={existingImages}
-              primary={primarySelection}
-              onPendingChange={setPendingImages}
-              onPrimaryChange={setPrimarySelection}
-              onRemoveExisting={modal === 'edit' ? removeExistingImage : undefined}
-            />
-            <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input name="price" label="Price (PKR)" type="number" step="0.01" required defaultValue={String(edit?.price ?? '')} />
-              <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
-            </div>
-            <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
-            <EvSpecsFields specs={edit?.specs as Record<string, string> | undefined} />
-            {modal === 'edit' && (
-              <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </Select>
-            )}
-          </div>
-          <div className="sticky bottom-0 mt-6 border-t border-border bg-white pt-4">
-            <FormActions onCancel={closeModal} loading={saving} />
-          </div>
-        </form>
-      </Modal>
-    </div>
-  );
+  return <Navigate to="/branch/inventory" replace />;
 }
 
 // ─── Bookings ────────────────────────────────────────────────────────────────
@@ -825,7 +666,7 @@ function bookingRowCustomer(r: Row): string {
   if (r.customerName) return String(r.customerName);
   const user = r.user as { firstName?: string; lastName?: string } | undefined;
   if (user?.firstName) return `${user.firstName} ${user.lastName ?? ''}`.trim();
-  return '—';
+  return '';
 }
 
 export function BranchBookingsPage() {
@@ -935,8 +776,8 @@ export function BranchBookingsPage() {
       <DataTable
         columns={[
           { key: 'customer', header: 'Customer', render: (r) => bookingRowCustomer(r) },
-          { key: 'notes', header: 'Notes', render: (r) => String(r.notes ?? '—').slice(0, 40) },
-          { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '—' },
+          { key: 'notes', header: 'Notes', render: (r) => String(r.notes ?? '').slice(0, 40) },
+          { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '' },
           {
             key: 'appointment',
             header: 'Visit Schedule',
@@ -945,7 +786,7 @@ export function BranchBookingsPage() {
                 return `${formatDate(String(r.date))} at ${formatTime(String(r.confirmedTime))}`;
               }
               if (r.confirmedTime) return formatTime(String(r.confirmedTime));
-              return '—';
+              return '';
             },
           },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
@@ -1218,7 +1059,7 @@ export function BranchPurchasesPage() {
       <DataTable
         columns={[
           { key: 'id', header: 'ID' },
-          { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '—' },
+          { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
           { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
         ]}
@@ -1583,7 +1424,7 @@ export function BranchPaymentsPage() {
           columns={[
             { key: 'type', header: 'Type', render: (r) => String(r.type) },
             { key: 'name', header: 'Name' },
-            { key: 'accountTitle', header: 'Account Title', render: (r) => String(r.accountTitle ?? '—') },
+            { key: 'accountTitle', header: 'Account Title', render: (r) => String(r.accountTitle ?? '') },
             { key: 'accountNumber', header: 'Account / Number', render: (r) => <span className="font-mono text-xs">{String(r.accountNumber)}</span> },
             {
               key: 'actions',
@@ -1597,7 +1438,7 @@ export function BranchPaymentsPage() {
             },
           ]}
           data={channels}
-          emptyMessage="No payment channels — add one for online checkout"
+          emptyMessage="No payment channels. Add one for online checkout"
         />
       </div>
 
@@ -1606,7 +1447,7 @@ export function BranchPaymentsPage() {
         <DataTable
           columns={[
             { key: 'trackingId', header: 'Tracking' },
-            { key: 'paymentTransactionId', header: 'TID', render: (r) => String(r.paymentTransactionId ?? '—') },
+            { key: 'paymentTransactionId', header: 'TID', render: (r) => String(r.paymentTransactionId ?? '') },
             { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
             {
               key: 'actions',

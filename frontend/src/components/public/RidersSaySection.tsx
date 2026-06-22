@@ -25,7 +25,7 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
             muted
             loop
             playsInline
-            preload="auto"
+            preload="none"
           />
         ) : hasYoutube ? (
           <iframe
@@ -59,7 +59,7 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
             What Riders Say
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-white/85">
-            {BIKE_VIDEO_AD.title} — trusted by riders across Pakistan
+            {BIKE_VIDEO_AD.title}, trusted by riders across Pakistan
           </p>
         </motion.div>
 

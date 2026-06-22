@@ -5,11 +5,13 @@ import { ProductGridSkeleton } from '../ui/Skeleton';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const isInitialLoad = location.key === 'default';
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={location.pathname}
-        initial={{ opacity: 0, y: 8 }}
+        initial={isInitialLoad ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}

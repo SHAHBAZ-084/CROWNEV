@@ -175,7 +175,7 @@ export function ProductImageUpload({
         >
           <ImagePlus className="h-7 w-7 text-brand-light" />
           <span>Click or drag images here</span>
-          <span className="text-xs">JPEG, PNG, WebP — max 5 MB each</span>
+          <span className="text-xs">JPEG, PNG, WebP. Max 5 MB each</span>
         </button>
       )}
 

@@ -15,7 +15,6 @@ const adminNav: SidebarNavItem[] = [
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
   { to: '/admin/users', label: 'Users', icon: Users },
-  { to: '/admin/payments', label: 'Payments', icon: CreditCard },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
   { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
 ];
@@ -23,10 +22,8 @@ const adminNav: SidebarNavItem[] = [
 const branchNav: SidebarNavItem[] = [
   { to: '/branch', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/branch/orders', label: 'Orders', icon: Truck },
-  { to: '/branch/inventory', label: 'Inventory', icon: Boxes },
-  { to: '/branch/bikes', label: 'Bikes', icon: Package },
+  { to: '/branch/inventory', label: 'Stock', icon: Boxes },
   { to: '/branch/bookings', label: 'Service Booking', icon: Calendar },
-  { to: '/branch/purchases', label: 'Purchases', icon: Package },
   { to: '/branch/payments', label: 'Payments', icon: CreditCard },
   { to: '/branch/reports', label: 'Reports', icon: BarChart3 },
 ];

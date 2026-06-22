@@ -9,7 +9,7 @@ export function EvSpecsFields({
     <fieldset className="space-y-3">
       <legend className="font-display text-sm font-semibold text-brand">EV Specifications</legend>
       <p className="text-xs text-text-muted">
-        Optional — shown on the product page when customers view this bike.
+        Optional. Shown on the product page when customers view this bike.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {EV_SPEC_FIELDS.map(({ key, label, placeholder }) => (

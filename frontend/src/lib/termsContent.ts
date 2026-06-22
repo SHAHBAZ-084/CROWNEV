@@ -32,7 +32,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     title: 'Delivery & Tracking',
     items: [
       'Delivery timelines depend on your location, selected branch, and product availability. Estimated dates are not guaranteed.',
-      'You may track your order using the Track Order page with your tracking ID — no login is required.',
+      'You may track your order using the Track Order page with your tracking ID. No login is required.',
       'Risk of loss passes to you upon delivery to the address or branch you specified at checkout.',
       'If delivery fails due to incorrect address details or unavailability at the delivery time, additional charges may apply for re-delivery.',
     ],

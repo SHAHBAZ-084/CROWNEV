@@ -10,6 +10,9 @@ export const accountingRouter = Router();
 accountingRouter.use(authenticate, requireRoles(Role.ADMIN, Role.BRANCH_OWNER));
 
 function assertBranch(req: import('express').Request, branchId: number) {
+  if (!Number.isFinite(branchId) || branchId <= 0) {
+    throw Object.assign(new Error('Invalid branch ID'), { statusCode: 400 });
+  }
   if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
     throw Object.assign(new Error('Cross-branch access denied'), { statusCode: 403 });
   }

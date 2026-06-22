@@ -7,6 +7,7 @@ export async function listUsers(query: { page?: string; limit?: string; role?: R
   const { page, limit, skip } = getPagination(query);
   const where = {
     isVerified: true,
+    isActive: true,
     ...(query.role && { role: query.role }),
     ...(query.search && {
       OR: [
@@ -104,5 +105,17 @@ export async function updateUser(
 }
 
 export async function deleteUser(id: string) {
-  return prisma.user.update({ where: { id }, data: { isActive: false } });
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError(404, 'User not found');
+  if (!user.isActive) throw new AppError(400, 'User already deactivated');
+
+  return prisma.$transaction(async (tx) => {
+    if (user.role === Role.BRANCH_OWNER) {
+      await tx.branch.updateMany({
+        where: { ownerId: id },
+        data: { ownerId: null },
+      });
+    }
+    return tx.user.update({ where: { id }, data: { isActive: false } });
+  });
 }

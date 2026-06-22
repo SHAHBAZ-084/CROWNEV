@@ -38,14 +38,13 @@ ordersRouter.post(
 
 ordersRouter.get(
   '/pending-payments',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireRoles(Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
-    const branchId =
-      req.user!.role === Role.BRANCH_OWNER
-        ? req.user!.branchId ?? undefined
-        : req.query.branchId
-          ? parseInt(req.query.branchId as string, 10)
-          : undefined;
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
     const orders = await ordersService.listPendingBankTransfers(branchId);
     res.json(orders);
   })
@@ -55,12 +54,16 @@ ordersRouter.get(
   '/',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER, Role.CUSTOMER),
   asyncHandler(async (req, res) => {
-    const branchId =
-      req.user!.role === Role.BRANCH_OWNER
-        ? req.user!.branchId ?? undefined
-        : req.query.branchId
-          ? parseInt(req.query.branchId as string, 10)
-          : undefined;
+    let branchId: number | undefined;
+    if (req.user!.role === Role.BRANCH_OWNER) {
+      branchId = req.user!.branchId ?? undefined;
+      if (!branchId) {
+        res.status(403).json({ error: 'Branch not assigned' });
+        return;
+      }
+    } else if (req.query.branchId) {
+      branchId = parseInt(req.query.branchId as string, 10);
+    }
     const userId = req.user!.role === Role.CUSTOMER ? req.user!.userId : undefined;
 
     const result = await ordersService.listOrders({
@@ -156,10 +159,14 @@ ordersRouter.post(
 
 ordersRouter.patch(
   '/:id/status',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireRoles(Role.BRANCH_OWNER),
   validateBody(z.object({ status: z.nativeEnum(OrderStatus) })),
   asyncHandler(async (req, res) => {
-    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
     const order = await ordersService.updateOrderStatus(
       parseInt(param(req.params.id), 10),
       req.body.status,
@@ -171,10 +178,14 @@ ordersRouter.patch(
 
 ordersRouter.patch(
   '/:id/payment',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireRoles(Role.BRANCH_OWNER),
   validateBody(z.object({ approved: z.boolean() })),
   asyncHandler(async (req, res) => {
-    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
     const order = await ordersService.approvePayment(
       parseInt(param(req.params.id), 10),
       req.body.approved,
@@ -186,10 +197,14 @@ ordersRouter.patch(
 
 ordersRouter.patch(
   '/:id/cargo-tracking',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireRoles(Role.BRANCH_OWNER),
   validateBody(z.object({ cargoTrackingId: z.string().min(1) })),
   asyncHandler(async (req, res) => {
-    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
     const order = await ordersService.setCargoTracking(
       parseInt(param(req.params.id), 10),
       req.body.cargoTrackingId,

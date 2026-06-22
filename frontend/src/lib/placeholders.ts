@@ -1,4 +1,4 @@
-/** PLACEHOLDER — swap for real founder photos before production launch */
+/** PLACEHOLDER. swap for real founder photos before production launch */
 
 export const FOUNDERS = [
   {
@@ -19,7 +19,7 @@ export const FOUNDERS = [
 
 export const COMPANY_STORY = `Crown Eve Bikes was born from a simple belief: Pakistan deserves world-class electric mobility without compromise. From our first showroom in Karachi to a growing network of branches nationwide, we combine premium EV engineering with local service expertise.
 
-Every Crown Eve bike is selected for Pakistani roads — heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
+Every Crown Eve bike is selected for Pakistani roads: heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
 
 export const FOOTER_CONTACT = {
   email: 'info@crowneve.pk',
@@ -29,11 +29,11 @@ export const FOOTER_CONTACT = {
   whatsappMessage: "Hi Crown Eve! I'd like to know more about your electric bikes.",
 } as const;
 
-/** Homepage background video (What Riders Say section) — replace `src` with your own MP4 */
+/** Homepage background video (What Riders Say section). replace `src` with your own MP4 */
 export const BIKE_VIDEO_AD = {
-  /** Direct MP4/WebM — default is a preview clip until you add your own ad */
+  /** Direct MP4/WebM. default is a preview clip until you add your own ad */
   src: 'https://assets.mixkit.co/videos/preview/mixkit-man-riding-a-motorcycle-on-the-road-41757-large.mp4',
-  /** YouTube video ID — used only when `src` is empty */
+  /** YouTube video ID. used only when `src` is empty */
   youtubeId: '',
   poster:
     'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=1920&q=80',
@@ -41,13 +41,16 @@ export const BIKE_VIDEO_AD = {
   subtitle: 'Ride the future',
 } as const;
 
-/** Site logo — replace file at public/images/logo.png */
+/** Site logo. replace files at public/images/logo.webp */
 export const SITE_LOGO = {
-  src: '/images/logo.png',
+  src: '/images/logo.webp',
+  srcLarge: '/images/logo-lg.webp',
   alt: 'Crown Hadi EV Center',
+  width: 400,
+  height: 267,
 } as const;
 
-/** Find a Branch section — dotted Pakistan map background */
+/** Find a Branch section. dotted Pakistan map background */
 export const BRANCH_SECTION = {
   mapBackground: '/images/pakistan-map-bg.png',
 } as const;

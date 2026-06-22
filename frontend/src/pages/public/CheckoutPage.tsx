@@ -150,7 +150,7 @@ export default function CheckoutPage() {
           >
             <option value="">Select branch</option>
             {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name} — {b.location}</option>
+              <option key={b.id} value={b.id}>{b.name}, {b.location}</option>
             ))}
           </Select>
           {selectedBranch && (
@@ -236,7 +236,7 @@ export default function CheckoutPage() {
           disabled={!canSubmit}
           className="w-full"
         >
-          Place Order — {formatPKR(total)}
+          Place Order for {formatPKR(total)}
         </Button>
       </form>
 

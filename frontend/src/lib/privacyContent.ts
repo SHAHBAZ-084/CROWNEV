@@ -25,10 +25,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'Legal Basis for Processing',
     items: [
-      'Contract performance — processing necessary to fulfill your orders, bookings, and account services.',
-      'Legitimate interests — improving our platform, preventing fraud, and ensuring network security.',
-      'Legal obligation — retaining records for tax, accounting, and regulatory compliance in Pakistan.',
-      'Consent — where required for optional marketing communications or specific data uses.',
+      'Contract performance: processing necessary to fulfill your orders, bookings, and account services.',
+      'Legitimate interests: improving our platform, preventing fraud, and ensuring network security.',
+      'Legal obligation: retaining records for tax, accounting, and regulatory compliance in Pakistan.',
+      'Consent: where required for optional marketing communications or specific data uses.',
     ],
   },
   {

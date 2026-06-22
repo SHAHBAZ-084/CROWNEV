@@ -60,6 +60,7 @@ export async function listBookings(query: {
       take: limit,
       include: {
         service: true,
+        branch: { select: { name: true } },
         user: { select: { firstName: true, lastName: true, email: true } },
         parts: { include: { part: true } },
       },

@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { adminApi } from '../../api/client';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
+import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
@@ -10,9 +11,18 @@ import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
 import { parseEvSpecsFromForm } from '../../lib/evSpecs';
+import { exportToPdf, type ReportColumn } from '../../lib/reportExport';
 import { useToast } from '../../contexts/ToastContext';
 
 type Row = Record<string, unknown>;
+
+function CatalogActiveBadge({ active }: { active: boolean }) {
+  return (
+    <Badge variant={active ? 'success' : 'danger'}>
+      {active ? 'Active' : 'Inactive'}
+    </Badge>
+  );
+}
 
 function parseFormPrice(value: FormDataEntryValue | null, label: string): number {
   const raw = String(value ?? '').trim();
@@ -191,11 +201,14 @@ export function AdminProductsPage() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
-  const del = useDeleteConfirm<Row>(async (item) => {
-    await adminApi.deleteProduct(String(item.id));
-    toast('Item deleted', 'success');
-    reload();
-  });
+  const del = useDeleteConfirm<Row>(
+    async (item) => {
+      await adminApi.deleteProduct(String(item.id));
+      toast('Removed from catalog', 'success');
+      reload();
+    },
+    { message: (row) => `Delete "${String(row.name)}"? It will be removed from the shop and hidden from this list.` },
+  );
 
   function resetImageState() {
     setPendingImages((prev) => {
@@ -322,7 +335,7 @@ export function AdminProductsPage() {
     <div>
       <PageHeader
         title="Catalog"
-        subtitle="One catalog for everything — switch between electric bikes and parts"
+        subtitle="One catalog for everything. Switch between electric bikes and parts"
         action={
           <Button variant="accent" onClick={openCreateModal}>
             {tab === 'bikes' ? 'Add Bike' : 'Add Part'}
@@ -350,7 +363,7 @@ export function AdminProductsPage() {
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
-        Showing <strong className="text-brand">{tabLabel}</strong> — same as the public shop filter (Bikes / Parts).
+        Showing <strong className="text-brand">{tabLabel}</strong>, same as the public shop filter (Bikes / Parts).
       </p>
 
       <DataTable
@@ -364,7 +377,7 @@ export function AdminProductsPage() {
               return url ? (
                 <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
               ) : (
-                <span className="text-xs text-text-muted">—</span>
+                <span className="text-xs text-text-muted"></span>
               );
             },
           }] : []),
@@ -373,9 +386,9 @@ export function AdminProductsPage() {
           {
             key: 'salePrice',
             header: 'Sale',
-            render: (r) => r.salePrice ? `PKR ${Number(r.salePrice).toLocaleString()}` : '—',
+            render: (r) => r.salePrice ? `PKR ${Number(r.salePrice).toLocaleString()}` : '',
           },
-          { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
+          { key: 'isActive', header: 'Status', render: (r) => <CatalogActiveBadge active={Boolean(r.isActive)} /> },
           {
             key: 'actions',
             header: '',
@@ -532,150 +545,224 @@ export function AdminUsersPage() {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
-const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'DELIVERED', 'CANCELLED'];
+type OrderExportRow = {
+  trackingId: string;
+  branch: string;
+  customer: string;
+  type: string;
+  status: string;
+  total: string | number;
+  paymentMethod: string;
+  paymentStatus: string;
+  createdAt: string;
+};
+
+const ORDER_EXPORT_COLUMNS: ReportColumn<OrderExportRow>[] = [
+  { header: 'Tracking', value: (r) => r.trackingId },
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Customer', value: (r) => r.customer },
+  { header: 'Type', value: (r) => r.type },
+  { header: 'Status', value: (r) => r.status },
+  { header: 'Total (PKR)', value: (r) => Number(r.total).toLocaleString() },
+  { header: 'Payment', value: (r) => r.paymentMethod },
+  { header: 'Pay Status', value: (r) => r.paymentStatus },
+  { header: 'Date', value: (r) => new Date(r.createdAt).toLocaleDateString() },
+];
 
 export function AdminOrdersPage() {
   const { toast } = useToast();
-  const { rows, reload } = useCrudList(() => adminApi.orders());
-  const [statusModal, setStatusModal] = useState<Row | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [branches, setBranches] = useState<Row[]>([]);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
-  async function updateStatus(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!statusModal) return;
-    const status = String(new FormData(e.currentTarget).get('status'));
-    setSaving(true);
+  const loadOrders = useCallback(
+    () => adminApi.orders(branchFilter ? { branchId: branchFilter } : undefined),
+    [branchFilter],
+  );
+  const { rows, loading } = useCrudList(loadOrders, [branchFilter]);
+
+  useEffect(() => {
+    adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
+  }, []);
+
+  async function downloadOrdersPdf() {
+    setDownloading(true);
     try {
-      await adminApi.updateOrderStatus(Number(statusModal.id), status);
-      toast('Order status updated', 'success');
-      setStatusModal(null);
-      reload();
+      const data = await adminApi.exportOrders(branchFilter ? { branchId: branchFilter } : undefined);
+      const exportRows: OrderExportRow[] = data.map((row) => ({
+        trackingId: String(row.trackingId ?? ''),
+        branch: String(row.branch ?? ''),
+        customer: String(row.customer ?? ''),
+        type: String(row.type ?? ''),
+        status: String(row.status ?? ''),
+        total: row.total as string | number,
+        paymentMethod: String(row.paymentMethod ?? ''),
+        paymentStatus: String(row.paymentStatus ?? ''),
+        createdAt: String(row.createdAt ?? ''),
+      }));
+      const branchName = branchFilter
+        ? String(branches.find((b) => String(b.id) === branchFilter)?.name ?? 'branch')
+        : 'all-branches';
+      await exportToPdf(`orders_${branchName}`, ORDER_EXPORT_COLUMNS, exportRows, {
+        title: 'Orders Report',
+        subtitle: branchFilter
+          ? `Branch: ${branches.find((b) => String(b.id) === branchFilter)?.name ?? branchFilter}`
+          : 'All branches',
+      });
+      toast('PDF downloaded', 'success');
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to download PDF', 'error');
     } finally {
-      setSaving(false);
+      setDownloading(false);
     }
   }
 
   return (
     <div>
-      <PageHeader title="All Orders" subtitle="Orders across all branches" />
+      <PageHeader
+        title="All Orders"
+        subtitle="View only. Branch owners update order status"
+        action={
+          <Button variant="accent" size="sm" loading={downloading} onClick={downloadOrdersPdf}>
+            Download PDF
+          </Button>
+        }
+      />
+
+      <div className="mb-4 max-w-xs">
+        <Select
+          label="Filter by branch"
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+        >
+          <option value="">All branches</option>
+          {branches.map((b) => (
+            <option key={String(b.id)} value={String(b.id)}>{String(b.name)}</option>
+          ))}
+        </Select>
+      </div>
+
       <DataTable
         columns={[
           { key: 'trackingId', header: 'Tracking' },
-          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '—' },
+          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
           { key: 'type', header: 'Type' },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           { key: 'total', header: 'Total', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setStatusModal(r)} /> },
         ]}
         data={rows}
+        emptyMessage={loading ? 'Loading…' : 'No orders found'}
       />
-      <Modal open={!!statusModal} onClose={() => setStatusModal(null)} title="Update Order Status">
-        <form onSubmit={updateStatus} className="space-y-4">
-          <p className="text-sm text-text-muted">Tracking: <strong>{String(statusModal?.trackingId)}</strong></p>
-          <Select name="status" label="Status" defaultValue={String(statusModal?.status ?? 'PENDING')}>
-            {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <FormActions onCancel={() => setStatusModal(null)} loading={saving} />
-        </form>
-      </Modal>
     </div>
   );
 }
 
 // ─── Bookings ────────────────────────────────────────────────────────────────
 
-const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'DONE', 'CANCELLED'];
+type BookingExportRow = {
+  id: string | number;
+  branch: string;
+  service: string;
+  customer: string;
+  date: string;
+  time: string;
+  status: string;
+  price: string | number;
+};
+
+const BOOKING_EXPORT_COLUMNS: ReportColumn<BookingExportRow>[] = [
+  { header: 'ID', value: (r) => r.id },
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Service', value: (r) => r.service },
+  { header: 'Customer', value: (r) => r.customer },
+  { header: 'Date', value: (r) => r.date },
+  { header: 'Time', value: (r) => r.time ?? '' },
+  { header: 'Status', value: (r) => r.status },
+  { header: 'Price (PKR)', value: (r) => Number(r.price).toLocaleString() },
+];
 
 export function AdminBookingsPage() {
   const { toast } = useToast();
-  const { rows, reload } = useCrudList(() => adminApi.bookings());
-  const [statusModal, setStatusModal] = useState<Row | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [branches, setBranches] = useState<Row[]>([]);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
-  async function updateStatus(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!statusModal) return;
-    const fd = new FormData(e.currentTarget);
-    setSaving(true);
+  const loadBookings = useCallback(
+    () => adminApi.bookings(branchFilter ? { branchId: branchFilter } : undefined),
+    [branchFilter],
+  );
+  const { rows, loading } = useCrudList(loadBookings, [branchFilter]);
+
+  useEffect(() => {
+    adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
+  }, []);
+
+  async function downloadBookingsPdf() {
+    setDownloading(true);
     try {
-      await adminApi.updateBookingStatus(Number(statusModal.id), {
-        branchId: Number(statusModal.branchId),
-        status: String(fd.get('status')),
+      const data = await adminApi.exportBookings(branchFilter ? { branchId: branchFilter } : undefined);
+      const exportRows: BookingExportRow[] = data.map((row) => ({
+        id: row.id as string | number,
+        branch: String(row.branch ?? ''),
+        service: String(row.service ?? ''),
+        customer: String(row.customer ?? ''),
+        date: String(row.date ?? ''),
+        time: String(row.time ?? ''),
+        status: String(row.status ?? ''),
+        price: row.price as string | number,
+      }));
+      const branchName = branchFilter
+        ? String(branches.find((b) => String(b.id) === branchFilter)?.name ?? 'branch')
+        : 'all-branches';
+      await exportToPdf(`bookings_${branchName}`, BOOKING_EXPORT_COLUMNS, exportRows, {
+        title: 'Service Bookings Report',
+        subtitle: branchFilter
+          ? `Branch: ${branches.find((b) => String(b.id) === branchFilter)?.name ?? branchFilter}`
+          : 'All branches',
       });
-      toast('Booking updated', 'success');
-      setStatusModal(null);
-      reload();
+      toast('PDF downloaded', 'success');
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to download PDF', 'error');
     } finally {
-      setSaving(false);
+      setDownloading(false);
     }
   }
 
   return (
     <div>
-      <PageHeader title="Service Bookings" subtitle="All bookings across branches" />
+      <PageHeader
+        title="Service Bookings"
+        subtitle="View only. Branch owners update booking status"
+        action={
+          <Button variant="accent" size="sm" loading={downloading} onClick={downloadBookingsPdf}>
+            Download PDF
+          </Button>
+        }
+      />
+
+      <div className="mb-4 max-w-xs">
+        <Select
+          label="Filter by branch"
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+        >
+          <option value="">All branches</option>
+          {branches.map((b) => (
+            <option key={String(b.id)} value={String(b.id)}>{String(b.name)}</option>
+          ))}
+        </Select>
+      </div>
+
       <DataTable
         columns={[
           { key: 'id', header: 'ID' },
-          { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '—' },
-          { key: 'date', header: 'Date', render: (r) => String(r.date).slice(0, 10) },
+          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
+          { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '' },
+          { key: 'date', header: 'Date', render: (r) => (r.date ? String(r.date).slice(0, 10) : '') },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setStatusModal(r)} /> },
         ]}
         data={rows}
-      />
-      <Modal open={!!statusModal} onClose={() => setStatusModal(null)} title="Update Booking">
-        <form onSubmit={updateStatus} className="space-y-4">
-          <Select name="status" label="Status" defaultValue={String(statusModal?.status ?? 'PENDING')}>
-            {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-          <FormActions onCancel={() => setStatusModal(null)} loading={saving} />
-        </form>
-      </Modal>
-    </div>
-  );
-}
-
-// ─── Payments ────────────────────────────────────────────────────────────────
-
-export function AdminPaymentsPage() {
-  const { toast } = useToast();
-  const { rows, setRows, reload } = useCrudList(() => adminApi.pendingPayments());
-
-  async function handleApprove(id: number, approved: boolean) {
-    try {
-      await adminApi.approvePayment(id, approved);
-      toast(approved ? 'Payment approved' : 'Payment rejected', approved ? 'success' : 'info');
-      setRows((o) => o.filter((x) => x.id !== id));
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    }
-  }
-
-  return (
-    <div>
-      <PageHeader title="Pending Bank Transfers" subtitle="Approve or reject payment screenshots" action={<Button variant="secondary" size="sm" onClick={reload}>Refresh</Button>} />
-      <DataTable
-        columns={[
-          { key: 'trackingId', header: 'Tracking' },
-          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '—' },
-          { key: 'total', header: 'Amount', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },
-          {
-            key: 'actions',
-            header: 'Actions',
-            render: (r) => (
-              <div className="flex gap-2">
-                <Button size="sm" variant="accent" onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
-                <Button size="sm" variant="danger" onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
-              </div>
-            ),
-          },
-        ]}
-        data={rows}
-        emptyMessage="No pending bank transfers"
+        emptyMessage={loading ? 'Loading…' : 'No bookings found'}
       />
     </div>
   );
@@ -685,7 +772,7 @@ export function AdminPaymentsPage() {
 
 export function AdminTestimonialsPage() {
   const { toast } = useToast();
-  const { rows, reload } = useCrudList(() => adminApi.testimonials());
+  const { rows, reload, loading } = useCrudList(() => adminApi.testimonialsAll());
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -730,13 +817,16 @@ export function AdminTestimonialsPage() {
 
   return (
     <div>
-      <PageHeader title="Testimonials" subtitle="Moderate customer testimonials" action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Testimonial</Button>} />
+      <PageHeader
+        title="Testimonials"
+        subtitle="Manage customer testimonials"
+        action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Testimonial</Button>}
+      />
       <DataTable
         columns={[
           { key: 'customerName', header: 'Customer' },
           { key: 'content', header: 'Content', render: (r) => <span className="line-clamp-2 max-w-xs">{String(r.content)}</span> },
-          { key: 'rating', header: 'Rating' },
-          { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+          { key: 'rating', header: 'Rating', render: (r) => `${String(r.rating ?? 5)} ★` },
           {
             key: 'actions',
             header: '',
@@ -755,6 +845,7 @@ export function AdminTestimonialsPage() {
           },
         ]}
         data={rows}
+        emptyMessage={loading ? 'Loading…' : 'No testimonials yet'}
       />
       {del.modal}
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'edit' ? 'Edit Testimonial' : 'New Testimonial'}>

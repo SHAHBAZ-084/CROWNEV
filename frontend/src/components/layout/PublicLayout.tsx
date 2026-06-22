@@ -11,6 +11,7 @@ import { WhatsAppFloat } from '../public/WhatsAppFloat';
 import { Button } from '../ui/Button';
 
 const publicLinks = [
+  { to: '/', label: 'Home' },
   { to: '/shop', label: 'Shop' },
   { to: '/book-service', label: 'Book Service' },
   { to: '/track', label: 'Track Order' },
@@ -45,7 +46,7 @@ export function PublicNavbar() {
   return (
     <>
       <motion.header
-        initial={{ y: -20, opacity: 0 }}
+        initial={false}
         animate={{ y: 0, opacity: 1 }}
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           scrolled ? 'bg-white/92 backdrop-blur-md shadow-sm border-b border-border' : 'bg-white/80 backdrop-blur-sm'
@@ -59,7 +60,9 @@ export function PublicNavbar() {
               <Link
                 key={l.to}
                 to={l.to}
-                className={`text-sm font-medium transition-colors hover:text-accent ${location.pathname === l.to ? 'text-accent' : 'text-text-muted'}`}
+                className={`text-sm font-medium transition-colors hover:text-accent ${
+                  (l.to === '/' ? location.pathname === '/' : location.pathname === l.to) ? 'text-accent' : 'text-text-muted'
+                }`}
               >
                 {l.label}
               </Link>
@@ -67,8 +70,13 @@ export function PublicNavbar() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setCartOpen(true)} className="relative rounded-xl p-2 hover:bg-surface-alt">
-              <ShoppingBag className="h-5 w-5 text-brand" />
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              aria-label={count > 0 ? `Open cart, ${count} items` : 'Open cart'}
+              className="relative min-h-11 min-w-11 rounded-xl p-2.5 hover:bg-surface-alt"
+            >
+              <ShoppingBag className="h-5 w-5 text-brand" aria-hidden />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
                   {count}
@@ -94,8 +102,14 @@ export function PublicNavbar() {
               </div>
             )}
 
-            <button type="button" className="lg:hidden rounded-xl p-2" onClick={() => setMobileOpen(!mobileOpen)}>
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            <button
+              type="button"
+              className="min-h-11 min-w-11 rounded-xl p-2.5 lg:hidden"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+            >
+              {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>
           </div>
         </div>
@@ -200,7 +214,7 @@ export function PublicFooter() {
           <div className="lg:col-span-4">
             <Logo size="lg" linked />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-text-muted">
-              Pakistan&apos;s premium electric mobility platform — ride the future, branch by branch.
+              Pakistan&apos;s premium electric mobility platform. Ride the future, branch by branch.
             </p>
             <div className="mt-5 flex gap-2">
               <SocialIcon href="https://facebook.com" label="Facebook">FB</SocialIcon>

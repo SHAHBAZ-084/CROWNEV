@@ -25,6 +25,17 @@ inventoryRouter.get(
 );
 
 inventoryRouter.get(
+  '/:branchId/stock',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranchAccess(req, branchId);
+    const stock = await inventoryService.getBranchStock(branchId);
+    res.json(stock);
+  })
+);
+
+inventoryRouter.get(
   '/:branchId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
@@ -74,6 +85,18 @@ inventoryRouter.put(
     assertBranchAccess(req, branchId);
     const inventory = await inventoryService.updateStock(branchId, partId, req.body.quantity);
     res.json(inventory);
+  })
+);
+
+inventoryRouter.delete(
+  '/:branchId/:partId',
+  requireRoles(Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    const partId = parseInt(param(req.params.partId), 10);
+    assertBranchAccess(req, branchId);
+    await inventoryService.removePartFromBranch(branchId, partId);
+    res.status(204).send();
   })
 );
 

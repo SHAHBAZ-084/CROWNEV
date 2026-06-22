@@ -57,14 +57,14 @@ export function DashboardShell({
           </div>
         </header>
 
-        <motion.div
+        <motion.main
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8"
         >
           {children}
-        </motion.div>
+        </motion.main>
       </div>
     </div>
   );

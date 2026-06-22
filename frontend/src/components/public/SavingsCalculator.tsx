@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Calculator } from 'lucide-react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatPKR } from '../../lib/format';
 
 // ─── Tunable constants (no backend) ───────────────────────────────────────────
@@ -57,36 +56,35 @@ function pct(part: number, total: number) {
 
 type ChartRow = { name: string; value: number; color: string };
 
+function donutGradient(data: ChartRow[]) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total <= 0) return 'conic-gradient(#f0c9a8 0deg 360deg)';
+
+  let angle = 0;
+  const stops = data.map((row) => {
+    const sweep = (row.value / total) * 360;
+    const start = angle;
+    angle += sweep;
+    return `${row.color} ${start}deg ${angle}deg`;
+  });
+  return `conic-gradient(${stops.join(', ')})`;
+}
+
 function DonutChart({ data }: { data: ChartRow[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="flex items-center gap-3">
-      <div className="h-[7.5rem] w-[7.5rem] shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={34}
-              outerRadius={48}
-              paddingAngle={2}
-              stroke="none"
-            >
-              {data.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value) => formatPKR(Number(value ?? 0))}
-              contentStyle={{ borderRadius: '8px', border: '1px solid #f0c9a8', fontSize: '11px' }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      <div
+        className="h-[7.5rem] w-[7.5rem] shrink-0 rounded-full"
+        style={{
+          background: donutGradient(data),
+          mask: 'radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))',
+          WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))',
+        }}
+        role="img"
+        aria-label={`Cost breakdown chart, total ${formatPKR(total)}`}
+      />
       <ul className="min-w-0 flex-1 space-y-1 text-xs">
         {data.map((row) => (
           <li key={row.name} className="flex items-center justify-between gap-2">
@@ -176,7 +174,7 @@ export function SavingsCalculator() {
               Calculate Your Ride &amp; Save with {BRAND_NAME}
             </h2>
             <p className="mt-1 text-xs text-text-muted">
-              Compare monthly petrol vs electric costs — updates instantly.
+              Compare monthly petrol vs electric costs. Updates instantly.
             </p>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -239,7 +237,7 @@ export function SavingsCalculator() {
                   <label htmlFor="daily-distance" className="text-xs font-medium text-brand">
                     Daily Distance (km)
                   </label>
-                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                  <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold tabular-nums text-white">
                     {dailyDistance} km
                   </span>
                 </div>
@@ -280,7 +278,7 @@ export function SavingsCalculator() {
 
             <div className="grid gap-4 p-4 sm:grid-cols-2">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Petrol Bike</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Petrol Bike</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.petrolMonthlyTotal)}/mo
                 </p>
@@ -290,7 +288,7 @@ export function SavingsCalculator() {
               </div>
 
               <div className="sm:border-l sm:border-border sm:pl-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Electric Bike</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Electric Bike</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.electricMonthlyTotal)}/mo
                 </p>

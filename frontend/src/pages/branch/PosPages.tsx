@@ -10,6 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
+import { TablePagination } from '../../components/ui/TablePagination';
+import { usePagination } from '../../hooks/usePagination';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
@@ -90,9 +92,13 @@ export function PosAccountsPage() {
 
   const reload = useCallback(() => {
     if (!branchId) return;
-    branchApi.accounts(branchId).then((r) => setAccounts(r as Row[])).catch(console.error);
-    branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
-  }, [branchId]);
+    branchApi.accounts(branchId).then((r) => setAccounts(r as Row[])).catch((err) => {
+      toast(err instanceof Error ? err.message : 'Failed to load accounts', 'error');
+    });
+    branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch((err) => {
+      toast(err instanceof Error ? err.message : 'Failed to load categories', 'error');
+    });
+  }, [branchId, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -208,7 +214,7 @@ export function PosAccountsPage() {
             },
           ]}
           data={categories}
-          emptyMessage="No categories yet — click + Category to add one"
+          emptyMessage="No categories yet. Click + Category to add one"
         />
         {categoryDelete.modal}
       </div>
@@ -216,7 +222,7 @@ export function PosAccountsPage() {
       <Modal
         open={!!viewCategory}
         onClose={() => setViewCategory(null)}
-        title={viewCategory ? `Accounts — ${String(viewCategory.name)}` : 'Accounts'}
+        title={viewCategory ? `Accounts: ${String(viewCategory.name)}` : 'Accounts'}
         size="lg"
       >
         <div className="mb-4 flex justify-end">
@@ -341,7 +347,7 @@ export function PosCustomersPage() {
 
   return (
     <div>
-      <PageHeader title="Customers" subtitle="Walk-in and POS customers" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
+      <PageHeader title="Customers" subtitle="Walk in and POS customers" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
       <DataTable
         columns={[
           { key: 'name', header: 'Name' },
@@ -435,7 +441,7 @@ export function PosPurchaseInvoicePage() {
       <DataTable
         columns={[
           { key: 'invoiceNumber', header: 'Invoice #' },
-          { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '—' },
+          { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
           { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
         ]}
@@ -528,6 +534,16 @@ export function PosAccountLedgerPage() {
   }
 
   const rows = (ledger?.rows as LedgerRow[]) ?? [];
+  const {
+    page: ledgerPage,
+    setPage: setLedgerPage,
+    paginatedItems: paginatedLedgerRows,
+    totalPages: ledgerTotalPages,
+    totalItems: ledgerTotalItems,
+    rangeStart: ledgerRangeStart,
+    rangeEnd: ledgerRangeEnd,
+    hasMultiplePages: ledgerHasMultiplePages,
+  } = usePagination(rows);
   const summary = ledger?.summary as {
     periodOpening?: number;
     totalDebit?: number;
@@ -537,9 +553,9 @@ export function PosAccountLedgerPage() {
   const account = ledger?.account as { code?: string; name?: string; type?: string } | undefined;
   const accountLabel = account ? String(account.name) : 'Account';
 
-  function handleExport(format: 'excel' | 'pdf') {
+  async function handleExport(format: 'excel' | 'pdf') {
     if (!ledger || rows.length === 0) return;
-    exportLedgerReport(
+    await exportLedgerReport(
       format,
       accountLabel,
       rows,
@@ -603,7 +619,8 @@ export function PosAccountLedgerPage() {
               </div>
             )}
           </div>
-          <div className="overflow-x-auto rounded-xl border border-border bg-white">
+          <div className="overflow-hidden rounded-xl border border-border bg-white">
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-alt/60 text-left text-xs uppercase tracking-wide text-text-muted">
@@ -623,18 +640,18 @@ export function PosAccountLedgerPage() {
                     <td colSpan={8} className="px-4 py-8 text-center text-text-muted">No entries in this period</td>
                   </tr>
                 ) : (
-                  rows.map((r, i) => (
+                  paginatedLedgerRows.map((r, i) => (
                     <tr
                       key={`${r.voucherNo}-${r.date}-${i}`}
                       className={`border-b border-border/40 ${r.isOpeningRow ? 'bg-surface-alt/20 font-medium' : ''}`}
                     >
-                      <td className="px-3 py-2.5 whitespace-nowrap">{r.date ? formatDate(r.date) : '—'}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">{r.date ? formatDate(r.date) : ''}</td>
                       <td className="px-3 py-2.5 font-mono text-xs">{r.voucherNo}</td>
-                      <td className="px-3 py-2.5 text-text-muted">{r.ref || '—'}</td>
+                      <td className="px-3 py-2.5 text-text-muted">{r.ref || ''}</td>
                       <td className="px-3 py-2.5">{r.type}</td>
-                      <td className="px-3 py-2.5 text-text-muted">{r.description || '—'}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{r.debit > 0 ? formatPKR(r.debit) : '—'}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{r.credit > 0 ? formatPKR(r.credit) : '—'}</td>
+                      <td className="px-3 py-2.5 text-text-muted">{r.description || ''}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{r.debit > 0 ? formatPKR(r.debit) : ''}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{r.credit > 0 ? formatPKR(r.credit) : ''}</td>
                       <td className="px-3 py-2.5 text-right font-medium tabular-nums text-brand">
                         {formatLedgerBalance(r.balance)}
                       </td>
@@ -655,6 +672,17 @@ export function PosAccountLedgerPage() {
                 </tfoot>
               )}
             </table>
+            </div>
+            {ledgerHasMultiplePages && (
+              <TablePagination
+                page={ledgerPage}
+                totalPages={ledgerTotalPages}
+                totalItems={ledgerTotalItems}
+                rangeStart={ledgerRangeStart}
+                rangeEnd={ledgerRangeEnd}
+                onPageChange={setLedgerPage}
+              />
+            )}
           </div>
         </>
       )}
@@ -693,6 +721,17 @@ export function PosDetailTrialBalancePage() {
     return d > 0 || c > 0;
   });
 
+  const {
+    page: trialPage,
+    setPage: setTrialPage,
+    paginatedItems: paginatedTrialRows,
+    totalPages: trialTotalPages,
+    totalItems: trialTotalItems,
+    rangeStart: trialRangeStart,
+    rangeEnd: trialRangeEnd,
+    hasMultiplePages: trialHasMultiplePages,
+  } = usePagination(activeRows);
+
   const exportRows = activeRows.map((r) => ({
     accountCode: String(r.accountCode),
     accountName: String(r.accountName),
@@ -701,9 +740,9 @@ export function PosDetailTrialBalancePage() {
     credit: Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit),
   }));
 
-  function handleExport(format: 'excel' | 'pdf') {
+  async function handleExport(format: 'excel' | 'pdf') {
     if (exportRows.length === 0) return;
-    exportTrialBalanceReport(format, exportRows, totals);
+    await exportTrialBalanceReport(format, exportRows, totals);
   }
 
   return (
@@ -738,7 +777,7 @@ export function PosDetailTrialBalancePage() {
                 <td colSpan={5} className="px-4 py-8 text-center text-text-muted">No accounts with balance</td>
               </tr>
             ) : (
-              activeRows.map((r) => {
+              paginatedTrialRows.map((r) => {
                 const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit);
                 const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit);
                 return (
@@ -746,8 +785,8 @@ export function PosDetailTrialBalancePage() {
                     <td className="px-4 py-2.5 font-mono text-xs">{String(r.accountCode)}</td>
                     <td className="px-4 py-2.5">{String(r.accountName)}</td>
                     <td className="px-4 py-2.5 text-text-muted">{String(r.accountType)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{d > 0 ? formatPKR(d) : '—'}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{c > 0 ? formatPKR(c) : '—'}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{d > 0 ? formatPKR(d) : ''}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{c > 0 ? formatPKR(c) : ''}</td>
                   </tr>
                 );
               })
@@ -763,12 +802,22 @@ export function PosDetailTrialBalancePage() {
             </tfoot>
           )}
         </table>
+        {trialHasMultiplePages && (
+          <TablePagination
+            page={trialPage}
+            totalPages={trialTotalPages}
+            totalItems={trialTotalItems}
+            rangeStart={trialRangeStart}
+            rangeEnd={trialRangeEnd}
+            onPageChange={setTrialPage}
+          />
+        )}
       </div>
       {activeRows.length > 0 && (
         <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${totals.isBalanced ? 'border-success/30 bg-success/5 text-success' : 'border-warning/30 bg-warning/5 text-warning'}`}>
           {totals.isBalanced
-            ? 'Trial balance is balanced — Total Debit equals Total Credit.'
-            : 'Trial balance is out of balance — review vouchers and ledger entries.'}
+            ? 'Trial balance is balanced. Total Debit equals Total Credit.'
+            : 'Trial balance is out of balance. Review vouchers and ledger entries.'}
         </div>
       )}
     </div>

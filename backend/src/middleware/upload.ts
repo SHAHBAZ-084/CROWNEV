@@ -7,25 +7,22 @@ import { env } from '../config/env.js';
 const productsDir = path.resolve(env.uploadDir, 'products');
 fs.mkdirSync(productsDir, { recursive: true });
 
-const allowedMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+/** Accept common uploads; product images are converted to WebP on save. */
+const productInputMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export const productImageUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, productsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-      cb(null, `${uuidv4()}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: env.maxFileSizeMb * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, cb) => {
-    if (allowedMimes.has(file.mimetype)) cb(null, true);
+    if (productInputMimes.has(file.mimetype)) cb(null, true);
     else cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'));
   },
 });
 
 const paymentsDir = path.resolve(env.uploadDir, 'payments');
 fs.mkdirSync(paymentsDir, { recursive: true });
+
+const paymentMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export const paymentScreenshotUpload = multer({
   storage: multer.diskStorage({
@@ -37,7 +34,7 @@ export const paymentScreenshotUpload = multer({
   }),
   limits: { fileSize: env.maxFileSizeMb * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (allowedMimes.has(file.mimetype)) cb(null, true);
+    if (paymentMimes.has(file.mimetype)) cb(null, true);
     else cb(new Error('Only image files are allowed'));
   },
 });

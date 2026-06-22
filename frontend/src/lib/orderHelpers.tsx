@@ -43,12 +43,12 @@ export function OrderStatusTimeline({ status }: { status: string }) {
 export function orderCustomerName(order: Order): string {
   if (order.user) return `${order.user.firstName} ${order.user.lastName}`.trim();
   if (order.walkInCustomer?.name) return order.walkInCustomer.name;
-  return order.customerName ?? '—';
+  return order.customerName ?? '';
 }
 
 export function orderItemsSummary(order: Order): string {
   const items = order.items ?? [];
-  if (items.length === 0) return '—';
+  if (items.length === 0) return '';
   const first = items[0].product?.name ?? 'Item';
   if (items.length === 1) return first;
   return `${first} +${items.length - 1} more`;

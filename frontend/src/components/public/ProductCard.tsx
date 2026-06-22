@@ -143,14 +143,14 @@ export function FeatureGrid() {
           viewport={{ once: true }}
           className="mx-auto mb-10 max-w-2xl text-center"
         >
-          <span className="inline-flex items-center rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent">
+          <span className="inline-flex items-center rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand">
             Why Crown Eve
           </span>
           <h2 className="mt-4 font-display text-3xl font-bold text-brand lg:text-4xl">
             Built for Pakistan
           </h2>
           <p className="mt-4 text-base leading-relaxed text-text-muted">
-            Engineered for local roads, climate, and daily commuting needs — premium EV performance you can rely on every day.
+            Engineered for local roads, climate, and daily commuting needs: premium EV performance you can rely on every day.
           </p>
         </motion.div>
 

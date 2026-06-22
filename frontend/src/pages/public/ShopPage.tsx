@@ -95,7 +95,7 @@ export default function ShopPage() {
         compact
         eyebrow="Crown Eve Store"
         title="Shop"
-        subtitle="Electric bikes and genuine parts — browse, filter, and order in PKR."
+        subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."
       />
 
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">

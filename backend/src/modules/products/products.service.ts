@@ -11,6 +11,7 @@ export async function listProducts(query: {
   categoryId?: number;
   search?: string;
   activeOnly?: boolean;
+  includeInactive?: boolean;
   branchId?: number;
 }) {
   const { page, limit, skip } = getPagination(query);
@@ -18,7 +19,7 @@ export async function listProducts(query: {
     ...(query.type && { type: query.type }),
     ...(query.brandId && { brandId: query.brandId }),
     ...(query.categoryId && { categoryId: query.categoryId }),
-    ...(query.activeOnly && { isActive: true }),
+    ...(!query.includeInactive && { isActive: true }),
     ...(query.search && {
       OR: [
         { name: { contains: query.search, mode: 'insensitive' as const } },
@@ -190,14 +191,10 @@ export async function setBranchProduct(branchId: number, productId: string, isLi
 export async function setBranchProductStock(branchId: number, productId: string, quantity: number) {
   if (quantity < 0) throw new AppError(400, 'Quantity cannot be negative');
 
-  const branchProduct = await prisma.branchProduct.findUnique({
+  return prisma.branchProduct.upsert({
     where: { branchId_productId: { branchId, productId } },
-  });
-  if (!branchProduct) throw new AppError(404, 'Product not listed at this branch');
-
-  return prisma.branchProduct.update({
-    where: { branchId_productId: { branchId, productId } },
-    data: { stock: quantity },
+    create: { branchId, productId, stock: quantity, isListed: true },
+    update: { stock: quantity },
   });
 }
 

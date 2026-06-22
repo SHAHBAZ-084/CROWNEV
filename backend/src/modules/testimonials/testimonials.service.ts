@@ -10,8 +10,15 @@ export async function listTestimonials(activeOnly = true) {
 
 export async function listPendingTestimonials() {
   return prisma.testimonial.findMany({
-    where: { status: TestimonialStatus.PENDING },
+    where: { status: TestimonialStatus.PENDING, isActive: true },
     orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function listAllTestimonialsForAdmin() {
+  return prisma.testimonial.findMany({
+    where: { isActive: true },
+    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
   });
 }
 
@@ -52,7 +59,7 @@ export async function approveTestimonial(id: number) {
 export async function rejectTestimonial(id: number) {
   return prisma.testimonial.update({
     where: { id },
-    data: { status: TestimonialStatus.REJECTED, isActive: false },
+    data: { status: TestimonialStatus.REJECTED },
   });
 }
 

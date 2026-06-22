@@ -58,7 +58,7 @@ export function CustomerDashboard() {
           <h2 className="font-display font-semibold text-brand mb-4">Service Bookings ({bookings.length})</h2>
           <DataTable
             columns={[
-              { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '—' },
+              { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '' },
               { key: 'date', header: 'Date', render: (r) => formatDate(String(r.date)) },
               { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
             ]}
@@ -117,7 +117,7 @@ export function CustomerOrdersPage() {
         columns={[
           { key: 'trackingId', header: 'Tracking', render: (r) => <span className="font-mono text-xs">{String(r.trackingId)}</span> },
           { key: 'items', header: 'Items', render: (r) => orderItemsSummary(r as unknown as Order) },
-          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name?: string })?.name ?? '—' },
+          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name?: string })?.name ?? '' },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           { key: 'paymentStatus', header: 'Payment', render: (r) => <StatusBadge status={String(r.paymentStatus)} /> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
@@ -169,7 +169,7 @@ export function CustomerOrdersPage() {
               {detail.branch && (
                 <>
                   <p><span className="text-text-muted">Branch:</span> {detail.branch.name}</p>
-                  <p><span className="text-text-muted">Phone:</span> {detail.branch.phone ?? '—'}</p>
+                  <p><span className="text-text-muted">Phone:</span> {detail.branch.phone ?? ''}</p>
                 </>
               )}
             </div>
@@ -224,7 +224,7 @@ export function CustomerBookingsPage() {
       <PageHeader title="My Bookings" action={<Link to="/book-service"><Button variant="accent" size="sm">New Booking</Button></Link>} />
       <DataTable
         columns={[
-          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '—' },
+          { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
           {
             key: 'appointment',
             header: 'Appointment',
@@ -254,7 +254,7 @@ export function CustomerBookingsPage() {
                   Download Receipt
                 </Button>
               ) : (
-                <span className="text-xs text-text-muted">—</span>
+                <span className="text-xs text-text-muted"></span>
               );
             },
           },
@@ -432,11 +432,11 @@ export function CustomerProfilePage() {
                 <ProfileField
                   icon={User}
                   label="Full Name"
-                  value={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || '—'}
+                  value={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || ''}
                 />
-                <ProfileField icon={Mail} label="Email Address" value={user?.email ?? '—'} />
-                <ProfileField icon={Phone} label="Phone Number" value={user?.phone ?? '—'} />
-                <ProfileField icon={MapPin} label="City" value={user?.city ?? '—'} />
+                <ProfileField icon={Mail} label="Email Address" value={user?.email ?? ''} />
+                <ProfileField icon={Phone} label="Phone Number" value={user?.phone ?? ''} />
+                <ProfileField icon={MapPin} label="City" value={user?.city ?? ''} />
               </div>
             </section>
 

@@ -68,7 +68,7 @@ export default function AdminDashboard() {
             <DataTable
               columns={[
                 { key: 'trackingId', header: 'Tracking ID' },
-                { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '—' },
+                { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
                 { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
                 { key: 'total', header: 'Total', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },
               ]}

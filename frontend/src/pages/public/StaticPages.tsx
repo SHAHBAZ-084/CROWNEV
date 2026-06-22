@@ -65,7 +65,7 @@ export function AboutPage() {
                 transition={{ delay: i * 0.1 }}
                 className="flex flex-col sm:flex-row gap-6 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
               >
-                {/* PLACEHOLDER — replace image URL before production */}
+                {/* PLACEHOLDER. replace image URL before production */}
                 <img src={f.image} alt={f.name} className="h-32 w-32 rounded-2xl object-cover shrink-0 mx-auto sm:mx-0" />
                 <div>
                   <h3 className="font-display font-semibold text-brand text-lg">{f.name}</h3>

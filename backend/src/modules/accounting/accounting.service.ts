@@ -389,11 +389,18 @@ function reportBalanceFromEntries(
 }
 
 export async function listAccounts(branchId: number) {
-  return prisma.account.findMany({
+  const accounts = await prisma.account.findMany({
     where: { branchId, isActive: true },
     include: { category: true, ledger: true },
     orderBy: { code: 'asc' },
   });
+
+  return accounts.map(({ ledger, ...account }) => ({
+    ...account,
+    ledger: ledger
+      ? { ...ledger, balance: Number(ledger.balance) }
+      : null,
+  }));
 }
 
 export async function createVoucher(data: {

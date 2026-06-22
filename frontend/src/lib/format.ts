@@ -2,6 +2,14 @@ export function formatPKR(amount: number | string) {
   return `PKR ${Number(amount).toLocaleString('en-PK')}`;
 }
 
+/** Empty table cell / missing field (no dash character). */
+export const EMPTY_CELL = '';
+
+export function displayValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return EMPTY_CELL;
+  return String(value);
+}
+
 export function formatDate(date: string | Date) {
   return new Date(date).toLocaleDateString('en-PK', {
     year: 'numeric',

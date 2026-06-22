@@ -54,7 +54,7 @@ export default function BranchDashboard() {
               <DataTable
                 columns={[
                   { key: 'time', header: 'Time' },
-                  { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '—' },
+                  { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '' },
                   { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
                 ]}
                 data={today}
