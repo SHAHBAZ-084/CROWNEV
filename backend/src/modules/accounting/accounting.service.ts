@@ -69,6 +69,19 @@ export const SALE_REVENUE_ACCOUNT_NAME = 'Sale Revenue';
 export const SERVICE_REVENUE_ACCOUNT_NAME = 'Service Revenue';
 export const INVENTORY_CATEGORY_NAME = 'Inventory';
 export const INVENTORY_ACCOUNT_NAME = 'Inventory';
+export const CASH_IN_HAND_ACCOUNT_NAME = 'Cash in Hand';
+
+export const BRANCH_DEFAULT_CATEGORY_NAMES = [
+  'Assets',
+  'Cash',
+  'Bank',
+  CUSTOMERS_CATEGORY_NAME,
+  SUPPLIERS_CATEGORY_NAME,
+  INVENTORY_CATEGORY_NAME,
+  INCOME_CATEGORY_NAME,
+  'Expenses',
+  'Capital',
+] as const;
 
 export function isSuppliersCategoryName(name: string) {
   return name.trim().toLowerCase() === SUPPLIERS_CATEGORY_NAME.toLowerCase();
@@ -103,16 +116,7 @@ export async function ensureInventoryCategory(branchId: number) {
 }
 
 export async function listAccountCategories(branchId: number) {
-  await Promise.all([
-    ensureCustomersCategory(branchId),
-    ensureSuppliersCategory(branchId),
-    ensureInventoryCategory(branchId),
-  ]);
-
-  // Ensure inventory account + ledger exist; merge any duplicate "Inventory" accounts
-  await prisma.$transaction(async (tx) => {
-    await consolidateDuplicateInventoryAccounts(tx, branchId);
-  });
+  await bootstrapBranchChartOfAccounts(branchId);
 
   const [categories, customerCount, supplierCount, inventoryAccounts] = await Promise.all([
     prisma.accountCategory.findMany({
@@ -826,6 +830,110 @@ export async function consolidateDuplicateInventoryAccounts(
   }
 
   return canonical;
+}
+
+async function ensureCategoryInTx(tx: Prisma.TransactionClient, branchId: number, name: string) {
+  const existing = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: name, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return tx.accountCategory.create({ data: { branchId, name } });
+}
+
+async function ensureDefaultAccountInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  categoryId: number,
+  accountName: string,
+  type: AccountType,
+  preferredCode?: string,
+) {
+  const existing = await tx.account.findFirst({
+    where: {
+      branchId,
+      isActive: true,
+      name: { equals: accountName, mode: 'insensitive' },
+    },
+    include: { ledger: true },
+  });
+
+  if (existing) {
+    if (!existing.ledger) {
+      await tx.ledger.create({ data: { branchId, accountId: existing.id, balance: 0 } });
+    }
+    if (existing.categoryId !== categoryId) {
+      await tx.account.update({
+        where: { id: existing.id },
+        data: { categoryId, type },
+      });
+    }
+    return existing;
+  }
+
+  let code = preferredCode;
+  if (code) {
+    const codeTaken = await tx.account.findFirst({ where: { branchId, code } });
+    if (codeTaken) code = undefined;
+  }
+  if (!code) code = await generateNextAccountCodeInTx(tx, branchId);
+
+  const account = await tx.account.create({
+    data: { branchId, categoryId, name: accountName, code, type },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return account;
+}
+
+async function consolidateDuplicateInventoryCategories(tx: Prisma.TransactionClient, branchId: number) {
+  const categories = await tx.accountCategory.findMany({
+    where: {
+      branchId,
+      isActive: true,
+      name: { equals: INVENTORY_CATEGORY_NAME, mode: 'insensitive' },
+    },
+    include: { accounts: { where: { isActive: true } } },
+    orderBy: { id: 'asc' },
+  });
+
+  if (categories.length <= 1) return categories[0] ?? null;
+
+  const [canonical, ...duplicates] = categories;
+  for (const dup of duplicates) {
+    for (const account of dup.accounts) {
+      await tx.account.update({
+        where: { id: account.id },
+        data: { categoryId: canonical.id, type: AccountType.ASSET },
+      });
+    }
+    await tx.accountCategory.update({ where: { id: dup.id }, data: { isActive: false } });
+  }
+  return canonical;
+}
+
+/** Create default chart-of-accounts categories and core accounts for a branch. Idempotent. */
+export async function bootstrapBranchChartOfAccounts(branchId: number) {
+  await prisma.$transaction(async (tx) => {
+    for (const name of BRANCH_DEFAULT_CATEGORY_NAMES) {
+      await ensureCategoryInTx(tx, branchId, name);
+    }
+
+    await consolidateDuplicateInventoryCategories(tx, branchId);
+
+    const cashCategory = await ensureCategoryInTx(tx, branchId, 'Cash');
+    await ensureDefaultAccountInTx(
+      tx,
+      branchId,
+      cashCategory.id,
+      CASH_IN_HAND_ACCOUNT_NAME,
+      AccountType.ASSET,
+      '1001',
+    );
+
+    await ensureInventoryAccount(tx, branchId);
+    await ensureSaleRevenueAccount(tx, branchId);
+    await ensureServiceRevenueAccount(tx, branchId);
+    await consolidateDuplicateInventoryAccounts(tx, branchId);
+  });
 }
 
 async function ensureInventoryCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {

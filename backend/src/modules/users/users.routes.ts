@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
-import { asyncHandler, AppError, param, validateBody } from '../../utils/helpers.js';
+import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
 import { passwordSchema } from '../../utils/passwordSchema.js';
 import * as usersService from './users.service.js';
@@ -31,11 +31,11 @@ usersRouter.post(
       password: passwordSchema,
       firstName: z.string().min(1),
       lastName: z.string().min(1),
-      role: z.nativeEnum(Role),
+      role: z.literal(Role.BRANCH_OWNER),
       phone: z.string().optional(),
       city: z.string().optional(),
-      branchId: z.number().int().optional(),
-    })
+      branchId: z.number().int(),
+    }),
   ),
   asyncHandler(async (req, res) => {
     const user = await usersService.createUser(req.body);
@@ -51,17 +51,12 @@ usersRouter.patch(
       lastName: z.string().optional(),
       phone: z.string().optional(),
       city: z.string().optional(),
-      role: z.nativeEnum(Role).optional(),
       branchId: z.number().int().optional(),
       isActive: z.boolean().optional(),
-    })
+    }),
   ),
   asyncHandler(async (req, res) => {
-    const targetId = param(req.params.id);
-    if (targetId === req.user!.userId && req.body.role && req.body.role !== req.user!.role) {
-      throw new AppError(400, 'Admins cannot change their own role');
-    }
-    const user = await usersService.updateUser(targetId, req.body);
+    const user = await usersService.updateUser(param(req.params.id), req.body);
     res.json(user);
   })
 );

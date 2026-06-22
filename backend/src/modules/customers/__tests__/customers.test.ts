@@ -84,10 +84,15 @@ describe('Unified Customer table', () => {
       },
     });
 
-    const customer = await ensureOnlineCustomer(user);
-    expect(customer.type).toBe(CustomerType.ONLINE);
-    expect(customer.userId).toBe(user.id);
-    expect(customer.branchId).toBeNull();
+    try {
+      const customer = await ensureOnlineCustomer(user);
+      expect(customer.type).toBe(CustomerType.ONLINE);
+      expect(customer.userId).toBe(user.id);
+      expect(customer.branchId).toBeNull();
+    } finally {
+      await prisma.customer.deleteMany({ where: { userId: user.id } });
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+    }
   });
 
   it('service list returns only WALK_IN customers for branch', async () => {

@@ -8,6 +8,12 @@ export async function listUsers(query: { page?: string; limit?: string; role?: R
   const where = {
     isVerified: true,
     isActive: true,
+    NOT: {
+      OR: [
+        { email: { endsWith: '@test.local' } },
+        { email: { startsWith: 'vitest.online.', endsWith: '@crown-eve.com' } },
+      ],
+    },
     ...(query.role && { role: query.role }),
     ...(query.search && {
       OR: [
@@ -97,11 +103,57 @@ export async function updateUser(
     phone: string;
     city: string;
     role: Role;
-    branchId: number;
+    branchId: number | null;
     isActive: boolean;
   }>
 ) {
-  return prisma.user.update({ where: { id }, data });
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError(404, 'User not found');
+  if (user.role === Role.ADMIN) {
+    throw new AppError(400, 'Admin accounts cannot be edited from this screen');
+  }
+  if (user.role === Role.CUSTOMER) {
+    throw new AppError(400, 'Customer accounts cannot be edited from this screen');
+  }
+
+  if (data.branchId) {
+    const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
+    if (!branch) throw new AppError(404, 'Branch not found');
+    if (branch.ownerId && branch.ownerId !== id) {
+      throw new AppError(409, 'Branch already has an owner');
+    }
+  }
+
+  return prisma.$transaction(async (tx) => {
+    if (user.branchId) {
+      await tx.branch.updateMany({
+        where: { ownerId: id },
+        data: { ownerId: null },
+      });
+    }
+
+    const nextBranchId = data.branchId ?? user.branchId;
+    if (!nextBranchId) throw new AppError(400, 'Branch is required for branch owner');
+
+    const updated = await tx.user.update({
+      where: { id },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        city: data.city,
+        branchId: nextBranchId,
+        isActive: data.isActive,
+      },
+    });
+
+    await tx.branch.update({
+      where: { id: nextBranchId },
+      data: { ownerId: id },
+    });
+
+    return updated;
+  });
 }
 
 export async function deleteUser(id: string) {

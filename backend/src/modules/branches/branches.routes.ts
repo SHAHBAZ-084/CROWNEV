@@ -127,6 +127,28 @@ branchesRouter.delete(
   })
 );
 
+branchesRouter.get(
+  '/:id/clear-preview',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req, res) => {
+    const preview = await branchesService.getBranchClearPreview(parseInt(param(req.params.id), 10));
+    res.json(preview);
+  })
+);
+
+branchesRouter.post(
+  '/:id/clear-data',
+  requireRoles(Role.ADMIN),
+  validateBody(z.object({ confirmName: z.string().min(1) })),
+  asyncHandler(async (req, res) => {
+    const result = await branchesService.clearBranchData(
+      parseInt(param(req.params.id), 10),
+      req.body.confirmName,
+    );
+    res.json(result);
+  })
+);
+
 branchesRouter.post(
   '/:id/assign-owner',
   requireRoles(Role.ADMIN),

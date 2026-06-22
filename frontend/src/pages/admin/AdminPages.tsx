@@ -72,11 +72,119 @@ function useCrudList(loader: () => Promise<unknown>, deps: readonly unknown[] = 
 
 // ─── Branches ────────────────────────────────────────────────────────────────
 
+function ClearBranchDataModal({
+  branch,
+  open,
+  onClose,
+  onCleared,
+}: {
+  branch: Row | null;
+  open: boolean;
+  onClose: () => void;
+  onCleared: () => void;
+}) {
+  const { toast } = useToast();
+  const [preview, setPreview] = useState<{ branchName: string; counts: Record<string, number> } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    if (!open || !branch) {
+      setPreview(null);
+      setConfirmName('');
+      return;
+    }
+    setLoadingPreview(true);
+    adminApi
+      .branchClearPreview(Number(branch.id))
+      .then((data) => setPreview({ branchName: data.branchName, counts: data.counts }))
+      .catch((err) => toast(err instanceof Error ? err.message : 'Failed to load preview', 'error'))
+      .finally(() => setLoadingPreview(false));
+  }, [open, branch, toast]);
+
+  const branchName = String(preview?.branchName ?? branch?.name ?? '');
+  const canConfirm = confirmName.trim() === branchName.trim() && !clearing;
+
+  async function handleClear() {
+    if (!branch || !canConfirm) return;
+    setClearing(true);
+    try {
+      const result = await adminApi.clearBranchData(Number(branch.id), confirmName.trim());
+      const total = Object.values(result.deleted).reduce((sum, n) => sum + n, 0);
+      toast(`Branch data cleared (${total} records removed). Catalog parts/bikes were kept.`, 'success');
+      onClose();
+      onCleared();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to clear branch data', 'error');
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  const previewLines = preview
+    ? [
+        ['Sales & orders', preview.counts.orders],
+        ['Customers', preview.counts.customers],
+        ['Suppliers', preview.counts.suppliers],
+        ['Purchases', preview.counts.purchases],
+        ['Service invoices', preview.counts.serviceInvoices],
+        ['Vouchers', preview.counts.vouchers],
+        ['Part stock rows', preview.counts.inventory],
+        ['Product listings', preview.counts.branchProducts],
+        ['Service bookings', preview.counts.bookings],
+        ['Accounts', preview.counts.accounts],
+      ].filter(([, n]) => n > 0)
+    : [];
+
+  return (
+    <Modal open={open} onClose={onClose} title="Clear branch data" size="md">
+      <div className="space-y-4">
+        <p className="text-sm text-text-muted">
+          Permanently removes all operational data for <strong>{branchName}</strong>: POS sales, customers,
+          suppliers, purchases, vouchers, accounting entries, inventory stock, and branch product listings.
+          Global parts and bikes in the admin catalog are <strong>not</strong> deleted.
+        </p>
+        {loadingPreview ? (
+          <p className="text-sm text-text-muted">Loading record counts…</p>
+        ) : previewLines.length > 0 ? (
+          <ul className="rounded-lg border border-border bg-surface-muted/40 px-4 py-3 text-sm">
+            {previewLines.map(([label, count]) => (
+              <li key={String(label)} className="flex justify-between gap-4 py-0.5">
+                <span>{label}</span>
+                <span className="font-medium tabular-nums">{count}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-text-muted">No branch data found to clear.</p>
+        )}
+        <Input
+          label={`Type "${branchName}" to confirm`}
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+          placeholder={branchName}
+          autoComplete="off"
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={clearing}>
+            Cancel
+          </Button>
+          <Button variant="danger" loading={clearing} disabled={!canConfirm} onClick={handleClear}>
+            Clear branch data
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function AdminBranchesPage() {
   const { toast } = useToast();
   const { rows, reload } = useCrudList(() => adminApi.branches() as Promise<Row[]>);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
+  const [clearTarget, setClearTarget] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const del = useDeleteConfirm<Row>(
     async (item) => {
@@ -131,17 +239,33 @@ export function AdminBranchesPage() {
           { key: 'location', header: 'Location' },
           { key: 'phone', header: 'Phone' },
           { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
-          { key: 'actions', header: 'Actions', className: 'whitespace-nowrap w-28', render: (r) => (
+          { key: 'actions', header: 'Actions', className: 'whitespace-nowrap w-40', render: (r) => (
             <RowActions
               onEdit={() => { setEdit(r); setModal('edit'); }}
               onDelete={() => del.setTarget(r)}
               deleteLabel="Delete"
+              extra={
+                <button
+                  type="button"
+                  onClick={() => setClearTarget(r)}
+                  className="rounded-lg px-2 py-1 text-xs font-medium text-warning hover:bg-red-50"
+                  title="Clear all branch data"
+                >
+                  Clear data
+                </button>
+              }
             />
           ) },
         ]}
         data={rows}
       />
       {del.modal}
+      <ClearBranchDataModal
+        branch={clearTarget}
+        open={!!clearTarget}
+        onClose={() => setClearTarget(null)}
+        onCleared={reload}
+      />
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'edit' ? 'Edit Branch' : 'New Branch'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
@@ -156,15 +280,30 @@ export function AdminBranchesPage() {
             </Select>
           )}
           {modal === 'edit' ? (
-            <div className="mt-6 flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                onClick={() => edit && del.setTarget(edit)}
-              >
-                Delete Branch
-              </Button>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => edit && del.setTarget(edit)}
+                >
+                  Delete Branch
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => {
+                    if (edit) {
+                      setModal(null);
+                      setClearTarget(edit);
+                    }
+                  }}
+                >
+                  Clear branch data
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
                 <Button type="submit" variant="accent" loading={saving}>Save</Button>
@@ -460,24 +599,37 @@ export function AdminUsersPage() {
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const [branches, setBranches] = useState<Row[]>([]);
   const del = useDeleteConfirm<Row>(async (item) => {
     await adminApi.deleteUser(String(item.id));
     toast('User deleted', 'success');
     reload();
   });
 
+  useEffect(() => {
+    if (!modal) return;
+    adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
+  }, [modal]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const branchRaw = String(fd.get('branchId') ?? '').trim();
+    if (!branchRaw) {
+      toast('Select a branch for the branch owner', 'error');
+      return;
+    }
+
     const body: Record<string, unknown> = {
       firstName: String(fd.get('firstName')),
       lastName: String(fd.get('lastName')),
-      role: String(fd.get('role')),
+      role: 'BRANCH_OWNER',
+      branchId: parseInt(branchRaw, 10),
       phone: String(fd.get('phone') || '') || undefined,
       city: String(fd.get('city') || '') || undefined,
-      ...(fd.get('branchId') && { branchId: parseInt(String(fd.get('branchId')), 10) }),
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
     };
+
     if (modal === 'create') {
       body.email = String(fd.get('email'));
       body.password = String(fd.get('password'));
@@ -486,7 +638,7 @@ export function AdminUsersPage() {
     try {
       if (modal === 'edit' && edit) await adminApi.updateUser(String(edit.id), body);
       else await adminApi.createUser(body);
-      toast(modal === 'edit' ? 'User updated' : 'User created', 'success');
+      toast(modal === 'edit' ? 'Branch owner updated' : 'Branch owner created', 'success');
       setModal(null);
       reload();
     } catch (err) {
@@ -496,21 +648,33 @@ export function AdminUsersPage() {
     }
   }
 
+  const editingAdmin = modal === 'edit' && edit?.role === 'ADMIN';
+  const canManage = (role: unknown) => role === 'BRANCH_OWNER';
+
   return (
     <div>
-      <PageHeader title="Users" subtitle="Manage accounts and roles" action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add User</Button>} />
+      <PageHeader
+        title="Users"
+        subtitle="Create and manage branch owner accounts"
+        action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch Owner</Button>}
+      />
       <DataTable
         columns={[
           { key: 'email', header: 'Email' },
           { key: 'firstName', header: 'Name', render: (r) => `${r.firstName} ${r.lastName}` },
           { key: 'role', header: 'Role' },
           { key: 'isVerified', header: 'Verified', render: (r) => r.isVerified ? 'Yes' : 'No' },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => { setEdit(r); setModal('edit'); }} onDelete={() => del.setTarget(r)} /> },
+          { key: 'actions', header: '', render: (r) => (
+            <RowActions
+              onEdit={canManage(r.role) ? () => { setEdit(r); setModal('edit'); } : undefined}
+              onDelete={canManage(r.role) ? () => del.setTarget(r) : undefined}
+            />
+          ) },
         ]}
         data={rows}
       />
       {del.modal}
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'edit' ? 'Edit User' : 'New User'} size="lg">
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'edit' ? 'Edit Branch Owner' : 'New Branch Owner'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           {modal === 'create' && (
             <>
@@ -522,15 +686,35 @@ export function AdminUsersPage() {
             <Input name="firstName" label="First Name" required defaultValue={String(edit?.firstName ?? '')} />
             <Input name="lastName" label="Last Name" required defaultValue={String(edit?.lastName ?? '')} />
           </div>
-          <Select name="role" label="Role" required defaultValue={String(edit?.role ?? 'CUSTOMER')}>
-            <option value="ADMIN">Admin</option>
-            <option value="BRANCH_OWNER">Branch Owner</option>
-            <option value="CUSTOMER">Customer</option>
-          </Select>
-          <Input name="branchId" label="Branch ID (for branch owner)" type="number" defaultValue={String(edit?.branchId ?? '')} />
+          {editingAdmin ? (
+            <div className="rounded-xl border border-border bg-surface-muted/40 px-4 py-3 text-sm text-text-muted">
+              This is a system admin account. Role and branch cannot be changed here.
+            </div>
+          ) : (
+            <Select
+              name="branchId"
+              label="Branch"
+              required
+              defaultValue={String(edit?.branchId ?? '')}
+            >
+              <option value="">Select branch…</option>
+              {branches.map((b) => {
+                const owner = b.owner as { email?: string } | null | undefined;
+                const isCurrentOwner =
+                  modal === 'edit' && owner?.email && String(edit?.email) === owner.email;
+                const unavailable = !!owner && !isCurrentOwner;
+                return (
+                  <option key={String(b.id)} value={String(b.id)} disabled={unavailable}>
+                    {String(b.name)}
+                    {owner?.email ? ` (owner: ${owner.email})` : ' (no owner)'}
+                  </option>
+                );
+              })}
+            </Select>
+          )}
           <Input name="phone" label="Phone" defaultValue={String(edit?.phone ?? '')} />
           <Input name="city" label="City" defaultValue={String(edit?.city ?? '')} />
-          {modal === 'edit' && (
+          {modal === 'edit' && !editingAdmin && (
             <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
               <option value="true">Active</option>
               <option value="false">Inactive</option>

@@ -160,6 +160,17 @@ export const adminApi = {
     api<unknown>(`/branches/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteBranch: (id: number) =>
     api<{ deactivated: boolean }>(`/branches/${id}`, { method: 'DELETE' }),
+  branchClearPreview: (id: number) =>
+    api<{
+      branchId: number;
+      branchName: string;
+      counts: Record<string, number>;
+    }>(`/branches/${id}/clear-preview`),
+  clearBranchData: (id: number, confirmName: string) =>
+    api<{ branchId: number; branchName: string; deleted: Record<string, number> }>(
+      `/branches/${id}/clear-data`,
+      { method: 'POST', body: JSON.stringify({ confirmName }) },
+    ),
   products: (params?: Record<string, string>) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Product>>(`/products${q}`);
