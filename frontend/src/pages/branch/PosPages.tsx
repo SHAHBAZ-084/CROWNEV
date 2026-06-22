@@ -18,7 +18,8 @@ import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAm
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
 import { FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import type { InvoiceData } from '../../types';
+import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
+import type { InvoiceData, PurchaseInvoiceData } from '../../types';
 
 type Row = Record<string, unknown>;
 
@@ -409,6 +410,35 @@ export function PosAccountsPage() {
   );
 }
 
+const entityStatusBadge = (label: string) => (
+  <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold capitalize text-brand">
+    {label}
+  </span>
+);
+
+const entityTableColumns = (
+  thirdColumn: { key: string; header: string; render: (r: Row) => string },
+  statusLabel: (r: Row) => string,
+  onDelete: (r: Row) => void,
+) => [
+  { key: 'name', header: 'Name' },
+  { key: 'phone', header: 'Phone', render: (r: Row) => String(r.phone ?? '—') },
+  thirdColumn,
+  {
+    key: 'status',
+    header: 'Status',
+    render: (r: Row) => entityStatusBadge(statusLabel(r)),
+  },
+  { key: 'balance', header: 'Balance', render: (r: Row) => formatPKR(Number(r.balance ?? 0)) },
+  {
+    key: 'actions',
+    header: '',
+    render: (r: Row) => (
+      <RowActions deleteLabel="Delete" onDelete={() => onDelete(r)} />
+    ),
+  },
+];
+
 export function PosCustomersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
@@ -462,31 +492,15 @@ export function PosCustomersPage() {
     <div>
       <PageHeader title="Customers" subtitle="Walk-in and online customers (same database)" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
       <DataTable
-        columns={[
-          { key: 'name', header: 'Name' },
-          { key: 'phone', header: 'Phone' },
-          { key: 'cnic', header: 'CNIC' },
+        columns={entityTableColumns(
           {
-            key: 'type',
-            header: 'Status',
-            render: (r) => (
-              <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold capitalize text-brand">
-                {String(r.type ?? 'WALK_IN').toLowerCase().replace('_', '-')}
-              </span>
-            ),
+            key: 'cnic',
+            header: 'CNIC',
+            render: (r) => String(r.cnic ?? '—'),
           },
-          { key: 'balance', header: 'Balance', render: (r) => formatPKR(Number(r.balance ?? 0)) },
-          {
-            key: 'actions',
-            header: '',
-            render: (r) => (
-              <RowActions
-                deleteLabel="Delete"
-                onDelete={() => customerDelete.setTarget(r)}
-              />
-            ),
-          },
-        ]}
+          (r) => String(r.type ?? 'WALK_IN').toLowerCase().replace('_', '-'),
+          (r) => customerDelete.setTarget(r),
+        )}
         data={customers}
         emptyMessage="No customers yet"
       />
@@ -496,6 +510,88 @@ export function PosCustomersPage() {
           <Input name="name" label="Full Name" required />
           <Input name="phone" label="Phone" />
           <Input name="cnic" label="CNIC" placeholder="12345-1234567-1" />
+          <Input name="address" label="Address" />
+          <FormActions onCancel={() => setModal(false)} loading={saving} />
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+export function PosSuppliersPage() {
+  const branchId = useBranchId();
+  const { toast } = useToast();
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
+  const [modal, setModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const reload = useCallback(() => {
+    if (!branchId) return;
+    branchApi.suppliers(branchId).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
+  }, [branchId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!branchId) return;
+    const fd = new FormData(e.currentTarget);
+    setSaving(true);
+    try {
+      await branchApi.createSupplier({
+        branchId,
+        name: String(fd.get('name')),
+        contactPerson: String(fd.get('contactPerson') || '') || undefined,
+        phone: String(fd.get('phone') || '') || undefined,
+        email: String(fd.get('email') || '') || undefined,
+        address: String(fd.get('address') || '') || undefined,
+      });
+      toast('Supplier added', 'success');
+      setModal(false);
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const supplierDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      if (!branchId) return;
+      await branchApi.deleteSupplier(branchId, Number(row.id));
+      toast('Supplier removed', 'success');
+      reload();
+    },
+    {
+      message: (row) =>
+        `Remove supplier "${String(row.name)}"? Their ledger history will be kept.`,
+    },
+  );
+
+  return (
+    <div>
+      <PageHeader title="Suppliers" subtitle="Manage branch suppliers" action={<Button variant="accent" onClick={() => setModal(true)}>Add Supplier</Button>} />
+      <DataTable
+        columns={entityTableColumns(
+          {
+            key: 'contactPerson',
+            header: 'Contact',
+            render: (r) => String(r.contactPerson ?? '—'),
+          },
+          () => 'supplier',
+          (r) => supplierDelete.setTarget(r),
+        )}
+        data={suppliers}
+        emptyMessage="No suppliers yet"
+      />
+      {supplierDelete.modal}
+      <Modal open={modal} onClose={() => setModal(false)} title="Add Supplier">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input name="name" label="Name" required />
+          <Input name="contactPerson" label="Contact Person" />
+          <Input name="phone" label="Phone" />
+          <Input name="email" label="Email" type="email" />
           <Input name="address" label="Address" />
           <FormActions onCancel={() => setModal(false)} loading={saving} />
         </form>
@@ -933,6 +1029,9 @@ export function PosPurchaseInvoicePage() {
     summary: { totalDebit: number; totalCredit: number; closingBalance: number };
   } | null>(null);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
+  const [invoiceData, setInvoiceData] = useState<PurchaseInvoiceData | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
@@ -1077,6 +1176,21 @@ export function PosPurchaseInvoicePage() {
       toast(err instanceof Error ? err.message : 'Failed to save purchase', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function openInvoice(id: number) {
+    setInvoiceModal(id);
+    setInvoiceData(null);
+    setInvoiceLoading(true);
+    try {
+      const inv = await branchApi.purchaseInvoice(id);
+      setInvoiceData(inv);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load invoice', 'error');
+      setInvoiceModal(null);
+    } finally {
+      setInvoiceLoading(false);
     }
   }
 
@@ -1233,11 +1347,29 @@ export function PosPurchaseInvoicePage() {
             { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
             { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
             { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <Button size="sm" variant="secondary" onClick={() => openInvoice(Number(r.id))}>
+                  View Invoice
+                </Button>
+              ),
+            },
           ]}
           data={purchases}
           emptyMessage="No purchase invoices yet"
         />
       </div>
+
+      <Modal
+        open={invoiceModal !== null}
+        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        title="Purchase Invoice"
+        size="lg"
+      >
+        <PurchaseInvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
+      </Modal>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type {
   Paginated,
   PaymentChannel,
   Product,
+  PurchaseInvoiceData,
   User,
 } from '../types';
 
@@ -401,6 +402,8 @@ export const branchApi = {
     api<unknown>('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
   updateSupplier: (id: number, data: Record<string, unknown>) =>
     api<unknown>(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSupplier: (branchId: number, id: number) =>
+    api<unknown>(`/suppliers/${id}`, { method: 'DELETE', body: JSON.stringify({ branchId }) }),
   purchaseProducts: (branchId: number) => api<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>(
     `/branches/${branchId}/purchase-products`,
   ),
@@ -421,6 +424,7 @@ export const branchApi = {
   createPurchase: (data: Record<string, unknown>) =>
     api<unknown>('/purchases', { method: 'POST', body: JSON.stringify(data) }),
   purchase: (id: number) => api<unknown>(`/purchases/${id}`),
+  purchaseInvoice: (id: number) => api<PurchaseInvoiceData>(`/purchases/${id}/invoice`),
   accountingCategories: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/categories`),
   createAccountCategory: (branchId: number, name: string) =>
     api<unknown>(`/accounting/${branchId}/categories`, { method: 'POST', body: JSON.stringify({ name }) }),

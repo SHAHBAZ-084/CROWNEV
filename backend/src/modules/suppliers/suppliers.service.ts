@@ -91,14 +91,19 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
 
 export async function listSuppliers(branchId?: number, query?: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query ?? {});
-  const where = branchId ? { branchId } : {};
+  const where = branchId ? { branchId, isActive: true } : { isActive: true };
 
   const [suppliers, total] = await Promise.all([
     prisma.supplier.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
     prisma.supplier.count({ where }),
   ]);
 
-  return paginatedResponse(suppliers, total, page, limit);
+  return paginatedResponse(
+    suppliers.map((s) => ({ ...s, balance: Number(s.balance) })),
+    total,
+    page,
+    limit,
+  );
 }
 
 export async function createSupplier(data: {
@@ -116,6 +121,17 @@ export async function updateSupplier(id: number, branchId: number, data: Record<
   const supplier = await prisma.supplier.findFirst({ where: { id, branchId } });
   if (!supplier) throw new AppError(404, 'Supplier not found');
   return prisma.supplier.update({ where: { id }, data });
+}
+
+export async function softDeleteSupplier(id: number, branchId: number) {
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, branchId, isActive: true },
+  });
+  if (!supplier) throw new AppError(404, 'Supplier not found');
+  return prisma.supplier.update({
+    where: { id },
+    data: { isActive: false },
+  });
 }
 
 export async function listPurchases(branchId?: number, query?: { page?: string; limit?: string }) {
@@ -366,4 +382,56 @@ export async function getPurchase(id: number, branchId?: number) {
   });
   if (!purchase) throw new AppError(404, 'Purchase not found');
   return purchase;
+}
+
+export async function getPurchaseInvoice(id: number, branchId?: number) {
+  const purchase = await prisma.purchase.findFirst({
+    where: { id, ...(branchId && { branchId }) },
+    include: {
+      branch: true,
+      supplier: true,
+      items: { include: { product: true, part: true } },
+    },
+  });
+  if (!purchase) throw new AppError(404, 'Purchase not found');
+
+  const reference = purchase.documentRef?.trim() || purchase.invoiceNumber?.trim() || null;
+
+  return {
+    invoiceType: 'PURCHASE' as const,
+    invoiceAvailable: true,
+    currency: 'PKR' as const,
+    invoiceNumber: reference ? `PI-${reference}` : `PI-${purchase.id}`,
+    reference,
+    date: purchase.createdAt,
+    branch: {
+      name: purchase.branch.name,
+      location: purchase.branch.location,
+      phone: purchase.branch.phone,
+      whatsapp: purchase.branch.whatsapp,
+    },
+    supplier: {
+      name: purchase.supplier.name,
+      contactPerson: purchase.supplier.contactPerson,
+      phone: purchase.supplier.phone,
+      email: purchase.supplier.email,
+      address: purchase.supplier.address,
+    },
+    items: purchase.items.map((i) => {
+      const name = i.product?.name ?? i.part?.name ?? 'Item';
+      const type = i.product?.type ?? 'PART';
+      const unitCost = Number(i.unitCost);
+      return {
+        name,
+        type,
+        quantity: i.quantity,
+        unitCost,
+        total: unitCost * i.quantity,
+        chassisNumber: i.chassisNumber,
+      };
+    }),
+    subtotal: Number(purchase.total),
+    total: Number(purchase.total),
+    notes: purchase.notes,
+  };
 }

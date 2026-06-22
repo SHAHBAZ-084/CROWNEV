@@ -47,7 +47,6 @@ const BranchInventory = lazyNamed(() => import('./pages/branch/BranchPages'), 'B
 const BranchBikes = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBikesPage');
 const BranchBookings = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBookingsPage');
 const BranchReports = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchReportsPage');
-const BranchSuppliers = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchSuppliersPage');
 const BranchPurchases = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPurchasesPage');
 const BranchPayments = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPaymentsPage');
 
@@ -57,6 +56,7 @@ const PosJournalVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'Po
 const PosViewVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosViewVoucherPage');
 const PosAccounts = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountsPage');
 const PosCustomers = lazyNamed(() => import('./pages/branch/PosPages'), 'PosCustomersPage');
+const PosSuppliers = lazyNamed(() => import('./pages/branch/PosPages'), 'PosSuppliersPage');
 const PosSaleInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosSaleInvoicePage');
 const PosPurchaseInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosPurchaseInvoicePage');
 const PosAccountLedger = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountLedgerPage');
@@ -148,7 +148,7 @@ export default function App() {
                   <Route path="/branch/workspace/vouchers/view" element={<DashWrap><PosViewVoucher /></DashWrap>} />
                   <Route path="/branch/workspace/accounts" element={<DashWrap><PosAccounts /></DashWrap>} />
                   <Route path="/branch/workspace/customers" element={<DashWrap><PosCustomers /></DashWrap>} />
-                  <Route path="/branch/workspace/suppliers" element={<DashWrap><BranchSuppliers /></DashWrap>} />
+                  <Route path="/branch/workspace/suppliers" element={<DashWrap><PosSuppliers /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/sale" element={<DashWrap><PosSaleInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/purchase" element={<DashWrap><PosPurchaseInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />

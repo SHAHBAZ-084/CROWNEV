@@ -66,6 +66,21 @@ suppliersRouter.patch(
   })
 );
 
+suppliersRouter.delete(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(z.object({ branchId: z.number().int() })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.body.branchId;
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const supplier = await suppliersService.softDeleteSupplier(parseInt(param(req.params.id), 10), branchId);
+    res.json(supplier);
+  }),
+);
+
 suppliersRouter.get(
   '/:branchId/:supplierId/ledger',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
@@ -134,6 +149,19 @@ purchasesRouter.get(
     });
     res.json(result);
   })
+);
+
+purchasesRouter.get(
+  '/:id/invoice',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const invoice = await suppliersService.getPurchaseInvoice(
+      parseInt(param(req.params.id), 10),
+      branchId,
+    );
+    res.json(invoice);
+  }),
 );
 
 purchasesRouter.get(
