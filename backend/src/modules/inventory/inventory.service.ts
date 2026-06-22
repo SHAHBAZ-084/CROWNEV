@@ -97,15 +97,23 @@ export async function deductStock(branchId: number, items: { partId: number; qua
   });
 }
 
+export async function addStockInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  items: { partId: number; quantity: number }[],
+) {
+  for (const item of items) {
+    await tx.inventory.upsert({
+      where: { branchId_partId: { branchId, partId: item.partId } },
+      create: { branchId, partId: item.partId, quantity: item.quantity },
+      update: { quantity: { increment: item.quantity } },
+    });
+  }
+}
+
 export async function addStock(branchId: number, items: { partId: number; quantity: number }[]) {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    for (const item of items) {
-      await tx.inventory.upsert({
-        where: { branchId_partId: { branchId, partId: item.partId } },
-        create: { branchId, partId: item.partId, quantity: item.quantity },
-        update: { quantity: { increment: item.quantity } },
-      });
-    }
+    await addStockInTx(tx, branchId, items);
   });
 }
 

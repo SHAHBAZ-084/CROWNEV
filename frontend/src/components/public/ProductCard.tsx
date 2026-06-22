@@ -5,27 +5,24 @@ import type { Product } from '../../types';
 import { formatPKR } from '../../lib/format';
 import { Badge } from '../ui/Badge';
 
-export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
+export function ProductCard({
+  product,
+  index = 0,
+  animate = true,
+}: {
+  product: Product;
+  index?: number;
+  animate?: boolean;
+}) {
   const price = Number(product.salePrice ?? product.price);
   const original = product.salePrice ? Number(product.price) : null;
   const image = product.images?.find((i) => i.isPrimary)?.url ?? product.images?.[0]?.url;
   const discount =
     original && original > price ? Math.round(((original - price) / original) * 100) : null;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.3, delay: index * 0.06, ease: 'easeOut' }}
-      className="h-full"
-    >
-      <Link to={`/shop/${product.id}`} className="block h-full">
-        <motion.div
-          whileHover={{ y: -6 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] transition-shadow hover:border-accent/35 hover:shadow-[var(--shadow-card-hover)]"
-        >
+  const card = (
+    <Link to={`/shop/${product.id}`} className="block h-full">
+      <div className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-1.5 hover:border-accent/35 hover:shadow-[var(--shadow-card-hover)]">
           <div className="relative aspect-[4/3] overflow-hidden bg-surface-alt">
             {image ? (
               <img
@@ -87,13 +84,28 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
                   <span className="text-xs text-text-muted line-through">{formatPKR(original)}</span>
                 )}
               </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-alt text-brand-light transition-colors group-hover:bg-accent group-hover:text-white">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-alt text-brand-light transition-colors group-hover:bg-brand group-hover:text-white">
                 <ArrowRight className="h-4 w-4" />
               </span>
             </div>
           </div>
-        </motion.div>
-      </Link>
+      </div>
+    </Link>
+  );
+
+  if (!animate) {
+    return <div className="h-full">{card}</div>;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3, delay: index * 0.06, ease: 'easeOut' }}
+      className="h-full"
+    >
+      {card}
     </motion.div>
   );
 }

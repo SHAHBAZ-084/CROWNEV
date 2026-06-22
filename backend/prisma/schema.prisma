@@ -89,7 +89,17 @@ enum LedgerEntryType {
   CREDIT
 }
 
-enum WalkInLedgerType {
+enum CustomerType {
+  ONLINE
+  WALK_IN
+}
+
+enum CustomerLedgerType {
+  DEBIT
+  CREDIT
+}
+
+enum SupplierLedgerType {
   DEBIT
   CREDIT
 }
@@ -132,6 +142,7 @@ model User {
   branch              Branch?           @relation("BranchOwner", fields: [branchId], references: [id])
   ownedBranch         Branch?           @relation("BranchOwnerUser")
   orders              Order[]
+  customer            Customer?
   serviceBookings     ServiceBooking[]
   stockAdjustments    StockAdjustment[]
   vouchersCreated     Voucher[]         @relation("VoucherCreatedBy")
@@ -184,7 +195,7 @@ model Branch {
   suppliers          Supplier[]
   purchases          Purchase[]
   stockAdjustments   StockAdjustment[]
-  walkInCustomers    WalkInCustomer[]
+  customers          Customer[]
   bankAccounts       BankAccount[]
   accountCategories  AccountCategory[]
   accounts           Account[]
@@ -375,7 +386,7 @@ model Order {
   trackingId             String        @unique
   branchId               Int
   userId                 String?
-  walkInCustomerId       Int?
+  customerId             Int?
   type                   OrderType
   status                 OrderStatus   @default(PENDING)
   paymentMethod          PaymentMethod
@@ -390,14 +401,15 @@ model Order {
   subtotal               Decimal       @db.Decimal(12, 2)
   total                  Decimal       @db.Decimal(12, 2)
   notes                  String?
+  saleReference          String?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
   branch           Branch            @relation(fields: [branchId], references: [id])
   user             User?             @relation(fields: [userId], references: [id])
-  walkInCustomer   WalkInCustomer?   @relation(fields: [walkInCustomerId], references: [id])
+  customer         Customer?         @relation(fields: [customerId], references: [id])
   items            OrderItem[]
-  walkInLedger     WalkInCustomerLedger[]
+  customerLedger   CustomerLedger[]
 
   @@index([branchId])
   @@index([status])
@@ -511,14 +523,35 @@ model Supplier {
   phone         String?
   email         String?
   address       String?
+  balance       Decimal  @default(0) @db.Decimal(12, 2)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch    Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
   purchases Purchase[]
+  ledger    SupplierLedger[]
 
   @@index([branchId])
+}
+
+// ─── 19b. SupplierLedger ─────────────────────────────────────────────────────
+
+model SupplierLedger {
+  id         Int                @id @default(autoincrement())
+  supplierId Int
+  purchaseId Int?
+  type       SupplierLedgerType
+  amount     Decimal            @db.Decimal(12, 2)
+  balance    Decimal            @db.Decimal(12, 2)
+  notes      String?
+  createdAt  DateTime           @default(now())
+
+  supplier Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+
+  @@index([supplierId])
+  @@index([createdAt])
 }
 
 // ─── 19. Purchase ────────────────────────────────────────────────────────────
@@ -537,6 +570,7 @@ model Purchase {
   branch   Branch         @relation(fields: [branchId], references: [id])
   supplier Supplier       @relation(fields: [supplierId], references: [id])
   items    PurchaseItem[]
+  ledger   SupplierLedger[]
 
   @@index([branchId])
   @@index([createdAt])
@@ -581,45 +615,49 @@ model StockAdjustment {
   @@index([createdAt])
 }
 
-// ─── 22. WalkInCustomer ──────────────────────────────────────────────────────
+// ─── 22. Customer ────────────────────────────────────────────────────────────
 
-model WalkInCustomer {
-  id        Int      @id @default(autoincrement())
-  branchId  Int
+model Customer {
+  id        Int          @id @default(autoincrement())
+  branchId  Int?
+  userId    String?      @unique
+  type      CustomerType
   name      String
-  cnic      String
+  cnic      String?
   phone     String?
   email     String?
   address   String?
-  balance   Decimal  @default(0) @db.Decimal(12, 2)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  balance   Decimal      @default(0) @db.Decimal(12, 2)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  branch  Branch                 @relation(fields: [branchId], references: [id])
+  branch  Branch?          @relation(fields: [branchId], references: [id])
+  user    User?            @relation(fields: [userId], references: [id])
   orders  Order[]
-  ledger  WalkInCustomerLedger[]
+  ledger  CustomerLedger[]
 
   @@unique([branchId, cnic])
   @@index([branchId])
+  @@index([type])
 }
 
-// ─── 23. WalkInCustomerLedger ────────────────────────────────────────────────
+// ─── 23. CustomerLedger ──────────────────────────────────────────────────────
 
-model WalkInCustomerLedger {
-  id               Int              @id @default(autoincrement())
-  walkInCustomerId Int
-  orderId          Int?
-  type             WalkInLedgerType
-  amount           Decimal          @db.Decimal(12, 2)
-  balance          Decimal          @db.Decimal(12, 2)
-  notes            String?
-  createdAt        DateTime         @default(now())
+model CustomerLedger {
+  id         Int                @id @default(autoincrement())
+  customerId Int
+  orderId    Int?
+  type       CustomerLedgerType
+  amount     Decimal            @db.Decimal(12, 2)
+  balance    Decimal            @db.Decimal(12, 2)
+  notes      String?
+  createdAt  DateTime           @default(now())
 
-  walkInCustomer WalkInCustomer @relation(fields: [walkInCustomerId], references: [id], onDelete: Cascade)
-  order          Order?         @relation(fields: [orderId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order    Order?   @relation(fields: [orderId], references: [id])
 
-  @@index([walkInCustomerId])
+  @@index([customerId])
   @@index([createdAt])
 }
 

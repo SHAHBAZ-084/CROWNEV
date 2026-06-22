@@ -48,11 +48,105 @@ function assertVoucherAccountRules(
   }
 }
 
+export const CUSTOMERS_CATEGORY_NAME = 'Customers';
+
+export function isCustomersCategoryName(name: string) {
+  return name.trim().toLowerCase() === CUSTOMERS_CATEGORY_NAME.toLowerCase();
+}
+
+export async function ensureCustomersCategory(branchId: number) {
+  const existing = await prisma.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: CUSTOMERS_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return prisma.accountCategory.create({ data: { branchId, name: CUSTOMERS_CATEGORY_NAME } });
+}
+
+export const SUPPLIERS_CATEGORY_NAME = 'Suppliers';
+
+export const INCOME_CATEGORY_NAME = 'Income';
+export const SALE_REVENUE_ACCOUNT_NAME = 'Sale Revenue';
+export const INVENTORY_CATEGORY_NAME = 'Inventory';
+export const INVENTORY_ACCOUNT_NAME = 'Inventory';
+
+export function isSuppliersCategoryName(name: string) {
+  return name.trim().toLowerCase() === SUPPLIERS_CATEGORY_NAME.toLowerCase();
+}
+
+export function isInventoryCategoryName(name: string) {
+  return name.trim().toLowerCase() === INVENTORY_CATEGORY_NAME.toLowerCase();
+}
+
+export function isSystemAccountCategoryName(name: string) {
+  return (
+    isCustomersCategoryName(name)
+    || isSuppliersCategoryName(name)
+    || isInventoryCategoryName(name)
+  );
+}
+
+export async function ensureSuppliersCategory(branchId: number) {
+  const existing = await prisma.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: SUPPLIERS_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return prisma.accountCategory.create({ data: { branchId, name: SUPPLIERS_CATEGORY_NAME } });
+}
+
+export async function ensureInventoryCategory(branchId: number) {
+  const existing = await prisma.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: INVENTORY_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return prisma.accountCategory.create({ data: { branchId, name: INVENTORY_CATEGORY_NAME } });
+}
+
 export async function listAccountCategories(branchId: number) {
-  return prisma.accountCategory.findMany({
-    where: { branchId, isActive: true },
-    include: { accounts: { where: { isActive: true } } },
-    orderBy: { name: 'asc' },
+  await Promise.all([
+    ensureCustomersCategory(branchId),
+    ensureSuppliersCategory(branchId),
+    ensureInventoryCategory(branchId),
+  ]);
+
+  // Ensure inventory account + ledger exist for the branch
+  await prisma.$transaction(async (tx) => {
+    await ensureInventoryAccount(tx, branchId);
+  });
+
+  const [categories, customerCount, supplierCount, inventoryAccounts] = await Promise.all([
+    prisma.accountCategory.findMany({
+      where: { branchId, isActive: true },
+      include: { accounts: { where: { isActive: true }, include: { ledger: true } } },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.customer.count({ where: { branchId, isActive: true } }),
+    prisma.supplier.count({ where: { branchId, isActive: true } }),
+    prisma.account.count({
+      where: {
+        branchId,
+        isActive: true,
+        name: { equals: INVENTORY_ACCOUNT_NAME, mode: 'insensitive' },
+      },
+    }),
+  ]);
+
+  return categories.map((category) => {
+    const isCustomers = isCustomersCategoryName(category.name);
+    const isSuppliers = isSuppliersCategoryName(category.name);
+    const isInventory = isInventoryCategoryName(category.name);
+    return {
+      ...category,
+      isCustomersCategory: isCustomers,
+      isSuppliersCategory: isSuppliers,
+      isInventoryCategory: isInventory,
+      entryCount: isCustomers
+        ? customerCount
+        : isSuppliers
+          ? supplierCount
+          : isInventory
+            ? inventoryAccounts
+            : category.accounts.length,
+    };
   });
 }
 
@@ -67,6 +161,10 @@ export async function softDeleteAccountCategory(id: number, branchId: number) {
     include: { accounts: { where: { isActive: true } } },
   });
   if (!category) throw new AppError(404, 'Category not found');
+
+  if (isSystemAccountCategoryName(category.name)) {
+    throw new AppError(400, `The ${category.name} category cannot be deleted`);
+  }
 
   if (category.accounts.length > 0) {
     throw new AppError(
@@ -306,7 +404,51 @@ async function assertUniqueAccountCode(branchId: number, code: string) {
   return trimmed;
 }
 
-function voucherTypeLabel(type: VoucherType | null | undefined, isReversal: boolean) {
+function isSaleRevenueAccountName(name?: string | null) {
+  return name?.trim().toLowerCase() === SALE_REVENUE_ACCOUNT_NAME.toLowerCase();
+}
+
+function isInventoryAccountName(name?: string | null) {
+  return name?.trim().toLowerCase() === INVENTORY_ACCOUNT_NAME.toLowerCase();
+}
+
+function isSaleVoucher(voucher: {
+  type?: VoucherType | null;
+  creditAccount?: { name: string } | null;
+  debitAccount?: { name: string } | null;
+} | null) {
+  if (!voucher || voucher.type !== VoucherType.JOURNAL) return false;
+  return isSaleRevenueAccountName(voucher.creditAccount?.name) && !!voucher.debitAccount?.name;
+}
+
+function isPurchaseVoucher(voucher: {
+  type?: VoucherType | null;
+  creditAccount?: { name: string } | null;
+  debitAccount?: { name: string } | null;
+} | null) {
+  if (!voucher || voucher.type !== VoucherType.JOURNAL) return false;
+  return (
+    isInventoryAccountName(voucher.debitAccount?.name)
+    && !!voucher.creditAccount?.name
+    && !isSaleRevenueAccountName(voucher.creditAccount?.name)
+  );
+}
+
+function voucherTypeLabel(
+  voucher: {
+    type?: VoucherType | null;
+    creditAccount?: { name: string } | null;
+    debitAccount?: { name: string } | null;
+  } | null,
+  isReversal: boolean,
+) {
+  if (isSaleVoucher(voucher)) {
+    return isReversal ? 'Sale (Reversal)' : 'Sale';
+  }
+  if (isPurchaseVoucher(voucher)) {
+    return isReversal ? 'Purchase (Reversal)' : 'Purchase';
+  }
+  const type = voucher?.type;
   if (!type) return isReversal ? 'Journal (Reversal)' : 'Journal';
   const base =
     type === 'PAYMENT' ? 'Payment'
@@ -323,6 +465,7 @@ function voucherDisplayNo(_type: VoucherType | null | undefined, number: number 
 function buildLedgerEntryDescription(
   e: { isOpeningBalance: boolean; notes?: string | null },
   voucher: {
+    type?: VoucherType | null;
     description?: string | null;
     creditAccount?: { name: string } | null;
     debitAccount?: { name: string } | null;
@@ -331,6 +474,14 @@ function buildLedgerEntryDescription(
   if (e.isOpeningBalance) return 'Opening Balance';
   if (!voucher?.creditAccount || !voucher?.debitAccount) {
     return e.notes?.trim() || voucher?.description?.trim() || '';
+  }
+
+  if (isSaleVoucher(voucher)) {
+    return `From sale revenue to ${voucher.debitAccount.name}`;
+  }
+
+  if (isPurchaseVoucher(voucher)) {
+    return `From ${voucher.creditAccount.name} to inventory`;
   }
 
   const auto = `From ${voucher.creditAccount.name} to ${voucher.debitAccount.name}`;
@@ -403,6 +554,187 @@ export async function listAccounts(branchId: number) {
   }));
 }
 
+async function ensureCustomersCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {
+  const existing = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: CUSTOMERS_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return tx.accountCategory.create({ data: { branchId, name: CUSTOMERS_CATEGORY_NAME } });
+}
+
+export async function ensureSaleRevenueAccount(tx: Prisma.TransactionClient, branchId: number) {
+  let category = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: INCOME_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (!category) {
+    category = await tx.accountCategory.create({ data: { branchId, name: INCOME_CATEGORY_NAME } });
+  }
+
+  const existing = await tx.account.findFirst({
+    where: {
+      branchId,
+      isActive: true,
+      categoryId: category.id,
+      name: { equals: SALE_REVENUE_ACCOUNT_NAME, mode: 'insensitive' },
+    },
+    include: { ledger: true },
+  });
+  if (existing?.ledger) return existing;
+
+  const account = await tx.account.create({
+    data: {
+      branchId,
+      categoryId: category.id,
+      name: SALE_REVENUE_ACCOUNT_NAME,
+      code: await generateNextAccountCodeInTx(tx, branchId),
+      type: AccountType.REVENUE,
+    },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+export async function ensureCustomerAccount(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  customer: { id: number; name: string },
+) {
+  const category = await ensureCustomersCategoryInTx(tx, branchId);
+  const code = `C${String(customer.id).padStart(4, '0')}`;
+
+  const existing = await tx.account.findFirst({
+    where: { branchId, isActive: true, code },
+    include: { ledger: true },
+  });
+  if (existing?.ledger) return existing;
+
+  const account = await tx.account.create({
+    data: {
+      branchId,
+      categoryId: category.id,
+      name: customer.name,
+      code,
+      type: AccountType.ASSET,
+    },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+async function ensureSuppliersCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {
+  const existing = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: SUPPLIERS_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return tx.accountCategory.create({ data: { branchId, name: SUPPLIERS_CATEGORY_NAME } });
+}
+
+export async function ensureSupplierAccount(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  supplier: { id: number; name: string },
+) {
+  const category = await ensureSuppliersCategoryInTx(tx, branchId);
+  const code = `S${String(supplier.id).padStart(4, '0')}`;
+
+  const existing = await tx.account.findFirst({
+    where: { branchId, isActive: true, code },
+    include: { ledger: true },
+  });
+  if (existing?.ledger) return existing;
+
+  const account = await tx.account.create({
+    data: {
+      branchId,
+      categoryId: category.id,
+      name: supplier.name,
+      code,
+      type: AccountType.LIABILITY,
+    },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+export async function ensureInventoryAccount(tx: Prisma.TransactionClient, branchId: number) {
+  const category = await ensureInventoryCategoryInTx(tx, branchId);
+
+  const existing = await tx.account.findFirst({
+    where: {
+      branchId,
+      isActive: true,
+      categoryId: category.id,
+      name: { equals: INVENTORY_ACCOUNT_NAME, mode: 'insensitive' },
+    },
+    include: { ledger: true },
+  });
+  if (existing?.ledger) return existing;
+
+  const account = await tx.account.create({
+    data: {
+      branchId,
+      categoryId: category.id,
+      name: INVENTORY_ACCOUNT_NAME,
+      code: await generateNextAccountCodeInTx(tx, branchId),
+      type: AccountType.ASSET,
+    },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+async function ensureInventoryCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {
+  const existing = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: INVENTORY_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (existing) return existing;
+  return tx.accountCategory.create({ data: { branchId, name: INVENTORY_CATEGORY_NAME } });
+}
+
+export async function createVoucherInTx(
+  tx: Prisma.TransactionClient,
+  data: {
+    branchId: number;
+    type: VoucherType;
+    debitAccountId: number;
+    creditAccountId: number;
+    amount: number;
+    description?: string;
+    reference?: string;
+    createdById: string;
+  },
+) {
+  if (data.amount <= 0) {
+    throw new AppError(400, 'Amount must be greater than zero');
+  }
+
+  const { debitAccount, creditAccount } = await loadBranchAccounts(
+    tx,
+    data.branchId,
+    data.debitAccountId,
+    data.creditAccountId,
+  );
+  assertVoucherAccountRules(data.type, debitAccount, creditAccount);
+
+  const number = await nextVoucherNumber(tx, data.branchId, data.type);
+
+  const voucher = await tx.voucher.create({
+    data: { ...data, number, status: VoucherStatus.ACTIVE },
+  });
+
+  await postVoucherLedgerEntries(
+    tx,
+    voucher.id,
+    data.debitAccountId,
+    data.creditAccountId,
+    data.amount,
+    data.description,
+    false,
+  );
+
+  return voucher;
+}
+
 export async function createVoucher(data: {
   branchId: number;
   type: VoucherType;
@@ -413,35 +745,8 @@ export async function createVoucher(data: {
   reference?: string;
   createdById: string;
 }) {
-  if (data.amount <= 0) {
-    throw new AppError(400, 'Amount must be greater than zero');
-  }
-
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const { debitAccount, creditAccount } = await loadBranchAccounts(
-      tx,
-      data.branchId,
-      data.debitAccountId,
-      data.creditAccountId,
-    );
-    assertVoucherAccountRules(data.type, debitAccount, creditAccount);
-
-    const number = await nextVoucherNumber(tx, data.branchId, data.type);
-
-    const voucher = await tx.voucher.create({
-      data: { ...data, number, status: VoucherStatus.ACTIVE },
-    });
-
-    await postVoucherLedgerEntries(
-      tx,
-      voucher.id,
-      data.debitAccountId,
-      data.creditAccountId,
-      data.amount,
-      undefined,
-      false,
-    );
-
+    const voucher = await createVoucherInTx(tx, data);
     return tx.voucher.findUniqueOrThrow({ where: { id: voucher.id }, include: voucherInclude });
   });
 }
@@ -673,7 +978,7 @@ export async function getLedgerEntries(
   fromDate?: string,
   toDate?: string,
 ) {
-  const ledger = await prisma.ledger.findFirst({
+  let ledger = await prisma.ledger.findFirst({
     where: { accountId, branchId },
     include: {
       entries: {
@@ -685,6 +990,27 @@ export async function getLedgerEntries(
       account: true,
     },
   });
+
+  if (!ledger) {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, branchId, isActive: true },
+    });
+    if (!account) throw new AppError(404, 'Ledger not found');
+    await prisma.ledger.create({ data: { branchId, accountId, balance: 0 } });
+    ledger = await prisma.ledger.findFirst({
+      where: { accountId, branchId },
+      include: {
+        entries: {
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          include: {
+            voucher: { include: { debitAccount: true, creditAccount: true } },
+          },
+        },
+        account: true,
+      },
+    });
+  }
+
   if (!ledger) throw new AppError(404, 'Ledger not found');
 
   const from = fromDate ? parseDateStart(fromDate) : null;
@@ -751,12 +1077,12 @@ export async function getLedgerEntries(
       date: e.createdAt.toISOString(),
       voucherNo: e.isOpeningBalance
         ? '0'
-        : voucherDisplayNo(voucher?.type, voucher?.number),
+        : voucherDisplayNo(voucher?.type ?? null, voucher?.number),
       ref: voucher?.reference ?? null,
       type: e.isOpeningBalance
         ? 'Opening Balance'
-        : voucherTypeLabel(voucher?.type, false),
-      description: buildLedgerEntryDescription(e, voucher),
+        : voucherTypeLabel(voucher ?? null, false),
+      description: buildLedgerEntryDescription(e, voucher ?? null),
       debit,
       credit,
       balance: running,

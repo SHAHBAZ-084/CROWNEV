@@ -55,7 +55,7 @@ export async function deleteBranch(id: number) {
           suppliers: true,
           purchases: true,
           accounts: true,
-          walkInCustomers: true,
+          customers: true,
         },
       },
     },

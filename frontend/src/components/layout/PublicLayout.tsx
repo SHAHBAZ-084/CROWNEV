@@ -160,9 +160,9 @@ function SocialIcon({ href, label, children }: { href: string; label: string; ch
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-xs font-bold text-brand shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-white hover:shadow-md"
+      className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-xs font-bold text-brand shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white hover:shadow-md"
     >
-      {children}
+      <span aria-hidden="true">{children}</span>
     </a>
   );
 }

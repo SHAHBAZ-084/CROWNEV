@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Bike, Package, Search, SlidersHorizontal, Wrench, X } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import type { Product } from '../../types';
@@ -111,6 +110,7 @@ export default function ShopPage() {
               <input
                 type="search"
                 placeholder="Search products…"
+                aria-label="Search products"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-border bg-surface-alt/50 py-2.5 pl-10 pr-4 text-sm outline-none transition-shadow focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20"
@@ -127,7 +127,7 @@ export default function ShopPage() {
                     onClick={() => setFilter('type', value)}
                     className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-accent text-white shadow-sm'
+                        ? 'bg-brand text-white shadow-sm'
                         : 'bg-surface-alt text-text-muted hover:bg-surface-alt/80 hover:text-brand'
                     }`}
                   >
@@ -142,6 +142,7 @@ export default function ShopPage() {
               value={brandId}
               onChange={(e) => setFilter('brandId', e.target.value)}
               className="w-full sm:w-40"
+              aria-label="Filter by brand"
             >
               <option value="">All Brands</option>
               {brands.map((b) => (
@@ -155,6 +156,7 @@ export default function ShopPage() {
               value={categoryId}
               onChange={(e) => setFilter('categoryId', e.target.value)}
               className="w-full sm:w-44"
+              aria-label="Filter by category"
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -208,11 +210,7 @@ export default function ShopPage() {
           {loading ? (
             <ProductGridSkeleton />
           ) : products.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[var(--radius-card)] border border-dashed border-border bg-surface-alt/50 px-6 py-16 text-center"
-            >
+            <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-surface-alt/50 px-6 py-16 text-center">
               <Package className="mx-auto h-12 w-12 text-brand/25" />
               <p className="mt-4 font-display text-lg font-semibold text-brand">No products found</p>
               <p className="mt-2 text-sm text-text-muted">
@@ -222,18 +220,21 @@ export default function ShopPage() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="mt-6 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+                  className="mt-6 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
                 >
                   Clear all filters
                 </button>
               )}
-            </motion.div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
-              ))}
             </div>
+          ) : (
+            <>
+              <h2 className="sr-only">Product catalog</h2>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {products.map((p) => (
+                  <ProductCard key={p.id} product={p} animate={false} />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -66,7 +66,57 @@ suppliersRouter.patch(
   })
 );
 
+suppliersRouter.get(
+  '/:branchId/:supplierId/ledger',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const ledger = await suppliersService.getSupplierLedgerFormatted(
+      parseInt(param(req.params.supplierId), 10),
+      branchId,
+    );
+    res.json(ledger);
+  }),
+);
+
 purchasesRouter.use(authenticate);
+
+purchasesRouter.post(
+  '/invoice',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(
+    z.object({
+      branchId: z.number().int(),
+      supplierId: z.number().int(),
+      reference: z.string().trim().min(1).max(64),
+      notes: z.string().optional(),
+      items: z
+        .array(
+          z.object({
+            productId: z.string().uuid(),
+            quantity: z.number().int().positive(),
+            unitCost: z.coerce.number().positive(),
+          }),
+        )
+        .min(1),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== req.body.branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const result = await suppliersService.createPurchaseInvoice({
+      ...req.body,
+      createdById: req.user!.userId,
+    });
+    res.status(201).json(result);
+  }),
+);
 
 purchasesRouter.get(
   '/',

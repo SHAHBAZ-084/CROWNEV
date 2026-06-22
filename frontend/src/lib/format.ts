@@ -2,6 +2,11 @@ export function formatPKR(amount: number | string) {
   return `PKR ${Number(amount).toLocaleString('en-PK')}`;
 }
 
+/** Ledger debit/credit columns — amount only, no currency prefix. */
+export function formatLedgerAmount(amount: number | string) {
+  return Number(amount).toLocaleString('en-PK');
+}
+
 /** Empty table cell / missing field (no dash character). */
 export const EMPTY_CELL = '';
 

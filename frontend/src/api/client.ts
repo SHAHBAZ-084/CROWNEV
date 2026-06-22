@@ -32,7 +32,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? 'Request failed');
+    const message = err.error ?? err.message ?? 'Request failed';
+    if (Array.isArray(err.details)) {
+      throw new Error(err.details.join(', ') || message);
+    }
+    throw new Error(typeof message === 'string' ? message : 'Request failed');
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -299,6 +303,7 @@ export const branchApi = {
     paymentMethod: 'CASH' | 'BANK_TRANSFER';
     items: { productId: string; quantity: number }[];
     walkInCustomerId?: number;
+    customerId?: number;
     isPaid?: boolean;
     notes?: string;
   }) => api<Order>('/orders/pos', { method: 'POST', body: JSON.stringify(data) }),
@@ -310,6 +315,54 @@ export const branchApi = {
   deleteService: (branchId: number, id: number) =>
     api<void>(`/services/${branchId}/${id}`, { method: 'DELETE' }),
   shopProducts: (branchId: number) => api<unknown[]>(`/branches/${branchId}/products`),
+  saleProducts: (branchId: number) => api<{
+    id: string;
+    name: string;
+    type: 'BIKE' | 'PART';
+    stockAtBranch: number;
+    unitPrice: number;
+    brand?: { name: string } | null;
+  }[]>(`/branches/${branchId}/sale-products`),
+  createSaleInvoice: (data: {
+    branchId: number;
+    customerId: number;
+    items: { productId: string; quantity: number; unitPrice?: number }[];
+    reference: string;
+    notes?: string;
+  }) => api<{ order: Order; voucher: unknown }>('/orders/sale-invoice', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  customerLedger: (branchId: number, customerId: number) =>
+    api<{
+      customer: { id: number; name: string; code: string; balance: number };
+      rows: {
+        date: string;
+        voucherNo: string;
+        ref: string | null;
+        type: string;
+        description: string;
+        debit: number;
+        credit: number;
+        balance: number;
+      }[];
+      summary: { totalDebit: number; totalCredit: number; closingBalance: number };
+    }>(`/walk-in/${branchId}/customers/${customerId}/ledger`),
+  supplierLedger: (branchId: number, supplierId: number) =>
+    api<{
+      supplier: { id: number; name: string; code: string; balance: number };
+      rows: {
+        date: string;
+        voucherNo: string;
+        ref: string | null;
+        type: string;
+        description: string;
+        debit: number;
+        credit: number;
+        balance: number;
+      }[];
+      summary: { totalDebit: number; totalCredit: number; closingBalance: number };
+    }>(`/suppliers/${branchId}/${supplierId}/ledger`),
   setProductListed: (branchId: number, productId: string, isListed: boolean) =>
     api<unknown>(`/branches/${branchId}/products/${productId}`, { method: 'PUT', body: JSON.stringify({ isListed }) }),
   setBikeStock: (branchId: number, productId: string, quantity: number) =>
@@ -348,7 +401,23 @@ export const branchApi = {
     api<unknown>('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
   updateSupplier: (id: number, data: Record<string, unknown>) =>
     api<unknown>(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  purchases: (branchId: number) => api<Paginated<unknown>>(`/purchases?branchId=${branchId}`),
+  purchaseProducts: (branchId: number) => api<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>(
+    `/branches/${branchId}/purchase-products`,
+  ),
+  createPurchaseInvoice: (data: {
+    branchId: number;
+    supplierId: number;
+    reference: string;
+    items: { productId: string; quantity: number; unitCost: number }[];
+    notes?: string;
+  }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  purchases: (branchId: number, params?: { limit?: string }) => {
+    const q = new URLSearchParams({ branchId: String(branchId), ...(params?.limit ? { limit: params.limit } : {}) });
+    return api<Paginated<unknown>>(`/purchases?${q}`);
+  },
   createPurchase: (data: Record<string, unknown>) =>
     api<unknown>('/purchases', { method: 'POST', body: JSON.stringify(data) }),
   purchase: (id: number) => api<unknown>(`/purchases/${id}`),
@@ -381,6 +450,8 @@ export const branchApi = {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<unknown>(`/accounting/${branchId}/ledger/${accountId}${q}`);
   },
+  branchSuppliers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/suppliers`),
+  branchCustomers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/customers`),
   walkInCustomers: (branchId: number) => api<Paginated<unknown>>(`/walk-in/${branchId}/customers`),
   createWalkInCustomer: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/walk-in/${branchId}/customers`, { method: 'POST', body: JSON.stringify(data) }),

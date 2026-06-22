@@ -79,6 +79,8 @@ export interface Order {
   updatedAt?: string;
   branch?: { id?: number; name: string; location?: string; phone?: string; whatsapp?: string };
   user?: { firstName: string; lastName: string; email: string; phone?: string };
+  customer?: { name: string; cnic?: string; phone?: string; address?: string; type?: 'ONLINE' | 'WALK_IN' };
+  /** @deprecated use customer */
   walkInCustomer?: { name: string; cnic?: string; phone?: string; address?: string };
   items?: OrderItem[];
 }

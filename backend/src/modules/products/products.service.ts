@@ -180,6 +180,113 @@ export async function listBranchProducts(branchId: number) {
   }));
 }
 
+/** Branch-listed bikes/parts with available stock for POS sale invoices. */
+export async function listSaleableBranchProducts(branchId: number) {
+  const rows = await prisma.branchProduct.findMany({
+    where: { branchId, isListed: true },
+    include: {
+      product: {
+        include: {
+          images: { where: { isPrimary: true }, take: 1 },
+          brand: true,
+          bikePartDetails: true,
+        },
+      },
+    },
+    orderBy: { product: { name: 'asc' } },
+  });
+
+  const partIds = new Set<number>();
+  for (const row of rows) {
+    if (row.product.type === ProductType.PART) {
+      for (const detail of row.product.bikePartDetails) {
+        if (detail.partId) partIds.add(detail.partId);
+      }
+    }
+  }
+
+  const inventories = partIds.size
+    ? await prisma.inventory.findMany({
+        where: { branchId, partId: { in: [...partIds] } },
+      })
+    : [];
+  const inventoryByPartId = new Map(inventories.map((i) => [i.partId, i.quantity]));
+
+  const saleable: {
+    id: string;
+    name: string;
+    type: ProductType;
+    stockAtBranch: number;
+    unitPrice: number;
+    brand?: { name: string } | null;
+    images?: { url: string }[];
+  }[] = [];
+
+  for (const row of rows) {
+    const product = row.product;
+    if (!product.isActive) continue;
+    if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) continue;
+
+    let stockAtBranch = 0;
+    if (product.type === ProductType.BIKE) {
+      stockAtBranch = row.stock;
+    } else {
+      const linkedPartIds = product.bikePartDetails
+        .map((d) => d.partId)
+        .filter((id): id is number => id != null);
+      if (linkedPartIds.length === 0) continue;
+      const quantities = linkedPartIds.map((partId) => inventoryByPartId.get(partId) ?? 0);
+      stockAtBranch = Math.min(...quantities);
+    }
+
+    if (stockAtBranch <= 0) continue;
+
+    saleable.push({
+      id: product.id,
+      name: product.name,
+      type: product.type,
+      stockAtBranch,
+      unitPrice: Number(product.salePrice ?? product.price),
+      brand: product.brand,
+      images: product.images,
+    });
+  }
+
+  return saleable;
+}
+
+/** Branch-listed bikes/parts available for purchase invoices (no pricing). */
+export async function listBranchPurchaseProducts(branchId: number) {
+  const rows = await prisma.branchProduct.findMany({
+    where: { branchId, isListed: true },
+    include: {
+      product: {
+        include: { bikePartDetails: true },
+      },
+    },
+    orderBy: { product: { name: 'asc' } },
+  });
+
+  const purchasable: { id: string; name: string; type: ProductType }[] = [];
+
+  for (const row of rows) {
+    const product = row.product;
+    if (!product.isActive) continue;
+    if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) continue;
+    if (product.type === ProductType.PART) {
+      const hasPartLink = product.bikePartDetails.some((d) => d.partId != null);
+      if (!hasPartLink) continue;
+    }
+    purchasable.push({
+      id: product.id,
+      name: product.name,
+      type: product.type,
+    });
+  }
+
+  return purchasable;
+}
+
 export async function setBranchProduct(branchId: number, productId: string, isListed: boolean) {
   return prisma.branchProduct.upsert({
     where: { branchId_productId: { branchId, productId } },

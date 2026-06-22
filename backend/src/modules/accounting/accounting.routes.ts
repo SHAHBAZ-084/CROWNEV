@@ -19,6 +19,34 @@ function assertBranch(req: import('express').Request, branchId: number) {
 }
 
 accountingRouter.get(
+  '/:branchId/suppliers',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const { listBranchSuppliers } = await import('../suppliers/suppliers.service.js');
+    const result = await listBranchSuppliers(branchId, {
+      page: req.query.page as string,
+      limit: req.query.limit as string,
+    });
+    res.json(result);
+  }),
+);
+
+accountingRouter.get(
+  '/:branchId/customers',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const { listBranchCustomers } = await import('../orders/orders.service.js');
+    const result = await listBranchCustomers(branchId, {
+      page: req.query.page as string,
+      limit: req.query.limit as string,
+    });
+    res.json(result);
+  }),
+);
+
+accountingRouter.get(
   '/:branchId/categories',
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);

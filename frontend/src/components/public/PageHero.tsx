@@ -1,15 +1,14 @@
-import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 const PAGE_BACKGROUNDS = {
   trackOrder:
-    'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=1920&q=80',
+    'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=960&q=60',
   bookService:
-    'https://images.unsplash.com/photo-1620714223087-87170369e725?auto=format&fit=crop&w=1920&q=80',
+    'https://images.unsplash.com/photo-1620714223087-87170369e725?auto=format&fit=crop&w=960&q=60',
   shop:
-    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=1920&q=80',
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=960&q=60',
   contact:
-    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80',
+    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=960&q=60',
 } as const;
 
 export type PageHeroPage = keyof typeof PAGE_BACKGROUNDS;
@@ -47,12 +46,7 @@ export function PageHero({
           compact ? 'py-8 lg:py-10' : 'py-14 lg:py-16'
         }`}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className={`max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}
-        >
+        <div className={`max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}>
           {eyebrow && (
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">{eyebrow}</p>
           )}
@@ -72,19 +66,14 @@ export function PageHero({
               {subtitle}
             </p>
           )}
-        </motion.div>
+        </div>
 
         {children && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.08 }}
-            className={`mt-6 max-w-lg ${isCenter ? 'mx-auto' : ''}`}
-          >
+          <div className={`mt-6 max-w-lg ${isCenter ? 'mx-auto' : ''}`}>
             <div className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-6 shadow-[var(--shadow-card-hover)] backdrop-blur-sm">
               {children}
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
     </section>

@@ -1,16 +1,23 @@
 import {
+  CustomerLedgerType,
+  CustomerType,
   OrderStatus,
   OrderType,
   PaymentMethod,
   PaymentStatus,
   Prisma,
   ProductType,
-  WalkInLedgerType,
+  VoucherType,
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { generateTrackingId } from '../../utils/crypto.js';
 import { deductStock } from '../inventory/inventory.service.js';
+import {
+  createVoucherInTx,
+  ensureCustomerAccount,
+  ensureSaleRevenueAccount,
+} from '../accounting/accounting.service.js';
 
 export async function listOrders(query: {
   page?: string;
@@ -40,7 +47,7 @@ export async function listOrders(query: {
       include: {
         items: { include: { product: { select: { name: true, type: true } } } },
         user: { select: { firstName: true, lastName: true, email: true, phone: true } },
-        walkInCustomer: { select: { name: true, cnic: true, phone: true } },
+        customer: { select: { name: true, cnic: true, phone: true, type: true } },
         branch: { select: { name: true, location: true, phone: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -73,7 +80,7 @@ export async function getOrder(id: number, branchId?: number) {
     include: {
       items: { include: { product: true } },
       user: true,
-      walkInCustomer: true,
+      customer: true,
       branch: true,
     },
   });
@@ -93,7 +100,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
         },
       },
       user: true,
-      walkInCustomer: true,
+      customer: true,
       branch: true,
     },
   });
@@ -104,7 +111,8 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
   const invoiceAvailable =
     order.status === OrderStatus.DELIVERED ||
     (order.status === OrderStatus.CONFIRMED && order.paymentStatus === PaymentStatus.APPROVED) ||
-    order.paymentStatus === PaymentStatus.PAID;
+    order.paymentStatus === PaymentStatus.PAID ||
+    (order.type === OrderType.POS && order.invoiceGeneratedAt != null);
 
   return {
     invoiceType: 'SALE' as const,
@@ -128,11 +136,11 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
           phone: order.customerPhone ?? order.user.phone,
           address: order.customerAddress,
         }
-      : order.walkInCustomer
+      : order.customer
         ? {
-            name: order.walkInCustomer.name,
-            phone: order.walkInCustomer.phone,
-            address: order.walkInCustomer.address,
+            name: order.customer.name,
+            phone: order.customer.phone,
+            address: order.customer.address,
           }
         : {
             name: order.customerName ?? 'Walk-in Customer',
@@ -184,19 +192,54 @@ export async function trackOrder(trackingId: string) {
 
 async function validateAndPriceItems(
   branchId: number,
-  items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[]
+  items: { productId: string; quantity: number; unitPrice?: number; color?: string; chassisNumber?: string }[]
 ) {
-  const productIds = items.map((i) => i.productId);
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, isActive: true },
+    where: { id: { in: uniqueProductIds }, isActive: true },
     include: {
       bikePartDetails: true,
       branchProducts: { where: { branchId, isListed: true } },
     },
   });
 
-  if (products.length !== productIds.length) {
+  if (products.length !== uniqueProductIds.length) {
     throw new AppError(400, 'One or more products not found or inactive');
+  }
+
+  const qtyByProduct = new Map<string, number>();
+  for (const item of items) {
+    qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
+  }
+
+  for (const [productId, totalQty] of qtyByProduct) {
+    const product = products.find((p) => p.id === productId)!;
+    if (product.branchProducts.length === 0) {
+      throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
+    }
+
+    if (product.type === ProductType.BIKE) {
+      const stock = product.branchProducts[0]?.stock ?? 0;
+      if (stock < totalQty) {
+        throw new AppError(
+          400,
+          `Insufficient stock for ${product.name}. Available: ${stock}`,
+        );
+      }
+    }
+
+    if (product.type === ProductType.PART) {
+      for (const detail of product.bikePartDetails) {
+        if (!detail.partId) continue;
+        const inventory = await prisma.inventory.findUnique({
+          where: { branchId_partId: { branchId, partId: detail.partId } },
+        });
+        const available = inventory?.quantity ?? 0;
+        if (available < totalQty) {
+          throw new AppError(400, `Insufficient part stock for ${product.name}`);
+        }
+      }
+    }
   }
 
   const pricedItems: {
@@ -211,34 +254,12 @@ async function validateAndPriceItems(
 
   for (const item of items) {
     const product = products.find((p) => p.id === item.productId)!;
-    if (product.branchProducts.length === 0) {
-      throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
+    const catalogPrice = Number(product.salePrice ?? product.price);
+    const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : catalogPrice;
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      throw new AppError(400, `Price must be greater than zero for "${product.name}"`);
     }
 
-    if (product.type === ProductType.BIKE) {
-      const stock = product.branchProducts[0]?.stock ?? 0;
-      if (stock < item.quantity) {
-        throw new AppError(
-          400,
-          `Insufficient stock for ${product.name}. Available: ${stock}`
-        );
-      }
-    }
-
-    if (product.type === ProductType.PART) {
-      for (const detail of product.bikePartDetails) {
-        if (!detail.partId) continue;
-        const inventory = await prisma.inventory.findUnique({
-          where: { branchId_partId: { branchId, partId: detail.partId } },
-        });
-        const available = inventory?.quantity ?? 0;
-        if (available < item.quantity) {
-          throw new AppError(400, `Insufficient part stock for ${product.name}`);
-        }
-      }
-    }
-
-    const unitPrice = Number(product.salePrice ?? product.price);
     pricedItems.push({
       productId: item.productId,
       quantity: item.quantity,
@@ -304,7 +325,7 @@ export async function createOnlineOrder(data: {
 export async function createPosOrder(data: {
   branchId: number;
   paymentMethod: PaymentMethod;
-  walkInCustomerId?: number;
+  customerId?: number;
   items: { productId: string; quantity: number }[];
   notes?: string;
   isPaid?: boolean;
@@ -318,7 +339,7 @@ export async function createPosOrder(data: {
     const created = await tx.order.create({
       data: {
         branchId: data.branchId,
-        walkInCustomerId: data.walkInCustomerId,
+        customerId: data.customerId,
         type: OrderType.POS,
         status: OrderStatus.CONFIRMED,
         paymentMethod: data.paymentMethod,
@@ -341,20 +362,20 @@ export async function createPosOrder(data: {
 
     await deductStockForOrder(data.branchId, created.items, tx);
 
-    if (!isPaid && data.walkInCustomerId) {
-      const customer = await tx.walkInCustomer.findUniqueOrThrow({
-        where: { id: data.walkInCustomerId },
+    if (!isPaid && data.customerId) {
+      const customer = await tx.customer.findUniqueOrThrow({
+        where: { id: data.customerId },
       });
       const newBalance = Number(customer.balance) + subtotal;
-      await tx.walkInCustomer.update({
-        where: { id: data.walkInCustomerId },
+      await tx.customer.update({
+        where: { id: data.customerId },
         data: { balance: newBalance },
       });
-      await tx.walkInCustomerLedger.create({
+      await tx.customerLedger.create({
         data: {
-          walkInCustomerId: data.walkInCustomerId,
+          customerId: data.customerId,
           orderId: created.id,
-          type: WalkInLedgerType.DEBIT,
+          type: CustomerLedgerType.DEBIT,
           amount: subtotal,
           balance: newBalance,
           notes: 'POS sale on credit',
@@ -366,6 +387,163 @@ export async function createPosOrder(data: {
   });
 
   return order;
+}
+
+export async function createSaleInvoice(data: {
+  branchId: number;
+  customerId: number;
+  items: { productId: string; quantity: number; unitPrice?: number }[];
+  reference: string;
+  notes?: string;
+  createdById: string;
+}) {
+  const customer = await prisma.customer.findFirst({
+    where: { id: data.customerId, branchId: data.branchId, isActive: true },
+  });
+  if (!customer) throw new AppError(404, 'Customer not found');
+
+  const reference = data.reference.trim();
+  if (!reference) throw new AppError(400, 'Reference is required');
+
+  const productIds = data.items.map((i) => i.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new AppError(400, 'Product is already selected');
+  }
+
+  const pricedItems = await validateAndPriceItems(data.branchId, data.items);
+  const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
+  if (subtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
+
+  const trackingId = generateTrackingId();
+
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({
+      data: {
+        branchId: data.branchId,
+        customerId: data.customerId,
+        type: OrderType.POS,
+        status: OrderStatus.CONFIRMED,
+        paymentMethod: PaymentMethod.CASH,
+        paymentStatus: PaymentStatus.PENDING,
+        subtotal,
+        total: subtotal,
+        trackingId,
+        saleReference: reference,
+        notes: data.notes,
+        invoiceGeneratedAt: new Date(),
+        items: {
+          create: pricedItems.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            total: i.total,
+          })),
+        },
+      },
+      include: {
+        items: { include: { product: { include: { bikePartDetails: true } } } },
+        customer: true,
+        branch: true,
+      },
+    });
+
+    await deductStockForOrder(data.branchId, order.items, tx);
+
+    const newBalance = Number(customer.balance) + subtotal;
+    await tx.customer.update({
+      where: { id: data.customerId },
+      data: { balance: newBalance },
+    });
+    await tx.customerLedger.create({
+      data: {
+        customerId: data.customerId,
+        orderId: order.id,
+        type: CustomerLedgerType.DEBIT,
+        amount: subtotal,
+        balance: newBalance,
+        notes: `From sale revenue to ${customer.name}`,
+      },
+    });
+
+    const customerAccount = await ensureCustomerAccount(tx, data.branchId, customer);
+    const revenueAccount = await ensureSaleRevenueAccount(tx, data.branchId);
+
+    const voucher = await createVoucherInTx(tx, {
+      branchId: data.branchId,
+      type: VoucherType.JOURNAL,
+      debitAccountId: customerAccount.id,
+      creditAccountId: revenueAccount.id,
+      amount: subtotal,
+      reference,
+      createdById: data.createdById,
+    });
+
+    return { order, voucher };
+  });
+}
+
+export async function getCustomerLedgerFormatted(customerId: number, branchId: number) {
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, branchId, isActive: true },
+  });
+  if (!customer) throw new AppError(404, 'Customer not found');
+
+  const entries = await prisma.customerLedger.findMany({
+    where: { customerId },
+    include: { order: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+
+  type LedgerRow = {
+    date: string;
+    voucherNo: string;
+    ref: string | null;
+    type: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+  };
+
+  const rows: LedgerRow[] = [];
+  let totalDebit = 0;
+  let totalCredit = 0;
+
+  for (const e of entries) {
+    const debit = e.type === CustomerLedgerType.DEBIT ? Number(e.amount) : 0;
+    const credit = e.type === CustomerLedgerType.CREDIT ? Number(e.amount) : 0;
+    totalDebit += debit;
+    totalCredit += credit;
+    const orderRef = e.order?.saleReference?.trim() || null;
+    rows.push({
+      date: e.createdAt.toISOString(),
+      voucherNo: orderRef ? `SI-${orderRef}` : `CL-${e.id}`,
+      ref: orderRef,
+      type: e.type === CustomerLedgerType.DEBIT ? 'Sale' : 'Receipt',
+      description:
+        e.type === CustomerLedgerType.DEBIT
+          ? `From sale revenue to ${customer.name}`
+          : (e.notes ?? 'Payment'),
+      debit,
+      credit,
+      balance: Number(e.balance),
+    });
+  }
+
+  return {
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      code: `C${String(customer.id).padStart(4, '0')}`,
+      balance: Number(customer.balance),
+    },
+    rows,
+    summary: {
+      totalDebit,
+      totalCredit,
+      closingBalance: Number(customer.balance),
+    },
+  };
 }
 
 async function deductStockForOrder(
@@ -506,22 +684,24 @@ export async function createWalkInCustomer(data: {
   email?: string;
   address?: string;
 }) {
-  return prisma.walkInCustomer.upsert({
+  const customer = await prisma.customer.upsert({
     where: { branchId_cnic: { branchId: data.branchId, cnic: data.cnic } },
-    create: data,
+    create: { ...data, type: CustomerType.WALK_IN },
     update: {
       name: data.name,
       phone: data.phone,
       email: data.email,
       address: data.address,
+      type: CustomerType.WALK_IN,
       isActive: true,
     },
   });
+  return { ...customer, balance: Number(customer.balance) };
 }
 
 export async function getWalkInCustomer(id: number, branchId: number) {
-  const customer = await prisma.walkInCustomer.findFirst({
-    where: { id, branchId },
+  const customer = await prisma.customer.findFirst({
+    where: { id, branchId, type: CustomerType.WALK_IN },
     include: { ledger: { orderBy: { createdAt: 'desc' }, take: 50 } },
   });
   if (!customer) throw new AppError(404, 'Customer not found');
@@ -533,43 +713,36 @@ export async function updateWalkInCustomer(
   branchId: number,
   data: Partial<{ name: string; phone: string; email: string; address: string }>
 ) {
-  const customer = await prisma.walkInCustomer.findFirst({ where: { id, branchId } });
+  const customer = await prisma.customer.findFirst({
+    where: { id, branchId, type: CustomerType.WALK_IN },
+  });
   if (!customer) throw new AppError(404, 'Customer not found');
-  return prisma.walkInCustomer.update({ where: { id }, data });
+  return prisma.customer.update({ where: { id }, data });
 }
 
-export async function getWalkInLedger(walkInCustomerId: number, branchId: number) {
-  const customer = await prisma.walkInCustomer.findFirst({
-    where: { id: walkInCustomerId, branchId },
-  });
-  if (!customer) throw new AppError(404, 'Customer not found');
-
-  return prisma.walkInCustomerLedger.findMany({
-    where: { walkInCustomerId },
-    include: { order: { select: { trackingId: true, total: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
+export async function getWalkInLedger(customerId: number, branchId: number) {
+  return getCustomerLedgerFormatted(customerId, branchId);
 }
 
 export async function recordWalkInPayment(data: {
-  walkInCustomerId: number;
+  customerId: number;
   branchId: number;
   amount: number;
   notes?: string;
 }) {
   return prisma.$transaction(async (tx) => {
-    const customer = await tx.walkInCustomer.findFirstOrThrow({
-      where: { id: data.walkInCustomerId, branchId: data.branchId },
+    const customer = await tx.customer.findFirstOrThrow({
+      where: { id: data.customerId, branchId: data.branchId, type: CustomerType.WALK_IN },
     });
     const newBalance = Math.max(0, Number(customer.balance) - data.amount);
-    await tx.walkInCustomer.update({
-      where: { id: data.walkInCustomerId },
+    await tx.customer.update({
+      where: { id: data.customerId },
       data: { balance: newBalance },
     });
-    return tx.walkInCustomerLedger.create({
+    return tx.customerLedger.create({
       data: {
-        walkInCustomerId: data.walkInCustomerId,
-        type: WalkInLedgerType.CREDIT,
+        customerId: data.customerId,
+        type: CustomerLedgerType.CREDIT,
         amount: data.amount,
         balance: newBalance,
         notes: data.notes ?? 'Payment received',
@@ -579,24 +752,46 @@ export async function recordWalkInPayment(data: {
 }
 
 export async function softDeleteWalkInCustomer(id: number, branchId: number) {
-  const customer = await prisma.walkInCustomer.findFirst({
-    where: { id, branchId, isActive: true },
+  const customer = await prisma.customer.findFirst({
+    where: { id, branchId, type: CustomerType.WALK_IN, isActive: true },
   });
   if (!customer) throw new AppError(404, 'Customer not found');
-  return prisma.walkInCustomer.update({
+  return prisma.customer.update({
     where: { id },
     data: { isActive: false },
   });
 }
 
-export async function listWalkInCustomers(branchId: number, query: { page?: string; limit?: string }) {
+export async function listBranchCustomers(branchId: number, query: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query);
   const where = { branchId, isActive: true };
 
-  const [customers, total] = await Promise.all([
-    prisma.walkInCustomer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
-    prisma.walkInCustomer.count({ where }),
+  const [rows, total] = await Promise.all([
+    prisma.customer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
+    prisma.customer.count({ where }),
   ]);
+
+  const customers = rows.map((c) => ({
+    ...c,
+    balance: Number(c.balance),
+  }));
+
+  return paginatedResponse(customers, total, page, limit);
+}
+
+export async function listWalkInCustomers(branchId: number, query: { page?: string; limit?: string }) {
+  const { page, limit, skip } = getPagination(query);
+  const where = { branchId, type: CustomerType.WALK_IN, isActive: true };
+
+  const [rows, total] = await Promise.all([
+    prisma.customer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
+    prisma.customer.count({ where }),
+  ]);
+
+  const customers = rows.map((c) => ({
+    ...c,
+    balance: Number(c.balance),
+  }));
 
   return paginatedResponse(customers, total, page, limit);
 }

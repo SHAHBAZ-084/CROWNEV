@@ -268,6 +268,32 @@ branchProductsRouter.get(
   })
 );
 
+branchProductsRouter.get(
+  '/:branchId/sale-products',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const products = await productsService.listSaleableBranchProducts(branchId);
+    res.json(products);
+  })
+);
+
+branchProductsRouter.get(
+  '/:branchId/purchase-products',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const products = await productsService.listBranchPurchaseProducts(branchId);
+    res.json(products);
+  })
+);
+
 branchProductsRouter.put(
   '/:branchId/products/:productId',
   validateBody(z.object({ isListed: z.boolean() })),

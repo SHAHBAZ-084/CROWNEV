@@ -1,7 +1,93 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductType, SupplierLedgerType, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
-import { addStock } from '../inventory/inventory.service.js';
+import { addStockInTx } from '../inventory/inventory.service.js';
+import {
+  createVoucherInTx,
+  ensureInventoryAccount,
+  ensureSupplierAccount,
+} from '../accounting/accounting.service.js';
+
+export async function listBranchSuppliers(branchId: number, query?: { page?: string; limit?: string }) {
+  const { page, limit, skip } = getPagination(query ?? {});
+  const where = { branchId, isActive: true };
+
+  const [suppliers, total] = await Promise.all([
+    prisma.supplier.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
+    prisma.supplier.count({ where }),
+  ]);
+
+  return paginatedResponse(
+    suppliers.map((s) => ({ ...s, balance: Number(s.balance) })),
+    total,
+    page,
+    limit,
+  );
+}
+
+export async function getSupplierLedgerFormatted(supplierId: number, branchId: number) {
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: supplierId, branchId, isActive: true },
+  });
+  if (!supplier) throw new AppError(404, 'Supplier not found');
+
+  const entries = await prisma.supplierLedger.findMany({
+    where: { supplierId },
+    include: { purchase: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+
+  type LedgerRow = {
+    date: string;
+    voucherNo: string;
+    ref: string | null;
+    type: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+  };
+
+  const rows: LedgerRow[] = [];
+  let totalDebit = 0;
+  let totalCredit = 0;
+
+  for (const e of entries) {
+    const debit = e.type === SupplierLedgerType.DEBIT ? Number(e.amount) : 0;
+    const credit = e.type === SupplierLedgerType.CREDIT ? Number(e.amount) : 0;
+    totalDebit += debit;
+    totalCredit += credit;
+    const purchaseRef = e.purchase?.documentRef?.trim() || null;
+    rows.push({
+      date: e.createdAt.toISOString(),
+      voucherNo: purchaseRef ? `PI-${purchaseRef}` : `SL-${e.id}`,
+      ref: purchaseRef,
+      type: e.type === SupplierLedgerType.CREDIT ? 'Purchase' : 'Payment',
+      description:
+        e.type === SupplierLedgerType.CREDIT
+          ? `From ${supplier.name} to inventory`
+          : (e.notes ?? 'Payment'),
+      debit,
+      credit,
+      balance: Number(e.balance),
+    });
+  }
+
+  return {
+    supplier: {
+      id: supplier.id,
+      name: supplier.name,
+      code: `S${String(supplier.id).padStart(4, '0')}`,
+      balance: Number(supplier.balance),
+    },
+    rows,
+    summary: {
+      totalDebit,
+      totalCredit,
+      closingBalance: Number(supplier.balance),
+    },
+  };
+}
 
 export async function listSuppliers(branchId?: number, query?: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query ?? {});
@@ -50,6 +136,168 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
   return paginatedResponse(purchases, total, page, limit);
 }
 
+async function validatePurchaseItems(
+  branchId: number,
+  items: { productId: string; quantity: number; unitCost: number }[],
+) {
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds }, isActive: true },
+    include: {
+      bikePartDetails: true,
+      branchProducts: { where: { branchId, isListed: true } },
+    },
+  });
+
+  if (products.length !== uniqueProductIds.length) {
+    throw new AppError(400, 'One or more products not found or inactive');
+  }
+
+  const pricedItems: {
+    productId: string;
+    partId?: number;
+    quantity: number;
+    unitCost: number;
+    total: number;
+    product: (typeof products)[number];
+  }[] = [];
+
+  for (const item of items) {
+    const product = products.find((p) => p.id === item.productId)!;
+    if (product.branchProducts.length === 0) {
+      throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
+    }
+    if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) {
+      throw new AppError(400, `Product "${product.name}" cannot be purchased`);
+    }
+
+    const unitCost = Number(item.unitCost);
+    if (!Number.isFinite(unitCost) || unitCost <= 0) {
+      throw new AppError(400, `Enter a valid purchase cost for "${product.name}"`);
+    }
+
+    let partId: number | undefined;
+    if (product.type === ProductType.PART) {
+      partId = product.bikePartDetails.find((d) => d.partId != null)?.partId ?? undefined;
+      if (!partId) {
+        throw new AppError(400, `Part product "${product.name}" has no inventory link`);
+      }
+    }
+
+    pricedItems.push({
+      productId: item.productId,
+      partId,
+      quantity: item.quantity,
+      unitCost,
+      total: unitCost * item.quantity,
+      product,
+    });
+  }
+
+  return pricedItems;
+}
+
+export async function createPurchaseInvoice(data: {
+  branchId: number;
+  supplierId: number;
+  reference: string;
+  notes?: string;
+  createdById: string;
+  items: { productId: string; quantity: number; unitCost: number }[];
+}) {
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: data.supplierId, branchId: data.branchId, isActive: true },
+  });
+  if (!supplier) throw new AppError(404, 'Supplier not found');
+
+  const reference = data.reference.trim();
+  if (!reference) throw new AppError(400, 'Reference is required');
+
+  const productIds = data.items.map((i) => i.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new AppError(400, 'Product is already selected');
+  }
+
+  const pricedItems = await validatePurchaseItems(data.branchId, data.items);
+  const total = pricedItems.reduce((sum, i) => sum + i.total, 0);
+  if (total <= 0) throw new AppError(400, 'Purchase total must be greater than zero');
+
+  return prisma.$transaction(async (tx) => {
+    const purchase = await tx.purchase.create({
+      data: {
+        branchId: data.branchId,
+        supplierId: data.supplierId,
+        documentRef: reference,
+        notes: data.notes,
+        total,
+        items: {
+          create: pricedItems.map((i) => ({
+            productId: i.productId,
+            partId: i.partId,
+            quantity: i.quantity,
+            unitCost: i.unitCost,
+          })),
+        },
+      },
+      include: { items: true, supplier: true },
+    });
+
+    const partItems = pricedItems
+      .filter((i) => i.partId)
+      .map((i) => ({ partId: i.partId!, quantity: i.quantity }));
+    if (partItems.length) {
+      await addStockInTx(tx, data.branchId, partItems);
+    }
+
+    for (const item of pricedItems) {
+      if (item.product.type !== ProductType.BIKE) continue;
+      await tx.branchProduct.upsert({
+        where: {
+          branchId_productId: { branchId: data.branchId, productId: item.productId },
+        },
+        create: {
+          branchId: data.branchId,
+          productId: item.productId,
+          stock: item.quantity,
+          isListed: true,
+        },
+        update: { stock: { increment: item.quantity } },
+      });
+    }
+
+    const inventoryAccount = await ensureInventoryAccount(tx, data.branchId);
+    const supplierAccount = await ensureSupplierAccount(tx, data.branchId, supplier);
+
+    const newBalance = Number(supplier.balance) + total;
+    await tx.supplier.update({
+      where: { id: data.supplierId },
+      data: { balance: newBalance },
+    });
+    await tx.supplierLedger.create({
+      data: {
+        supplierId: data.supplierId,
+        purchaseId: purchase.id,
+        type: SupplierLedgerType.CREDIT,
+        amount: total,
+        balance: newBalance,
+        notes: `From ${supplier.name} to inventory`,
+      },
+    });
+
+    const voucher = await createVoucherInTx(tx, {
+      branchId: data.branchId,
+      type: VoucherType.JOURNAL,
+      debitAccountId: inventoryAccount.id,
+      creditAccountId: supplierAccount.id,
+      amount: total,
+      reference,
+      createdById: data.createdById,
+    });
+
+    return { purchase, voucher };
+  });
+}
+
 export async function createPurchase(data: {
   branchId: number;
   supplierId: number;
@@ -86,7 +334,7 @@ export async function createPurchase(data: {
       quantity: i.quantity,
     }));
     if (partItems.length) {
-      await addStock(data.branchId, partItems);
+      await addStockInTx(tx, data.branchId, partItems);
     }
 
     for (const item of data.items) {

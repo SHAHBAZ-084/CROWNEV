@@ -14,9 +14,11 @@ import { TablePagination } from '../../components/ui/TablePagination';
 import { usePagination } from '../../hooks/usePagination';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
-import { formatPKR, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
+import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
+import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
+import type { InvoiceData } from '../../types';
 
 type Row = Record<string, unknown>;
 
@@ -61,15 +63,48 @@ export function PosViewVoucherPage() {
   );
 }
 
+function isCustomersCategory(row: Row | null) {
+  if (!row) return false;
+  if (row.isCustomersCategory === true) return true;
+  return String(row.name ?? '').trim().toLowerCase() === 'customers';
+}
+
+function isSuppliersCategory(row: Row | null) {
+  if (!row) return false;
+  if (row.isSuppliersCategory === true) return true;
+  return String(row.name ?? '').trim().toLowerCase() === 'suppliers';
+}
+
+function isInventoryCategory(row: Row | null) {
+  if (!row) return false;
+  if (row.isInventoryCategory === true) return true;
+  return String(row.name ?? '').trim().toLowerCase() === 'inventory';
+}
+
+function isSystemEntityCategory(row: Row | null) {
+  return isCustomersCategory(row) || isSuppliersCategory(row);
+}
+
+function isProtectedCategory(row: Row | null) {
+  return isSystemEntityCategory(row) || isInventoryCategory(row);
+}
+
 export function PosAccountsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
+  const [categoryCustomers, setCategoryCustomers] = useState<Row[]>([]);
+  const [categorySuppliers, setCategorySuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<'account' | 'category' | null>(null);
   const [viewCategory, setViewCategory] = useState<Row | null>(null);
   const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingEntityRows, setLoadingEntityRows] = useState(false);
+
+  const viewingCustomers = isCustomersCategory(viewCategory);
+  const viewingSuppliers = isSuppliersCategory(viewCategory);
+  const viewingProtectedCategory = isProtectedCategory(viewCategory);
 
   const categoryAccounts = useMemo(() => {
     if (!viewCategory) return [];
@@ -79,6 +114,36 @@ export function PosAccountsPage() {
       return Number(cid) === categoryId;
     });
   }, [accounts, viewCategory]);
+
+  const customerAccountRows = useMemo(
+    () =>
+      categoryCustomers.map((c) => ({
+        id: c.id,
+        code: `C${String(c.id).padStart(4, '0')}`,
+        name: c.name,
+        type: String(c.type ?? 'WALK_IN'),
+        ledger: { balance: Number(c.balance ?? 0) },
+      })),
+    [categoryCustomers],
+  );
+
+  const supplierAccountRows = useMemo(
+    () =>
+      categorySuppliers.map((s) => ({
+        id: s.id,
+        code: `S${String(s.id).padStart(4, '0')}`,
+        name: s.name,
+        type: 'SUPPLIER',
+        ledger: { balance: Number(s.balance ?? 0) },
+      })),
+    [categorySuppliers],
+  );
+
+  const viewedAccounts = viewingCustomers
+    ? customerAccountRows
+    : viewingSuppliers
+      ? supplierAccountRows
+      : categoryAccounts;
 
   function openAddAccount(categoryId?: number) {
     setPresetCategoryId(categoryId ?? null);
@@ -101,6 +166,40 @@ export function PosAccountsPage() {
   }, [branchId, toast]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  useEffect(() => {
+    if (!branchId || !viewingCustomers) {
+      setCategoryCustomers([]);
+      return;
+    }
+    setLoadingEntityRows(true);
+    branchApi.branchCustomers(branchId)
+      .then((r) => setCategoryCustomers(r.data as Row[]))
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load customers', 'error');
+        setCategoryCustomers([]);
+      })
+      .finally(() => setLoadingEntityRows(false));
+  }, [branchId, viewingCustomers, toast]);
+
+  useEffect(() => {
+    if (!branchId || !viewingSuppliers) {
+      setCategorySuppliers([]);
+      return;
+    }
+    setLoadingEntityRows(true);
+    branchApi.branchSuppliers(branchId)
+      .then((r) => setCategorySuppliers(r.data as Row[]))
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load suppliers', 'error');
+        setCategorySuppliers([]);
+      })
+      .finally(() => setLoadingEntityRows(false));
+  }, [branchId, viewingSuppliers, toast]);
+
+  function openViewCategory(category: Row) {
+    setViewCategory(category);
+  }
 
   async function handleAccount(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -189,7 +288,7 @@ export function PosAccountsPage() {
               key: 'accounts',
               header: 'Accounts',
               className: 'w-24',
-              render: (r) => String((r.accounts as unknown[] | undefined)?.length ?? 0),
+              render: (r) => String(r.entryCount ?? (r.accounts as unknown[] | undefined)?.length ?? 0),
             },
             {
               key: 'actions',
@@ -200,14 +299,20 @@ export function PosAccountsPage() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    onClick={() => setViewCategory(r)}
+                    onClick={() => openViewCategory(r)}
                     className="inline-flex items-center rounded-lg border border-brand px-2 py-1 text-xs font-medium text-brand hover:bg-brand/5"
                   >
                     View Accounts
                   </button>
                   <RowActions
                     deleteLabel="Delete"
-                    onDelete={() => categoryDelete.setTarget(r)}
+                    onDelete={() => {
+                      if (isProtectedCategory(r)) {
+                        toast(`The ${String(r.name)} category cannot be deleted`, 'error');
+                        return;
+                      }
+                      categoryDelete.setTarget(r);
+                    }}
                   />
                 </div>
               ),
@@ -225,15 +330,17 @@ export function PosAccountsPage() {
         title={viewCategory ? `Accounts: ${String(viewCategory.name)}` : 'Accounts'}
         size="lg"
       >
-        <div className="mb-4 flex justify-end">
-          <Button
-            size="sm"
-            variant="accent"
-            onClick={() => viewCategory && openAddAccount(Number(viewCategory.id))}
-          >
-            Add Account
-          </Button>
-        </div>
+        {!viewingProtectedCategory && (
+          <div className="mb-4 flex justify-end">
+            <Button
+              size="sm"
+              variant="accent"
+              onClick={() => viewCategory && openAddAccount(Number(viewCategory.id))}
+            >
+              Add Account
+            </Button>
+          </div>
+        )}
         <DataTable
           compact
           columns={[
@@ -245,21 +352,27 @@ export function PosAccountsPage() {
               header: 'Balance',
               render: (r) => formatLedgerBalance(Number((r.ledger as { balance: number })?.balance ?? 0)),
             },
-            {
-              key: 'actions',
-              header: '',
-              align: 'right',
-              className: 'w-28',
-              render: (r) => (
-                <RowActions
-                  deleteLabel="Delete"
-                  onDelete={() => accountDelete.setTarget(r)}
-                />
-              ),
-            },
+            ...(!viewingProtectedCategory
+              ? [{
+                  key: 'actions',
+                  header: '',
+                  align: 'right' as const,
+                  className: 'w-28',
+                  render: (r: Row) => (
+                    <RowActions
+                      deleteLabel="Delete"
+                      onDelete={() => accountDelete.setTarget(r)}
+                    />
+                  ),
+                }]
+              : []),
           ]}
-          data={categoryAccounts}
-          emptyMessage="No accounts in this category yet"
+          data={viewedAccounts}
+          emptyMessage={
+            viewingCustomers || viewingSuppliers
+              ? (loadingEntityRows ? 'Loading accounts…' : 'No accounts in this category yet')
+              : 'No accounts in this category yet'
+          }
         />
         {accountDelete.modal}
       </Modal>
@@ -347,12 +460,21 @@ export function PosCustomersPage() {
 
   return (
     <div>
-      <PageHeader title="Customers" subtitle="Walk in and POS customers" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
+      <PageHeader title="Customers" subtitle="Walk-in and online customers (same database)" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
       <DataTable
         columns={[
           { key: 'name', header: 'Name' },
           { key: 'phone', header: 'Phone' },
           { key: 'cnic', header: 'CNIC' },
+          {
+            key: 'type',
+            header: 'Status',
+            render: (r) => (
+              <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold capitalize text-brand">
+                {String(r.type ?? 'WALK_IN').toLowerCase().replace('_', '-')}
+              </span>
+            ),
+          },
           { key: 'balance', header: 'Balance', render: (r) => formatPKR(Number(r.balance ?? 0)) },
           {
             key: 'actions',
@@ -382,72 +504,740 @@ export function PosCustomersPage() {
   );
 }
 
+type SaleProduct = {
+  id: string;
+  name: string;
+  type: 'BIKE' | 'PART';
+  stockAtBranch: number;
+  unitPrice: number;
+};
+
+type SaleLine = {
+  key: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+};
+
+function newSaleLine(): SaleLine {
+  return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
+}
+
+type PurchaseLine = {
+  key: string;
+  productId: string;
+  quantity: number;
+  unitCost?: number;
+};
+
+function newPurchaseLine(): PurchaseLine {
+  return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
+}
+
 export function PosSaleInvoicePage() {
+  const branchId = useBranchId();
   const { toast } = useToast();
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [products, setProducts] = useState<SaleProduct[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
+  const [customerId, setCustomerId] = useState('');
+  const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [customerLedger, setCustomerLedger] = useState<{
+    customer: { name: string; code: string; balance: number };
+    rows: LedgerRow[];
+    summary: { totalDebit: number; totalCredit: number; closingBalance: number };
+  } | null>(null);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
+  const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
+  const reloadOrders = useCallback(() => {
+    if (!branchId) return;
+    branchApi.orders({ type: 'POS', limit: '2' })
+      .then((r) => setOrders(r.data as unknown as Row[]))
+      .catch(console.error);
+  }, [branchId]);
 
   useEffect(() => {
-    branchApi.orders().then((r) => setOrders(r.data as unknown as Row[])).catch(console.error);
-  }, []);
+    if (!branchId) return;
+    branchApi.branchCustomers(branchId).then((r) => setCustomers(r.data as Row[])).catch(console.error);
+    branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+    reloadOrders();
+  }, [branchId, reloadOrders]);
 
-  async function viewInvoice(id: number) {
+  useEffect(() => {
+    if (!branchId || !customerId) {
+      setCustomerLedger(null);
+      return;
+    }
+    setLoadingLedger(true);
+    branchApi.customerLedger(branchId, parseInt(customerId, 10))
+      .then(setCustomerLedger)
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load customer ledger', 'error');
+        setCustomerLedger(null);
+      })
+      .finally(() => setLoadingLedger(false));
+  }, [branchId, customerId, toast]);
+
+  const customerOptions: SearchSelectOption[] = useMemo(
+    () => customers.map((c) => ({
+      value: String(c.id),
+      label: `${c.name} (${String(c.type ?? 'WALK_IN').toLowerCase().replace('_', '-')})`,
+    })),
+    [customers],
+  );
+
+  const productById = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products],
+  );
+
+  const lineDetails = useMemo(
+    () => lines.map((line) => {
+      const product = productById.get(line.productId);
+      const qty = Math.max(1, line.quantity);
+      const unitPrice = line.unitPrice ?? product?.unitPrice ?? 0;
+      const maxQty = product?.stockAtBranch ?? 0;
+      return {
+        ...line,
+        product,
+        qty,
+        unitPrice,
+        maxQty,
+        lineTotal: unitPrice * qty,
+      };
+    }),
+    [lines, productById],
+  );
+
+  const grandTotal = useMemo(
+    () => lineDetails.reduce((sum, l) => sum + (l.product ? l.lineTotal : 0), 0),
+    [lineDetails],
+  );
+
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitPrice: undefined });
+      return;
+    }
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
+    if (alreadySelected) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    const product = productById.get(productId);
+    updateLine(lineKey, { productId, unitPrice: product?.unitPrice });
+  }
+
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedElsewhere = new Set(
+      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    );
+    return products
+      .filter((p) => !selectedElsewhere.has(p.id))
+      .map((p) => ({
+        value: p.id,
+        label: `${p.name} [${p.type}]`,
+      }));
+  }
+
+  function updateLine(key: string, patch: Partial<SaleLine>) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+
+  function removeLine(key: string) {
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!branchId) return;
+    if (!customerId) {
+      toast('Select a customer', 'error');
+      return;
+    }
+    if (!reference.trim()) {
+      toast('Enter a reference number', 'error');
+      return;
+    }
+    const items = lineDetails
+      .filter((l) => l.product)
+      .map((l) => ({
+        productId: l.productId,
+        quantity: l.qty,
+        unitPrice: Number(l.unitPrice),
+      }));
+    if (items.length === 0) {
+      toast('Add at least one product', 'error');
+      return;
+    }
+    if (new Set(items.map((i) => i.productId)).size !== items.length) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    for (const l of lineDetails) {
+      if (!l.product) continue;
+      if (l.qty > l.maxQty) {
+        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty}`, 'error');
+        return;
+      }
+      if (l.unitPrice <= 0) {
+        toast(`Enter a valid price for ${l.product.name}`, 'error');
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      await branchApi.createSaleInvoice({
+        branchId,
+        customerId: parseInt(customerId, 10),
+        reference: reference.trim(),
+        items,
+        notes: notes.trim() || undefined,
+      });
+      toast(`Sale saved — ${reference.trim()}`, 'success');
+      setLines([newSaleLine()]);
+      setReference('');
+      setNotes('');
+      branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+      reloadOrders();
+      branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save sale', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openInvoice(id: number) {
+    setInvoiceModal(id);
+    setInvoiceData(null);
+    setInvoiceLoading(true);
     try {
       const inv = await branchApi.orderInvoice(id);
-      const w = window.open('', '_blank');
-      if (w) {
-        w.document.write(`<pre style="font-family:sans-serif;padding:24px">${JSON.stringify(inv, null, 2)}</pre>`);
-        w.document.close();
-      }
+      setInvoiceData(inv);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to load invoice', 'error');
+      setInvoiceModal(null);
+    } finally {
+      setInvoiceLoading(false);
     }
   }
 
   return (
-    <div>
-      <PageHeader title="Sale Invoice" subtitle="Sales and POS order invoices" />
-      <DataTable
-        columns={[
-          { key: 'trackingId', header: 'Tracking' },
-          { key: 'type', header: 'Type' },
-          { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
-          { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
-          {
-            key: 'actions',
-            header: '',
-            render: (r) => (
-              <Button size="sm" variant="secondary" onClick={() => viewInvoice(Number(r.id))}>View Invoice</Button>
-            ),
-          },
-        ]}
-        data={orders}
+    <div className="space-y-8">
+      <PageHeader
+        title="Sale Invoice"
+        subtitle="Create a sale — customer debited, sale revenue credited, stock updated"
       />
+
+      <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <SearchSelect
+            label="Customer account"
+            value={customerId}
+            onChange={setCustomerId}
+            options={customerOptions}
+            placeholder="Search customer…"
+          />
+          <Input
+            label="Reference #"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. SI-001"
+            required
+          />
+          <Input
+            label="Notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Invoice notes"
+          />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-brand">Line items</h2>
+          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newSaleLine()])}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add line
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {lineDetails.map((line) => (
+            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+              <SearchSelect
+                label="Product (branch stock only)"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+              />
+              <Input
+                label="Unit price (PKR)"
+                type="number"
+                min={1}
+                step={1}
+                value={line.product ? line.unitPrice || '' : ''}
+                disabled={!line.product}
+                onChange={(e) => updateLine(line.key, { unitPrice: parseFloat(e.target.value) || 0 })}
+              />
+              <Input
+                label="Qty"
+                type="number"
+                min={1}
+                max={line.maxQty || undefined}
+                value={line.qty}
+                onChange={(e) => updateLine(line.key, { quantity: parseInt(e.target.value, 10) || 1 })}
+              />
+              <div>
+                <p className="mb-1 text-xs font-medium text-text-muted">Line total</p>
+                <p className="text-sm font-semibold text-brand">
+                  {line.product ? formatPKR(line.lineTotal) : '—'}
+                </p>
+                {line.product && (
+                  <p className="text-xs text-text-muted">Stock: {line.maxQty}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="self-end"
+                disabled={lines.length <= 1}
+                onClick={() => removeLine(line.key)}
+                aria-label="Remove line"
+              >
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-4">
+          <p className="text-lg font-bold text-brand">Total: {formatPKR(grandTotal)}</p>
+          <Button type="submit" variant="accent" loading={saving} disabled={!customerId || grandTotal <= 0}>
+            Save sale invoice
+          </Button>
+        </div>
+      </form>
+
+      {customerId && (
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-sm font-bold text-brand">
+              Customer ledger
+              {customerLedger?.customer && (
+                <span className="ml-2 font-normal text-text-muted">
+                  {customerLedger.customer.code} — {customerLedger.customer.name}
+                </span>
+              )}
+            </h2>
+            {customerLedger && (
+              <p className="text-sm text-text-muted">
+                Balance: <strong>{formatLedgerBalance(customerLedger.summary.closingBalance)}</strong>
+              </p>
+            )}
+          </div>
+          {loadingLedger ? (
+            <p className="text-sm text-text-muted">Loading ledger…</p>
+          ) : (
+            <DataTable
+              compact
+              columns={[
+                { key: 'date', header: 'Date', render: (r) => formatDate(String(r.date)) },
+                { key: 'voucherNo', header: 'Ref #' },
+                { key: 'type', header: 'Type' },
+                { key: 'description', header: 'Description' },
+                {
+                  key: 'debit',
+                  header: 'Debit',
+                  render: (r) => (Number(r.debit) > 0 ? formatLedgerAmount(Number(r.debit)) : '—'),
+                },
+                {
+                  key: 'credit',
+                  header: 'Credit',
+                  render: (r) => (Number(r.credit) > 0 ? formatLedgerAmount(Number(r.credit)) : '—'),
+                },
+                {
+                  key: 'balance',
+                  header: 'Balance',
+                  render: (r) => formatLedgerBalance(Number(r.balance)),
+                },
+              ]}
+              data={(customerLedger?.rows ?? []) as Row[]}
+              emptyMessage="No ledger entries for this customer yet"
+            />
+          )}
+        </div>
+      )}
+
+      <div>
+        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent sale invoices</h2>
+        <DataTable
+          columns={[
+            { key: 'saleReference', header: 'Reference', render: (r) => String(r.saleReference ?? r.trackingId ?? '—') },
+            {
+              key: 'customer',
+              header: 'Customer',
+              render: (r) => String((r.customer as { name?: string })?.name ?? '—'),
+            },
+            { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
+            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <Button size="sm" variant="secondary" onClick={() => openInvoice(Number(r.id))}>
+                  View Invoice
+                </Button>
+              ),
+            },
+          ]}
+          data={orders}
+          emptyMessage="No sale invoices yet"
+        />
+      </div>
+
+      <Modal
+        open={invoiceModal !== null}
+        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        title="Sale Invoice"
+        size="lg"
+      >
+        <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
+      </Modal>
     </div>
   );
 }
 
 export function PosPurchaseInvoicePage() {
   const branchId = useBranchId();
+  const { toast } = useToast();
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>([]);
   const [purchases, setPurchases] = useState<Row[]>([]);
+  const [supplierId, setSupplierId] = useState('');
+  const [lines, setLines] = useState<PurchaseLine[]>([newPurchaseLine()]);
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [supplierLedger, setSupplierLedger] = useState<{
+    supplier: { name: string; code: string; balance: number };
+    rows: LedgerRow[];
+    summary: { totalDebit: number; totalCredit: number; closingBalance: number };
+  } | null>(null);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+
+  const reloadPurchases = useCallback(() => {
+    if (!branchId) return;
+    branchApi.purchases(branchId, { limit: '2' })
+      .then((r) => setPurchases(r.data as Row[]))
+      .catch(console.error);
+  }, [branchId]);
 
   useEffect(() => {
     if (!branchId) return;
-    branchApi.purchases(branchId).then((r) => setPurchases(r.data as Row[])).catch(console.error);
-  }, [branchId]);
+    branchApi.branchSuppliers(branchId).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
+    branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
+    reloadPurchases();
+  }, [branchId, reloadPurchases]);
+
+  useEffect(() => {
+    if (!branchId || !supplierId) {
+      setSupplierLedger(null);
+      return;
+    }
+    setLoadingLedger(true);
+    branchApi.supplierLedger(branchId, parseInt(supplierId, 10))
+      .then(setSupplierLedger)
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load supplier ledger', 'error');
+        setSupplierLedger(null);
+      })
+      .finally(() => setLoadingLedger(false));
+  }, [branchId, supplierId, toast]);
+
+  const supplierOptions: SearchSelectOption[] = useMemo(
+    () => suppliers.map((s) => ({ value: String(s.id), label: String(s.name) })),
+    [suppliers],
+  );
+
+  const productById = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products],
+  );
+
+  const lineDetails = useMemo(
+    () => lines.map((line) => {
+      const product = productById.get(line.productId);
+      const qty = Math.max(1, line.quantity);
+      const unitCost = line.unitCost ?? 0;
+      return {
+        ...line,
+        product,
+        qty,
+        unitCost,
+        lineTotal: unitCost * qty,
+      };
+    }),
+    [lines, productById],
+  );
+
+  const grandTotal = useMemo(
+    () => lineDetails.reduce((sum, l) => sum + (l.product ? l.lineTotal : 0), 0),
+    [lineDetails],
+  );
+
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitCost: undefined });
+      return;
+    }
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
+    if (alreadySelected) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    updateLine(lineKey, { productId, unitCost: undefined });
+  }
+
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedElsewhere = new Set(
+      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    );
+    return products
+      .filter((p) => !selectedElsewhere.has(p.id))
+      .map((p) => ({ value: p.id, label: `${p.name} [${p.type}]` }));
+  }
+
+  function updateLine(key: string, patch: Partial<PurchaseLine>) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+
+  function removeLine(key: string) {
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!branchId) return;
+    if (!supplierId) {
+      toast('Select a supplier', 'error');
+      return;
+    }
+    if (!reference.trim()) {
+      toast('Enter a reference number', 'error');
+      return;
+    }
+    const items = lineDetails
+      .filter((l) => l.product)
+      .map((l) => ({
+        productId: l.productId,
+        quantity: l.qty,
+        unitCost: Number(l.unitCost),
+      }));
+    if (items.length === 0) {
+      toast('Add at least one product', 'error');
+      return;
+    }
+    if (new Set(items.map((i) => i.productId)).size !== items.length) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    for (const l of lineDetails) {
+      if (!l.product) continue;
+      if (l.unitCost <= 0) {
+        toast(`Enter a valid purchase cost for ${l.product.name}`, 'error');
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      await branchApi.createPurchaseInvoice({
+        branchId,
+        supplierId: parseInt(supplierId, 10),
+        reference: reference.trim(),
+        items,
+        notes: notes.trim() || undefined,
+      });
+      toast(`Purchase saved — ${reference.trim()}`, 'success');
+      setLines([newPurchaseLine()]);
+      setReference('');
+      setNotes('');
+      branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
+      reloadPurchases();
+      branchApi.supplierLedger(branchId, parseInt(supplierId, 10)).then(setSupplierLedger).catch(console.error);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save purchase', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div>
-      <PageHeader title="Purchase Invoice" subtitle="Supplier purchase invoices" />
-      <DataTable
-        columns={[
-          { key: 'invoiceNumber', header: 'Invoice #' },
-          { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
-          { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
-          { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
-        ]}
-        data={purchases}
-        emptyMessage="No purchase invoices yet"
+    <div className="space-y-8">
+      <PageHeader
+        title="Purchase Invoice"
+        subtitle="Create a purchase — inventory debited, supplier credited, stock increased"
       />
+
+      <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <SearchSelect
+            label="Supplier account"
+            value={supplierId}
+            onChange={setSupplierId}
+            options={supplierOptions}
+            placeholder="Search supplier…"
+          />
+          <Input
+            label="Reference #"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. PI-001"
+            required
+          />
+          <Input
+            label="Notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Invoice notes"
+          />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-brand">Line items</h2>
+          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newPurchaseLine()])}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add line
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {lineDetails.map((line) => (
+            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+              <SearchSelect
+                label="Product (branch listed)"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+              />
+              <Input
+                label="Unit cost (PKR)"
+                type="number"
+                min={1}
+                step={1}
+                value={line.product ? (line.unitCost || '') : ''}
+                disabled={!line.product}
+                placeholder="Purchase cost"
+                onChange={(e) => updateLine(line.key, { unitCost: parseFloat(e.target.value) || 0 })}
+              />
+              <Input
+                label="Qty"
+                type="number"
+                min={1}
+                value={line.qty}
+                onChange={(e) => updateLine(line.key, { quantity: parseInt(e.target.value, 10) || 1 })}
+              />
+              <div>
+                <p className="mb-1 text-xs font-medium text-text-muted">Line total</p>
+                <p className="text-sm font-semibold text-brand">
+                  {line.product && line.unitCost > 0 ? formatPKR(line.lineTotal) : '—'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="self-end"
+                disabled={lines.length <= 1}
+                onClick={() => removeLine(line.key)}
+                aria-label="Remove line"
+              >
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-4">
+          <p className="text-lg font-bold text-brand">Total: {formatPKR(grandTotal)}</p>
+          <Button type="submit" variant="accent" loading={saving} disabled={!supplierId || grandTotal <= 0}>
+            Save purchase invoice
+          </Button>
+        </div>
+      </form>
+
+      {supplierId && (
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-sm font-bold text-brand">
+              Supplier ledger
+              {supplierLedger?.supplier && (
+                <span className="ml-2 font-normal text-text-muted">
+                  {supplierLedger.supplier.code} — {supplierLedger.supplier.name}
+                </span>
+              )}
+            </h2>
+            {supplierLedger && (
+              <p className="text-sm text-text-muted">
+                Balance: <strong>{formatLedgerBalance(supplierLedger.summary.closingBalance)}</strong>
+              </p>
+            )}
+          </div>
+          {loadingLedger ? (
+            <p className="text-sm text-text-muted">Loading ledger…</p>
+          ) : (
+            <DataTable
+              compact
+              columns={[
+                { key: 'date', header: 'Date', render: (r) => formatDate(String(r.date)) },
+                { key: 'voucherNo', header: 'Ref #' },
+                { key: 'type', header: 'Type' },
+                { key: 'description', header: 'Description' },
+                {
+                  key: 'debit',
+                  header: 'Debit',
+                  render: (r) => (Number(r.debit) > 0 ? formatLedgerAmount(Number(r.debit)) : '—'),
+                },
+                {
+                  key: 'credit',
+                  header: 'Credit',
+                  render: (r) => (Number(r.credit) > 0 ? formatLedgerAmount(Number(r.credit)) : '—'),
+                },
+                {
+                  key: 'balance',
+                  header: 'Balance',
+                  render: (r) => formatLedgerBalance(Number(r.balance)),
+                },
+              ]}
+              data={(supplierLedger?.rows ?? []) as Row[]}
+              emptyMessage="No ledger entries for this supplier yet"
+            />
+          )}
+        </div>
+      )}
+
+      <div>
+        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent purchase invoices</h2>
+        <DataTable
+          columns={[
+            { key: 'documentRef', header: 'Reference', render: (r) => String(r.documentRef ?? r.invoiceNumber ?? '—') },
+            { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
+            { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
+            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+          ]}
+          data={purchases}
+          emptyMessage="No purchase invoices yet"
+        />
+      </div>
     </div>
   );
 }
@@ -650,8 +1440,8 @@ export function PosAccountLedgerPage() {
                       <td className="px-3 py-2.5 text-text-muted">{r.ref || ''}</td>
                       <td className="px-3 py-2.5">{r.type}</td>
                       <td className="px-3 py-2.5 text-text-muted">{r.description || ''}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{r.debit > 0 ? formatPKR(r.debit) : ''}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums">{r.credit > 0 ? formatPKR(r.credit) : ''}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{r.debit > 0 ? formatLedgerAmount(r.debit) : ''}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{r.credit > 0 ? formatLedgerAmount(r.credit) : ''}</td>
                       <td className="px-3 py-2.5 text-right font-medium tabular-nums text-brand">
                         {formatLedgerBalance(r.balance)}
                       </td>
@@ -663,8 +1453,8 @@ export function PosAccountLedgerPage() {
                 <tfoot>
                   <tr className="border-t-2 border-border bg-surface-alt/40 font-semibold">
                     <td className="px-3 py-3" colSpan={5}>Total / Closing</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{formatPKR(summary?.totalDebit ?? 0)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{formatPKR(summary?.totalCredit ?? 0)}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{formatLedgerAmount(summary?.totalDebit ?? 0)}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{formatLedgerAmount(summary?.totalCredit ?? 0)}</td>
                     <td className="px-3 py-3 text-right tabular-nums text-brand">
                       {formatLedgerBalance(summary?.closingBalance ?? Number(ledger.balance ?? 0))}
                     </td>

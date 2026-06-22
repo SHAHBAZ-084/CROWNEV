@@ -42,7 +42,7 @@ export function OrderStatusTimeline({ status }: { status: string }) {
 
 export function orderCustomerName(order: Order): string {
   if (order.user) return `${order.user.firstName} ${order.user.lastName}`.trim();
-  if (order.walkInCustomer?.name) return order.walkInCustomer.name;
+  if (order.customer?.name) return order.customer.name;
   return order.customerName ?? '';
 }
 

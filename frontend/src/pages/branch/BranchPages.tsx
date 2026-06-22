@@ -106,7 +106,7 @@ function orderRowCustomer(r: Row): string {
   const user = r.user as { firstName?: string; lastName?: string } | undefined;
   if (user?.firstName) return `${user.firstName} ${user.lastName ?? ''}`.trim();
   if (r.customerName) return String(r.customerName);
-  const walkIn = r.walkInCustomer as { name?: string } | undefined;
+  const walkIn = r.customer as { name?: string } | undefined;
   return walkIn?.name ?? '';
 }
 

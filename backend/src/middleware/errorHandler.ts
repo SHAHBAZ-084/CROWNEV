@@ -13,6 +13,12 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     return;
   }
 
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    console.error(err);
+    res.status(500).json({ error: err.message.split('\n')[0] ?? 'Database query error' });
+    return;
+  }
+
   if (
     err instanceof Prisma.PrismaClientUnknownRequestError &&
     err.message.includes('numeric field overflow')

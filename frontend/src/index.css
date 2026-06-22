@@ -43,8 +43,39 @@ body {
   overflow-x: clip;
 }
 
+button,
+[type='button'],
+[type='submit'],
+[type='reset'] {
+  outline: none;
+}
+
+button:focus,
+button:focus-visible,
+[type='button']:focus,
+[type='button']:focus-visible,
+[type='submit']:focus,
+[type='submit']:focus-visible,
+[type='reset']:focus,
+[type='reset']:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .font-display {
   font-family: var(--font-display);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .tabular-nums {

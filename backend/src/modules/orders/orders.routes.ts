@@ -15,6 +15,10 @@ const orderItemSchema = z.object({
   chassisNumber: z.string().optional(),
 });
 
+const saleInvoiceItemSchema = orderItemSchema.extend({
+  unitPrice: z.optional(z.coerce.number().positive()),
+});
+
 ordersRouter.get(
   '/track/:trackingId',
   asyncHandler(async (req, res) => {
@@ -142,6 +146,7 @@ ordersRouter.post(
       branchId: z.number().int(),
       paymentMethod: z.nativeEnum(PaymentMethod),
       walkInCustomerId: z.number().int().optional(),
+      customerId: z.number().int().optional(),
       items: z.array(orderItemSchema).min(1),
       notes: z.string().optional(),
       isPaid: z.boolean().optional(),
@@ -152,9 +157,37 @@ ordersRouter.post(
       res.status(403).json({ error: 'Cross-branch access denied' });
       return;
     }
-    const order = await ordersService.createPosOrder(req.body);
+    const order = await ordersService.createPosOrder({
+      ...req.body,
+      customerId: req.body.customerId ?? req.body.walkInCustomerId,
+    });
     res.status(201).json(order);
   })
+);
+
+ordersRouter.post(
+  '/sale-invoice',
+  requireRoles(Role.BRANCH_OWNER, Role.ADMIN),
+  validateBody(
+    z.object({
+      branchId: z.number().int(),
+      customerId: z.number().int(),
+      items: z.array(saleInvoiceItemSchema).min(1),
+      reference: z.string().trim().min(1).max(64),
+      notes: z.string().optional(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== req.body.branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const result = await ordersService.createSaleInvoice({
+      ...req.body,
+      createdById: req.user!.userId,
+    });
+    res.status(201).json(result);
+  }),
 );
 
 ordersRouter.patch(
@@ -290,7 +323,7 @@ walkInRouter.post(
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     const entry = await ordersService.recordWalkInPayment({
-      walkInCustomerId: parseInt(param(req.params.id), 10),
+      customerId: parseInt(param(req.params.id), 10),
       branchId,
       amount: req.body.amount,
       notes: req.body.notes,

@@ -1,4 +1,5 @@
 import { OtpType, Role } from '@prisma/client';
+import { ensureOnlineCustomer } from '../customers/customers.service.js';
 import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../utils/helpers.js';
@@ -96,7 +97,7 @@ export async function verifyRegistration(email: string, otp: string) {
       data: { usedAt: new Date() },
     });
 
-    return tx.user.create({
+    const created = await tx.user.create({
       data: {
         email,
         passwordHash: payload.passwordHash,
@@ -108,6 +109,9 @@ export async function verifyRegistration(email: string, otp: string) {
         isVerified: true,
       },
     });
+
+    await ensureOnlineCustomer(created, tx);
+    return created;
   });
 
   const token = signToken({
@@ -217,15 +221,19 @@ export async function googleAuth(googleId: string, email: string, firstName: str
   });
 
   if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email,
-        googleId,
-        firstName,
-        lastName,
-        role: Role.CUSTOMER,
-        isVerified: true,
-      },
+    user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          googleId,
+          firstName,
+          lastName,
+          role: Role.CUSTOMER,
+          isVerified: true,
+        },
+      });
+      await ensureOnlineCustomer(created, tx);
+      return created;
     });
   } else if (!user.googleId) {
     user = await prisma.user.update({
@@ -233,6 +241,8 @@ export async function googleAuth(googleId: string, email: string, firstName: str
       data: { googleId, isVerified: true },
     });
   }
+
+  await ensureOnlineCustomer(user);
 
   const token = signToken({
     userId: user.id,
