@@ -47,7 +47,6 @@ const BranchOrders = lazyNamed(() => import('./pages/branch/BranchPages'), 'Bran
 const BranchInventory = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchInventoryPage');
 const BranchBikes = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBikesPage');
 const BranchBookings = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBookingsPage');
-const BranchServices = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchServicesPage');
 const BranchReports = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchReportsPage');
 const BranchSuppliers = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchSuppliersPage');
 const BranchPurchases = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPurchasesPage');
@@ -136,8 +135,8 @@ export default function App() {
                   <Route path="/branch/inventory" element={<DashWrap><BranchInventory /></DashWrap>} />
                   <Route path="/branch/bikes" element={<DashWrap><BranchBikes /></DashWrap>} />
                   <Route path="/branch/bookings" element={<DashWrap><BranchBookings /></DashWrap>} />
-                  <Route path="/branch/services" element={<DashWrap><BranchServices /></DashWrap>} />
-                  <Route path="/branch/suppliers" element={<DashWrap><BranchSuppliers /></DashWrap>} />
+                  <Route path="/branch/services" element={<Navigate to="/branch/bookings" replace />} />
+                  <Route path="/branch/suppliers" element={<Navigate to="/branch/workspace/suppliers" replace />} />
                   <Route path="/branch/purchases" element={<DashWrap><BranchPurchases /></DashWrap>} />
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
                   <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
@@ -151,6 +150,7 @@ export default function App() {
                   <Route path="/branch/workspace/vouchers/view" element={<DashWrap><PosViewVoucher /></DashWrap>} />
                   <Route path="/branch/workspace/accounts" element={<DashWrap><PosAccounts /></DashWrap>} />
                   <Route path="/branch/workspace/customers" element={<DashWrap><PosCustomers /></DashWrap>} />
+                  <Route path="/branch/workspace/suppliers" element={<DashWrap><BranchSuppliers /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/sale" element={<DashWrap><PosSaleInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/purchase" element={<DashWrap><PosPurchaseInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />
@@ -161,8 +161,7 @@ export default function App() {
                 <Route path="/branch/workspace/inventory" element={<Navigate to="/branch/inventory" replace />} />
                 <Route path="/branch/workspace/bikes" element={<Navigate to="/branch/bikes" replace />} />
                 <Route path="/branch/workspace/bookings" element={<Navigate to="/branch/bookings" replace />} />
-                <Route path="/branch/workspace/services" element={<Navigate to="/branch/services" replace />} />
-                <Route path="/branch/workspace/suppliers" element={<Navigate to="/branch/suppliers" replace />} />
+                <Route path="/branch/workspace/services" element={<Navigate to="/branch/bookings" replace />} />
                 <Route path="/branch/workspace/purchases" element={<Navigate to="/branch/purchases" replace />} />
                 <Route path="/branch/workspace/payments" element={<Navigate to="/branch/payments" replace />} />
                 <Route path="/branch/workspace/reports" element={<Navigate to="/branch/reports" replace />} />

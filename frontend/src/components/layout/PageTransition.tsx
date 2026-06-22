@@ -34,12 +34,12 @@ export function PageSuspense({ children }: { children: React.ReactNode }) {
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-brand lg:text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1 text-text-muted">{subtitle}</p>}
+    <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="font-display text-xl font-bold text-brand sm:text-2xl lg:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-text-muted sm:text-base">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">{action}</div>}
     </div>
   );
 }

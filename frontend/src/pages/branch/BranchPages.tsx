@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
@@ -28,6 +28,12 @@ type Row = Record<string, unknown>;
 
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'DELIVERED', 'CANCELLED'];
 const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'DONE', 'CANCELLED'];
+const BOOKING_STATUS_ORDER: Record<string, number> = {
+  PENDING: 0,
+  CONFIRMED: 1,
+  DONE: 2,
+  CANCELLED: 3,
+};
 const ADJUST_REASONS = ['CORRECTION', 'DAMAGE', 'THEFT', 'RETURN', 'OTHER'];
 
 function useBranchId() {
@@ -45,12 +51,27 @@ function isToday(date: string | Date) {
     && d.getDate() === now.getDate();
 }
 
+function StockBadge({ stock }: { stock: number }) {
+  if (stock <= 0) {
+    return <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">Out of Stock</span>;
+  }
+  if (stock <= 3) {
+    return <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">Low Stock: {stock} left</span>;
+  }
+  return <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">In Stock: {stock}</span>;
+}
+
 export function BranchPOSPage() {
   const branchId = useBranchId();
+  const { toast } = useToast();
   const [todayVouchers, setTodayVouchers] = useState(0);
   const [todayCustomers, setTodayCustomers] = useState(0);
   const [todaySales, setTodaySales] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Row[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [cart, setCart] = useState<{ productId: string; name: string; price: number; quantity: number; stock: number }[]>([]);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     if (!branchId) return;
@@ -72,9 +93,62 @@ export function BranchPOSPage() {
       .finally(() => setLoading(false));
   }, [branchId]);
 
+  useEffect(() => {
+    if (!branchId) return;
+    setProductsLoading(true);
+    adminApi
+      .products({ type: 'BIKE' })
+      .then((r) => setProducts(r.data as unknown as Row[]))
+      .catch(console.error)
+      .finally(() => setProductsLoading(false));
+  }, [branchId]);
+
+  function addToCart(product: Row) {
+    const stock = Number(product.stockAtBranch ?? 0);
+    if (stock <= 0) return;
+    const productId = String(product.id);
+    const price = Number(product.salePrice ?? product.price);
+    setCart((prev) => {
+      const existing = prev.find((i) => i.productId === productId);
+      if (existing) {
+        if (existing.quantity >= stock) {
+          toast(`Only ${stock} in stock`, 'error');
+          return prev;
+        }
+        return prev.map((i) =>
+          i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      }
+      return [...prev, { productId, name: String(product.name), price, quantity: 1, stock }];
+    });
+  }
+
+  async function completeSale() {
+    if (!branchId || cart.length === 0) return;
+    setCheckoutLoading(true);
+    try {
+      await branchApi.posOrder({
+        branchId,
+        paymentMethod: 'CASH',
+        items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        isPaid: true,
+      });
+      toast('Sale completed', 'success');
+      setCart([]);
+      const refreshed = await adminApi.products({ type: 'BIKE' });
+      setProducts(refreshed.data as unknown as Row[]);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Sale failed', 'error');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
+
+  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
   return (
-    <div>
-      <PageHeader title="Point of Sale" subtitle="Today's activity at a glance" />
+    <div className="space-y-8">
+      <PageHeader title="Point of Sale" subtitle="Today's activity and quick bike sales" />
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -86,6 +160,74 @@ export function BranchPOSPage() {
           <StatCard label="Today Vouchers" value={todayVouchers} icon={Receipt} />
           <StatCard label="Today Customers" value={todayCustomers} icon={Users} />
           <StatCard label="Today Sales" value={todaySales} icon={ShoppingCart} prefix="PKR " />
+        </div>
+      )}
+
+      <div>
+        <h2 className="mb-4 font-display text-lg font-semibold text-brand">Sell Bikes</h2>
+        {productsLoading ? (
+          <ProductGridSkeleton count={4} />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {products.map((product) => {
+              const stock = Number(product.stockAtBranch ?? 0);
+              const outOfStock = stock <= 0;
+              const imgs = product.images as { url: string; isPrimary?: boolean }[] | undefined;
+              const image = imgs?.find((i) => i.isPrimary)?.url ?? imgs?.[0]?.url;
+              return (
+                <div
+                  key={String(product.id)}
+                  className={`overflow-hidden rounded-[var(--radius-card)] border bg-white shadow-[var(--shadow-card)] ${
+                    outOfStock ? 'border-border opacity-60' : 'border-border'
+                  }`}
+                >
+                  <div className="aspect-[4/3] bg-surface-alt">
+                    {image ? (
+                      <img src={image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-text-muted">No image</div>
+                    )}
+                  </div>
+                  <div className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-display font-semibold text-brand">{String(product.name)}</h3>
+                      <StockBadge stock={stock} />
+                    </div>
+                    <p className="font-display text-lg font-bold text-brand">{formatPKR(Number(product.salePrice ?? product.price))}</p>
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      className="w-full"
+                      disabled={outOfStock}
+                      onClick={() => addToCart(product)}
+                    >
+                      {outOfStock ? 'Out of Stock' : 'Add to Sale'}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {cart.length > 0 && (
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <h3 className="font-display font-semibold text-brand">Current Sale</h3>
+          <ul className="mt-3 space-y-2">
+            {cart.map((item) => (
+              <li key={item.productId} className="flex items-center justify-between text-sm">
+                <span>{item.name} × {item.quantity}</span>
+                <span className="font-medium">{formatPKR(item.price * item.quantity)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <span className="font-display font-bold text-brand">{formatPKR(cartTotal)}</span>
+            <Button variant="accent" loading={checkoutLoading} onClick={completeSale}>
+              Complete Cash Sale
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -179,19 +321,19 @@ export function BranchOrdersPage() {
     <div>
       <PageHeader title="Branch Orders" subtitle="Manage online and POS orders" />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-[140px]">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+        <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
           <option value="">All statuses</option>
           {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </Select>
-        <Select label="" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="min-w-[140px]">
+        <Select label="" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
           <option value="">All payments</option>
           <option value="PENDING">PENDING</option>
           <option value="APPROVED">APPROVED</option>
           <option value="PAID">PAID</option>
           <option value="REJECTED">REJECTED</option>
         </Select>
-        <Select label="" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="min-w-[120px]">
+        <Select label="" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:min-w-[120px] sm:w-auto">
           <option value="">All types</option>
           <option value="ONLINE">ONLINE</option>
           <option value="POS">POS</option>
@@ -381,6 +523,7 @@ function parseOptionalBikePrice(value: FormDataEntryValue | null, label: string)
 }
 
 export function BranchBikesPage() {
+  const branchId = useBranchId();
   const { toast } = useToast();
   const [bikes, setBikes] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -390,6 +533,18 @@ export function BranchBikesPage() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
+  const [stockModal, setStockModal] = useState<Row | null>(null);
+  const [stockQty, setStockQty] = useState('0');
+  const [stockSaving, setStockSaving] = useState(false);
+
+  const bikeDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      await adminApi.deleteProduct(String(row.id));
+      toast('Bike removed', 'success');
+      reload();
+    },
+    { message: (row) => `Remove "${String(row.name)}" from the catalog?` },
+  );
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -470,6 +625,32 @@ export function BranchBikesPage() {
     await adminApi.setProductImagePrimary(productId, primary.id);
   }
 
+  function openStockModal(row: Row) {
+    setStockModal(row);
+    setStockQty(String(row.stockAtBranch ?? 0));
+  }
+
+  async function saveStock(e: FormEvent) {
+    e.preventDefault();
+    if (!stockModal || !branchId) return;
+    const quantity = parseInt(stockQty, 10);
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      toast('Enter a valid stock quantity', 'error');
+      return;
+    }
+    setStockSaving(true);
+    try {
+      await branchApi.setBikeStock(branchId, String(stockModal.id), quantity);
+      toast('Stock updated', 'success');
+      setStockModal(null);
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to update stock', 'error');
+    } finally {
+      setStockSaving(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -545,6 +726,14 @@ export function BranchBikesPage() {
             { key: 'name', header: 'Name' },
             { key: 'price', header: 'Price', render: (r) => formatPKR(Number(r.price)) },
             {
+              key: 'stock',
+              header: 'Stock',
+              render: (r) => {
+                const stock = Number(r.stockAtBranch ?? 0);
+                return <StockBadge stock={stock} />;
+              },
+            },
+            {
               key: 'specs',
               header: 'Specs',
               render: (r) => {
@@ -554,12 +743,42 @@ export function BranchBikesPage() {
               },
             },
             { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
-            { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => openEdit(r)} /> },
+            {
+              key: 'actions',
+              header: '',
+              align: 'right',
+              className: 'w-28',
+              render: (r) => (
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="secondary" size="sm" onClick={() => openStockModal(r)}>Set Stock</Button>
+                  <RowActions
+                    onEdit={() => openEdit(r)}
+                    deleteLabel="Delete"
+                    onDelete={() => bikeDelete.setTarget(r)}
+                  />
+                </div>
+              ),
+            },
           ]}
           data={bikes}
           emptyMessage="No bikes yet — add your first electric bike"
         />
       )}
+      {bikeDelete.modal}
+
+      <Modal open={!!stockModal} onClose={() => setStockModal(null)} title={`Set Stock — ${String(stockModal?.name ?? '')}`}>
+        <form onSubmit={saveStock} className="space-y-4">
+          <Input
+            label="Quantity in stock"
+            type="number"
+            min={0}
+            required
+            value={stockQty}
+            onChange={(e) => setStockQty(e.target.value)}
+          />
+          <FormActions onCancel={() => setStockModal(null)} loading={stockSaving} />
+        </form>
+      </Modal>
 
       <Modal
         open={!!modal}
@@ -578,7 +797,7 @@ export function BranchBikesPage() {
               onRemoveExisting={modal === 'edit' ? removeExistingImage : undefined}
             />
             <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input name="price" label="Price (PKR)" type="number" step="0.01" required defaultValue={String(edit?.price ?? '')} />
               <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
             </div>
@@ -613,20 +832,47 @@ export function BranchBookingsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Row[]>([]);
-  const [services, setServices] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | null>(null);
   const [statusValue, setStatusValue] = useState('PENDING');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
-    branchApi.bookings().then((r) => setBookings(r.data as unknown as Row[])).catch(console.error);
-  }, []);
+    const params: Record<string, string> = {};
+    if (statusFilter) params.status = statusFilter;
+    branchApi.bookings(params).then((r) => setBookings(r.data as unknown as Row[])).catch(console.error);
+  }, [statusFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
-  useEffect(() => {
-    if (branchId) branchApi.services(branchId).then((r) => setServices(r as Row[])).catch(console.error);
-  }, [branchId]);
+  const displayedBookings = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = bookings;
+    if (q) {
+      rows = rows.filter((r) => {
+        const customer = bookingRowCustomer(r).toLowerCase();
+        const notes = String(r.notes ?? '').toLowerCase();
+        return customer.includes(q) || notes.includes(q);
+      });
+    }
+    return [...rows].sort((a, b) => {
+      const statusDiff =
+        (BOOKING_STATUS_ORDER[String(a.status)] ?? 9) - (BOOKING_STATUS_ORDER[String(b.status)] ?? 9);
+      if (statusDiff !== 0) return statusDiff;
+      return Number(b.id) - Number(a.id);
+    });
+  }, [bookings, search]);
+
+  const bookingDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      if (!branchId) return;
+      await branchApi.deleteBooking(Number(row.id), branchId);
+      toast('Booking deleted', 'success');
+      reload();
+    },
+    { message: (row) => `Delete booking for ${bookingRowCustomer(row)}?` },
+  );
 
   useEffect(() => {
     if (edit) setStatusValue(String(edit.status ?? 'PENDING'));
@@ -639,7 +885,6 @@ export function BranchBookingsPage() {
     const status = String(fd.get('status'));
     const confirmedTime = String(fd.get('confirmedTime') || '').trim() || undefined;
     const date = String(fd.get('date') || '').trim() || undefined;
-    const serviceIdRaw = String(fd.get('serviceId') || '').trim();
     if (status === 'CONFIRMED' && (!date || !confirmedTime)) {
       toast('Please set visit date and time before confirming', 'error');
       return;
@@ -651,7 +896,6 @@ export function BranchBookingsPage() {
         status,
         ...(confirmedTime && { confirmedTime }),
         ...(date && { date }),
-        ...(serviceIdRaw && { serviceId: parseInt(serviceIdRaw, 10) }),
       });
       toast('Booking updated', 'success');
       setEdit(null);
@@ -666,6 +910,28 @@ export function BranchBookingsPage() {
   return (
     <div>
       <PageHeader title="Service Bookings" />
+
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
+        <Input
+          label="Search"
+          placeholder="Customer or notes…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:max-w-xs"
+        />
+        <Select
+          label="Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="w-full sm:min-w-[160px] sm:w-auto"
+        >
+          <option value="">All statuses</option>
+          {BOOKING_STATUSES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </Select>
+      </div>
+
       <DataTable
         columns={[
           { key: 'customer', header: 'Customer', render: (r) => bookingRowCustomer(r) },
@@ -683,10 +949,24 @@ export function BranchBookingsPage() {
             },
           },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => setEdit(r)} /> },
+          {
+            key: 'actions',
+            header: '',
+            align: 'right',
+            className: 'w-28',
+            render: (r) => (
+              <RowActions
+                onEdit={() => setEdit(r)}
+                deleteLabel="Delete"
+                onDelete={() => bookingDelete.setTarget(r)}
+              />
+            ),
+          },
         ]}
-        data={bookings}
+        data={displayedBookings}
+        emptyMessage={search || statusFilter ? 'No bookings match your filters' : 'No bookings yet'}
       />
+      {bookingDelete.modal}
       <Modal open={!!edit} onClose={() => setEdit(null)} title="Update Booking" size="lg">
         {edit && (
           <form onSubmit={updateStatus} className="space-y-4">
@@ -713,12 +993,6 @@ export function BranchBookingsPage() {
             </p>
             <Select name="status" label="Status" value={statusValue} onChange={(e) => setStatusValue(e.target.value)}>
               {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
-            <Select name="serviceId" label="Service" defaultValue={String((edit.service as { id?: number })?.id ?? (edit as Row).serviceId ?? '')}>
-              <option value="">Assign later</option>
-              {services.map((s) => (
-                <option key={String(s.id)} value={String(s.id)}>{String(s.name)}</option>
-              ))}
             </Select>
             <FormActions onCancel={() => setEdit(null)} loading={saving} />
           </form>
@@ -806,7 +1080,7 @@ export function BranchServicesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
           <Textarea name="description" label="Description" rows={2} defaultValue={String(edit?.description ?? '')} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input name="basePrice" label="Base Price" type="number" step="0.01" required defaultValue={String(edit?.basePrice ?? '')} />
             <Input name="duration" label="Duration (min)" type="number" required defaultValue={String(edit?.duration ?? 60)} />
           </div>
@@ -960,7 +1234,7 @@ export function BranchPurchasesPage() {
             <option value="">Select part</option>
             {parts.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.name)} ({String(p.itemCode)})</option>)}
           </Select>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input name="quantity" label="Quantity" type="number" min={1} required defaultValue="1" />
             <Input name="unitCost" label="Unit Cost" type="number" step="0.01" required />
           </div>

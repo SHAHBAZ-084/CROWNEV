@@ -285,6 +285,28 @@ export async function updateProfile(
   });
 }
 
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, 'Password change is not available for this account');
+  }
+
+  const valid = await comparePassword(currentPassword, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
+  if (currentPassword === newPassword) {
+    throw new AppError(400, 'New password must be different from current password');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  return { message: 'Password updated successfully' };
+}
+
 /** Remove customer accounts that were created before email verification was enforced. */
 export async function cleanupUnverifiedCustomers() {
   const result = await prisma.user.deleteMany({

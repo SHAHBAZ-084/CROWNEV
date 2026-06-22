@@ -255,7 +255,7 @@ export function SavingsCalculator() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-white px-3 py-2">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Petrol / mo</p>
                 <p className="font-display text-sm font-bold tabular-nums text-brand">

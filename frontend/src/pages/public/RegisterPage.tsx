@@ -86,7 +86,7 @@ export default function RegisterPage() {
             <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Create Account</h1>
             <form onSubmit={handleRegister} className="mt-8 space-y-4">
               {error && <p className="text-sm text-warning">{error}</p>}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input name="firstName" placeholder="First name" required />
                 <Input name="lastName" placeholder="Last name" required />
               </div>

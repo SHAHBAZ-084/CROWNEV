@@ -1,11 +1,10 @@
 import { Outlet, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   LayoutDashboard, Building2, Package, ShoppingCart, Users, BarChart3,
-  Calendar, CreditCard, MessageSquare, Truck, Boxes, Wrench, Handshake,
+  Calendar, CreditCard, MessageSquare, Truck, Boxes,
 } from 'lucide-react';
 import { DashboardSidebar, type SidebarNavItem } from './DashboardSidebar';
-import { DASHBOARD_SIDEBAR_WIDTH } from './dashboardConstants';
+import { DashboardShell } from './DashboardShell';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Role } from '../../types';
 
@@ -26,9 +25,7 @@ const branchNav: SidebarNavItem[] = [
   { to: '/branch/orders', label: 'Orders', icon: Truck },
   { to: '/branch/inventory', label: 'Inventory', icon: Boxes },
   { to: '/branch/bikes', label: 'Bikes', icon: Package },
-  { to: '/branch/bookings', label: 'Bookings', icon: Calendar },
-  { to: '/branch/services', label: 'Services', icon: Wrench },
-  { to: '/branch/suppliers', label: 'Suppliers', icon: Handshake },
+  { to: '/branch/bookings', label: 'Service Booking', icon: Calendar },
   { to: '/branch/purchases', label: 'Purchases', icon: Package },
   { to: '/branch/payments', label: 'Payments', icon: CreditCard },
   { to: '/branch/reports', label: 'Reports', icon: BarChart3 },
@@ -53,29 +50,24 @@ export function DashboardLayout({ role }: { role: Role }) {
   const nav = navByRole[role];
 
   return (
-    <div className="flex min-h-screen bg-surface-alt">
-      <DashboardSidebar
-        nav={nav}
-        role={role}
-        userName={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
-        userEmail={user?.email}
-        userMeta={role === 'BRANCH_OWNER' && user?.branchId ? `Branch #${user.branchId}` : undefined}
-        onSignOut={() => {
-          logout();
-          navigate('/');
-        }}
-      />
-
-      <div className="flex-1" style={{ marginLeft: DASHBOARD_SIDEBAR_WIDTH }}>
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="p-6 lg:p-8"
-        >
-          <Outlet />
-        </motion.div>
-      </div>
-    </div>
+    <DashboardShell
+      sidebar={({ mobileOpen, onNavigate }) => (
+        <DashboardSidebar
+          nav={nav}
+          role={role}
+          userName={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+          userEmail={user?.email}
+          userMeta={role === 'BRANCH_OWNER' && user?.branchId ? `Branch #${user.branchId}` : undefined}
+          mobileOpen={mobileOpen}
+          onNavigate={onNavigate}
+          onSignOut={() => {
+            logout();
+            navigate('/');
+          }}
+        />
+      )}
+    >
+      <Outlet />
+    </DashboardShell>
   );
 }

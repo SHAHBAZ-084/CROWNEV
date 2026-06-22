@@ -1,10 +1,11 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, KeyRound, Mail, MapPin, Pencil, Phone, Shield, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerApi } from '../../api/client';
 import type { Booking, InvoiceData, Order } from '../../types';
 import { PageHeader } from '../../components/layout/PageTransition';
+import { UserAvatar } from '../../components/layout/DashboardSidebar';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -264,11 +265,35 @@ export function CustomerBookingsPage() {
   );
 }
 
+function ProfileField({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Mail;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-4 rounded-xl border border-border/70 bg-white/80 p-4 transition-shadow hover:shadow-[var(--shadow-card)]">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent/15 to-brand/10">
+        <Icon className="h-5 w-5 text-accent" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{label}</p>
+        <p className="mt-1 font-medium text-text break-words">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 export function CustomerProfilePage() {
   const { user, setUser } = useAuth();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -291,32 +316,210 @@ export function CustomerProfilePage() {
     }
   }
 
+  async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const currentPassword = String(fd.get('currentPassword'));
+    const newPassword = String(fd.get('newPassword'));
+    const confirmPassword = String(fd.get('confirmPassword'));
+
+    if (newPassword.length < 8) {
+      toast('New password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('New passwords do not match', 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await customerApi.changePassword(currentPassword, newPassword);
+      toast('Password updated successfully', 'success');
+      setPasswordOpen(false);
+      e.currentTarget.reset();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to update password', 'error');
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   return (
-    <div>
+    <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Profile"
-        action={<Button variant={editing ? 'secondary' : 'accent'} size="sm" onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit Profile'}</Button>}
+        subtitle="Manage your personal information and account security"
       />
+
       {editing ? (
-        <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 max-w-md shadow-[var(--shadow-card)] space-y-4">
-          <Input name="firstName" label="First Name" required defaultValue={user?.firstName ?? ''} />
-          <Input name="lastName" label="Last Name" required defaultValue={user?.lastName ?? ''} />
-          <Input name="phone" label="Phone" defaultValue={user?.phone ?? ''} />
-          <Input name="city" label="City" defaultValue={user?.city ?? ''} />
-          <p className="text-xs text-text-muted">Email: {user?.email} (cannot be changed)</p>
-          <FormActions onCancel={() => setEditing(false)} loading={saving} />
-        </form>
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]">
+          <div className="border-b border-border/80 bg-gradient-to-r from-[#fff8f3] to-white px-6 py-5 sm:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                <Pencil className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-semibold text-brand">Edit Profile</h2>
+                <p className="text-sm text-text-muted">Update your contact details below</p>
+              </div>
+            </div>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4 p-6 sm:p-8">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input name="firstName" label="First Name" required defaultValue={user?.firstName ?? ''} />
+              <Input name="lastName" label="Last Name" required defaultValue={user?.lastName ?? ''} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input name="phone" label="Phone" defaultValue={user?.phone ?? ''} />
+              <Input name="city" label="City" defaultValue={user?.city ?? ''} />
+            </div>
+            <div className="rounded-xl border border-border/70 bg-surface-alt/60 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Email</p>
+              <p className="mt-1 text-sm font-medium text-text">{user?.email}</p>
+              <p className="mt-1 text-xs text-text-muted">Email cannot be changed from here</p>
+            </div>
+            <FormActions onCancel={() => setEditing(false)} loading={saving} />
+          </form>
+        </div>
       ) : (
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 max-w-md shadow-[var(--shadow-card)]">
-          <dl className="space-y-4">
-            <div><dt className="text-xs text-text-muted">Name</dt><dd className="font-medium">{user?.firstName} {user?.lastName}</dd></div>
-            <div><dt className="text-xs text-text-muted">Email</dt><dd className="font-medium">{user?.email}</dd></div>
-            <div><dt className="text-xs text-text-muted">Phone</dt><dd className="font-medium">{user?.phone ?? '—'}</dd></div>
-            <div><dt className="text-xs text-text-muted">City</dt><dd className="font-medium">{user?.city ?? '—'}</dd></div>
-            <div><dt className="text-xs text-text-muted">Role</dt><dd className="font-medium">{user?.role}</dd></div>
-          </dl>
+        <div className="space-y-6">
+          <div className="relative overflow-hidden rounded-[var(--radius-card)] border border-border bg-gradient-to-br from-white via-[#fffcf9] to-[#fff0e6] p-6 shadow-[var(--shadow-card)] sm:p-8">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
+
+            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-5">
+                <div className="scale-125 origin-left sm:scale-[1.35]">
+                  <UserAvatar name={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-display text-2xl font-bold text-brand sm:text-3xl">
+                    {user?.firstName} {user?.lastName}
+                  </h2>
+                  <p className="mt-1 flex items-center gap-2 text-sm text-text-muted sm:text-base">
+                    <Mail className="h-4 w-4 shrink-0 text-accent/80" />
+                    <span className="truncate">{user?.email}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <Button variant="secondary" size="sm" onClick={() => setPasswordOpen(true)}>
+                  <KeyRound className="h-4 w-4" />
+                  Change Password
+                </Button>
+                <Button variant="accent" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-4 w-4" />
+                  Edit Profile
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-5">
+            <section className="lg:col-span-3 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)] sm:p-7">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                  <User className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-brand">Personal Information</h3>
+                  <p className="text-sm text-text-muted">Your contact and location details</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ProfileField
+                  icon={User}
+                  label="Full Name"
+                  value={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || '—'}
+                />
+                <ProfileField icon={Mail} label="Email Address" value={user?.email ?? '—'} />
+                <ProfileField icon={Phone} label="Phone Number" value={user?.phone ?? '—'} />
+                <ProfileField icon={MapPin} label="City" value={user?.city ?? '—'} />
+              </div>
+            </section>
+
+            <section className="lg:col-span-2 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)] sm:p-7">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                  <Shield className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-brand">Account Security</h3>
+                  <p className="text-sm text-text-muted">Keep your account protected</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-xl border border-dashed border-accent/30 bg-gradient-to-br from-accent/5 to-transparent p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                      <KeyRound className="h-5 w-5 text-accent" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-text">Password</p>
+                      <p className="mt-1 text-sm text-text-muted">
+                        Use a strong password and update it regularly.
+                      </p>
+                      <Button
+                        variant="accent"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => setPasswordOpen(true)}
+                      >
+                        Change Password
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-text-muted">
+                  Forgot your password?{' '}
+                  <Link to="/forgot-password" className="font-medium text-brand-light hover:underline">
+                    Reset via email
+                  </Link>
+                </p>
+              </div>
+            </section>
+          </div>
         </div>
       )}
+
+      <Modal open={passwordOpen} onClose={() => setPasswordOpen(false)} title="Change Password">
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <Input
+            name="currentPassword"
+            label="Current Password"
+            type="password"
+            required
+            autoComplete="current-password"
+          />
+          <Input
+            name="newPassword"
+            label="New Password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <Input
+            name="confirmPassword"
+            label="Confirm New Password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <p className="text-xs text-text-muted">
+            Forgot your current password?{' '}
+            <Link to="/forgot-password" className="text-brand-light hover:underline">
+              Reset via email
+            </Link>
+          </p>
+          <FormActions onCancel={() => setPasswordOpen(false)} loading={changingPassword} />
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -5,6 +5,9 @@ export interface Column<T> {
   header: string;
   render?: (row: T) => React.ReactNode;
   className?: string;
+  align?: 'left' | 'right';
+  /** Hide column on small screens (still shown in mobile cards) */
+  hideOnMobile?: boolean;
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -13,12 +16,16 @@ export function DataTable<T extends Record<string, unknown>>({
   keyField = 'id' as keyof T,
   onRowClick,
   emptyMessage = 'No records found',
+  compact = false,
+  stackOnMobile = true,
 }: {
   columns: Column<T>[];
   data: T[];
   keyField?: keyof T;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
+  compact?: boolean;
+  stackOnMobile?: boolean;
 }) {
   if (data.length === 0) {
     return (
@@ -28,15 +35,20 @@ export function DataTable<T extends Record<string, unknown>>({
     );
   }
 
-  return (
-    <div className="overflow-x-auto rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]">
-      <table className="w-full text-sm">
+  const headPad = compact ? 'px-3 py-2' : 'px-4 py-3';
+  const cellPad = compact ? 'px-3 py-1.5' : 'px-4 py-3';
+  const actionsCol = columns.find((c) => c.key === 'actions');
+  const dataCols = columns.filter((c) => c.key !== 'actions');
+
+  const tableView = (
+    <div className={`overflow-x-auto rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] ${stackOnMobile ? 'hidden md:block' : ''}`}>
+      <table className="w-full min-w-max table-auto text-sm">
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-border bg-surface-alt">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left font-semibold text-brand ${col.className ?? ''}`}
+                className={`${headPad} font-semibold text-brand whitespace-nowrap ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
               >
                 {col.header}
               </th>
@@ -50,16 +62,65 @@ export function DataTable<T extends Record<string, unknown>>({
               onClick={() => onRowClick?.(row)}
               className={`border-b border-border last:border-0 transition-colors hover:bg-accent/5 ${onRowClick ? 'cursor-pointer' : ''} ${i % 2 === 1 ? 'bg-surface-alt/80' : ''}`}
             >
-              {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 text-text ${col.className ?? ''}`}>
-                  {col.render ? col.render(row) : String(row[col.key] ?? '')}
-                </td>
-              ))}
+              {columns.map((col) => {
+                const cell = col.render ? col.render(row) : String(row[col.key] ?? '');
+                return (
+                  <td
+                    key={col.key}
+                    className={`${cellPad} text-text ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
+                  >
+                    {col.align === 'right' ? <div className="flex justify-end">{cell}</div> : cell}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+
+  const cardView = stackOnMobile ? (
+    <div className="space-y-3 md:hidden">
+      {data.map((row) => (
+        <div
+          key={String(row[keyField])}
+          onClick={() => onRowClick?.(row)}
+          className={`rounded-[var(--radius-card)] border border-border bg-white p-4 shadow-[var(--shadow-card)] ${onRowClick ? 'cursor-pointer active:bg-accent/5' : ''}`}
+        >
+          <dl className="space-y-2">
+            {dataCols
+              .filter((col) => !col.hideOnMobile || col.header)
+              .map((col) => {
+                const value = col.render ? col.render(row) : String(row[col.key] ?? '—');
+                if (!col.header && col.key === 'actions') return null;
+                return (
+                  <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
+                    {col.header ? (
+                      <dt className="shrink-0 text-text-muted">{col.header}</dt>
+                    ) : null}
+                    <dd className={`min-w-0 text-right font-medium text-text ${col.header ? '' : 'w-full text-left'}`}>
+                      {value}
+                    </dd>
+                  </div>
+                );
+              })}
+          </dl>
+          {actionsCol && (
+            <div className="mt-3 flex justify-end border-t border-border/60 pt-3">
+              {actionsCol.render ? actionsCol.render(row) : null}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {cardView}
+      {tableView}
+    </>
   );
 }
 

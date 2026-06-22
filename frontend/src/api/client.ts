@@ -87,6 +87,11 @@ export const authApi = {
   me: () => api<User>('/auth/me'),
   updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; city?: string }) =>
     api<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };
 
 export const publicApi = {
@@ -136,6 +141,8 @@ export const customerApi = {
     api<Booking>('/bookings', { method: 'POST', body: JSON.stringify(data) }),
   updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; city?: string }) =>
     authApi.updateProfile(data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    authApi.changePassword(currentPassword, newPassword),
 };
 
 export const adminApi = {
@@ -244,6 +251,8 @@ export const branchApi = {
     parts?: { partId: number; quantity: number }[];
   }) =>
     api<Booking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteBooking: (id: number, branchId: number) =>
+    api<void>(`/bookings/${id}?branchId=${branchId}`, { method: 'DELETE' }),
   inventory: (branchId: number) => api<Paginated<{ id?: number; quantity: number; partId: number; part: { id: number; name: string; itemCode: string; alertAt: number } }>>(`/inventory/${branchId}`),
   setStock: (branchId: number, partId: number, quantity: number) =>
     api<unknown>(`/inventory/${branchId}/${partId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
@@ -268,6 +277,11 @@ export const branchApi = {
   shopProducts: (branchId: number) => api<unknown[]>(`/branches/${branchId}/products`),
   setProductListed: (branchId: number, productId: string, isListed: boolean) =>
     api<unknown>(`/branches/${branchId}/products/${productId}`, { method: 'PUT', body: JSON.stringify({ isListed }) }),
+  setBikeStock: (branchId: number, productId: string, quantity: number) =>
+    api<unknown>(`/branches/${branchId}/products/${productId}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ quantity }),
+    }),
   pendingPayments: () => api<Order[]>('/orders/pending-payments'),
   approvePayment: (id: number, approved: boolean) =>
     api<Order>(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ approved }) }),

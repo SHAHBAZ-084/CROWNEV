@@ -410,7 +410,7 @@ export function AdminProductsPage() {
               />
             )}
             <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input name="price" label="Price (PKR)" type="number" step="0.01" required defaultValue={String(edit?.price ?? '')} />
               <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
             </div>
@@ -505,7 +505,7 @@ export function AdminUsersPage() {
               <Input name="password" label="Password" type="password" required minLength={8} />
             </>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input name="firstName" label="First Name" required defaultValue={String(edit?.firstName ?? '')} />
             <Input name="lastName" label="Last Name" required defaultValue={String(edit?.lastName ?? '')} />
           </div>

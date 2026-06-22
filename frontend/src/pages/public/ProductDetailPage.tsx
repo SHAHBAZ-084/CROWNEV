@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Zap } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -10,6 +10,7 @@ import { formatPKR } from '../../lib/format';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { EvSpecsGrid } from '../../components/public/EvSpecsGrid';
+import { ProductImageGallery, sortProductImages } from '../../components/public/ProductImageGallery';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 
 export default function ProductDetailPage() {
@@ -25,10 +26,11 @@ export default function ProductDetailPage() {
     if (id) publicApi.product(id).then(setProduct).catch(() => navigate('/shop'));
   }, [id, navigate]);
 
+  const images = useMemo(() => sortProductImages(product?.images), [product?.images]);
+
   if (!product) return <div className="p-8"><ProductGridSkeleton count={1} /></div>;
 
   const price = Number(product.salePrice ?? product.price);
-  const image = product.images?.find((i) => i.isPrimary)?.url ?? product.images?.[0]?.url;
   const colors = (product.colorOptions as string[] | null) ?? [];
   const specs = product.specs as Record<string, string> | null;
 
@@ -38,7 +40,7 @@ export default function ProductDetailPage() {
       name: product!.name,
       price,
       color: color || undefined,
-      imageUrl: image,
+      imageUrl: images[0]?.url,
       productType: product!.type,
     }, qty);
     toast('Added to cart!', 'success');
@@ -47,16 +49,8 @@ export default function ProductDetailPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
       <div className="grid gap-12 lg:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="aspect-square overflow-hidden rounded-2xl bg-surface-alt"
-        >
-          {image ? (
-            <img src={image} alt={product.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center"><Zap className="h-24 w-24 text-brand/20" /></div>
-          )}
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <ProductImageGallery images={product.images} alt={product.name} />
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>

@@ -63,7 +63,7 @@ export async function listBookings(query: {
         user: { select: { firstName: true, lastName: true, email: true } },
         parts: { include: { part: true } },
       },
-      orderBy: [{ date: 'asc' }, { time: 'asc' }],
+      orderBy: { createdAt: 'desc' },
     }),
     prisma.serviceBooking.count({ where }),
   ]);
@@ -99,14 +99,29 @@ export async function updateBookingStatus(
   date?: string,
   serviceId?: number
 ) {
-  const booking = await prisma.serviceBooking.findFirst({ where: { id, branchId } });
+  const booking = await prisma.serviceBooking.findFirst({
+    where: { id, branchId },
+    include: { parts: true },
+  });
   if (!booking) throw new AppError(404, 'Booking not found');
 
-  if (status === BookingStatus.DONE && parts?.length) {
-    await deductStock(branchId, parts);
-    await prisma.serviceBookingPart.createMany({
-      data: parts.map((p) => ({ bookingId: id, partId: p.partId, quantity: p.quantity })),
-    });
+  const completing = status === BookingStatus.DONE && booking.status !== BookingStatus.DONE;
+
+  if (completing) {
+    if (parts?.length) {
+      await prisma.serviceBookingPart.deleteMany({ where: { bookingId: id } });
+      await prisma.serviceBookingPart.createMany({
+        data: parts.map((p) => ({ bookingId: id, partId: p.partId, quantity: p.quantity })),
+      });
+    }
+
+    const bookingParts = await prisma.serviceBookingPart.findMany({ where: { bookingId: id } });
+    if (bookingParts.length) {
+      await deductStock(
+        branchId,
+        bookingParts.map((p) => ({ partId: p.partId, quantity: p.quantity }))
+      );
+    }
   }
 
   return prisma.serviceBooking.update({
@@ -142,6 +157,12 @@ export async function deactivateService(id: number, branchId: number) {
   const service = await prisma.service.findFirst({ where: { id, branchId } });
   if (!service) throw new AppError(404, 'Service not found');
   return prisma.service.update({ where: { id }, data: { isActive: false } });
+}
+
+export async function deleteBooking(id: number, branchId: number) {
+  const booking = await prisma.serviceBooking.findFirst({ where: { id, branchId } });
+  if (!booking) throw new AppError(404, 'Booking not found');
+  await prisma.serviceBooking.delete({ where: { id } });
 }
 
 export async function getBookingReceipt(id: number, branchId?: number) {

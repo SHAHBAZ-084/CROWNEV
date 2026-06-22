@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { LogOut } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { Logo } from '../brand/Logo';
 import type { Role } from '../../types';
 
@@ -41,14 +41,17 @@ function UserAvatar({ name }: { name: string }) {
 function SidebarNavLink({
   item,
   end,
+  onNavigate,
 }: {
   item: SidebarNavItem;
   end?: boolean;
+  onNavigate?: () => void;
 }) {
   return (
     <NavLink
       to={item.to}
       end={end}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-all duration-200 ${
           isActive
@@ -94,6 +97,8 @@ type DashboardSidebarProps = {
   footerExtra?: ReactNode;
   /** Override which routes use NavLink `end` (exact match) */
   endPaths?: string[];
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
 };
 
 export function DashboardSidebar({
@@ -108,13 +113,27 @@ export function DashboardSidebar({
   showBadge = true,
   footerExtra,
   endPaths: endPathsOverride,
+  mobileOpen = false,
+  onNavigate,
 }: DashboardSidebarProps) {
   const endPaths = endPathsOverride ?? navEndPaths(role);
   const navSections: SidebarNavSection[] = sections ?? [{ items: nav ?? [] }];
 
   return (
-    <aside className="dashboard-sidebar fixed left-0 top-0 z-30 flex h-full w-[17.5rem] flex-col border-r border-border/80 bg-gradient-to-b from-white via-[#fffcf9] to-[#fff4ec] shadow-[4px_0_28px_rgb(179_71_0/7%)]">
-      <div className="flex flex-col items-center border-b border-border/60 px-5 pb-5 pt-6 text-center">
+    <aside
+      className={`dashboard-sidebar fixed left-0 top-0 z-50 flex h-full w-[17.5rem] flex-col border-r border-border/80 bg-gradient-to-b from-white via-[#fffcf9] to-[#fff4ec] shadow-[4px_0_28px_rgb(179_71_0/7%)] transition-transform duration-300 ease-in-out lg:z-30 lg:translate-x-0 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      <div className="relative flex flex-col items-center border-b border-border/60 px-5 pb-5 pt-6 text-center">
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-text-muted hover:bg-white/80 hover:text-brand lg:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
         <Logo size="md" linked centered />
         {showBadge && (
           <span className="mt-3 inline-flex rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
@@ -138,7 +157,12 @@ export function DashboardSidebar({
             )}
             <div className="space-y-1">
               {section.items.map((item) => (
-                <SidebarNavLink key={item.to} item={item} end={endPaths.includes(item.to)} />
+                <SidebarNavLink
+                  key={item.to}
+                  item={item}
+                  end={endPaths.includes(item.to)}
+                  onNavigate={onNavigate}
+                />
               ))}
             </div>
           </div>

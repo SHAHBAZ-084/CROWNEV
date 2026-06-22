@@ -39,13 +39,23 @@ export async function listProducts(query: {
         brand: true,
         category: true,
         images: { orderBy: { sortOrder: 'asc' } },
+        branchProducts: query.branchId
+          ? { where: { branchId: query.branchId, isListed: true } }
+          : false,
       },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.product.count({ where }),
   ]);
 
-  return paginatedResponse(products, total, page, limit);
+  const data = query.branchId
+    ? products.map((product) => ({
+        ...product,
+        stockAtBranch: product.branchProducts[0]?.stock ?? 0,
+      }))
+    : products;
+
+  return paginatedResponse(data, total, page, limit);
 }
 
 export async function getProduct(id: string) {
@@ -157,10 +167,16 @@ export async function deleteProductImage(productId: string, imageId: number) {
 }
 
 export async function listBranchProducts(branchId: number) {
-  return prisma.branchProduct.findMany({
+  const rows = await prisma.branchProduct.findMany({
     where: { branchId },
     include: { product: { include: { images: true, brand: true } } },
   });
+
+  return rows.map((row) => ({
+    ...row.product,
+    stockAtBranch: row.stock,
+    isListedAtBranch: row.isListed,
+  }));
 }
 
 export async function setBranchProduct(branchId: number, productId: string, isListed: boolean) {
@@ -168,6 +184,20 @@ export async function setBranchProduct(branchId: number, productId: string, isLi
     where: { branchId_productId: { branchId, productId } },
     create: { branchId, productId, isListed },
     update: { isListed },
+  });
+}
+
+export async function setBranchProductStock(branchId: number, productId: string, quantity: number) {
+  if (quantity < 0) throw new AppError(400, 'Quantity cannot be negative');
+
+  const branchProduct = await prisma.branchProduct.findUnique({
+    where: { branchId_productId: { branchId, productId } },
+  });
+  if (!branchProduct) throw new AppError(404, 'Product not listed at this branch');
+
+  return prisma.branchProduct.update({
+    where: { branchId_productId: { branchId, productId } },
+    data: { stock: quantity },
   });
 }
 

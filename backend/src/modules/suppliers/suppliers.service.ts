@@ -89,6 +89,22 @@ export async function createPurchase(data: {
       await addStock(data.branchId, partItems);
     }
 
+    for (const item of data.items) {
+      if (!item.productId) continue;
+      await tx.branchProduct.upsert({
+        where: {
+          branchId_productId: { branchId: data.branchId, productId: item.productId },
+        },
+        create: {
+          branchId: data.branchId,
+          productId: item.productId,
+          stock: item.quantity,
+          isListed: true,
+        },
+        update: { stock: { increment: item.quantity } },
+      });
+    }
+
     return created;
   });
 

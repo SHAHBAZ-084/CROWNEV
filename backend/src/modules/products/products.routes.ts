@@ -162,9 +162,11 @@ productsRouter.patch(
 
 productsRouter.delete(
   '/:id',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
-    await productsService.deleteProduct(param(req.params.id));
+    const productId = param(req.params.id);
+    if (!(await assertBranchProductAccess(req, productId, res))) return;
+    await productsService.deleteProduct(productId);
     res.status(204).send();
   })
 );
@@ -307,6 +309,24 @@ branchProductsRouter.put(
       branchId,
       param(req.params.productId),
       req.body.isListed
+    );
+    res.json(result);
+  })
+);
+
+branchProductsRouter.patch(
+  '/:branchId/products/:productId/stock',
+  validateBody(z.object({ quantity: z.number().int().min(0) })),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const result = await productsService.setBranchProductStock(
+      branchId,
+      param(req.params.productId),
+      req.body.quantity
     );
     res.json(result);
   })

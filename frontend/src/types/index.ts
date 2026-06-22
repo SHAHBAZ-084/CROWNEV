@@ -23,7 +23,8 @@ export interface Product {
   colorOptions?: string[] | null;
   brand?: { id: number; name: string } | null;
   category?: { id: number; name: string } | null;
-  images?: { url: string; isPrimary: boolean }[];
+  images?: { id?: number; url: string; isPrimary: boolean; sortOrder?: number }[];
+  stockAtBranch?: number;
 }
 
 export interface Branch {

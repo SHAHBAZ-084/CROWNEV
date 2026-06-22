@@ -3,6 +3,7 @@ import {
   OrderType,
   PaymentMethod,
   PaymentStatus,
+  Prisma,
   ProductType,
   WalkInLedgerType,
 } from '@prisma/client';
@@ -198,13 +199,47 @@ async function validateAndPriceItems(
     throw new AppError(400, 'One or more products not found or inactive');
   }
 
-  return items.map((item) => {
+  const pricedItems: {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    color?: string;
+    chassisNumber?: string;
+    product: (typeof products)[number];
+  }[] = [];
+
+  for (const item of items) {
     const product = products.find((p) => p.id === item.productId)!;
     if (product.branchProducts.length === 0) {
       throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
     }
+
+    if (product.type === ProductType.BIKE) {
+      const stock = product.branchProducts[0]?.stock ?? 0;
+      if (stock < item.quantity) {
+        throw new AppError(
+          400,
+          `Insufficient stock for ${product.name}. Available: ${stock}`
+        );
+      }
+    }
+
+    if (product.type === ProductType.PART) {
+      for (const detail of product.bikePartDetails) {
+        if (!detail.partId) continue;
+        const inventory = await prisma.inventory.findUnique({
+          where: { branchId_partId: { branchId, partId: detail.partId } },
+        });
+        const available = inventory?.quantity ?? 0;
+        if (available < item.quantity) {
+          throw new AppError(400, `Insufficient part stock for ${product.name}`);
+        }
+      }
+    }
+
     const unitPrice = Number(product.salePrice ?? product.price);
-    return {
+    pricedItems.push({
       productId: item.productId,
       quantity: item.quantity,
       unitPrice,
@@ -212,8 +247,10 @@ async function validateAndPriceItems(
       color: item.color,
       chassisNumber: item.chassisNumber,
       product,
-    };
-  });
+    });
+  }
+
+  return pricedItems;
 }
 
 export async function createOnlineOrder(data: {
@@ -302,7 +339,7 @@ export async function createPosOrder(data: {
       include: { items: { include: { product: { include: { bikePartDetails: true } } } } },
     });
 
-    await deductPartsForOrder(data.branchId, created.items);
+    await deductStockForOrder(data.branchId, created.items, tx);
 
     if (!isPaid && data.walkInCustomerId) {
       const customer = await tx.walkInCustomer.findUniqueOrThrow({
@@ -331,13 +368,33 @@ export async function createPosOrder(data: {
   return order;
 }
 
-async function deductPartsForOrder(
+async function deductStockForOrder(
   branchId: number,
-  items: { productId: string; quantity: number; product: { type: ProductType; bikePartDetails: { partId: number | null }[] } }[]
+  items: {
+    productId: string;
+    quantity: number;
+    product: { type: ProductType; bikePartDetails: { partId: number | null }[] };
+  }[],
+  tx?: Prisma.TransactionClient
 ) {
+  const db = tx ?? prisma;
   const partDeductions: { partId: number; quantity: number }[] = [];
 
   for (const item of items) {
+    if (item.product.type === ProductType.BIKE) {
+      const branchProduct = await db.branchProduct.findUnique({
+        where: { branchId_productId: { branchId, productId: item.productId } },
+      });
+      if (!branchProduct || branchProduct.stock < item.quantity) {
+        throw new AppError(400, 'Insufficient bike stock');
+      }
+      await db.branchProduct.update({
+        where: { branchId_productId: { branchId, productId: item.productId } },
+        data: { stock: { decrement: item.quantity } },
+      });
+      continue;
+    }
+
     if (item.product.type !== ProductType.PART) continue;
     for (const detail of item.product.bikePartDetails) {
       if (detail.partId) {
@@ -346,9 +403,26 @@ async function deductPartsForOrder(
     }
   }
 
-  if (partDeductions.length > 0) {
-    await deductStock(branchId, partDeductions);
+  if (partDeductions.length === 0) return;
+
+  if (tx) {
+    for (const part of partDeductions) {
+      const inventory = await tx.inventory.findUnique({
+        where: { branchId_partId: { branchId, partId: part.partId } },
+      });
+      const currentQty = inventory?.quantity ?? 0;
+      if (currentQty < part.quantity) {
+        throw new AppError(400, `Insufficient stock for part ${part.partId}`);
+      }
+      await tx.inventory.update({
+        where: { branchId_partId: { branchId, partId: part.partId } },
+        data: { quantity: currentQty - part.quantity },
+      });
+    }
+    return;
   }
+
+  await deductStock(branchId, partDeductions);
 }
 
 export async function updateOrderStatus(id: number, status: OrderStatus, branchId?: number) {
@@ -374,7 +448,7 @@ async function confirmOrder(order: {
     where: { orderId: order.id },
     include: { product: { include: { bikePartDetails: true } } },
   });
-  await deductPartsForOrder(order.branchId, itemsWithDetails);
+  await deductStockForOrder(order.branchId, itemsWithDetails);
 }
 
 export async function approvePayment(id: number, approved: boolean, branchId?: number) {

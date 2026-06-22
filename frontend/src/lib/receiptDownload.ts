@@ -24,6 +24,12 @@ function esc(value: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
+function row(label: string, value: string): string {
+  return `<tr><td class="label">${label}</td><td class="value">${value}</td></tr>`;
+}
+
+const RECEIPT_WIDTH = '72mm';
+
 export function downloadBookingReceipt(receipt: Record<string, unknown>) {
   const branch = (receipt.branch ?? {}) as Record<string, unknown>;
   const customer = (receipt.customer ?? {}) as Record<string, unknown>;
@@ -32,77 +38,186 @@ export function downloadBookingReceipt(receipt: Record<string, unknown>) {
   const visitTime = receipt.confirmedTime ?? receipt.time;
   const hasVisitSchedule = Boolean(visitDate && visitTime);
 
-  const scheduleSection = hasVisitSchedule
-    ? `<div class="confirmed-box">
-    <div class="label">Scheduled Visit</div>
-    <div class="time">${formatTime(visitTime)}</div>
-    <div class="date">${formatDate(visitDate)}</div>
-    <p class="hint">Please arrive at the branch on this date and time.</p>
-  </div>`
-    : `<div class="section">
-    <h2>Visit Schedule</h2>
-    <p>Appointment date and time will be confirmed by the branch.</p>
-  </div>`;
+  const serviceName = esc(service.name ?? 'Service request');
+  const serviceDuration = service.duration ? ` (${esc(service.duration)} min)` : '';
+
+  const scheduleBlock = hasVisitSchedule
+    ? `<div class="rule">************************</div>
+  <p class="center bold">SCHEDULED VISIT</p>
+  <p class="center big">${formatTime(visitTime)}</p>
+  <p class="center mid">${formatDate(visitDate)}</p>
+  <p class="center small">Arrive on time</p>`
+    : `<div class="rule">************************</div>
+  <p class="center small">Visit pending</p>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Service Booking Receipt #${esc(receipt.bookingId)}</title>
+  <meta name="viewport" content="width=${RECEIPT_WIDTH}, initial-scale=1" />
+  <title>Booking #${esc(receipt.bookingId)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; padding: 40px; max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 22px; color: #0d4f2b; margin-bottom: 4px; }
-    .subtitle { font-size: 13px; color: #666; margin-bottom: 28px; }
-    .badge { display: inline-block; background: #0d4f2b; color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 24px; }
-    .section { margin-bottom: 20px; }
-    .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 6px; }
-    .section p { font-size: 14px; line-height: 1.6; }
-    .confirmed-box { background: #f0fdf4; border: 2px solid #0d4f2b; border-radius: 8px; padding: 16px 20px; margin: 24px 0; text-align: center; }
-    .confirmed-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #0d4f2b; font-weight: bold; }
-    .confirmed-box .time { font-size: 28px; font-weight: bold; color: #0d4f2b; margin: 8px 0 4px; }
-    .confirmed-box .date { font-size: 16px; color: #333; font-weight: 600; }
-    .confirmed-box .hint { font-size: 12px; color: #555; margin-top: 10px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
-    @media print { body { padding: 20px; } }
+    html {
+      width: ${RECEIPT_WIDTH};
+      margin: 0 auto;
+    }
+    @page {
+      size: ${RECEIPT_WIDTH} auto;
+      margin: 3mm;
+    }
+    body {
+      width: ${RECEIPT_WIDTH};
+      max-width: ${RECEIPT_WIDTH};
+      margin: 0 auto;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 11px;
+      line-height: 1.3;
+      color: #000;
+      background: #fff;
+      padding: 8px 6px 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .center { text-align: center; }
+    .shop {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+    .meta {
+      font-size: 10px;
+      line-height: 1.35;
+      margin-bottom: 1px;
+    }
+    .rule {
+      text-align: center;
+      font-size: 9px;
+      margin: 6px 0;
+      letter-spacing: 0;
+      overflow: hidden;
+    }
+    .bold {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      margin: 2px 0;
+    }
+    .big {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 3px 0 1px;
+    }
+    .mid {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .small {
+      font-size: 9px;
+      color: #333;
+      margin: 2px 0;
+    }
+    table.details {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 4px 0;
+      font-size: 10px;
+    }
+    table.details td {
+      padding: 2px 0;
+      vertical-align: top;
+    }
+    table.details .label {
+      width: 42%;
+      color: #222;
+      padding-right: 4px;
+    }
+    table.details .value {
+      width: 58%;
+      text-align: right;
+      font-weight: 700;
+      word-break: break-word;
+    }
+    .thanks {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      margin: 8px 0 4px;
+    }
+    .barcode {
+      display: block;
+      margin: 6px auto 0;
+      height: 28px;
+      width: 85%;
+      max-width: 58mm;
+      background: repeating-linear-gradient(
+        90deg,
+        #000 0 1.5px,
+        #fff 1.5px 3px,
+        #000 3px 4px,
+        #fff 4px 6px
+      );
+    }
+    @media screen {
+      body {
+        margin: 20px auto;
+        box-shadow: 0 4px 20px rgb(0 0 0 / 15%);
+        border: 1px solid #ddd;
+      }
+    }
+    @media print {
+      html, body {
+        width: ${RECEIPT_WIDTH} !important;
+        max-width: ${RECEIPT_WIDTH} !important;
+        margin: 0 auto !important;
+        padding: 4px 6px !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>CROWN EV — Service Booking Receipt</h1>
-  <p class="subtitle">Booking #${esc(receipt.bookingId)}</p>
-  <span class="badge">${esc(receipt.status)}</span>
+  <p class="center shop">CROWN EV</p>
+  <p class="center meta">${esc(branch.name)}</p>
+  <p class="center meta">${esc(branch.location)}</p>
+  ${branch.phone ? `<p class="center meta">Tel. ${esc(branch.phone)}</p>` : ''}
 
-  <div class="grid">
-    <div class="section">
-      <h2>Branch</h2>
-      <p><strong>${esc(branch.name)}</strong><br/>
-      ${esc(branch.location)}<br/>
-      ${branch.phone ? `Phone: ${esc(branch.phone)}` : ''}</p>
-    </div>
-    <div class="section">
-      <h2>Customer</h2>
-      <p><strong>${esc(customer.name)}</strong><br/>
-      ${customer.phone ? `Phone: ${esc(customer.phone)}` : ''}</p>
-    </div>
-  </div>
+  <div class="rule">************************</div>
+  <p class="center bold">SERVICE BOOKING</p>
+  <div class="rule">************************</div>
 
-  <div class="section">
-    <h2>Service</h2>
-    <p><strong>${esc(service.name)}</strong>${service.duration ? ` — ${esc(service.duration)} min` : ''}</p>
-  </div>
+  <table class="details">
+    ${row('Booking #', esc(receipt.bookingId))}
+    ${row('Status', esc(receipt.status))}
+  </table>
 
-  ${scheduleSection}
+  <div class="rule">------------------------</div>
 
-  <div class="footer">
-    Please show this receipt when you arrive at the branch.<br/>
-    Generated by Crown EV Management System.
-  </div>
-  <script>window.onload = function() { window.print(); };</script>
+  <table class="details">
+    ${row('Customer', esc(customer.name))}
+    ${customer.phone ? row('Phone', esc(customer.phone)) : ''}
+    ${row('Service', `${serviceName}${serviceDuration}`)}
+  </table>
+
+  ${scheduleBlock}
+
+  <div class="rule">************************</div>
+  <p class="center small">Show at branch</p>
+  <p class="center thanks">THANK YOU!</p>
+  <div class="barcode" aria-hidden="true"></div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 150);
+    };
+  </script>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
+  const win = window.open('', '_blank', 'width=320,height=520,scrollbars=yes');
   if (!win) {
     alert('Please allow pop-ups to download the receipt.');
     return;

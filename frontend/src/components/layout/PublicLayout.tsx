@@ -109,7 +109,22 @@ export function PublicNavbar() {
             {publicLinks.map((l) => (
               <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-text-muted hover:text-accent">{l.label}</Link>
             ))}
-            {!user && (
+            {user ? (
+              <div className="mt-4 space-y-2 border-t border-border pt-4">
+                {dashLink && (
+                  <Link to={dashLink} className="block">
+                    <Button variant="secondary" size="sm" className="w-full">Dashboard</Button>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="w-full rounded-lg border border-border py-2 text-sm font-medium text-text-muted hover:bg-surface-alt hover:text-brand"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
               <div className="mt-4 flex gap-2">
                 <Link to="/login" className="flex-1"><Button variant="secondary" size="sm" className="w-full">Login</Button></Link>
                 <Link to="/register" className="flex-1"><Button variant="accent" size="sm" className="w-full">Register</Button></Link>
@@ -294,7 +309,7 @@ export function ScrollToTop() {
       exit={{ opacity: 0, scale: 0.85 }}
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Scroll to top"
-      className="fixed bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white text-brand shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white"
+      className="fixed bottom-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white text-brand shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white sm:bottom-5 sm:left-auto sm:right-5"
     >
       <ChevronUp className="h-5 w-5" />
     </motion.button>

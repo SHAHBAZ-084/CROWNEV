@@ -129,3 +129,23 @@ authRouter.patch(
     res.json(user);
   })
 );
+
+authRouter.post(
+  '/change-password',
+  authenticate,
+  authLimiter,
+  validateBody(
+    z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const result = await authService.changePassword(
+      req.user!.userId,
+      req.body.currentPassword,
+      req.body.newPassword
+    );
+    res.json(result);
+  })
+);

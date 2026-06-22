@@ -181,6 +181,28 @@ bookingsRouter.patch(
   })
 );
 
+bookingsRouter.delete(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const id = parseInt(param(req.params.id), 10);
+    const branchId =
+      req.user!.role === Role.BRANCH_OWNER
+        ? req.user!.branchId!
+        : parseInt(req.query.branchId as string, 10);
+    if (!branchId || Number.isNaN(branchId)) {
+      res.status(400).json({ error: 'branchId is required' });
+      return;
+    }
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    await servicesService.deleteBooking(id, branchId);
+    res.status(204).send();
+  })
+);
+
 bookingsRouter.get(
   '/:id/receipt',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER, Role.CUSTOMER),

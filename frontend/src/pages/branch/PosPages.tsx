@@ -65,7 +65,28 @@ export function PosAccountsPage() {
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
   const [modal, setModal] = useState<'account' | 'category' | null>(null);
+  const [viewCategory, setViewCategory] = useState<Row | null>(null);
+  const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const categoryAccounts = useMemo(() => {
+    if (!viewCategory) return [];
+    const categoryId = Number(viewCategory.id);
+    return accounts.filter((a) => {
+      const cid = a.categoryId ?? (a.category as { id?: number })?.id;
+      return Number(cid) === categoryId;
+    });
+  }, [accounts, viewCategory]);
+
+  function openAddAccount(categoryId?: number) {
+    setPresetCategoryId(categoryId ?? null);
+    setModal('account');
+  }
+
+  function closeAccountModal() {
+    setModal(null);
+    setPresetCategoryId(null);
+  }
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -87,7 +108,7 @@ export function PosAccountsPage() {
         openingBalance: parseFloat(String(fd.get('openingBalance') || '0')) || 0,
       });
       toast('Account created', 'success');
-      setModal(null);
+      closeAccountModal();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -131,6 +152,7 @@ export function PosAccountsPage() {
       if (!branchId) return;
       await branchApi.deleteAccountCategory(branchId, Number(row.id));
       toast('Category removed', 'success');
+      if (viewCategory?.id === row.id) setViewCategory(null);
       reload();
     },
     {
@@ -147,28 +169,41 @@ export function PosAccountsPage() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setModal('category')}>+ Category</Button>
-            <Button variant="accent" size="sm" onClick={() => setModal('account')}>Add Account</Button>
+            <Button variant="accent" size="sm" onClick={() => openAddAccount()}>Add Account</Button>
           </div>
         }
       />
       <div className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-text">Categories</h2>
         <DataTable
+          compact
           columns={[
             { key: 'name', header: 'Name' },
             {
               key: 'accounts',
               header: 'Accounts',
+              className: 'w-24',
               render: (r) => String((r.accounts as unknown[] | undefined)?.length ?? 0),
             },
             {
               key: 'actions',
               header: '',
+              align: 'right',
+              className: 'w-44',
               render: (r) => (
-                <RowActions
-                  deleteLabel="Delete"
-                  onDelete={() => categoryDelete.setTarget(r)}
-                />
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewCategory(r)}
+                    className="inline-flex items-center rounded-lg border border-brand px-2 py-1 text-xs font-medium text-brand hover:bg-brand/5"
+                  >
+                    View Accounts
+                  </button>
+                  <RowActions
+                    deleteLabel="Delete"
+                    onDelete={() => categoryDelete.setTarget(r)}
+                  />
+                </div>
               ),
             },
           ]}
@@ -177,34 +212,62 @@ export function PosAccountsPage() {
         />
         {categoryDelete.modal}
       </div>
-      <h2 className="mb-3 text-sm font-semibold text-text">Accounts</h2>
-      <DataTable
-        columns={[
-          { key: 'code', header: 'Code' },
-          { key: 'name', header: 'Name' },
-          { key: 'type', header: 'Type' },
-          { key: 'category', header: 'Category', render: (r) => (r.category as { name: string })?.name ?? '—' },
-          { key: 'balance', header: 'Balance', render: (r) => formatLedgerBalance(Number((r.ledger as { balance: number })?.balance ?? 0)) },
-          {
-            key: 'actions',
-            header: '',
-            render: (r) => (
-              <RowActions
-                deleteLabel="Delete"
-                onDelete={() => accountDelete.setTarget(r)}
-              />
-            ),
-          },
-        ]}
-        data={accounts}
-      />
-      {accountDelete.modal}
 
-      <Modal open={modal === 'account'} onClose={() => setModal(null)} title="Add Account">
-        <form onSubmit={handleAccount} className="space-y-4">
+      <Modal
+        open={!!viewCategory}
+        onClose={() => setViewCategory(null)}
+        title={viewCategory ? `Accounts — ${String(viewCategory.name)}` : 'Accounts'}
+        size="lg"
+      >
+        <div className="mb-4 flex justify-end">
+          <Button
+            size="sm"
+            variant="accent"
+            onClick={() => viewCategory && openAddAccount(Number(viewCategory.id))}
+          >
+            Add Account
+          </Button>
+        </div>
+        <DataTable
+          compact
+          columns={[
+            { key: 'code', header: 'Code' },
+            { key: 'name', header: 'Name' },
+            { key: 'type', header: 'Type' },
+            {
+              key: 'balance',
+              header: 'Balance',
+              render: (r) => formatLedgerBalance(Number((r.ledger as { balance: number })?.balance ?? 0)),
+            },
+            {
+              key: 'actions',
+              header: '',
+              align: 'right',
+              className: 'w-28',
+              render: (r) => (
+                <RowActions
+                  deleteLabel="Delete"
+                  onDelete={() => accountDelete.setTarget(r)}
+                />
+              ),
+            },
+          ]}
+          data={categoryAccounts}
+          emptyMessage="No accounts in this category yet"
+        />
+        {accountDelete.modal}
+      </Modal>
+
+      <Modal open={modal === 'account'} onClose={closeAccountModal} title="Add Account">
+        <form key={presetCategoryId ?? 'new'} onSubmit={handleAccount} className="space-y-4">
           <div className="flex items-end justify-between gap-2">
             <div className="flex-1">
-              <Select name="categoryId" label="Category" required>
+              <Select
+                name="categoryId"
+                label="Category"
+                required
+                defaultValue={presetCategoryId ? String(presetCategoryId) : ''}
+              >
                 <option value="">Select category</option>
                 {categories.map((c) => <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>)}
               </Select>
@@ -213,7 +276,7 @@ export function PosAccountsPage() {
           </div>
           <Input name="name" label="Account Name" required />
           <Input name="openingBalance" label="Opening Balance" type="number" step="0.01" min="0" defaultValue="0" />
-          <FormActions onCancel={() => setModal(null)} loading={saving} />
+          <FormActions onCancel={closeAccountModal} loading={saving} />
         </form>
       </Modal>
 

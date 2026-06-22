@@ -1,11 +1,10 @@
 import { Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   ExternalLink, Receipt, CreditCard, BookOpen, Search,
-  Wallet, Users, FileText, ShoppingBag, ScrollText, BarChart3,
+  Wallet, Users, FileText, ShoppingBag, ScrollText, BarChart3, Handshake,
 } from 'lucide-react';
 import { DashboardSidebar, type SidebarNavSection } from './DashboardSidebar';
-import { DASHBOARD_SIDEBAR_WIDTH } from './dashboardConstants';
+import { DashboardShell } from './DashboardShell';
 import { useAuth } from '../../contexts/AuthContext';
 
 const posSections: SidebarNavSection[] = [
@@ -23,6 +22,7 @@ const posSections: SidebarNavSection[] = [
     items: [
       { to: '/branch/workspace/accounts', label: 'Accounts', icon: Wallet },
       { to: '/branch/workspace/customers', label: 'Customers', icon: Users },
+      { to: '/branch/workspace/suppliers', label: 'Suppliers', icon: Handshake },
     ],
   },
   {
@@ -54,38 +54,33 @@ export function BranchWorkspaceLayout() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-surface-alt">
-      <DashboardSidebar
-        sections={posSections}
-        role="BRANCH_OWNER"
-        showBadge={false}
-        userName={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
-        userEmail={user?.email}
-        userMeta={user?.branchId ? `Branch #${user.branchId}` : undefined}
-        onSignOut={() => logout()}
-        footerExtra={
-          <a
-            href="/branch"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-text-muted transition-colors hover:bg-accent/5 hover:text-brand"
-          >
-            <ExternalLink className="h-4 w-4 shrink-0" />
-            Main dashboard
-          </a>
-        }
-      />
-
-      <div className="flex-1" style={{ marginLeft: DASHBOARD_SIDEBAR_WIDTH }}>
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="p-6 lg:p-8"
-        >
-          <Outlet />
-        </motion.div>
-      </div>
-    </div>
+    <DashboardShell
+      sidebar={({ mobileOpen, onNavigate }) => (
+        <DashboardSidebar
+          sections={posSections}
+          role="BRANCH_OWNER"
+          showBadge={false}
+          userName={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+          userEmail={user?.email}
+          userMeta={user?.branchId ? `Branch #${user.branchId}` : undefined}
+          mobileOpen={mobileOpen}
+          onNavigate={onNavigate}
+          onSignOut={() => logout()}
+          footerExtra={
+            <a
+              href="/branch"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-text-muted transition-colors hover:bg-accent/5 hover:text-brand"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              Main dashboard
+            </a>
+          }
+        />
+      )}
+    >
+      <Outlet />
+    </DashboardShell>
   );
 }

@@ -63,7 +63,7 @@ export default function LandingPage() {
 
       {data?.stats && (
         <section className="border-y border-border bg-white py-16">
-          <div className="mx-auto grid max-w-7xl grid-cols-3 gap-8 px-4 lg:px-8">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:grid-cols-3 sm:gap-8 lg:px-8">
             {[
               { label: 'Branches Nationwide', value: data.stats.branches },
               { label: 'Products Available', value: data.stats.products },

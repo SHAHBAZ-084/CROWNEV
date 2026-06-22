@@ -52,7 +52,7 @@ export function WhatsAppFloat() {
   }
 
   return (
-    <div className="fixed bottom-20 right-5 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 sm:right-5">
       <AnimatePresence>
         {open && (
           <motion.div
