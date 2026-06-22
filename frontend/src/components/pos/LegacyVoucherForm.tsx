@@ -1,9 +1,9 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { formatLedgerBalance } from '../../lib/format';
 import { Button } from '../ui/Button';
+import { WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
 import { Input } from '../ui/Input';
 import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
 
@@ -107,7 +107,6 @@ export function LegacyVoucherScreen({
   title: string;
   branchId: number | null;
 }) {
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [accounts, setAccounts] = useState<Row[]>([]);
@@ -306,9 +305,7 @@ export function LegacyVoucherScreen({
           />
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-border/60 pt-5">
-            <Button type="button" variant="ghost" size="sm" onClick={() => navigate('/branch/workspace/pos')}>
-              Close
-            </Button>
+            <WorkspaceCloseButton />
             <Button type="submit" variant="accent" size="sm" loading={saving}>
               Save
             </Button>

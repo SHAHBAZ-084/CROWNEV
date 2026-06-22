@@ -1,3 +1,4 @@
+import { randomInt, randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
@@ -20,13 +21,13 @@ export function verifyToken(token: string): JwtPayload {
 }
 
 export function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 export function generateTrackingId(): string {
   const prefix = 'CE';
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const random = randomBytes(2).toString('hex').toUpperCase();
   return `${prefix}-${timestamp}-${random}`;
 }
 

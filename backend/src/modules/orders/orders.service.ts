@@ -190,7 +190,7 @@ export async function trackOrder(trackingId: string) {
   return order;
 }
 
-async function validateAndPriceItems(
+export async function validateAndPriceItems(
   branchId: number,
   items: { productId: string; quantity: number; unitPrice?: number; color?: string; chassisNumber?: string }[]
 ) {
@@ -398,9 +398,14 @@ export async function createSaleInvoice(data: {
   createdById: string;
 }) {
   const customer = await prisma.customer.findFirst({
-    where: { id: data.customerId, branchId: data.branchId, isActive: true },
+    where: {
+      id: data.customerId,
+      branchId: data.branchId,
+      type: CustomerType.WALK_IN,
+      isActive: true,
+    },
   });
-  if (!customer) throw new AppError(404, 'Customer not found');
+  if (!customer) throw new AppError(404, 'Walk-in customer not found');
 
   const reference = data.reference.trim();
   if (!reference) throw new AppError(400, 'Reference is required');
@@ -490,7 +495,7 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
 
   const entries = await prisma.customerLedger.findMany({
     where: { customerId },
-    include: { order: true },
+    include: { order: true, serviceInvoice: true },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
 
@@ -515,14 +520,19 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
     totalDebit += debit;
     totalCredit += credit;
     const orderRef = e.order?.saleReference?.trim() || null;
+    const serviceRef = e.serviceInvoice?.reference?.trim() || null;
+    const ref = orderRef ?? serviceRef;
+    const isService = Boolean(serviceRef && !orderRef);
     rows.push({
       date: e.createdAt.toISOString(),
-      voucherNo: orderRef ? `SI-${orderRef}` : `CL-${e.id}`,
-      ref: orderRef,
-      type: e.type === CustomerLedgerType.DEBIT ? 'Sale' : 'Receipt',
+      voucherNo: orderRef ? `SI-${orderRef}` : serviceRef ? `SVI-${serviceRef}` : `CL-${e.id}`,
+      ref,
+      type: e.type === CustomerLedgerType.DEBIT ? (isService ? 'Service' : 'Sale') : 'Receipt',
       description:
         e.type === CustomerLedgerType.DEBIT
-          ? `From sale revenue to ${customer.name}`
+          ? isService
+            ? `From service revenue to ${customer.name}`
+            : `From sale revenue to ${customer.name}`
           : (e.notes ?? 'Payment'),
       debit,
       credit,
@@ -546,7 +556,7 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
   };
 }
 
-async function deductStockForOrder(
+export async function deductStockForOrder(
   branchId: number,
   items: {
     productId: string;

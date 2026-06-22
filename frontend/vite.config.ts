@@ -4,6 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      // Tailwind v4 uses oklab/oklch; stock html2canvas cannot parse them.
+      html2canvas: 'html2canvas-pro',
+    },
+  },
   build: {
     rollupOptions: {
       output: {

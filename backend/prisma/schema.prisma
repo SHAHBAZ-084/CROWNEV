@@ -165,6 +165,7 @@ model OtpVerification {
   payload   Json?
   expiresAt DateTime
   usedAt    DateTime?
+  failedAttempts Int @default(0)
   createdAt DateTime @default(now())
 
   @@index([email, type])
@@ -194,6 +195,7 @@ model Branch {
   serviceBookings    ServiceBooking[]
   suppliers          Supplier[]
   purchases          Purchase[]
+  serviceInvoices    ServiceInvoice[]
   stockAdjustments   StockAdjustment[]
   customers          Customer[]
   bankAccounts       BankAccount[]
@@ -293,6 +295,7 @@ model Product {
   bikePartDetails BikePartDetail[]
   orderItems     OrderItem[]
   purchaseItems  PurchaseItem[]
+  serviceInvoiceItems ServiceInvoiceItem[]
 
   @@index([type])
   @@index([brandId])
@@ -635,6 +638,7 @@ model Customer {
   branch  Branch?          @relation(fields: [branchId], references: [id])
   user    User?            @relation(fields: [userId], references: [id])
   orders  Order[]
+  serviceInvoices ServiceInvoice[]
   ledger  CustomerLedger[]
 
   @@unique([branchId, cnic])
@@ -648,6 +652,7 @@ model CustomerLedger {
   id         Int                @id @default(autoincrement())
   customerId Int
   orderId    Int?
+  serviceInvoiceId Int?
   type       CustomerLedgerType
   amount     Decimal            @db.Decimal(12, 2)
   balance    Decimal            @db.Decimal(12, 2)
@@ -656,9 +661,49 @@ model CustomerLedger {
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   order    Order?   @relation(fields: [orderId], references: [id])
+  serviceInvoice ServiceInvoice? @relation(fields: [serviceInvoiceId], references: [id])
 
   @@index([customerId])
   @@index([createdAt])
+}
+
+// ─── 23b. Service Invoice (POS) ─────────────────────────────────────────────
+
+model ServiceInvoice {
+  id         Int      @id @default(autoincrement())
+  branchId   Int
+  customerId Int
+  reference  String
+  labourCost Decimal  @db.Decimal(12, 2)
+  partsTotal Decimal  @db.Decimal(12, 2)
+  total      Decimal  @db.Decimal(12, 2)
+  notes      String?
+  createdById String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  branch   Branch               @relation(fields: [branchId], references: [id])
+  customer Customer             @relation(fields: [customerId], references: [id])
+  items    ServiceInvoiceItem[]
+  ledger   CustomerLedger[]
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model ServiceInvoiceItem {
+  id               Int     @id @default(autoincrement())
+  serviceInvoiceId Int
+  productId        String
+  quantity         Int
+  unitPrice        Decimal @db.Decimal(12, 2)
+  total            Decimal @db.Decimal(12, 2)
+
+  serviceInvoice ServiceInvoice @relation(fields: [serviceInvoiceId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id])
+
+  @@index([serviceInvoiceId])
 }
 
 // ─── 24. BankAccount ─────────────────────────────────────────────────────────

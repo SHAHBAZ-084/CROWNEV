@@ -14,6 +14,7 @@ import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../lib/format';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
+import { PosNavGrid } from '../../components/layout/PosNavGrid';
 
 type Row = Record<string, unknown>;
 
@@ -31,14 +32,6 @@ function useBranchId() {
 }
 
 // ─── POS ─────────────────────────────────────────────────────────────────────
-
-function isToday(date: string | Date) {
-  const d = new Date(date);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear()
-    && d.getMonth() === now.getMonth()
-    && d.getDate() === now.getDate();
-}
 
 function StockBadge({ stock, alertAt = 3 }: { stock: number; alertAt?: number }) {
   if (stock <= 0) {
@@ -60,21 +53,11 @@ export function BranchPOSPage() {
   useEffect(() => {
     if (!branchId) return;
     setLoading(true);
-    Promise.all([
-      branchApi.vouchers(branchId),
-      branchApi.walkInCustomers(branchId),
-      branchApi.orders({ limit: '500' }),
-    ])
-      .then(([vouchers, customersRes, ordersRes]) => {
-        setTodayVouchers((vouchers as Row[]).filter((v) => isToday(String(v.createdAt)) && v.status !== 'CANCELLED').length);
-        setTodayCustomers((customersRes.data as Row[]).filter((c) => isToday(String(c.createdAt))).length);
-        const salesToday = (ordersRes.data as unknown as Row[]).filter(
-          (o) =>
-            Number(o.branchId) === branchId &&
-            isToday(String(o.createdAt)) &&
-            o.status !== 'CANCELLED',
-        );
-        setTodaySales(salesToday.reduce((sum, o) => sum + Number(o.total ?? 0), 0));
+    branchApi.posStats(branchId)
+      .then((stats) => {
+        setTodayVouchers(stats.todayVouchers);
+        setTodayCustomers(stats.todayCustomers);
+        setTodaySales(stats.todaySales);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -96,6 +79,11 @@ export function BranchPOSPage() {
           <StatCard label="Today Sales" value={todaySales} icon={ShoppingCart} prefix="PKR " />
         </div>
       )}
+
+      <div>
+        <h2 className="mb-4 font-display text-sm font-bold text-brand">Workspace</h2>
+        <PosNavGrid />
+      </div>
     </div>
   );
 }
@@ -115,7 +103,6 @@ export function BranchOrdersPage() {
   const [orders, setOrders] = useState<Row[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
   const [paymentModal, setPaymentModal] = useState<Row | null>(null);
   const [cargoModal, setCargoModal] = useState<Row | null>(null);
@@ -126,12 +113,11 @@ export function BranchOrdersPage() {
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = { type: 'ONLINE' };
     if (statusFilter) params.status = statusFilter;
     if (paymentFilter) params.paymentStatus = paymentFilter;
-    if (typeFilter) params.type = typeFilter;
     branchApi.orders(params).then((r) => setOrders(r.data as unknown as Row[])).catch(console.error);
-  }, [statusFilter, paymentFilter, typeFilter]);
+  }, [statusFilter, paymentFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -185,7 +171,7 @@ export function BranchOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Branch Orders" subtitle="Manage online and POS orders" />
+      <PageHeader title="Branch Orders" subtitle="Online orders — verify payment and set cargo tracking" />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
         <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
@@ -199,11 +185,6 @@ export function BranchOrdersPage() {
           <option value="PAID">PAID</option>
           <option value="REJECTED">REJECTED</option>
         </Select>
-        <Select label="" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:min-w-[120px] sm:w-auto">
-          <option value="">All types</option>
-          <option value="ONLINE">ONLINE</option>
-          <option value="POS">POS</option>
-        </Select>
       </div>
 
       <DataTable
@@ -212,7 +193,6 @@ export function BranchOrdersPage() {
           { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           { key: 'paymentStatus', header: 'Payment', render: (r) => <StatusBadge status={String(r.paymentStatus)} /> },
-          { key: 'type', header: 'Type', render: (r) => <span className="text-xs font-medium">{String(r.type)}</span> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
           {
             key: 'actions',
@@ -232,6 +212,7 @@ export function BranchOrdersPage() {
           },
         ]}
         data={orders}
+        emptyMessage="No online orders yet"
       />
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${String(detail?.trackingId ?? '')}`} size="lg">

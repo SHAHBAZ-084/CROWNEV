@@ -141,6 +141,29 @@ export interface PurchaseInvoiceData {
   notes?: string | null;
 }
 
+export interface ServiceInvoiceData {
+  invoiceAvailable: boolean;
+  invoiceType: 'SERVICE';
+  currency: 'PKR';
+  invoiceNumber: string;
+  reference: string;
+  date: string;
+  branch: { name: string; location: string; phone: string; whatsapp?: string | null };
+  customer: { name: string; email?: string; phone?: string; address?: string };
+  items: {
+    name: string;
+    type: 'BIKE' | 'PART';
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }[];
+  labourCost: number;
+  partsTotal: number;
+  subtotal: number;
+  total: number;
+  notes?: string;
+}
+
 export interface Booking {
   id: number;
   status: string;

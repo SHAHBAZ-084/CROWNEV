@@ -1,4 +1,5 @@
 import { OtpType, Role } from '@prisma/client';
+import { OAuth2Client } from 'google-auth-library';
 import { ensureOnlineCustomer } from '../customers/customers.service.js';
 import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
@@ -10,6 +11,10 @@ import {
   signToken,
 } from '../../utils/crypto.js';
 import { sendOtpEmail } from '../../utils/email.js';
+
+const oauthClient = new OAuth2Client(env.googleClientId);
+
+const MAX_OTP_ATTEMPTS = 5;
 
 type RegistrationPayload = {
   passwordHash: string;
@@ -76,11 +81,21 @@ export async function register(data: {
 
 export async function verifyRegistration(email: string, otp: string) {
   const record = await prisma.otpVerification.findFirst({
-    where: { email, otp, type: OtpType.REGISTRATION, usedAt: null },
+    where: { email, type: OtpType.REGISTRATION, usedAt: null },
     orderBy: { createdAt: 'desc' },
   });
   if (!record || record.expiresAt < new Date()) {
     throw new AppError(400, 'Invalid or expired OTP');
+  }
+  if (record.failedAttempts >= MAX_OTP_ATTEMPTS) {
+    throw new AppError(429, 'Too many OTP attempts. Request a new code.');
+  }
+  if (record.otp !== otp) {
+    await prisma.otpVerification.update({
+      where: { id: record.id },
+      data: { failedAttempts: { increment: 1 } },
+    });
+    throw new AppError(400, 'Invalid OTP');
   }
 
   const payload = parseRegistrationPayload(record.payload);
@@ -193,11 +208,21 @@ export async function forgotPassword(email: string) {
 
 export async function resetPassword(email: string, otp: string, newPassword: string) {
   const record = await prisma.otpVerification.findFirst({
-    where: { email, otp, type: OtpType.PASSWORD_RESET, usedAt: null },
+    where: { email, type: OtpType.PASSWORD_RESET, usedAt: null },
     orderBy: { createdAt: 'desc' },
   });
   if (!record || record.expiresAt < new Date()) {
     throw new AppError(400, 'Invalid or expired OTP');
+  }
+  if (record.failedAttempts >= MAX_OTP_ATTEMPTS) {
+    throw new AppError(429, 'Too many OTP attempts. Request a new code.');
+  }
+  if (record.otp !== otp) {
+    await prisma.otpVerification.update({
+      where: { id: record.id },
+      data: { failedAttempts: { increment: 1 } },
+    });
+    throw new AppError(400, 'Invalid OTP');
   }
 
   const passwordHash = await hashPassword(newPassword);
@@ -215,7 +240,25 @@ export async function resetPassword(email: string, otp: string, newPassword: str
   return { message: 'Password reset successful' };
 }
 
-export async function googleAuth(googleId: string, email: string, firstName: string, lastName: string) {
+export async function googleAuth(idToken: string) {
+  if (!env.googleClientId) {
+    throw new AppError(503, 'Google sign-in is not configured');
+  }
+
+  const ticket = await oauthClient.verifyIdToken({
+    idToken,
+    audience: env.googleClientId,
+  });
+  const payload = ticket.getPayload();
+  if (!payload?.sub || !payload?.email) {
+    throw new AppError(401, 'Invalid Google token');
+  }
+
+  const googleId = payload.sub;
+  const email = payload.email;
+  const firstName = payload.given_name ?? '';
+  const lastName = payload.family_name ?? '';
+
   let user = await prisma.user.findFirst({
     where: { OR: [{ googleId }, { email }] },
   });
@@ -241,6 +284,8 @@ export async function googleAuth(googleId: string, email: string, firstName: str
       data: { googleId, isVerified: true },
     });
   }
+
+  if (!user.isActive) throw new AppError(403, 'Account deactivated');
 
   await ensureOnlineCustomer(user);
 

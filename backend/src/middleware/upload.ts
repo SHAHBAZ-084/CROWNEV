@@ -24,11 +24,18 @@ fs.mkdirSync(paymentsDir, { recursive: true });
 
 const paymentMimes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
+
 export const paymentScreenshotUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, paymentsDir),
     filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      const ext = MIME_TO_EXT[file.mimetype] ?? '.jpg';
       cb(null, `${uuidv4()}${ext}`);
     },
   }),

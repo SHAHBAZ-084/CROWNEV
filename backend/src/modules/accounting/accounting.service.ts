@@ -66,6 +66,7 @@ export const SUPPLIERS_CATEGORY_NAME = 'Suppliers';
 
 export const INCOME_CATEGORY_NAME = 'Income';
 export const SALE_REVENUE_ACCOUNT_NAME = 'Sale Revenue';
+export const SERVICE_REVENUE_ACCOUNT_NAME = 'Service Revenue';
 export const INVENTORY_CATEGORY_NAME = 'Inventory';
 export const INVENTORY_ACCOUNT_NAME = 'Inventory';
 
@@ -108,9 +109,9 @@ export async function listAccountCategories(branchId: number) {
     ensureInventoryCategory(branchId),
   ]);
 
-  // Ensure inventory account + ledger exist for the branch
+  // Ensure inventory account + ledger exist; merge any duplicate "Inventory" accounts
   await prisma.$transaction(async (tx) => {
-    await ensureInventoryAccount(tx, branchId);
+    await consolidateDuplicateInventoryAccounts(tx, branchId);
   });
 
   const [categories, customerCount, supplierCount, inventoryAccounts] = await Promise.all([
@@ -307,6 +308,13 @@ export async function createAccount(data: {
 }) {
   const trimmedName = await assertUniqueAccountName(data.branchId, data.name);
 
+  if (isInventoryAccountName(trimmedName)) {
+    throw new AppError(
+      400,
+      'The Inventory account is managed automatically under the Inventory category',
+    );
+  }
+
   const category = await prisma.accountCategory.findFirst({
     where: { id: data.categoryId, branchId: data.branchId, isActive: true },
   });
@@ -406,6 +414,10 @@ async function assertUniqueAccountCode(branchId: number, code: string) {
 
 function isSaleRevenueAccountName(name?: string | null) {
   return name?.trim().toLowerCase() === SALE_REVENUE_ACCOUNT_NAME.toLowerCase();
+}
+
+function isServiceRevenueAccountName(name?: string | null) {
+  return name?.trim().toLowerCase() === SERVICE_REVENUE_ACCOUNT_NAME.toLowerCase();
 }
 
 function isInventoryAccountName(name?: string | null) {
@@ -540,6 +552,10 @@ function reportBalanceFromEntries(
 }
 
 export async function listAccounts(branchId: number) {
+  await prisma.$transaction(async (tx) => {
+    await consolidateDuplicateInventoryAccounts(tx, branchId);
+  });
+
   const accounts = await prisma.account.findMany({
     where: { branchId, isActive: true },
     include: { category: true, ledger: true },
@@ -586,6 +602,38 @@ export async function ensureSaleRevenueAccount(tx: Prisma.TransactionClient, bra
       branchId,
       categoryId: category.id,
       name: SALE_REVENUE_ACCOUNT_NAME,
+      code: await generateNextAccountCodeInTx(tx, branchId),
+      type: AccountType.REVENUE,
+    },
+  });
+  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+export async function ensureServiceRevenueAccount(tx: Prisma.TransactionClient, branchId: number) {
+  let category = await tx.accountCategory.findFirst({
+    where: { branchId, isActive: true, name: { equals: INCOME_CATEGORY_NAME, mode: 'insensitive' } },
+  });
+  if (!category) {
+    category = await tx.accountCategory.create({ data: { branchId, name: INCOME_CATEGORY_NAME } });
+  }
+
+  const existing = await tx.account.findFirst({
+    where: {
+      branchId,
+      isActive: true,
+      categoryId: category.id,
+      name: { equals: SERVICE_REVENUE_ACCOUNT_NAME, mode: 'insensitive' },
+    },
+    include: { ledger: true },
+  });
+  if (existing?.ledger) return existing;
+
+  const account = await tx.account.create({
+    data: {
+      branchId,
+      categoryId: category.id,
+      name: SERVICE_REVENUE_ACCOUNT_NAME,
       code: await generateNextAccountCodeInTx(tx, branchId),
       type: AccountType.REVENUE,
     },
@@ -659,28 +707,129 @@ export async function ensureSupplierAccount(
 export async function ensureInventoryAccount(tx: Prisma.TransactionClient, branchId: number) {
   const category = await ensureInventoryCategoryInTx(tx, branchId);
 
-  const existing = await tx.account.findFirst({
+  const allNamed = await tx.account.findMany({
     where: {
       branchId,
       isActive: true,
-      categoryId: category.id,
+      name: { equals: INVENTORY_ACCOUNT_NAME, mode: 'insensitive' },
+    },
+    include: { ledger: true },
+    orderBy: { id: 'asc' },
+  });
+
+  let canonical =
+    allNamed.find((a) => a.categoryId === category.id && a.ledger) ??
+    allNamed.find((a) => a.categoryId === category.id) ??
+    allNamed.find((a) => a.ledger) ??
+    allNamed[0] ??
+    null;
+
+  if (canonical && canonical.categoryId !== category.id) {
+    canonical = await tx.account.update({
+      where: { id: canonical.id },
+      data: { categoryId: category.id, type: AccountType.ASSET },
+      include: { ledger: true },
+    });
+  }
+
+  if (canonical && !canonical.ledger) {
+    await tx.ledger.create({ data: { branchId, accountId: canonical.id, balance: 0 } });
+    canonical = await tx.account.findUniqueOrThrow({
+      where: { id: canonical.id },
+      include: { ledger: true },
+    });
+  }
+
+  if (!canonical) {
+    const account = await tx.account.create({
+      data: {
+        branchId,
+        categoryId: category.id,
+        name: INVENTORY_ACCOUNT_NAME,
+        code: await generateNextAccountCodeInTx(tx, branchId),
+        type: AccountType.ASSET,
+      },
+    });
+    await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
+    return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+  }
+
+  return canonical;
+}
+
+async function mergeInventoryAccountIntoCanonical(
+  tx: Prisma.TransactionClient,
+  canonical: { id: number; ledger: { id: number } | null },
+  duplicate: { id: number; ledger: { id: number; balance: unknown } | null },
+) {
+  if (duplicate.id === canonical.id) return;
+
+  if (duplicate.ledger) {
+    await tx.ledgerEntry.updateMany({
+      where: { ledgerId: duplicate.ledger.id },
+      data: { ledgerId: canonical.ledger!.id },
+    });
+
+    await tx.voucher.updateMany({
+      where: { debitAccountId: duplicate.id },
+      data: { debitAccountId: canonical.id },
+    });
+    await tx.voucher.updateMany({
+      where: { creditAccountId: duplicate.id },
+      data: { creditAccountId: canonical.id },
+    });
+
+    const entries = await tx.ledgerEntry.findMany({
+      where: { ledgerId: canonical.ledger!.id },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+
+    let balance = 0;
+    for (const entry of entries) {
+      balance +=
+        entry.type === LedgerEntryType.DEBIT ? Number(entry.amount) : -Number(entry.amount);
+      await tx.ledgerEntry.update({ where: { id: entry.id }, data: { balance } });
+    }
+
+    await tx.ledger.update({
+      where: { id: canonical.ledger!.id },
+      data: { balance },
+    });
+
+    await tx.ledger.update({
+      where: { id: duplicate.ledger.id },
+      data: { balance: 0 },
+    });
+  }
+
+  await tx.account.update({
+    where: { id: duplicate.id },
+    data: { isActive: false },
+  });
+}
+
+/** Keep a single Inventory account under the Inventory category; merge/remove duplicates. */
+export async function consolidateDuplicateInventoryAccounts(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+) {
+  const canonical = await ensureInventoryAccount(tx, branchId);
+
+  const duplicates = await tx.account.findMany({
+    where: {
+      branchId,
+      isActive: true,
+      id: { not: canonical.id },
       name: { equals: INVENTORY_ACCOUNT_NAME, mode: 'insensitive' },
     },
     include: { ledger: true },
   });
-  if (existing?.ledger) return existing;
 
-  const account = await tx.account.create({
-    data: {
-      branchId,
-      categoryId: category.id,
-      name: INVENTORY_ACCOUNT_NAME,
-      code: await generateNextAccountCodeInTx(tx, branchId),
-      type: AccountType.ASSET,
-    },
-  });
-  await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
-  return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+  for (const dup of duplicates) {
+    await mergeInventoryAccountIntoCanonical(tx, canonical, dup);
+  }
+
+  return canonical;
 }
 
 async function ensureInventoryCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {
@@ -1161,6 +1310,9 @@ export async function updateAccount(
 export async function softDeleteAccount(id: number, branchId: number) {
   const account = await prisma.account.findFirst({ where: { id, branchId, isActive: true } });
   if (!account) throw new AppError(404, 'Account not found');
+  if (isInventoryAccountName(account.name)) {
+    throw new AppError(400, 'The Inventory account cannot be deleted');
+  }
   return prisma.account.update({
     where: { id },
     data: { isActive: false },

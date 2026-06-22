@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { asyncHandler, validateBody } from '../../utils/helpers.js';
 import { authenticate } from '../../middleware/auth.js';
+import { passwordSchema } from '../../utils/passwordSchema.js';
 import * as authService from './auth.service.js';
 
 const authLimiter = rateLimit({
@@ -19,7 +20,7 @@ authRouter.post(
   validateBody(
     z.object({
       email: z.string().email(),
-      password: z.string().min(8),
+      password: passwordSchema,
       firstName: z.string().min(1),
       lastName: z.string().min(1),
       phone: z.string().optional(),
@@ -69,7 +70,7 @@ authRouter.post(
     z.object({
       email: z.string().email(),
       otp: z.string().length(6),
-      newPassword: z.string().min(8),
+      newPassword: passwordSchema,
     })
   ),
   asyncHandler(async (req, res) => {
@@ -85,21 +86,9 @@ authRouter.post(
 authRouter.post(
   '/google',
   authLimiter,
-  validateBody(
-    z.object({
-      googleId: z.string(),
-      email: z.string().email(),
-      firstName: z.string(),
-      lastName: z.string(),
-    })
-  ),
+  validateBody(z.object({ idToken: z.string() })),
   asyncHandler(async (req, res) => {
-    const result = await authService.googleAuth(
-      req.body.googleId,
-      req.body.email,
-      req.body.firstName,
-      req.body.lastName
-    );
+    const result = await authService.googleAuth(req.body.idToken);
     res.json(result);
   })
 );
@@ -137,7 +126,7 @@ authRouter.post(
   validateBody(
     z.object({
       currentPassword: z.string().min(1),
-      newPassword: z.string().min(8),
+      newPassword: passwordSchema,
     })
   ),
   asyncHandler(async (req, res) => {

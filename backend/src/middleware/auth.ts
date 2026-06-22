@@ -1,9 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
 import { Role } from '@prisma/client';
+import { prisma } from '../config/database.js';
 import { verifyToken } from '../utils/crypto.js';
 import { AppError } from '../utils/helpers.js';
 
-export function authenticate(req: Request, _res: Response, next: NextFunction) {
+export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     next(new AppError(401, 'Authentication required'));
@@ -12,18 +13,34 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
 
   try {
     const token = header.slice(7);
-    req.user = verifyToken(token);
+    const payload = verifyToken(token);
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { isActive: true, role: true, branchId: true },
+    });
+    if (!user?.isActive) {
+      next(new AppError(401, 'Account deactivated'));
+      return;
+    }
+    req.user = { ...payload, role: user.role, branchId: user.branchId };
     next();
   } catch {
     next(new AppError(401, 'Invalid or expired token'));
   }
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) {
     try {
-      req.user = verifyToken(header.slice(7));
+      const payload = verifyToken(header.slice(7));
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { isActive: true, role: true, branchId: true },
+      });
+      if (user?.isActive) {
+        req.user = { ...payload, role: user.role, branchId: user.branchId };
+      }
     } catch {
       // ignore invalid token for optional auth
     }

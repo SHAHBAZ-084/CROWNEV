@@ -14,7 +14,6 @@ const publicLinks = [
   { to: '/', label: 'Home' },
   { to: '/shop', label: 'Shop' },
   { to: '/book-service', label: 'Book Service' },
-  { to: '/track', label: 'Track Order' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
 ];
@@ -231,7 +230,6 @@ export function PublicFooter() {
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />
-              <FooterLink to="/track" label="Track Order" />
               <FooterLink to="/book-service" label="Book Service" />
             </ul>
           </div>

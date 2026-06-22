@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { LegacyVoucherScreen } from '../../components/pos/LegacyVoucherForm';
 import { ViewVoucherPanel } from '../../components/pos/ViewVoucherPanel';
 import { PageHeader } from '../../components/layout/PageTransition';
+import { WorkspaceCloseBar } from '../../components/layout/WorkspaceCloseButton';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
@@ -19,7 +20,8 @@ import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportEx
 import { FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
-import type { InvoiceData, PurchaseInvoiceData } from '../../types';
+import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
+import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData } from '../../types';
 
 type Row = Record<string, unknown>;
 
@@ -59,6 +61,7 @@ export function PosViewVoucherPage() {
           <p className="mt-0.5 text-sm text-text-muted">Search by voucher number and category</p>
         </div>
         <ViewVoucherPanel branchId={branchId} defaultType={defaultType} />
+        <WorkspaceCloseBar className="mt-6" />
       </div>
     </div>
   );
@@ -406,6 +409,7 @@ export function PosAccountsPage() {
           <FormActions onCancel={() => setModal(null)} loading={saving} />
         </form>
       </Modal>
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -514,6 +518,7 @@ export function PosCustomersPage() {
           <FormActions onCancel={() => setModal(false)} loading={saving} />
         </form>
       </Modal>
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -596,6 +601,7 @@ export function PosSuppliersPage() {
           <FormActions onCancel={() => setModal(false)} loading={saving} />
         </form>
       </Modal>
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -660,7 +666,7 @@ export function PosSaleInvoicePage() {
 
   useEffect(() => {
     if (!branchId) return;
-    branchApi.branchCustomers(branchId).then((r) => setCustomers(r.data as Row[])).catch(console.error);
+    branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     reloadOrders();
   }, [branchId, reloadOrders]);
@@ -683,7 +689,7 @@ export function PosSaleInvoicePage() {
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: `${c.name} (${String(c.type ?? 'WALK_IN').toLowerCase().replace('_', '-')})`,
+      label: String(c.name),
     })),
     [customers],
   );
@@ -868,7 +874,7 @@ export function PosSaleInvoicePage() {
           {lineDetails.map((line) => (
             <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <SearchSelect
-                label="Product (branch stock only)"
+                label="Product"
                 value={line.productId}
                 onChange={(id) => selectProductForLine(line.key, id)}
                 options={productOptionsForLine(line.key)}
@@ -1008,6 +1014,7 @@ export function PosSaleInvoicePage() {
       >
         <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -1237,7 +1244,7 @@ export function PosPurchaseInvoicePage() {
           {lineDetails.map((line) => (
             <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <SearchSelect
-                label="Product (branch listed)"
+                label="Product"
                 value={line.productId}
                 onChange={(id) => selectProductForLine(line.key, id)}
                 options={productOptionsForLine(line.key)}
@@ -1370,6 +1377,423 @@ export function PosPurchaseInvoicePage() {
       >
         <PurchaseInvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
+      <WorkspaceCloseBar className="mt-8" />
+    </div>
+  );
+}
+
+export function PosServiceInvoicePage() {
+  const branchId = useBranchId();
+  const { toast } = useToast();
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [products, setProducts] = useState<SaleProduct[]>([]);
+  const [invoices, setInvoices] = useState<Row[]>([]);
+  const [customerId, setCustomerId] = useState('');
+  const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
+  const [labourCost, setLabourCost] = useState('');
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [customerLedger, setCustomerLedger] = useState<{
+    customer: { name: string; code: string; balance: number };
+    rows: LedgerRow[];
+    summary: { totalDebit: number; totalCredit: number; closingBalance: number };
+  } | null>(null);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
+  const [invoiceData, setInvoiceData] = useState<ServiceInvoiceData | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
+  const reloadInvoices = useCallback(() => {
+    if (!branchId) return;
+    branchApi.serviceInvoices(branchId, { limit: '5' })
+      .then((r) => setInvoices(r.data as unknown as Row[]))
+      .catch(console.error);
+  }, [branchId]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
+    branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+    reloadInvoices();
+  }, [branchId, reloadInvoices]);
+
+  useEffect(() => {
+    if (!branchId || !customerId) {
+      setCustomerLedger(null);
+      return;
+    }
+    setLoadingLedger(true);
+    branchApi.customerLedger(branchId, parseInt(customerId, 10))
+      .then(setCustomerLedger)
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load customer ledger', 'error');
+        setCustomerLedger(null);
+      })
+      .finally(() => setLoadingLedger(false));
+  }, [branchId, customerId, toast]);
+
+  const customerOptions: SearchSelectOption[] = useMemo(
+    () => customers.map((c) => ({
+      value: String(c.id),
+      label: String(c.name),
+    })),
+    [customers],
+  );
+
+  const productById = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products],
+  );
+
+  const lineDetails = useMemo(
+    () => lines.map((line) => {
+      const product = productById.get(line.productId);
+      const qty = Math.max(1, line.quantity);
+      const unitPrice = line.unitPrice ?? product?.unitPrice ?? 0;
+      const maxQty = product?.stockAtBranch ?? 0;
+      return {
+        ...line,
+        product,
+        qty,
+        unitPrice,
+        maxQty,
+        lineTotal: unitPrice * qty,
+      };
+    }),
+    [lines, productById],
+  );
+
+  const partsTotal = useMemo(
+    () => lineDetails.reduce((sum, l) => sum + (l.product ? l.lineTotal : 0), 0),
+    [lineDetails],
+  );
+
+  const labourAmount = parseFloat(labourCost) || 0;
+  const grandTotal = partsTotal + labourAmount;
+
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitPrice: undefined });
+      return;
+    }
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
+    if (alreadySelected) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    const product = productById.get(productId);
+    updateLine(lineKey, { productId, unitPrice: product?.unitPrice });
+  }
+
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedElsewhere = new Set(
+      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    );
+    return products
+      .filter((p) => !selectedElsewhere.has(p.id))
+      .map((p) => ({
+        value: p.id,
+        label: `${p.name} [${p.type}]`,
+      }));
+  }
+
+  function updateLine(key: string, patch: Partial<SaleLine>) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+
+  function removeLine(key: string) {
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
+  }
+
+  async function openInvoice(id: number) {
+    setInvoiceModal(id);
+    setInvoiceData(null);
+    setInvoiceLoading(true);
+    try {
+      const inv = await branchApi.serviceInvoice(id);
+      setInvoiceData(inv);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load invoice', 'error');
+      setInvoiceModal(null);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!branchId) return;
+    if (!customerId) {
+      toast('Select a customer', 'error');
+      return;
+    }
+    if (!reference.trim()) {
+      toast('Enter a reference number', 'error');
+      return;
+    }
+    if (labourAmount < 0) {
+      toast('Labour cost cannot be negative', 'error');
+      return;
+    }
+    const items = lineDetails
+      .filter((l) => l.product)
+      .map((l) => ({
+        productId: l.productId,
+        quantity: l.qty,
+        unitPrice: Number(l.unitPrice),
+      }));
+    if (items.length === 0 && labourAmount <= 0) {
+      toast('Add parts or enter a labour cost', 'error');
+      return;
+    }
+    if (new Set(items.map((i) => i.productId)).size !== items.length) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    for (const l of lineDetails) {
+      if (!l.product) continue;
+      if (l.qty > l.maxQty) {
+        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty}`, 'error');
+        return;
+      }
+      if (l.unitPrice <= 0) {
+        toast(`Enter a valid price for ${l.product.name}`, 'error');
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const result = await branchApi.createServiceInvoice({
+        branchId,
+        customerId: parseInt(customerId, 10),
+        reference: reference.trim(),
+        labourCost: labourAmount,
+        items,
+        notes: notes.trim() || undefined,
+      });
+      toast(`Service invoice saved — ${reference.trim()}`, 'success');
+      setLines([newSaleLine()]);
+      setLabourCost('');
+      setReference('');
+      setNotes('');
+      branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+      reloadInvoices();
+      branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
+      const invoiceId = (result.invoice as { id: number }).id;
+      if (invoiceId) openInvoice(invoiceId);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save service invoice', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        title="Service Invoice"
+        subtitle="Bill for service work — customer debited, service revenue credited, parts stock updated"
+      />
+
+      <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <SearchSelect
+            label="Customer account"
+            value={customerId}
+            onChange={setCustomerId}
+            options={customerOptions}
+            placeholder="Search customer…"
+          />
+          <Input
+            label="Reference #"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. SVI-001"
+            required
+          />
+          <Input
+            label="Notes (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Service notes"
+          />
+        </div>
+
+        <div className="mb-6 max-w-xs">
+          <Input
+            label="Labour cost (PKR)"
+            type="number"
+            min={0}
+            step={1}
+            value={labourCost}
+            onChange={(e) => setLabourCost(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-brand">Parts used</h2>
+          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newSaleLine()])}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add line
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {lineDetails.map((line) => (
+            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+              <SearchSelect
+                label="Product"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+              />
+              <Input
+                label="Unit price (PKR)"
+                type="number"
+                min={1}
+                step={1}
+                value={line.product ? line.unitPrice || '' : ''}
+                disabled={!line.product}
+                onChange={(e) => updateLine(line.key, { unitPrice: parseFloat(e.target.value) || 0 })}
+              />
+              <Input
+                label="Qty"
+                type="number"
+                min={1}
+                max={line.maxQty || undefined}
+                value={line.qty}
+                onChange={(e) => updateLine(line.key, { quantity: parseInt(e.target.value, 10) || 1 })}
+              />
+              <div>
+                <p className="mb-1 text-xs font-medium text-text-muted">Line total</p>
+                <p className="text-sm font-semibold text-brand">
+                  {line.product ? formatPKR(line.lineTotal) : '—'}
+                </p>
+                {line.product && (
+                  <p className="text-xs text-text-muted">Stock: {line.maxQty}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="self-end"
+                disabled={lines.length <= 1}
+                onClick={() => removeLine(line.key)}
+                aria-label="Remove line"
+              >
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 space-y-1 border-t border-border/60 pt-4 text-sm">
+          {partsTotal > 0 && (
+            <p className="text-text-muted">Parts: <span className="font-medium text-text">{formatPKR(partsTotal)}</span></p>
+          )}
+          {labourAmount > 0 && (
+            <p className="text-text-muted">Labour: <span className="font-medium text-text">{formatPKR(labourAmount)}</span></p>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-lg font-bold text-brand">Total: {formatPKR(grandTotal)}</p>
+          <Button type="submit" variant="accent" loading={saving} disabled={!customerId || grandTotal <= 0}>
+            Save service invoice
+          </Button>
+        </div>
+      </form>
+
+      {customerId && (
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-sm font-bold text-brand">
+              Customer ledger
+              {customerLedger?.customer && (
+                <span className="ml-2 font-normal text-text-muted">
+                  {customerLedger.customer.code} — {customerLedger.customer.name}
+                </span>
+              )}
+            </h2>
+            {customerLedger && (
+              <p className="text-sm text-text-muted">
+                Balance: <strong>{formatLedgerBalance(customerLedger.summary.closingBalance)}</strong>
+              </p>
+            )}
+          </div>
+          {loadingLedger ? (
+            <p className="text-sm text-text-muted">Loading ledger…</p>
+          ) : (
+            <DataTable
+              compact
+              columns={[
+                { key: 'date', header: 'Date', render: (r) => formatDate(String(r.date)) },
+                { key: 'voucherNo', header: 'Ref #' },
+                { key: 'type', header: 'Type' },
+                { key: 'description', header: 'Description' },
+                {
+                  key: 'debit',
+                  header: 'Debit',
+                  render: (r) => (Number(r.debit) > 0 ? formatLedgerAmount(Number(r.debit)) : '—'),
+                },
+                {
+                  key: 'credit',
+                  header: 'Credit',
+                  render: (r) => (Number(r.credit) > 0 ? formatLedgerAmount(Number(r.credit)) : '—'),
+                },
+                {
+                  key: 'balance',
+                  header: 'Balance',
+                  render: (r) => formatLedgerBalance(Number(r.balance)),
+                },
+              ]}
+              data={(customerLedger?.rows ?? []) as Row[]}
+              emptyMessage="No ledger entries for this customer yet"
+            />
+          )}
+        </div>
+      )}
+
+      <div>
+        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent service invoices</h2>
+        <DataTable
+          columns={[
+            { key: 'reference', header: 'Reference' },
+            {
+              key: 'customer',
+              header: 'Customer',
+              render: (r) => String((r.customer as { name?: string })?.name ?? '—'),
+            },
+            { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
+            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <Button size="sm" variant="secondary" onClick={() => openInvoice(Number(r.id))}>
+                  View Invoice
+                </Button>
+              ),
+            },
+          ]}
+          data={invoices}
+          emptyMessage="No service invoices yet"
+        />
+      </div>
+
+      <Modal
+        open={invoiceModal !== null}
+        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        title="Service Invoice"
+        size="lg"
+      >
+        <ServiceInvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
+      </Modal>
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -1608,6 +2032,7 @@ export function PosAccountLedgerPage() {
           </div>
         </>
       )}
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }
@@ -1742,6 +2167,7 @@ export function PosDetailTrialBalancePage() {
             : 'Trial balance is out of balance. Review vouchers and ledger entries.'}
         </div>
       )}
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }

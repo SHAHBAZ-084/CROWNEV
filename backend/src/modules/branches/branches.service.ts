@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { OrderStatus, Role, VoucherStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
@@ -178,5 +178,53 @@ export async function getBranchDashboard(branchId: number) {
     pendingOrders,
     lowStockAlerts: lowStock,
     recentOrders,
+  };
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function startOfTomorrow() {
+  const tomorrow = startOfToday();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow;
+}
+
+export async function getPosWorkspaceStats(branchId: number) {
+  const today = startOfToday();
+  const tomorrow = startOfTomorrow();
+
+  const [todayVouchers, todayCustomers, salesAgg] = await Promise.all([
+    prisma.voucher.count({
+      where: {
+        branchId,
+        status: { not: VoucherStatus.CANCELLED },
+        createdAt: { gte: today, lt: tomorrow },
+      },
+    }),
+    prisma.customer.count({
+      where: {
+        branchId,
+        isActive: true,
+        createdAt: { gte: today, lt: tomorrow },
+      },
+    }),
+    prisma.order.aggregate({
+      where: {
+        branchId,
+        status: { not: OrderStatus.CANCELLED },
+        createdAt: { gte: today, lt: tomorrow },
+      },
+      _sum: { total: true },
+    }),
+  ]);
+
+  return {
+    todayVouchers,
+    todayCustomers,
+    todaySales: Number(salesAgg._sum.total ?? 0),
   };
 }

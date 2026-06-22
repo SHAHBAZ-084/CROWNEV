@@ -11,6 +11,7 @@ import { partsRouter } from './modules/parts/parts.routes.js';
 import { inventoryRouter } from './modules/inventory/inventory.routes.js';
 import { ordersRouter, walkInRouter } from './modules/orders/orders.routes.js';
 import { servicesRouter, bookingsRouter } from './modules/services/services.routes.js';
+import { serviceInvoicesRouter } from './modules/services/service-invoices.routes.js';
 import { suppliersRouter, purchasesRouter } from './modules/suppliers/suppliers.routes.js';
 import { accountingRouter } from './modules/accounting/accounting.routes.js';
 import { reportsRouter } from './modules/reports/reports.routes.js';
@@ -23,7 +24,16 @@ export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || env.allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use('/uploads', express.static(path.resolve(env.uploadDir)));
@@ -43,6 +53,7 @@ export function createApp() {
   app.use('/api/walk-in', walkInRouter);
   app.use('/api/services', servicesRouter);
   app.use('/api/bookings', bookingsRouter);
+  app.use('/api/service-invoices', serviceInvoicesRouter);
   app.use('/api/suppliers', suppliersRouter);
   app.use('/api/purchases', purchasesRouter);
   app.use('/api/accounting', accountingRouter);

@@ -52,6 +52,21 @@ branchesRouter.get(
 );
 
 branchesRouter.get(
+  '/:id/pos-stats',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  branchScope,
+  asyncHandler(async (req, res) => {
+    const id = parseInt(param(req.params.id), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== id) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const stats = await branchesService.getPosWorkspaceStats(id);
+    res.json(stats);
+  }),
+);
+
+branchesRouter.get(
   '/:id/dashboard',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   branchScope,

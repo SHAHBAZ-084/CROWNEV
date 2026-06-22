@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
-import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
+import { asyncHandler, AppError, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { passwordSchema } from '../../utils/passwordSchema.js';
 import * as usersService from './users.service.js';
 
 export const usersRouter = Router();
@@ -27,7 +28,7 @@ usersRouter.post(
   validateBody(
     z.object({
       email: z.string().email(),
-      password: z.string().min(8),
+      password: passwordSchema,
       firstName: z.string().min(1),
       lastName: z.string().min(1),
       role: z.nativeEnum(Role),
@@ -56,7 +57,11 @@ usersRouter.patch(
     })
   ),
   asyncHandler(async (req, res) => {
-    const user = await usersService.updateUser(param(req.params.id), req.body);
+    const targetId = param(req.params.id);
+    if (targetId === req.user!.userId && req.body.role && req.body.role !== req.user!.role) {
+      throw new AppError(400, 'Admins cannot change their own role');
+    }
+    const user = await usersService.updateUser(targetId, req.body);
     res.json(user);
   })
 );
