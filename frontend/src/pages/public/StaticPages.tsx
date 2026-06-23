@@ -105,6 +105,10 @@ export function AboutPage() {
                   <img
                     src={f.image}
                     alt={f.name}
+                    loading="lazy"
+                    decoding="async"
+                    width={400}
+                    height={480}
                     className="h-full w-full object-cover object-top"
                   />
                 </div>

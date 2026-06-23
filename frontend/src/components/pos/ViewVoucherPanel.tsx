@@ -25,7 +25,7 @@ function userName(user: { firstName?: string; lastName?: string } | undefined) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ');
 }
 
-function VoucherDetailCard({
+export function VoucherDetailCard({
   voucher,
   deleting,
   restoring,

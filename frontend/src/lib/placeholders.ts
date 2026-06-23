@@ -1,4 +1,4 @@
-/** PLACEHOLDER. swap for real founder photos before production launch */
+/** Founder headshots — WebP in public/images/. Replace sources in scripts/sources/ and run npm run optimize:founder-images */
 
 export const FOUNDERS = [
   {
@@ -7,7 +7,7 @@ export const FOUNDERS = [
     vision:
       'Electric mobility should not be a luxury in Pakistan — it should be reliable, affordable, and available in every major city.',
     bio: 'Ahmed founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
-    image: 'https://i.pravatar.cc/400?img=12',
+    image: '/images/about-founder-ahmed.webp',
   },
   {
     name: 'Bilal Khan',
@@ -15,7 +15,7 @@ export const FOUNDERS = [
     vision:
       'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Ev promise on the ground.',
     bio: 'Bilal builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
-    image: 'https://i.pravatar.cc/400?img=33',
+    image: '/images/about-founder-bilal.webp',
   },
 ] as const;
 

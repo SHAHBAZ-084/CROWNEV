@@ -1,15 +1,31 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
-import { formatLedgerBalance } from '../../lib/format';
+import { formatLedgerBalance, formatPKR } from '../../lib/format';
 import { Button } from '../ui/Button';
-import { WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
+import { WorkspaceCloseBar, WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
+import { DataTable } from '../ui/DataTable';
 import { Input } from '../ui/Input';
+import { Modal } from '../ui/Modal';
 import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
+import { TYPE_LABELS, VoucherDetailCard } from './ViewVoucherPanel';
 
 type Row = Record<string, unknown>;
 type VoucherType = 'RECEIPT' | 'PAYMENT' | 'JOURNAL';
 type VoucherVariant = 'payment' | 'receipt' | 'journal';
+
+const RECENT_HEADINGS: Record<VoucherVariant, string> = {
+  receipt: 'Recent receipt vouchers',
+  payment: 'Recent payment vouchers',
+  journal: 'Recent journal vouchers',
+};
+
+function voucherPartyLabel(voucher: Row, variant: VoucherVariant) {
+  const debit = String((voucher.debitAccount as Row | undefined)?.name ?? '—');
+  const credit = String((voucher.creditAccount as Row | undefined)?.name ?? '—');
+  if (variant === 'journal') return `${debit} / ${credit}`;
+  return `${credit} → ${debit}`;
+}
 
 /** Bank / cash side: Receipt → debit (To), Payment → credit (From). */
 function isBankOrCashCategory(name: string) {
@@ -113,6 +129,9 @@ export function LegacyVoucherScreen({
   const [categories, setCategories] = useState<Row[]>([]);
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
+  const [viewVoucher, setViewVoucher] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const [voucherDate, setVoucherDate] = useState(todayInputValue());
   const [debitCategoryId, setDebitCategoryId] = useState('');
@@ -137,6 +156,11 @@ export function LegacyVoucherScreen({
     if (ofType.length === 0) return '1';
     return String(Math.max(...ofType.map((v) => Number(v.number ?? 0))) + 1);
   }, [vouchers, type]);
+
+  const recentVouchers = useMemo(
+    () => vouchers.filter((v) => v.type === type).slice(0, 2),
+    [vouchers, type],
+  );
 
   const debitCategories = useMemo(
     () => categoriesForSide(categories, variant, 'debit'),
@@ -217,6 +241,46 @@ export function LegacyVoucherScreen({
       toast(err instanceof Error ? err.message : 'Save failed', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCancelVoucher() {
+    if (!branchId || !viewVoucher) return;
+    const label = TYPE_LABELS[viewVoucher.type as VoucherType] ?? 'Voucher';
+    const voucherNo = String(viewVoucher.number ?? viewVoucher.id);
+    if (!window.confirm(
+      `Cancel ${label} #${voucherNo}? Reversal entries will be posted and account balances restored.`,
+    )) return;
+
+    setDeleting(true);
+    try {
+      const updated = await branchApi.deleteVoucher(branchId, Number(viewVoucher.id));
+      setViewVoucher(updated as Row);
+      toast('Voucher cancelled. Books reversed', 'success');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Cancel failed', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleRestoreVoucher() {
+    if (!branchId || !viewVoucher) return;
+    const label = TYPE_LABELS[viewVoucher.type as VoucherType] ?? 'Voucher';
+    const voucherNo = String(viewVoucher.number ?? viewVoucher.id);
+    if (!window.confirm(`Restore ${label} #${voucherNo}? Original entries will be re-posted.`)) return;
+
+    setRestoring(true);
+    try {
+      const updated = await branchApi.restoreVoucher(branchId, Number(viewVoucher.id));
+      setViewVoucher(updated as Row);
+      toast('Voucher restored', 'success');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Restore failed', 'error');
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -312,6 +376,52 @@ export function LegacyVoucherScreen({
           </div>
         </form>
       </div>
+
+      <div className="mt-8">
+        <h2 className="mb-4 font-display text-sm font-bold text-brand">{RECENT_HEADINGS[variant]}</h2>
+        <DataTable
+          columns={[
+            { key: 'number', header: 'Voucher #', render: (r) => String(r.number ?? r.id) },
+            {
+              key: 'parties',
+              header: variant === 'journal' ? 'Debit / Credit' : 'From / To',
+              render: (r) => voucherPartyLabel(r, variant),
+            },
+            { key: 'amount', header: 'Amount', render: (r) => formatPKR(Number(r.amount)) },
+            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            {
+              key: 'actions',
+              header: '',
+              render: (r) => (
+                <Button size="sm" variant="secondary" onClick={() => setViewVoucher(r)}>
+                  View Voucher
+                </Button>
+              ),
+            },
+          ]}
+          data={recentVouchers}
+          emptyMessage={`No ${variant} vouchers yet`}
+        />
+      </div>
+
+      <Modal
+        open={viewVoucher !== null}
+        onClose={() => setViewVoucher(null)}
+        title={viewVoucher ? `${TYPE_LABELS[viewVoucher.type as VoucherType]} Voucher` : 'Voucher'}
+        size="lg"
+      >
+        {viewVoucher && (
+          <VoucherDetailCard
+            voucher={viewVoucher}
+            deleting={deleting}
+            restoring={restoring}
+            onCancel={handleCancelVoucher}
+            onRestore={handleRestoreVoucher}
+          />
+        )}
+      </Modal>
+
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }

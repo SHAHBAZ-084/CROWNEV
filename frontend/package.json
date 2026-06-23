@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "optimize:riders-video": "node scripts/optimize-riders-video.mjs",
     "optimize:about-video": "node scripts/optimize-about-video.mjs",
-    "optimize:hero-images": "node scripts/optimize-hero-images.mjs"
+    "optimize:hero-images": "node scripts/optimize-hero-images.mjs",
+    "optimize:founder-images": "node scripts/optimize-founder-images.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
