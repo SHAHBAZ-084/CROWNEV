@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Check, Download, Printer } from 'lucide-react';
 import type { InvoiceData } from '../../types';
 import { formatPKR, formatDate } from '../../lib/format';
-import { captureInvoiceElement, openPrintWindow } from '../../lib/invoiceCapture';
+import { captureInvoiceElement, openPrintWindow, saveCanvasAsPdf } from '../../lib/invoiceCapture';
 import { Button } from '../ui/Button';
 import { Logo } from '../brand/Logo';
 
@@ -34,14 +34,7 @@ export function SaleInvoice({
     setDownloading(true);
     try {
       const canvas = await captureInvoiceElement(printRef.current);
-      const imgData = canvas.toDataURL('image/png');
-      const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const w = pdf.internal.pageSize.getWidth();
-      const h = (canvas.height * w) / canvas.width;
-      const pageH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, w, Math.min(h, pageH));
-      pdf.save(`invoice-${data.invoiceNumber}.pdf`);
+      await saveCanvasAsPdf(canvas, `invoice-${data.invoiceNumber}.pdf`);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Failed to generate PDF');
     } finally {

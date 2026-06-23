@@ -13,7 +13,12 @@ import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud
 import { BranchPhotoField } from '../../components/crud/BranchPhotoField';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
-import { parseEvSpecsFromForm } from '../../lib/evSpecs';
+import { PartDetailFields, parsePartDetailFromForm, validatePartDetailFromForm } from '../../components/crud/PartDetailFields';
+import {
+  parseColorOptionsFromForm,
+  parseEvSpecsFromForm,
+  validateEvSpecsFromForm,
+} from '../../lib/evSpecs';
 import {
   exportSalesSummaryPdf,
   exportToPdf,
@@ -506,6 +511,21 @@ export function AdminProductsPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+
+    if (tab === 'bikes') {
+      const specError = validateEvSpecsFromForm(fd);
+      if (specError) {
+        toast(specError, 'error');
+        return;
+      }
+    } else {
+      const partError = validatePartDetailFromForm(fd);
+      if (partError) {
+        toast(partError, 'error');
+        return;
+      }
+    }
+
     let body: Record<string, unknown>;
     try {
       const salePrice = parseOptionalFormPrice(fd.get('salePrice'), 'Sale price');
@@ -515,7 +535,11 @@ export function AdminProductsPage() {
         price: parseFormPrice(fd.get('price'), 'Price'),
         description: String(fd.get('description') || '').trim() || undefined,
         ...(salePrice !== undefined && { salePrice }),
-        ...(tab === 'bikes' && { specs: parseEvSpecsFromForm(fd) }),
+        ...(tab === 'bikes' && {
+          specs: parseEvSpecsFromForm(fd),
+          colorOptions: parseColorOptionsFromForm(fd),
+        }),
+        ...(tab === 'parts' && { specs: parsePartDetailFromForm(fd) }),
         ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
       };
     } catch (err) {
@@ -658,8 +682,14 @@ export function AdminProductsPage() {
               <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
             </div>
             <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
+            {tab === 'parts' && (
+              <PartDetailFields detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']} />
+            )}
             {tab === 'bikes' && (
-              <EvSpecsFields specs={edit?.specs as Record<string, string> | undefined} />
+              <EvSpecsFields
+                specs={edit?.specs as Record<string, string> | undefined}
+                colorOptions={edit?.colorOptions as string[] | undefined}
+              />
             )}
             {modal === 'edit' && (
               <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>

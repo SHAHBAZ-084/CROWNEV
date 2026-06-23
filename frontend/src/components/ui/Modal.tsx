@@ -7,14 +7,18 @@ export function Modal({
   title,
   children,
   size = 'md',
+  tallContent = false,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Tall documents (invoices) — less aggressive height cap so content is not clipped before PDF capture. */
+  tallContent?: boolean;
 }) {
   const widths = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const shellMaxH = tallContent ? 'max-h-[95vh]' : 'max-h-[min(92vh,900px)]';
 
   return (
     <AnimatePresence>
@@ -32,7 +36,7 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`relative flex max-h-[min(92vh,900px)] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${widths[size]}`}
+            className={`relative flex ${shellMaxH} w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${widths[size]}`}
           >
             {title && (
               <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4">

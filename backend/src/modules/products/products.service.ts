@@ -83,7 +83,7 @@ export async function createProduct(
     salePrice?: number;
     description?: string;
     specs?: object;
-    colorOptions?: object;
+    colorOptions?: string[] | object;
   },
   linkBranchId?: number
 ) {

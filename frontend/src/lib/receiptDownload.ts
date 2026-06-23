@@ -17,11 +17,18 @@ function formatTime(value: unknown): string {
 }
 
 function esc(value: unknown): string {
-  return String(value ?? '')
+  if (value == null) return '';
+  const s = String(value).trim();
+  if (!s || s === 'null' || s === 'undefined') return '';
+  return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function hasDisplayValue(value: unknown): boolean {
+  return esc(value) !== '';
 }
 
 function row(label: string, value: string): string {
@@ -111,7 +118,7 @@ function thermalHeader(branch: { name: string; location: string; phone?: string 
   <p class="center shop">CROWN EV</p>
   <p class="center meta">${esc(branch.name)}</p>
   <p class="center meta">${esc(branch.location)}</p>
-  ${branch.phone ? `<p class="center meta">Tel. ${esc(branch.phone)}</p>` : ''}
+  ${hasDisplayValue(branch.phone) ? `<p class="center meta">Tel. ${esc(branch.phone)}</p>` : ''}
   <div class="rule">************************</div>
   <p class="center bold">${title}</p>
   <div class="rule">************************</div>`;
@@ -165,7 +172,7 @@ export function downloadBookingReceipt(receipt: Record<string, unknown>) {
 
   <table class="details">
     ${row('Customer', esc(customer.name))}
-    ${customer.phone ? row('Phone', esc(customer.phone)) : ''}
+    ${hasDisplayValue(customer.phone) ? row('Phone', esc(customer.phone)) : ''}
     ${row('Service', `${serviceName}${serviceDuration}`)}
   </table>
 
@@ -245,7 +252,7 @@ export function buildServiceInvoiceReceiptHtml(invoice: {
 
   <table class="details">
     ${row('Customer', esc(customer.name))}
-    ${customer.phone ? row('Phone', esc(customer.phone)) : ''}
+    ${hasDisplayValue(customer.phone) ? row('Phone', esc(customer.phone)) : ''}
   </table>
 
   ${partsBlock}

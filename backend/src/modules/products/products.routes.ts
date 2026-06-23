@@ -23,7 +23,7 @@ const productCreateSchema = z.object({
   salePrice: priceField.optional(),
   description: z.string().optional(),
   specs: z.record(z.unknown()).optional(),
-  colorOptions: z.record(z.unknown()).optional(),
+  colorOptions: z.array(z.string().min(1)).optional(),
 });
 
 const productUpdateSchema = productCreateSchema.partial().extend({

@@ -32,7 +32,7 @@ export default function ProductDetailPage() {
 
   const price = Number(product.salePrice ?? product.price);
   const colors = (product.colorOptions as string[] | null) ?? [];
-  const specs = product.specs as Record<string, string> | null;
+  const specs = product.specs as Record<string, unknown> | null;
 
   function handleAddToCart() {
     addItem({
@@ -99,7 +99,10 @@ export default function ProductDetailPage() {
 
           {specs && Object.keys(specs).length > 0 && (
             <div className="mt-10">
-              <EvSpecsGrid specs={specs} />
+              <EvSpecsGrid
+                specs={specs}
+                title={product.type === 'PART' ? 'Part Details' : 'EV Specifications'}
+              />
             </div>
           )}
         </motion.div>

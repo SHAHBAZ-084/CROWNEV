@@ -278,7 +278,7 @@ export function BranchOrdersPage() {
         </form>
       </Modal>
 
-      <Modal open={!!invoiceModal} onClose={() => { setInvoiceModal(null); setInvoiceData(null); }} title="Sale Invoice" size="lg">
+      <Modal open={!!invoiceModal} onClose={() => { setInvoiceModal(null); setInvoiceData(null); }} title="Sale Invoice" size="lg" tallContent>
         <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
     </div>

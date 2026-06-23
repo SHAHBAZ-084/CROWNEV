@@ -946,6 +946,7 @@ export function PosSaleInvoicePage() {
         onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
         title="Sale Invoice"
         size="lg"
+        tallContent
       >
         <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
@@ -1309,6 +1310,7 @@ export function PosPurchaseInvoicePage() {
         onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
         title="Purchase Invoice"
         size="lg"
+        tallContent
       >
         <PurchaseInvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>
@@ -1725,6 +1727,7 @@ export function PosServiceInvoicePage() {
         onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
         title="Service Invoice"
         size="lg"
+        tallContent
       >
         <ServiceInvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
       </Modal>

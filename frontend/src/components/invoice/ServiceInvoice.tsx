@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Download, Printer, Receipt } from 'lucide-react';
 import type { ServiceInvoiceData } from '../../types';
 import { formatPKR, formatDate } from '../../lib/format';
-import { captureInvoiceElement, openPrintWindow } from '../../lib/invoiceCapture';
+import { captureInvoiceElement, openPrintWindow, saveCanvasAsPdf } from '../../lib/invoiceCapture';
 import { downloadServiceInvoiceReceipt } from '../../lib/receiptDownload';
 import { ServiceThermalReceiptPreview } from './ServiceThermalReceiptPreview';
 import { Button } from '../ui/Button';
@@ -26,14 +26,7 @@ export function ServiceInvoice({
     setDownloading(true);
     try {
       const canvas = await captureInvoiceElement(printRef.current);
-      const imgData = canvas.toDataURL('image/png');
-      const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const w = pdf.internal.pageSize.getWidth();
-      const h = (canvas.height * w) / canvas.width;
-      const pageH = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, w, Math.min(h, pageH));
-      pdf.save(`service-${data.invoiceNumber}.pdf`);
+      await saveCanvasAsPdf(canvas, `service-${data.invoiceNumber}.pdf`);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Failed to generate PDF');
     } finally {
