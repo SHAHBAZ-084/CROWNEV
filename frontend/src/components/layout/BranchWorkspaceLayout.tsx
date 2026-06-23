@@ -37,7 +37,7 @@ export function BranchWorkspaceLayout() {
               href="/branch"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-text-muted transition-colors hover:bg-accent/5 hover:text-brand"
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-ink-muted transition-colors hover:bg-elevated hover:text-brand"
             >
               <ExternalLink className="h-4 w-4 shrink-0" />
               Main dashboard

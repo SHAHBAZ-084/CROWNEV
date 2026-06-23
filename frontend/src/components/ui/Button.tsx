@@ -10,11 +10,11 @@ interface ButtonProps extends HTMLMotionProps<'button'> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-brand text-white hover:bg-brand/90 shadow-sm',
-  secondary: 'border-2 border-brand text-brand bg-transparent hover:bg-brand/5',
-  accent: 'bg-brand text-white font-semibold hover:bg-brand/90 shadow-sm',
-  ghost: 'text-brand bg-transparent hover:text-accent',
-  danger: 'bg-warning text-white hover:bg-warning/90',
+  primary: 'bg-brand text-white hover:bg-brand-light shadow-sm',
+  secondary: 'border border-border-light bg-subtle text-ink hover:bg-border-light/60',
+  accent: 'bg-brand text-white font-semibold hover:bg-brand-light shadow-sm',
+  ghost: 'text-brand bg-transparent hover:text-brand-light',
+  danger: 'border border-warning/20 bg-warning/10 text-warning hover:bg-warning hover:text-white',
 };
 
 const sizes = {

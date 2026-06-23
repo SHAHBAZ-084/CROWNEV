@@ -19,13 +19,13 @@ export function TablePagination({
   if (totalItems <= 0 || totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border bg-surface-alt/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-text-muted">
-        Showing <span className="font-medium text-brand">{rangeStart}</span>
+    <div className="flex flex-col gap-3 border-t border-border-light bg-subtle/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-ink-muted">
+        Showing <span className="font-medium text-ink">{rangeStart}</span>
         {' – '}
-        <span className="font-medium text-brand">{rangeEnd}</span>
+        <span className="font-medium text-ink">{rangeEnd}</span>
         {' of '}
-        <span className="font-medium text-brand">{totalItems}</span>
+        <span className="font-medium text-ink">{totalItems}</span>
       </p>
       <div className="flex items-center gap-2">
         <Button
@@ -39,7 +39,7 @@ export function TablePagination({
           <ChevronLeft className="h-4 w-4" aria-hidden />
           Previous
         </Button>
-        <span className="min-w-[5.5rem] text-center text-sm text-text-muted">
+        <span className="min-w-[5.5rem] text-center text-sm text-ink-muted">
           Page {page} of {totalPages}
         </span>
         <Button

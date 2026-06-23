@@ -51,7 +51,7 @@ export default function BranchDashboard() {
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="font-display font-semibold text-brand mb-4">Today&apos;s Appointments</h3>
+              <h3 className="mb-4 font-display font-semibold text-ink">Today&apos;s Appointments</h3>
               <DataTable
                 columns={[
                   { key: 'time', header: 'Time' },
@@ -63,7 +63,7 @@ export default function BranchDashboard() {
               />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-brand mb-4">Recent Orders</h3>
+              <h3 className="mb-4 font-display font-semibold text-ink">Recent Orders</h3>
               <DataTable
                 columns={[
                   {

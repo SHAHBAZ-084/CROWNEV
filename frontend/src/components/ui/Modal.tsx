@@ -28,7 +28,7 @@ export function Modal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-brand/20 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
             onClick={onClose}
           />
           <motion.div
@@ -36,17 +36,17 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`relative flex ${shellMaxH} w-full flex-col overflow-hidden rounded-t-2xl bg-surface-alt shadow-2xl sm:rounded-2xl ${widths[size]}`}
+            className={`relative flex ${shellMaxH} w-full flex-col overflow-hidden rounded-t-2xl bg-elevated shadow-2xl sm:rounded-2xl ${widths[size]}`}
           >
             {title && (
-              <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4">
-                <h2 className="font-display text-lg font-semibold text-brand sm:text-xl">{title}</h2>
-                <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-surface-alt">
-                  <X className="h-5 w-5 text-text-muted" />
+              <div className="flex shrink-0 items-center justify-between border-b border-border-light bg-elevated px-4 py-3 sm:px-6 sm:py-4">
+                <h2 className="font-display text-lg font-semibold text-ink sm:text-xl">{title}</h2>
+                <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-subtle">
+                  <X className="h-5 w-5 text-ink-muted" />
                 </button>
               </div>
             )}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 text-ink sm:px-6">
               {children}
             </div>
           </motion.div>

@@ -196,7 +196,7 @@ function SocialIcon({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface-alt text-accent shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-white hover:shadow-md"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface-alt text-text-muted shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-white hover:shadow-md"
     >
       <Icon className="h-4 w-4" />
     </a>
@@ -285,7 +285,7 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2 lg:col-start-6">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Quick Links</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Quick Links</p>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
@@ -295,7 +295,7 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Legal</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Legal</p>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/privacy" label="Privacy Policy" />
               <FooterLink to="/terms" label="Terms & Conditions" />
@@ -304,7 +304,7 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-3">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Contact</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Contact</p>
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a

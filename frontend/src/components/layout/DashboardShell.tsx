@@ -36,7 +36,7 @@ export function DashboardShell({
   const close = () => setMobileOpen(false);
 
   return (
-    <div className="flex min-h-screen bg-surface-alt">
+    <div className="flex min-h-screen bg-subtle">
       {mobileOpen && (
         <button
           type="button"
@@ -49,11 +49,11 @@ export function DashboardShell({
       {sidebar({ mobileOpen, onNavigate: close })}
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-[17.5rem]">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/80 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border-light bg-elevated px-4 py-3 shadow-sm lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="rounded-xl p-2 text-brand hover:bg-surface-alt"
+            className="rounded-xl p-2 text-ink-muted hover:bg-subtle hover:text-ink"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />

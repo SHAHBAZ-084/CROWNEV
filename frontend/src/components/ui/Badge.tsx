@@ -1,9 +1,9 @@
 const styles: Record<string, string> = {
-  default: 'bg-surface-alt text-text-muted',
-  success: 'bg-green-100 text-success',
-  warning: 'bg-orange-100 text-brand',
-  danger: 'bg-red-100 text-warning',
-  info: 'bg-orange-50 text-brand-light',
+  default: 'bg-subtle text-ink-muted',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-amber-100 text-amber-700',
+  danger: 'bg-warning/10 text-warning',
+  info: 'bg-brand/10 text-brand',
   brand: 'bg-brand/10 text-brand',
 };
 

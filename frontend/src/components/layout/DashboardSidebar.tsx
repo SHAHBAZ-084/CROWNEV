@@ -32,7 +32,7 @@ function UserAvatar({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-brand text-sm font-bold text-white shadow-md shadow-accent/20">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-bold text-brand">
       {initials || '?'}
     </div>
   );
@@ -53,27 +53,15 @@ function SidebarNavLink({
       end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-all duration-200 ${
+        `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
           isActive
-            ? 'bg-gradient-to-r from-accent/18 via-accent/10 to-transparent text-brand shadow-sm'
-            : 'text-text-muted hover:bg-white/80 hover:text-brand hover:shadow-sm'
+            ? 'border-r-2 border-brand bg-brand/10 text-brand'
+            : 'text-ink-muted hover:bg-subtle hover:text-ink'
         }`
       }
     >
-      {({ isActive }) => (
-        <>
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all duration-200 ${
-              isActive
-                ? 'border-accent/40 bg-accent text-white shadow-md shadow-accent/25'
-                : 'border-border/70 bg-white text-text-muted group-hover:border-accent/25 group-hover:text-accent'
-            }`}
-          >
-            <item.icon className="h-4 w-4" />
-          </span>
-          <span className="truncate">{item.label}</span>
-        </>
-      )}
+      <item.icon className="h-4 w-4 shrink-0" />
+      <span className="truncate">{item.label}</span>
     </NavLink>
   );
 }
@@ -121,22 +109,22 @@ export function DashboardSidebar({
 
   return (
     <aside
-      className={`dashboard-sidebar fixed left-0 top-0 z-50 flex h-full w-[17.5rem] flex-col border-r border-border/80 bg-gradient-to-b from-white via-[#fffcf9] to-[#fff4ec] shadow-[4px_0_28px_rgb(179_71_0/7%)] transition-transform duration-300 ease-in-out lg:z-30 lg:translate-x-0 ${
+      className={`dashboard-sidebar fixed left-0 top-0 z-50 flex h-full w-[17.5rem] flex-col border-r border-border-light bg-elevated transition-transform duration-300 ease-in-out lg:z-30 lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="relative flex flex-col items-center border-b border-border/60 px-5 pb-5 pt-6 text-center">
+      <div className="relative flex flex-col items-center border-b border-border-light bg-elevated px-5 pb-5 pt-6 text-center">
         <button
           type="button"
           onClick={onNavigate}
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-text-muted hover:bg-white/80 hover:text-brand lg:hidden"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-ink-muted hover:bg-subtle hover:text-ink lg:hidden"
           aria-label="Close menu"
         >
           <X className="h-5 w-5" />
         </button>
         <Logo size="md" linked centered />
         {showBadge && (
-          <span className="mt-3 inline-flex rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
+          <span className="mt-3 inline-flex rounded-full bg-subtle px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
             {subtitle ?? roleLabels[role]}
           </span>
         )}
@@ -146,16 +134,16 @@ export function DashboardSidebar({
         {navSections.map((section, si) => (
           <div key={section.title ?? `section-${si}`}>
             {section.title && (
-              <p className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted/70">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                 {section.title}
               </p>
             )}
             {!section.title && si === 0 && navSections.length === 1 && !sections && (
-              <p className="mb-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted/70">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                 Menu
               </p>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {section.items.map((item) => (
                 <SidebarNavLink
                   key={item.to}
@@ -169,30 +157,32 @@ export function DashboardSidebar({
         ))}
       </nav>
 
-      <div className="border-t border-border/60 px-4 py-4">
-        <div className="flex items-center gap-3 px-1">
-          <UserAvatar name={userName ?? 'User'} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-brand">{userName ?? 'User'}</p>
-            {userEmail && (
-              <p className="truncate text-[11px] text-text-muted">{userEmail}</p>
-            )}
-            {userMeta && (
-              <p className="truncate text-[11px] text-accent/80">{userMeta}</p>
-            )}
+      <div className="border-t border-border-light px-4 py-4">
+        <div className="rounded-xl bg-subtle p-3">
+          <div className="flex items-center gap-3">
+            <UserAvatar name={userName ?? 'User'} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{userName ?? 'User'}</p>
+              {userEmail && (
+                <p className="truncate text-[11px] text-ink-muted">{userEmail}</p>
+              )}
+              {userMeta && (
+                <p className="truncate text-[11px] text-ink-muted">{userMeta}</p>
+              )}
+            </div>
           </div>
+
+          {footerExtra && <div className="mt-3">{footerExtra}</div>}
+
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
-
-        {footerExtra && <div className="mt-3 px-1">{footerExtra}</div>}
-
-        <button
-          type="button"
-          onClick={onSignOut}
-          className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-white/60 hover:text-brand"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
       </div>
     </aside>
   );

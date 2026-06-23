@@ -175,7 +175,7 @@ export default function ShopPage() {
                   key={f.key}
                   type="button"
                   onClick={() => removeFilter(f.key)}
-                  className="inline-flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-brand hover:bg-accent/10"
+                  className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-subtle px-2.5 py-1 text-xs font-medium text-brand hover:bg-accent/10"
                 >
                   {f.label}
                   <X className="h-3 w-3" />

@@ -95,7 +95,7 @@ export function ProductCard({
                 )}
               </div>
               <span
-                className={`flex shrink-0 items-center justify-center rounded-xl bg-surface-alt text-brand-light transition-colors group-hover:bg-brand group-hover:text-white ${isLarge ? 'h-9 w-9 lg:h-11 lg:w-11' : 'h-9 w-9'}`}
+                className={`flex shrink-0 items-center justify-center rounded-xl bg-border-light text-ink-muted transition-colors group-hover:bg-brand group-hover:text-white ${isLarge ? 'h-9 w-9 lg:h-11 lg:w-11' : 'h-9 w-9'}`}
               >
                 <ArrowRight className="h-4 w-4" />
               </span>
@@ -155,7 +155,7 @@ const features = [
 
 export function FeatureGrid() {
   return (
-    <section className="relative overflow-hidden bg-elevated py-12 lg:py-16">
+    <section className="relative overflow-hidden bg-subtle py-12 lg:py-16">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgb(249_115_22_/_4%)_0%,_transparent_55%)]" />
 
       <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
@@ -185,7 +185,7 @@ export function FeatureGrid() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.08, duration: 0.35, ease: 'easeOut' }}
               whileHover={{ y: -6, boxShadow: 'var(--shadow-card-hover)' }}
-              className="group relative overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-subtle p-6 shadow-[var(--shadow-elevated)] transition-colors hover:border-accent/30"
+              className="group relative overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] transition-colors hover:border-accent/30"
             >
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-accent to-accent-soft opacity-0 transition-opacity group-hover:opacity-100" />
 

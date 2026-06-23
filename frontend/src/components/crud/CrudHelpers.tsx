@@ -18,7 +18,7 @@ export function RowActions({
     <div className="flex flex-wrap items-center gap-1">
       {extra}
       {onEdit && (
-        <button type="button" onClick={onEdit} className="rounded-lg p-1.5 text-brand-light hover:bg-brand/5" title="Edit">
+        <button type="button" onClick={onEdit} className="rounded-lg p-1.5 text-brand hover:text-brand-light hover:bg-brand/5" title="Edit">
           <Pencil className="h-4 w-4" />
         </button>
       )}
@@ -26,7 +26,7 @@ export function RowActions({
         <button
           type="button"
           onClick={onDelete}
-          className={`inline-flex items-center gap-1 rounded-lg text-warning hover:bg-red-50 ${deleteLabel ? 'px-2 py-1 text-xs font-medium' : 'p-1.5'}`}
+          className={`inline-flex items-center gap-1 rounded-lg text-warning hover:bg-warning/10 ${deleteLabel ? 'px-2 py-1 text-xs font-medium' : 'p-1.5'}`}
           title="Delete"
         >
           <Trash2 className="h-4 w-4 shrink-0" />
@@ -54,7 +54,7 @@ export function DeleteConfirm({
 }) {
   return (
     <Modal open={open} onClose={onClose} title="Confirm delete" size="sm">
-      <p className="text-sm text-text-muted">
+      <p className="text-sm text-ink-muted">
         {message ?? <>Delete <strong>{label}</strong>? This cannot be undone.</>}
       </p>
       <div className="mt-6 flex justify-end gap-2">

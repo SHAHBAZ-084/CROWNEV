@@ -16,7 +16,7 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
   bookService: {
     src: '/images/book-service-hero.webp',
     srcMobile: '/images/book-service-hero-sm.webp',
-    overlay: 'from-black/50 via-brand/25 to-subtle/98',
+    overlay: 'from-black/50 via-black/15 to-subtle/98',
   },
   about: {
     src: '/images/about-hero.webp',
@@ -33,7 +33,7 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
 
 export type PageHeroPage = keyof typeof PAGE_BACKGROUNDS;
 
-const DEFAULT_OVERLAY = 'from-black/50 via-brand/35 to-surface-alt/96';
+const DEFAULT_OVERLAY = 'from-black/50 via-black/20 to-surface-alt/96';
 
 /** Shared hero dimensions — keep About, Shop, Book Service, Contact aligned */
 const HERO_MIN_H = 'min-h-[252px] lg:min-h-[288px]';

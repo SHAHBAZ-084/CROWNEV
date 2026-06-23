@@ -37,35 +37,35 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
-              <h3 className="font-display font-semibold text-brand mb-4">Revenue Trend (30 days)</h3>
+            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
+              <h3 className="mb-4 font-display font-semibold text-ink">Revenue Trend (30 days)</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={revenue}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0C9A8" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#737373' }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 11, fill: '#737373' }} />
                   <Tooltip formatter={(v) => [`PKR ${Number(v).toLocaleString()}`, 'Revenue']} />
-                  <Line type="monotone" dataKey="revenue" stroke="#E8590C" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
-              <h3 className="font-display font-semibold text-brand mb-4">Branch Comparison</h3>
+            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
+              <h3 className="mb-4 font-display font-semibold text-ink">Branch Comparison</h3>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={branchComparison}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0C9A8" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#737373' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#737373' }} />
                   <Tooltip />
-                  <Bar dataKey="revenue" fill="#B34700" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" fill="#f97316" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="mt-8">
-            <h3 className="font-display font-semibold text-brand mb-4">Recent Orders</h3>
+            <h3 className="mb-4 font-display font-semibold text-ink">Recent Orders</h3>
             <DataTable
               columns={[
                 {

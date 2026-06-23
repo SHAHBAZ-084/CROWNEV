@@ -48,7 +48,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   if (data.length === 0) {
     return (
-      <div className="rounded-[var(--radius-card)] border border-border bg-white py-12 text-center text-text-muted">
+      <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated py-12 text-center text-ink-muted">
         {emptyMessage}
       </div>
     );
@@ -60,15 +60,15 @@ export function DataTable<T extends Record<string, unknown>>({
   const dataCols = columns.filter((c) => c.key !== 'actions');
 
   const tableView = (
-    <div className={`overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] ${stackOnMobile ? 'hidden md:block' : ''}`}>
+    <div className={`overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)] ${stackOnMobile ? 'hidden md:block' : ''}`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-max table-auto text-sm">
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-border bg-surface-alt">
+            <tr className="border-b border-border-light bg-subtle">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`${headPad} font-semibold text-brand whitespace-nowrap ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
+                  className={`${headPad} text-xs font-medium uppercase tracking-wide text-ink-muted whitespace-nowrap ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
                 >
                   {col.header}
                 </th>
@@ -82,7 +82,7 @@ export function DataTable<T extends Record<string, unknown>>({
               <tr
                 key={String(row[keyField])}
                 onClick={() => onRowClick?.(row)}
-                className={`border-b border-border last:border-0 transition-colors hover:bg-accent/5 ${onRowClick ? 'cursor-pointer' : ''} ${i % 2 === 1 ? 'bg-surface-alt/80' : ''}`}
+                className={`border-b border-border-light bg-elevated text-ink transition-colors last:border-0 hover:bg-brand/5 ${onRowClick ? 'cursor-pointer' : ''} ${i % 2 === 1 ? 'bg-subtle/50' : ''}`}
               >
                 {columns.map((col) => {
                   const cell = col.render
@@ -91,7 +91,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   return (
                     <td
                       key={col.key}
-                      className={`${cellPad} text-text ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
+                      className={`${cellPad} ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.hideOnMobile ? 'hidden lg:table-cell' : ''} ${col.className ?? ''}`}
                     >
                       {col.align === 'right' ? <div className="flex justify-end">{cell}</div> : cell}
                     </td>
@@ -122,7 +122,7 @@ export function DataTable<T extends Record<string, unknown>>({
         <div
           key={String(row[keyField])}
           onClick={() => onRowClick?.(row)}
-          className={`rounded-[var(--radius-card)] border border-border bg-white p-4 shadow-[var(--shadow-card)] ${onRowClick ? 'cursor-pointer active:bg-accent/5' : ''}`}
+          className={`rounded-[var(--radius-card)] border border-border-light bg-elevated p-4 shadow-[var(--shadow-elevated)] ${onRowClick ? 'cursor-pointer active:bg-brand/5' : ''}`}
         >
           <dl className="space-y-2">
             {dataCols
@@ -133,9 +133,9 @@ export function DataTable<T extends Record<string, unknown>>({
                 return (
                   <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
                     {col.header ? (
-                      <dt className="shrink-0 text-text-muted">{col.header}</dt>
+                      <dt className="shrink-0 text-ink-muted">{col.header}</dt>
                     ) : null}
-                    <dd className={`min-w-0 text-right font-medium text-text ${col.header ? '' : 'w-full text-left'}`}>
+                    <dd className={`min-w-0 text-right font-medium text-ink ${col.header ? '' : 'w-full text-left'}`}>
                       {value}
                     </dd>
                   </div>
@@ -143,7 +143,7 @@ export function DataTable<T extends Record<string, unknown>>({
               })}
           </dl>
           {actionsCol && (
-            <div className="mt-3 flex justify-end border-t border-border/60 pt-3">
+            <div className="mt-3 flex justify-end border-t border-border-light pt-3">
               {actionsCol.render ? actionsCol.render(row) : null}
             </div>
           )}
@@ -173,7 +173,7 @@ export function DataTable<T extends Record<string, unknown>>({
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
     PENDING: 'warning',
-    CONFIRMED: 'info',
+    CONFIRMED: 'success',
     DELIVERED: 'success',
     DONE: 'success',
     CANCELLED: 'danger',

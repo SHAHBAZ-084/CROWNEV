@@ -7,6 +7,7 @@ export function StatCard({
   value,
   icon: Icon,
   trend,
+  trendDirection = 'up',
   prefix = '',
   suffix = '',
 }: {
@@ -14,6 +15,7 @@ export function StatCard({
   value: number;
   icon: LucideIcon;
   trend?: string;
+  trendDirection?: 'up' | 'down';
   prefix?: string;
   suffix?: string;
 }) {
@@ -24,16 +26,27 @@ export function StatCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+      whileHover={{ boxShadow: 'var(--shadow-elevated-hover)' }}
+      className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] transition-colors hover:border-accent/30"
     >
       <div className="flex items-start justify-between">
-        <div className="rounded-xl bg-accent/10 p-2.5">
-          <Icon className="h-5 w-5 text-accent" />
+        <div className="rounded-xl bg-brand/10 p-2.5">
+          <Icon className="h-5 w-5 text-brand" />
         </div>
-        {trend && <span className="text-xs text-success font-medium">{trend}</span>}
+        {trend && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              trendDirection === 'down'
+                ? 'bg-warning/10 text-warning'
+                : 'bg-success/10 text-success'
+            }`}
+          >
+            {trend}
+          </span>
+        )}
       </div>
-      <p className="mt-4 text-sm text-text-muted">{label}</p>
-      <p className="mt-1 font-display text-3xl font-bold tabular-nums text-brand">
+      <p className="mt-4 text-sm text-ink-muted">{label}</p>
+      <p className="mt-1 font-display text-3xl font-bold tabular-nums text-ink">
         {prefix}{animated.toLocaleString()}{suffix}
       </p>
     </motion.div>
