@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, ShoppingBag, X, Mail, Phone, MapPin, ArrowUpRight, Calendar, ShoppingCart, ChevronUp, MessageCircle } from 'lucide-react';
+import { Menu, ShoppingCart, X, Mail, Phone, MapPin, ArrowUpRight, Calendar, ChevronUp } from 'lucide-react';
 import { Logo } from '../brand/Logo';
+import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon, YoutubeIcon } from '../icons/BrandIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
@@ -48,7 +49,9 @@ export function PublicNavbar() {
         initial={false}
         animate={{ y: 0, opacity: 1 }}
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          scrolled ? 'bg-white/92 backdrop-blur-md shadow-sm border-b border-border' : 'bg-white/80 backdrop-blur-sm'
+          scrolled
+            ? 'border-b border-border/80 bg-gradient-to-r from-surface-alt/98 via-[#fff8f2]/98 to-surface-alt/98 shadow-sm backdrop-blur-md'
+            : 'border-b border-border/50 bg-gradient-to-r from-surface-alt/90 via-[#fffaf5]/88 to-surface-alt/90 backdrop-blur-sm'
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:py-3 lg:px-8">
@@ -73,9 +76,9 @@ export function PublicNavbar() {
               type="button"
               onClick={() => setCartOpen(true)}
               aria-label={count > 0 ? `Open cart, ${count} items` : 'Open cart'}
-              className="relative min-h-11 min-w-11 rounded-xl p-2.5 hover:bg-surface-alt"
+              className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full bg-accent/10 text-brand transition-colors hover:bg-accent/20"
             >
-              <ShoppingBag className="h-5 w-5 text-brand" aria-hidden />
+              <ShoppingCart className="h-5 w-5" strokeWidth={2} aria-hidden />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
                   {count}
@@ -117,7 +120,7 @@ export function PublicNavbar() {
           <motion.nav
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="border-t border-border bg-white px-4 py-4 lg:hidden"
+            className="border-t border-border/80 bg-gradient-to-b from-surface-alt to-white px-4 py-4 lg:hidden"
           >
             {publicLinks.map((l) => (
               <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-text-muted hover:text-accent">{l.label}</Link>
@@ -152,17 +155,40 @@ export function PublicNavbar() {
   );
 }
 
-function SocialIcon({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function SocialIcon({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-xs font-bold text-brand shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white hover:shadow-md"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-white text-brand shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white hover:shadow-md"
     >
-      <span aria-hidden="true">{children}</span>
+      <Icon className="h-4 w-4" />
     </a>
+  );
+}
+
+function FooterContactIcon({ children, accent = 'accent' }: { children: ReactNode; accent?: 'accent' | 'whatsapp' }) {
+  const tone =
+    accent === 'whatsapp'
+      ? 'bg-[#25D366]/10 text-[#25D366] group-hover:bg-[#25D366] group-hover:text-white'
+      : 'bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white';
+
+  return (
+    <span
+      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${tone}`}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -215,11 +241,11 @@ export function PublicFooter() {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-text-muted">
               Pakistan&apos;s premium electric mobility platform. Ride the future, branch by branch.
             </p>
-            <div className="mt-5 flex gap-2">
-              <SocialIcon href="https://facebook.com" label="Facebook">FB</SocialIcon>
-              <SocialIcon href="https://instagram.com" label="Instagram">IG</SocialIcon>
-              <SocialIcon href="https://youtube.com" label="YouTube">YT</SocialIcon>
-              <SocialIcon href="https://tiktok.com" label="TikTok">TT</SocialIcon>
+            <div className="mt-5 flex gap-2.5">
+              <SocialIcon href="https://facebook.com" label="Facebook" icon={FacebookIcon} />
+              <SocialIcon href="https://instagram.com" label="Instagram" icon={InstagramIcon} />
+              <SocialIcon href="https://youtube.com" label="YouTube" icon={YoutubeIcon} />
+              <SocialIcon href="https://tiktok.com" label="TikTok" icon={TikTokIcon} />
             </div>
           </div>
 
@@ -247,16 +273,16 @@ export function PublicFooter() {
           {/* Contact */}
           <div className="lg:col-span-3">
             <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Contact</p>
-            <ul className="mt-4 space-y-4">
+            <ul className="mt-4 space-y-3.5">
               <li>
                 <a
                   href={`mailto:${FOOTER_CONTACT.email}`}
                   className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-accent"
                 >
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border transition-colors group-hover:ring-accent/40">
-                    <Mail className="h-4 w-4 text-accent" />
-                  </span>
-                  <span className="pt-1">{FOOTER_CONTACT.email}</span>
+                  <FooterContactIcon>
+                    <Mail className="h-4 w-4" strokeWidth={2} />
+                  </FooterContactIcon>
+                  <span className="pt-1.5 leading-snug">{FOOTER_CONTACT.email}</span>
                 </a>
               </li>
               <li>
@@ -264,10 +290,10 @@ export function PublicFooter() {
                   href={`tel:${FOOTER_CONTACT.phone.replace(/\s/g, '')}`}
                   className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-accent"
                 >
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border transition-colors group-hover:ring-accent/40">
-                    <Phone className="h-4 w-4 text-accent" />
-                  </span>
-                  <span className="pt-1">{FOOTER_CONTACT.phone}</span>
+                  <FooterContactIcon>
+                    <Phone className="h-4 w-4" strokeWidth={2} />
+                  </FooterContactIcon>
+                  <span className="pt-1.5 leading-snug">{FOOTER_CONTACT.phone}</span>
                 </a>
               </li>
               <li>
@@ -277,17 +303,17 @@ export function PublicFooter() {
                   rel="noopener noreferrer"
                   className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-[#25D366]"
                 >
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border transition-colors group-hover:ring-[#25D366]/40">
-                    <MessageCircle className="h-4 w-4 text-[#25D366]" />
-                  </span>
-                  <span className="pt-1">WhatsApp: {FOOTER_CONTACT.phone}</span>
+                  <FooterContactIcon accent="whatsapp">
+                    <WhatsAppIcon className="h-4 w-4" />
+                  </FooterContactIcon>
+                  <span className="pt-1.5 leading-snug">WhatsApp: {FOOTER_CONTACT.phone}</span>
                 </a>
               </li>
               <li className="flex items-start gap-3 text-sm text-text-muted">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border">
-                  <MapPin className="h-4 w-4 text-accent" />
-                </span>
-                <span className="pt-1 leading-relaxed">{FOOTER_CONTACT.address}</span>
+                <FooterContactIcon>
+                  <MapPin className="h-4 w-4" strokeWidth={2} />
+                </FooterContactIcon>
+                <span className="pt-1.5 leading-relaxed">{FOOTER_CONTACT.address}</span>
               </li>
             </ul>
           </div>

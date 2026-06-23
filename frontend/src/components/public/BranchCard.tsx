@@ -1,0 +1,199 @@
+import { type ReactNode } from 'react';
+import { motion } from 'framer-motion';
+import { MapPin, Phone } from 'lucide-react';
+import { WhatsAppIcon } from '../icons/BrandIcons';
+import { getBranchCardImage } from '../../lib/placeholders';
+import type { Branch } from '../../types';
+
+type BranchCardProps = {
+  branch: Branch;
+  index?: number;
+  variant?: 'featured' | 'compact';
+  showDescription?: boolean;
+};
+
+function whatsappUrl(whatsapp: string) {
+  return `https://wa.me/${whatsapp.replace(/\D/g, '')}`;
+}
+
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\s/g, '')}`;
+}
+
+function mapsUrl(location: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  children,
+  href,
+  external,
+}: {
+  icon: typeof MapPin;
+  label: string;
+  children: ReactNode;
+  href?: string;
+  external?: boolean;
+}) {
+  const content = (
+    <>
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" strokeWidth={2.25} aria-hidden />
+      <span className="sr-only">{label}: </span>
+      <span className="min-w-0">{children}</span>
+    </>
+  );
+
+  const className =
+    'inline-flex items-start gap-2 text-sm text-text-muted transition-colors hover:text-brand';
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={className}
+        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <p className={className}>{content}</p>;
+}
+
+export function BranchCard({
+  branch,
+  index = 0,
+  variant = 'featured',
+  showDescription = true,
+}: BranchCardProps) {
+  const isCompact = variant === 'compact';
+  const imageSrc = getBranchCardImage(branch);
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ delay: index * 0.07, duration: 0.42, ease: 'easeOut' }}
+      whileHover={{ y: -3, transition: { duration: 0.2 } }}
+      className="group flex overflow-hidden rounded-xl border border-border/80 bg-white shadow-[var(--shadow-card)] transition-[box-shadow,border-color] hover:border-accent/30 hover:shadow-[var(--shadow-card-hover)]"
+    >
+      <div
+        className={`relative shrink-0 overflow-hidden bg-surface-alt ${
+          isCompact ? 'w-[34%] sm:w-[38%]' : 'w-[36%] sm:w-[40%]'
+        }`}
+      >
+        <motion.img
+          src={imageSrc}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
+            isCompact ? 'min-h-[6.75rem] max-h-[7.75rem] sm:min-h-[7.25rem] sm:max-h-[8.25rem]' : 'min-h-[7.5rem] max-h-[8.5rem] sm:min-h-[8rem] sm:max-h-[9.25rem]'
+          }`}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-transparent"
+          aria-hidden
+        />
+      </div>
+
+      <div
+        className={`flex min-w-0 flex-1 flex-col justify-center ${
+          isCompact ? 'px-3.5 py-3 sm:px-4 sm:py-3.5' : 'px-4 py-3.5 sm:px-5 sm:py-4'
+        }`}
+      >
+        <h3
+          className={`font-display font-bold leading-tight text-brand ${
+            isCompact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+          }`}
+        >
+          {branch.name}
+        </h3>
+
+        <div className={`space-y-1 ${isCompact ? 'mt-2' : 'mt-2.5'}`}>
+          <InfoRow icon={MapPin} label="Location" href={mapsUrl(branch.location)} external>
+            {branch.location}
+          </InfoRow>
+          <InfoRow icon={Phone} label="Contact" href={telHref(branch.phone)}>
+            {branch.phone}
+          </InfoRow>
+          {branch.whatsapp ? (
+            <a
+              href={whatsappUrl(branch.whatsapp)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-start gap-2 text-sm text-text-muted transition-colors hover:text-[#25D366]"
+            >
+              <WhatsAppIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#25D366]" />
+              <span className="sr-only">WhatsApp: </span>
+              <span className="font-medium text-[#25D366]">WhatsApp</span>
+            </a>
+          ) : null}
+        </div>
+
+        {showDescription && branch.description && !isCompact ? (
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-text-muted sm:text-sm">
+            {branch.description}
+          </p>
+        ) : null}
+      </div>
+    </motion.article>
+  );
+}
+
+type BranchCardsSectionProps = {
+  branches: Branch[];
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  showDescription?: boolean;
+  variant?: 'featured' | 'compact';
+  className?: string;
+};
+
+export function BranchCardsSection({
+  branches,
+  eyebrow = 'Nationwide network',
+  title = 'Our Branches',
+  subtitle = 'Visit a Crown Eve showroom for test rides, service, parts, and expert advice.',
+  showDescription = true,
+  variant = 'featured',
+  className = '',
+}: BranchCardsSectionProps) {
+  if (branches.length === 0) return null;
+
+  return (
+    <section className={`py-16 lg:py-24 ${className}`}>
+      <div className="mx-auto max-w-7xl px-4 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mx-auto mb-10 max-w-2xl text-center lg:mb-12"
+        >
+          {eyebrow && (
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{eyebrow}</p>
+          )}
+          <h2 className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">{title}</h2>
+          {subtitle && <p className="mt-3 text-sm leading-relaxed text-text-muted lg:text-base">{subtitle}</p>}
+        </motion.div>
+
+        <div className="mx-auto flex max-w-3xl flex-col gap-4 lg:max-w-4xl lg:gap-5">
+          {branches.map((b, i) => (
+            <BranchCard
+              key={b.id}
+              branch={b}
+              index={i}
+              variant={variant}
+              showDescription={showDescription}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

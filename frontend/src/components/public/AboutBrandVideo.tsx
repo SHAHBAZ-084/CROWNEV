@@ -66,8 +66,11 @@ export function AboutBrandVideo() {
   }, [inView, showVideo, videoSrc]);
 
   return (
-    <div ref={wrapRef} className="relative w-full max-w-[300px] sm:max-w-[340px] lg:max-w-[380px]">
-      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[1.75rem] bg-neutral-900 shadow-[0_24px_60px_-12px_rgba(179,71,0,0.35)] ring-1 ring-black/10">
+    <div
+      ref={wrapRef}
+      className="relative mx-auto w-full max-w-[min(100%,22rem)] sm:max-w-[24rem] lg:max-w-[min(100%,20rem)] xl:max-w-[22rem]"
+    >
+      <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[1.35rem] bg-neutral-900 shadow-[0_24px_56px_-16px_rgba(179,71,0,0.35)] ring-1 ring-black/10 sm:rounded-2xl">
         <img
           src={posterSrc}
           alt=""
@@ -101,10 +104,10 @@ export function AboutBrandVideo() {
           </video>
         ) : null}
 
-        <div className="pointer-events-none absolute inset-0 rounded-[1.75rem] ring-1 ring-inset ring-white/15" />
+        <div className="pointer-events-none absolute inset-0 rounded-[1.35rem] ring-1 ring-inset ring-white/15 sm:rounded-2xl" />
       </div>
       <div
-        className="pointer-events-none absolute -inset-3 -z-10 rounded-[2rem] bg-gradient-to-br from-accent/20 via-brand/10 to-transparent blur-sm"
+        className="pointer-events-none absolute -inset-3 -z-10 rounded-[1.5rem] bg-gradient-to-br from-accent/20 via-brand/10 to-transparent blur-sm sm:rounded-[1.75rem]"
         aria-hidden
       />
     </div>

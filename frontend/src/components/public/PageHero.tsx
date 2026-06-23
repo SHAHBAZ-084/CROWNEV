@@ -1,24 +1,56 @@
 import type { ReactNode } from 'react';
 
-const PAGE_BACKGROUNDS = {
+type PageBackground =
+  | string
+  | {
+      src: string;
+      srcMobile?: string;
+      overlay?: string;
+    };
+
+const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
   trackOrder:
     'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=960&q=60',
-  bookService:
-    'https://images.unsplash.com/photo-1620714223087-87170369e725?auto=format&fit=crop&w=960&q=60',
+  bookService: {
+    src: '/images/book-service-hero.webp',
+    srcMobile: '/images/book-service-hero-sm.webp',
+  },
+  about: {
+    src: '/images/about-hero.webp',
+    srcMobile: '/images/about-hero-sm.webp',
+  },
   shop:
     'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=960&q=60',
   contact:
     'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=960&q=60',
-} as const;
+};
 
 export type PageHeroPage = keyof typeof PAGE_BACKGROUNDS;
+
+const DEFAULT_OVERLAY = 'from-black/50 via-brand/35 to-surface-alt/96';
+
+/** Shared hero dimensions — keep About, Shop, Book Service, Contact aligned */
+const HERO_MIN_H = 'min-h-[252px] lg:min-h-[288px]';
+const HERO_MIN_H_WITH_CHILDREN = 'min-h-[320px] lg:min-h-[352px]';
+const HERO_PAD = 'py-14 lg:py-16';
+
+function resolveBackground(page: PageHeroPage) {
+  const bg = PAGE_BACKGROUNDS[page];
+  if (typeof bg === 'string') {
+    return { src: bg, srcMobile: bg, overlay: DEFAULT_OVERLAY };
+  }
+  return {
+    src: bg.src,
+    srcMobile: bg.srcMobile ?? bg.src,
+    overlay: bg.overlay ?? DEFAULT_OVERLAY,
+  };
+}
 
 export function PageHero({
   page,
   title,
   subtitle,
   eyebrow,
-  compact = false,
   align = 'center',
   children,
 }: {
@@ -26,50 +58,48 @@ export function PageHero({
   title: string;
   subtitle?: string;
   eyebrow?: string;
-  compact?: boolean;
   align?: 'center' | 'left';
   children?: ReactNode;
 }) {
   const isCenter = align === 'center';
+  const { src, srcMobile, overlay } = resolveBackground(page);
+  const minH = children ? HERO_MIN_H_WITH_CHILDREN : HERO_MIN_H;
 
   return (
-    <section className="relative overflow-hidden">
+    <section className={`relative w-full overflow-hidden ${minH}`}>
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${PAGE_BACKGROUNDS[page]})` }}
+        className="absolute inset-0 hidden bg-cover bg-center bg-no-repeat md:block"
+        style={{ backgroundImage: `url(${src})` }}
         aria-hidden
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-brand/88 via-brand/78 to-surface-alt/95" aria-hidden />
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
+        style={{ backgroundImage: `url(${srcMobile})` }}
+        aria-hidden
+      />
+      <div className={`absolute inset-0 bg-gradient-to-b ${overlay}`} aria-hidden />
 
       <div
-        className={`relative mx-auto max-w-7xl px-4 lg:px-8 ${
-          compact ? 'py-8 lg:py-10' : 'py-14 lg:py-16'
-        }`}
+        className={`relative mx-auto flex w-full max-w-7xl flex-col justify-center px-4 lg:px-8 ${HERO_PAD} ${minH}`}
       >
-        <div className={`max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}>
+        <div className={`w-full max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}>
           {eyebrow && (
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">{eyebrow}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80 drop-shadow-sm">
+              {eyebrow}
+            </p>
           )}
-          <h1
-            className={`font-display font-bold text-white ${
-              compact ? 'mt-1 text-2xl lg:text-3xl' : 'mt-2 text-3xl lg:text-4xl'
-            }`}
-          >
+          <h1 className="mt-2 font-display text-3xl font-bold text-white drop-shadow-md lg:text-4xl">
             {title}
           </h1>
           {subtitle && (
-            <p
-              className={`mt-2 leading-relaxed text-white/90 ${
-                compact ? 'text-sm' : 'text-sm lg:text-base'
-              }`}
-            >
+            <p className="mt-3 text-sm leading-relaxed text-white/95 drop-shadow-sm lg:text-base">
               {subtitle}
             </p>
           )}
         </div>
 
         {children && (
-          <div className={`mt-6 max-w-lg ${isCenter ? 'mx-auto' : ''}`}>
+          <div className={`mt-6 w-full max-w-lg ${isCenter ? 'mx-auto' : ''}`}>
             <div className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-6 shadow-[var(--shadow-card-hover)] backdrop-blur-sm">
               {children}
             </div>

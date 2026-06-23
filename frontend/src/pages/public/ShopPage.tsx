@@ -91,7 +91,6 @@ export default function ShopPage() {
     <div>
       <PageHero
         page="shop"
-        compact
         eyebrow="Crown Eve Store"
         title="Shop"
         subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."

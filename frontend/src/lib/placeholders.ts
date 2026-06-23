@@ -4,15 +4,17 @@ export const FOUNDERS = [
   {
     name: 'Ahmed Raza',
     title: 'Founder & CEO',
-    bio: 'Ahmed founded Crown Eve with a vision to make electric mobility accessible across Pakistan. He leads product strategy and branch expansion.',
-    // PLACEHOLDER headshot
+    vision:
+      'Electric mobility should not be a luxury in Pakistan — it should be reliable, affordable, and available in every major city.',
+    bio: 'Ahmed founded Crown Eve to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
     image: 'https://i.pravatar.cc/400?img=12',
   },
   {
     name: 'Bilal Khan',
     title: 'Co-Founder & COO',
-    bio: 'Bilal oversees operations, service quality, and supplier partnerships. He ensures every branch delivers a consistent Crown Eve experience.',
-    // PLACEHOLDER headshot
+    vision:
+      'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Eve promise on the ground.',
+    bio: 'Bilal builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
     image: 'https://i.pravatar.cc/400?img=33',
   },
 ] as const;
@@ -68,3 +70,33 @@ export const SITE_LOGO = {
 export const BRANCH_SECTION = {
   mapBackground: '/images/pakistan-map-bg.png',
 } as const;
+
+/** PLACEHOLDER branch card photos — replace with real showroom images per branch */
+const BRANCH_IMAGE_BY_KEYWORD: { keyword: string; image: string }[] = [
+  {
+    keyword: 'karachi',
+    image:
+      'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?auto=format&fit=crop&w=480&h=320&q=80',
+  },
+  {
+    keyword: 'lahore',
+    image:
+      'https://images.unsplash.com/photo-1558981403-c5f9899a28dc?auto=format&fit=crop&w=480&h=320&q=80',
+  },
+  {
+    keyword: 'islamabad',
+    image:
+      'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=480&h=320&q=80',
+  },
+];
+
+const DEFAULT_BRANCH_IMAGE =
+  'https://images.unsplash.com/photo-1571068316344-75bc76f77890?auto=format&fit=crop&w=480&h=320&q=80';
+
+export function getBranchCardImage(branch: { name: string; location: string }): string {
+  const haystack = `${branch.name} ${branch.location}`.toLowerCase();
+  const match = BRANCH_IMAGE_BY_KEYWORD.find(({ keyword }) => haystack.includes(keyword));
+  return match?.image ?? DEFAULT_BRANCH_IMAGE;
+}
+
+export const BRANCH_HIGHLIGHTS = ['Test rides', 'Sales', 'Service', 'Genuine parts'] as const;

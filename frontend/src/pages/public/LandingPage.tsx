@@ -108,7 +108,7 @@ export default function LandingPage() {
       </Suspense>
 
       {data?.branches && (
-        <Suspense fallback={<SectionFallback className="py-20 lg:py-28" />}>
+        <Suspense fallback={<SectionFallback className="pt-14 pb-10 lg:pt-16 lg:pb-12" />}>
           <FindBranchSection branches={data.branches} />
         </Suspense>
       )}

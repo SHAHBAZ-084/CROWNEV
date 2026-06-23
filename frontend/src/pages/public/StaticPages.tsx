@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, MessageCircle } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { LegalAccordion } from '../../components/public/LegalAccordion';
 import { LegalPageLayout } from '../../components/public/LegalPageLayout';
 import { FaqView } from '../../components/public/FaqView';
 import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
+import { PageHero } from '../../components/public/PageHero';
+import { BranchCardsSection } from '../../components/public/BranchCard';
 import { COMPANY_STORY, FOUNDERS } from '../../lib/placeholders';
 import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
 import { FAQ_SECTIONS } from '../../lib/faqContent';
@@ -22,29 +23,16 @@ export function AboutPage() {
 
   return (
     <div>
-      <section className="bg-gradient-to-b from-surface-alt to-white py-20 lg:py-28">
-        <div className="mx-auto max-w-4xl px-4 lg:px-8 text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="font-display text-4xl font-bold text-brand lg:text-5xl"
-          >
-            About Crown Eve Bikes
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mt-6 text-lg text-text-muted leading-relaxed"
-          >
-            {COMPANY_STORY.split('\n\n')[0]}
-          </motion.p>
-        </div>
-      </section>
+      <PageHero
+        page="about"
+        eyebrow="Electric mobility for Pakistan"
+        title="About Crown Eve Bikes"
+        subtitle={COMPANY_STORY.split('\n\n')[0]}
+      />
 
-      <section className="overflow-hidden border-y border-border bg-gradient-to-b from-white via-surface-alt/60 to-white py-16 lg:py-24">
+      <section className="overflow-hidden border-y border-border bg-gradient-to-b from-white via-surface-alt/60 to-white py-12 lg:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -55,10 +43,10 @@ export function AboutPage() {
               <h2 className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">
                 Built for Pakistani roads
               </h2>
-              <p className="mt-4 text-text-muted leading-relaxed">
+              <p className="mt-3 text-sm leading-relaxed text-text-muted sm:text-base">
                 {COMPANY_STORY.split('\n\n')[1] ?? COMPANY_STORY.split('\n\n')[0]}
               </p>
-              <ul className="mt-6 space-y-3 text-sm text-text-muted">
+              <ul className="mt-5 space-y-2.5 text-sm text-text-muted">
                 <li className="flex gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                   Premium electric bikes with heat-resistant batteries
@@ -86,81 +74,62 @@ export function AboutPage() {
         </div>
       </section>
 
-      <section className="py-16 lg:py-24">
-        <div className="mx-auto max-w-3xl px-4 lg:px-8">
-          <h2 className="font-display text-2xl font-bold text-brand mb-6">Our Story</h2>
-          <div className="space-y-4 text-text-muted leading-relaxed">
-            {COMPANY_STORY.split('\n\n').map((p) => (
-              <p key={p.slice(0, 40)}>{p}</p>
-            ))}
-          </div>
-        </div>
-      </section>
+      <section className="bg-gradient-to-b from-white via-surface-alt/30 to-surface-alt/50 py-12 lg:py-16">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mx-auto mb-8 max-w-xl text-center lg:mb-10"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Our founders</p>
+            <h2 className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">
+              Driving Pakistan&apos;s electric future
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-text-muted">
+              The team behind Crown Eve&apos;s mission to bring premium electric mobility nationwide.
+            </p>
+          </motion.div>
 
-      <section className="bg-surface-alt py-16 lg:py-24">
-        <div className="mx-auto max-w-5xl px-4 lg:px-8">
-          <h2 className="font-display text-2xl font-bold text-brand text-center mb-12">Leadership</h2>
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="mx-auto flex max-w-4xl flex-col gap-4 sm:gap-5">
             {FOUNDERS.map((f, i) => (
-              <motion.div
+              <motion.article
                 key={f.name}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex flex-col sm:flex-row gap-6 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
-              >
-                {/* PLACEHOLDER. replace image URL before production */}
-                <img src={f.image} alt={f.name} className="h-32 w-32 rounded-2xl object-cover shrink-0 mx-auto sm:mx-0" />
-                <div>
-                  <h3 className="font-display font-semibold text-brand text-lg">{f.name}</h3>
-                  <p className="text-sm text-accent font-medium">{f.title}</p>
-                  <p className="mt-3 text-sm text-text-muted leading-relaxed">{f.bio}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <h2 className="font-display text-2xl font-bold text-brand mb-12">Our Branches</h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {branches.map((b, i) => (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+                className="flex overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-card)] sm:flex-row"
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10">
-                    <MapPin className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-brand">{b.name}</h3>
-                    <p className="text-sm text-text-muted">{b.location}</p>
-                  </div>
+                <div className="h-40 w-full shrink-0 overflow-hidden bg-surface-alt sm:h-44 sm:w-36 md:w-40">
+                  <img
+                    src={f.image}
+                    alt={f.name}
+                    className="h-full w-full object-cover object-top"
+                  />
                 </div>
-                {b.description && (
-                  <p className="mt-4 text-sm text-text-muted leading-relaxed">{b.description}</p>
-                )}
-                <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                  <a href={`tel:${b.phone.replace(/\s/g, '')}`} className="text-accent hover:underline">{b.phone}</a>
-                  {b.whatsapp && (
-                    <a href={`https://wa.me/${b.whatsapp.replace(/\D/g, '')}`} className="inline-flex items-center gap-1 text-success hover:underline">
-                      <MessageCircle className="h-4 w-4" /> WhatsApp
-                    </a>
-                  )}
+                <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
+                  <h3 className="font-display text-lg font-bold text-brand">{f.name}</h3>
+                  <p className="mt-0.5 text-sm font-semibold text-accent">{f.title}</p>
+                  <blockquote className="mt-3 border-l-2 border-accent/35 pl-3 text-sm italic leading-snug text-brand/90">
+                    &ldquo;{f.vision}&rdquo;
+                  </blockquote>
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-text-muted">{f.bio}</p>
                 </div>
-              </motion.div>
+              </motion.article>
             ))}
           </div>
         </div>
       </section>
+
+      <BranchCardsSection
+        branches={branches}
+        eyebrow="Visit us"
+        title="Our Branches"
+        subtitle="Walk in for test rides, servicing, and genuine parts at any Crown Eve location."
+        showDescription
+        className="bg-gradient-to-b from-white to-surface-alt/40"
+      />
     </div>
   );
 }

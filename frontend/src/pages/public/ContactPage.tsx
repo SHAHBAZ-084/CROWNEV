@@ -1,11 +1,12 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Mail, MapPin, MessageCircle, Phone, Send } from 'lucide-react';
+import { Clock, Mail, MapPin, Phone, Send } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import type { Branch } from '../../types';
 import { PageHero } from '../../components/public/PageHero';
+import { BranchCard } from '../../components/public/BranchCard';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
@@ -167,35 +168,21 @@ export default function ContactPage() {
 
             {branches.length > 0 && (
               <div className="mt-8">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                <motion.p
+                  initial={{ opacity: 0, y: 8 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-accent"
+                >
                   Our Branches
-                </p>
-                <div className="space-y-3">
-                  {branches.slice(0, 3).map((b) => (
-                    <div
-                      key={b.id}
-                      className="rounded-xl border border-border bg-white/80 px-4 py-3 text-sm"
-                    >
-                      <p className="font-medium text-brand">{b.name}</p>
-                      <p className="text-text-muted">{b.location}</p>
-                      <div className="mt-2 flex flex-wrap gap-3">
-                        <a href={`tel:${b.phone.replace(/\s/g, '')}`} className="text-accent hover:underline">
-                          {b.phone}
-                        </a>
-                        {b.whatsapp && (
-                          <a
-                            href={`https://wa.me/${b.whatsapp.replace(/\D/g, '')}`}
-                            className="inline-flex items-center gap-1 text-success hover:underline"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                </motion.p>
+                <div className="space-y-4">
+                  {branches.slice(0, 3).map((b, i) => (
+                    <BranchCard key={b.id} branch={b} index={i} variant="compact" showDescription={false} />
                   ))}
                 </div>
                 {branches.length > 3 && (
-                  <Link to="/about" className="mt-3 inline-block text-sm font-medium text-accent hover:underline">
+                  <Link to="/about" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
                     View all branches →
                   </Link>
                 )}

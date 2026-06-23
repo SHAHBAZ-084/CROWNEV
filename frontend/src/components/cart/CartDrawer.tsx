@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -41,7 +41,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           >
             <div className="flex items-center justify-between border-b border-border p-6">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-brand" />
+                <ShoppingCart className="h-5 w-5 text-brand" />
                 <h2 className="font-display text-lg font-semibold text-brand">Cart ({count})</h2>
               </div>
               <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-surface-alt">
