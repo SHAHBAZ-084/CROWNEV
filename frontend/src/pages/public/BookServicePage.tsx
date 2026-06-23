@@ -48,30 +48,35 @@ export default function BookServicePage() {
         subtitle="Request maintenance or repair. The branch will confirm your appointment"
       />
 
-      <MotionSection as="div" className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
-        {!user && (
-          <div className="mb-6 rounded-xl border border-border bg-surface-alt p-4 text-sm text-text-muted">
-            Please <a href="/login" className="text-brand-light font-medium">sign in</a> to book a service.
-          </div>
-        )}
+      <div className="bg-subtle">
+        <MotionSection as="div" className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
+          {!user && (
+            <div className="mb-6 rounded-xl border border-border-light bg-elevated p-4 text-sm text-ink-muted">
+              Please <a href="/login" className="font-medium text-brand hover:text-brand-light">sign in</a> to book a service.
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
-          <Select label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} required>
-            <option value="">Select branch</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Select>
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4 rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] lg:p-8"
+          >
+            <Select label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} required>
+              <option value="">Select branch</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
 
-          <Textarea label="Notes (optional)" name="notes" rows={3} placeholder="Describe your issue or request…" />
+            <Textarea label="Notes (optional)" name="notes" rows={3} placeholder="Describe your issue or request…" />
 
-          <p className="text-xs text-text-muted">
-            Date and time will be assigned by the branch after they review your request.
-          </p>
+            <p className="text-xs text-ink-muted">
+              Date and time will be assigned by the branch after they review your request.
+            </p>
 
-          <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user || !branchId}>
-            Submit Request
-          </Button>
-        </form>
-      </MotionSection>
+            <Button type="submit" variant="accent" size="lg" className="w-full" loading={loading} disabled={!user || !branchId}>
+              Submit Request
+            </Button>
+          </form>
+        </MotionSection>
+      </div>
     </div>
   );
 }

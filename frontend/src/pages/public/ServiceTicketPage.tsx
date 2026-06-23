@@ -72,7 +72,7 @@ export default function ServiceTicketPage() {
       />
 
       <MotionSection as="div" className="mx-auto max-w-lg px-4 pb-16 pt-4">
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+        <div className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
           {bookingId && !Number.isNaN(bookingId) && (
             <p className="mb-4 text-sm text-text-muted">
               Booking reference: <strong className="text-brand">#{bookingId}</strong>

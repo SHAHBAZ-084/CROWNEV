@@ -37,7 +37,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-surface-alt shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-border p-6">
               <div className="flex items-center gap-2">

@@ -100,11 +100,11 @@ export function SearchSelect({
               pick(filtered[0]);
             }
           }}
-          className="w-full rounded-xl border border-border bg-white py-2.5 pl-4 pr-10 text-sm outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-surface-alt/50 disabled:opacity-60"
+          className="w-full rounded-xl border border-border bg-surface-alt py-2.5 pl-4 pr-10 text-sm outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-surface-alt/50 disabled:opacity-60"
         />
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
         {open && (
-          <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border bg-white py-1 shadow-lg">
+          <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border bg-surface-alt py-1 shadow-lg">
             {filtered.length === 0 ? (
               <li className="px-4 py-2.5 text-sm text-text-muted">No matches</li>
             ) : (

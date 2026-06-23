@@ -19,7 +19,7 @@ function LegalAccordionItem({
   const num = String(index + 1).padStart(2, '0');
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface-alt shadow-[var(--shadow-card)]">
       <button
         type="button"
         onClick={onToggle}

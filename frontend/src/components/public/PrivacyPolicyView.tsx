@@ -57,7 +57,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
   }, [sections]);
 
   return (
-    <div className="min-h-[60vh] bg-white">
+    <div className="min-h-[60vh] bg-surface">
       <section className="relative overflow-hidden bg-gradient-to-br from-brand via-brand-light to-accent px-4 py-16 text-white lg:py-20">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-black/10 blur-2xl" aria-hidden />

@@ -32,17 +32,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4 py-16">
+    <div className="flex min-h-[70vh] items-center justify-center bg-subtle px-4 py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-[var(--shadow-card)]"
+        className="w-full max-w-md rounded-2xl border border-border-light bg-elevated p-8 shadow-[var(--shadow-elevated)]"
       >
         <div className="flex justify-center">
           <Logo size="lg" />
         </div>
-        <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Welcome Back</h1>
-        <p className="mt-1 text-sm text-text-muted">Sign in to your Crown Ev account</p>
+        <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Welcome Back</h1>
+        <p className="mt-1 text-sm text-ink-muted">Sign in to your Crown Ev account</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-warning">{error}</p>}
@@ -51,7 +51,7 @@ export default function LoginPage() {
           <Button type="submit" variant="accent" className="w-full" loading={loading}>Sign In</Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-text-muted space-y-2">
+        <div className="mt-6 text-center text-sm text-ink-muted space-y-2">
           <p><Link to="/forgot-password" className="text-brand-light hover:underline">Forgot password?</Link></p>
           <p>No account? <Link to={getRegisterUrl(redirectTo ?? undefined)} className="text-brand-light font-medium">Register</Link></p>
         </div>

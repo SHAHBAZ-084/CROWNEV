@@ -14,7 +14,7 @@ const mapMaskStyle = {
 
 export function FindBranchSection({ branches }: { branches: Branch[] }) {
   return (
-    <section className="bg-gradient-to-b from-white via-surface-alt/20 to-white pt-14 pb-10 lg:pt-16 lg:pb-12">
+    <section className="bg-subtle pt-14 pb-10 lg:pt-16 lg:pb-12">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
           <div>
@@ -24,8 +24,8 @@ export function FindBranchSection({ branches }: { branches: Branch[] }) {
               viewport={{ once: true }}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Nationwide network</p>
-              <h2 className="mt-2 font-display text-3xl font-bold text-brand lg:text-4xl">Find a Branch</h2>
-              <p className="mt-2 max-w-xl text-sm text-text-muted lg:text-base">
+              <h2 className="mt-2 font-display text-3xl font-bold text-ink lg:text-4xl">Find a Branch</h2>
+              <p className="mt-2 max-w-xl text-sm text-ink-muted lg:text-base">
                 Visit a Crown Ev showroom near you for test rides, service, and parts.
               </p>
             </motion.div>

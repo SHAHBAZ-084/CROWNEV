@@ -36,7 +36,7 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`relative flex ${shellMaxH} w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${widths[size]}`}
+            className={`relative flex ${shellMaxH} w-full flex-col overflow-hidden rounded-t-2xl bg-surface-alt shadow-2xl sm:rounded-2xl ${widths[size]}`}
           >
             {title && (
               <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4">

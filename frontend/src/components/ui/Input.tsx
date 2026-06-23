@@ -9,14 +9,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, className = '', id, ...props }, ref) => (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-text">
+        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}
       <input
         ref={ref}
         id={id}
-        className={`w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 ${error ? 'border-warning shake' : ''} ${className}`}
+        className={`w-full rounded-xl border border-border-light bg-elevated px-4 py-2.5 text-sm text-ink outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 ${error ? 'border-warning shake' : ''} ${className}`}
         {...props}
       />
       {error && <p className="text-xs text-warning">{error}</p>}
@@ -36,13 +36,13 @@ export function Select({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-text">
+        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}
       <select
         id={id}
-        className={`w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 ${className}`}
+        className={`w-full rounded-xl border border-border-light bg-elevated px-4 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 ${className}`}
         {...props}
       >
         {children}
@@ -62,13 +62,13 @@ export function Textarea({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-text">
+        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}
       <textarea
         id={id}
-        className={`w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none ${className}`}
+        className={`w-full rounded-xl border border-border-light bg-elevated px-4 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 resize-none ${className}`}
         {...props}
       />
       {error && <p className="text-xs text-warning">{error}</p>}

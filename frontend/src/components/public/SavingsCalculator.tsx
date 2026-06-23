@@ -39,13 +39,13 @@ const PETROL_BIKE_MODELS = [
   { id: '150cc', label: '150cc Petrol Bike', kmPerLiter: 35 },
 ] as const;
 
-const PETROL_CHART_COLORS = ['#E8590C', '#B34700'] as const;
-const ELECTRIC_CHART_COLORS = ['#B34700', '#E8590C', '#1E8449'] as const;
+const PETROL_CHART_COLORS = ['#f97316', '#ea6c0a'] as const;
+const ELECTRIC_CHART_COLORS = ['#ea6c0a', '#f97316', '#22c55e'] as const;
 
 const inputClass =
-  'w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-brand outline-none focus:border-accent focus:ring-1 focus:ring-accent/20';
+  'w-full rounded-lg border border-border-light bg-elevated px-3 py-2 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20';
 
-const labelClass = 'mb-1 block text-xs font-medium text-brand';
+const labelClass = 'mb-1 block text-xs font-medium text-ink-muted';
 
 function clampPetrolPrice(value: number) {
   return Math.min(PETROL_PRICE_MAX, Math.max(PETROL_PRICE_MIN, value));
@@ -168,7 +168,7 @@ export function SavingsCalculator() {
 
   return (
     <motion.section
-      className="border-y border-border bg-white py-10 lg:py-12"
+      className="border-y border-border-light bg-elevated py-10 lg:py-12"
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: '-48px' }}
@@ -180,12 +180,12 @@ export function SavingsCalculator() {
           <motion.div
             variants={fadeUp}
             transition={motionTransition}
-            className="rounded-[var(--radius-card)] border border-border bg-surface-alt/50 p-4 shadow-[var(--shadow-card)] lg:p-5"
+            className="rounded-[var(--radius-card)] border border-border-light bg-subtle p-4 shadow-[var(--shadow-elevated)] lg:p-5"
           >
-            <h2 className="font-display text-lg font-bold leading-snug text-brand lg:text-xl">
+            <h2 className="font-display text-lg font-bold leading-snug text-ink lg:text-xl">
               Calculate Your Ride &amp; Save with {BRAND_NAME}
             </h2>
-            <p className="mt-1 text-xs text-text-muted">
+            <p className="mt-1 text-xs text-ink-muted">
               Compare monthly petrol vs electric costs. Updates instantly.
             </p>
 
@@ -266,14 +266,14 @@ export function SavingsCalculator() {
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-border bg-white px-3 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Petrol / mo</p>
+              <div className="rounded-lg border border-border-light bg-elevated px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">Petrol / mo</p>
                 <p className="font-display text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.petrolFuelMonthly)}
                 </p>
               </div>
-              <div className="rounded-lg border border-border bg-white px-3 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">Electric / mo</p>
+              <div className="rounded-lg border border-border-light bg-elevated px-3 py-2">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">Electric / mo</p>
                 <p className="font-display text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.electricityMonthly)}
                 </p>
@@ -285,7 +285,7 @@ export function SavingsCalculator() {
           <motion.div
             variants={fadeUp}
             transition={motionTransition}
-            className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]"
+            className="overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)]"
           >
             <div className="flex items-center gap-2 bg-brand px-4 py-2.5 text-white">
               <Calculator className="h-4 w-4" />
@@ -303,7 +303,7 @@ export function SavingsCalculator() {
                 </div>
               </div>
 
-              <div className="sm:border-l sm:border-border sm:pl-4">
+              <div className="sm:border-l sm:border-border-light sm:pl-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Electric Bike</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.electricMonthlyTotal)}/mo

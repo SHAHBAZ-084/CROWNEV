@@ -89,7 +89,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div>
+    <div className="bg-subtle">
       <PageHero
         page="shop"
         eyebrow="Crown Ev Store"
@@ -98,22 +98,22 @@ export default function ShopPage() {
       />
 
       <MotionSection as="div" className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-4 shadow-[var(--shadow-card)] lg:p-5">
-          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand">
+        <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-4 shadow-[var(--shadow-elevated)] lg:p-5">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-ink">
             <SlidersHorizontal className="h-4 w-4 text-accent" />
             Filter products
           </div>
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
               <input
                 type="search"
                 placeholder="Search products…"
                 aria-label="Search products"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-border bg-surface-alt/50 py-2.5 pl-10 pr-4 text-sm outline-none transition-shadow focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20"
+                className="w-full rounded-xl border border-border-light bg-subtle py-2.5 pl-10 pr-4 text-sm text-ink outline-none transition-shadow focus:border-accent focus:bg-elevated focus:ring-2 focus:ring-accent/20"
               />
             </div>
 
@@ -128,7 +128,7 @@ export default function ShopPage() {
                     className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
                       active
                         ? 'bg-brand text-white shadow-sm'
-                        : 'bg-surface-alt text-text-muted hover:bg-surface-alt/80 hover:text-brand'
+                        : 'bg-subtle text-ink-muted hover:bg-border-light/40 hover:text-brand'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -168,14 +168,14 @@ export default function ShopPage() {
           </div>
 
           {activeFilters.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-              <span className="text-xs font-medium text-text-muted">Active:</span>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-light pt-4">
+              <span className="text-xs font-medium text-ink-muted">Active:</span>
               {activeFilters.map((f) => (
                 <button
                   key={f.key}
                   type="button"
                   onClick={() => removeFilter(f.key)}
-                  className="inline-flex items-center gap-1 rounded-full bg-surface-alt px-2.5 py-1 text-xs font-medium text-brand hover:bg-accent/10"
+                  className="inline-flex items-center gap-1 rounded-full bg-subtle px-2.5 py-1 text-xs font-medium text-brand hover:bg-accent/10"
                 >
                   {f.label}
                   <X className="h-3 w-3" />
@@ -193,12 +193,12 @@ export default function ShopPage() {
         </div>
 
         <div className="mt-6 flex items-center justify-between gap-4">
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-ink-muted">
             {loading ? (
               'Loading products…'
             ) : (
               <>
-                <span className="font-semibold text-brand">{products.length}</span>
+                <span className="font-semibold text-ink">{products.length}</span>
                 {products.length === 1 ? ' product' : ' products'}
                 {activeFilters.length > 0 ? ' found' : ' available'}
               </>
@@ -210,10 +210,10 @@ export default function ShopPage() {
           {loading ? (
             <ProductGridSkeleton />
           ) : products.length === 0 ? (
-            <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-surface-alt/50 px-6 py-16 text-center">
-              <Package className="mx-auto h-12 w-12 text-brand/25" />
-              <p className="mt-4 font-display text-lg font-semibold text-brand">No products found</p>
-              <p className="mt-2 text-sm text-text-muted">
+            <div className="rounded-[var(--radius-card)] border border-dashed border-border-light bg-elevated px-6 py-16 text-center">
+              <Package className="mx-auto h-12 w-12 text-brand/30" />
+              <p className="mt-4 font-display text-lg font-semibold text-ink">No products found</p>
+              <p className="mt-2 text-sm text-ink-muted">
                 Try adjusting your search or filters to find what you&apos;re looking for.
               </p>
               {activeFilters.length > 0 && (

@@ -67,7 +67,7 @@ export default function TrackOrderPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)] space-y-6"
+            className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)] space-y-6"
           >
             <div className="flex items-center justify-between">
               <p className="font-mono text-sm text-brand-light">{order.trackingId}</p>

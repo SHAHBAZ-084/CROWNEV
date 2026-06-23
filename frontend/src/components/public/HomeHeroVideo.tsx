@@ -60,10 +60,13 @@ export function HomeHeroVideo({ children }: { children: ReactNode }) {
     }
   }, [inView, showVideo, videoSrc]);
 
+  const mobileMediaClass = 'object-[50%_68%] scale-[1.22] origin-center';
+  const desktopMediaClass = 'object-[center_35%]';
+
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden min-h-[min(88vh,820px)] pt-28 pb-24 lg:pt-36 lg:pb-32"
+      className="relative overflow-hidden min-h-[min(78vh,680px)] pt-28 pb-20 sm:min-h-[min(88vh,820px)] sm:pb-24 lg:pt-36 lg:pb-32"
     >
       <div className="absolute inset-0" aria-hidden>
         <picture className="absolute inset-0">
@@ -76,7 +79,7 @@ export function HomeHeroVideo({ children }: { children: ReactNode }) {
             decoding="async"
             fetchPriority="high"
             className={`h-full w-full object-cover transition-opacity duration-700 ${
-              isMobile ? 'object-[center_38%]' : 'object-[center_35%]'
+              isMobile ? mobileMediaClass : desktopMediaClass
             } ${showVideo && videoReady ? 'opacity-0' : 'opacity-100'}`}
           />
         </picture>
@@ -86,7 +89,7 @@ export function HomeHeroVideo({ children }: { children: ReactNode }) {
             ref={videoRef}
             key={videoSrc}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-              isMobile ? 'object-[center_38%]' : 'object-[center_35%]'
+              isMobile ? mobileMediaClass : desktopMediaClass
             } ${videoReady ? 'opacity-100' : 'opacity-0'}`}
             poster={posterSrc}
             muted
@@ -105,6 +108,7 @@ export function HomeHeroVideo({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-black/5" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/12 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 via-black/20 to-transparent sm:h-24 lg:hidden" />
         <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent via-brand/15 to-brand/50 lg:h-16" />
       </div>
 

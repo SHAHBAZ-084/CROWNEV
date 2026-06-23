@@ -16,6 +16,7 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
   bookService: {
     src: '/images/book-service-hero.webp',
     srcMobile: '/images/book-service-hero-sm.webp',
+    overlay: 'from-black/50 via-brand/25 to-subtle/98',
   },
   about: {
     src: '/images/about-hero.webp',
@@ -127,7 +128,7 @@ export function PageHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...motionTransition, delay: 0.25 }}
           >
-            <div className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-6 shadow-[var(--shadow-card-hover)] backdrop-blur-sm">
+            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-6 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
               {children}
             </div>
           </motion.div>

@@ -123,7 +123,7 @@ export default function CheckoutPage() {
       <p className="mt-1 text-sm text-text-muted">Review your order and complete payment</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        <section className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
           <h2 className="mb-4 font-semibold text-brand">1. Order Summary</h2>
           <ul className="space-y-3">
             {items.map((i) => (
@@ -141,7 +141,7 @@ export default function CheckoutPage() {
           </p>
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
           <h2 className="mb-4 font-semibold text-brand">2. Select Branch</h2>
           <Select
             label="Fulfillment Branch"
@@ -159,7 +159,7 @@ export default function CheckoutPage() {
           )}
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
           <h2 className="mb-4 font-semibold text-brand">3. Customer Details</h2>
           <div className="space-y-4">
             <Input label="Full Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
@@ -168,7 +168,7 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
+        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
           <h2 className="mb-4 font-semibold text-brand">4. Payment</h2>
 
           {!branchId ? (
@@ -180,7 +180,7 @@ export default function CheckoutPage() {
               <p className="font-medium text-brand">Pay {formatPKR(total)} to:</p>
               <ul className="space-y-2">
                 {channels.map((ch) => (
-                  <li key={ch.id} className="rounded-lg border border-border/60 bg-white px-3 py-2">
+                  <li key={ch.id} className="rounded-lg border border-border/60 bg-surface-alt px-3 py-2">
                     <span className="text-xs font-semibold uppercase text-text-muted">
                       {ch.type === 'WALLET' ? 'Wallet' : 'Bank'}
                     </span>

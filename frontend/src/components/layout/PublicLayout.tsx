@@ -8,7 +8,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
 import { CartDrawer } from '../cart/CartDrawer';
-import { PublicAnalyticsStrip } from '../public/PublicAnalyticsStrip';
 import { WhatsAppFloat } from '../public/WhatsAppFloat';
 import { Button } from '../ui/Button';
 
@@ -55,9 +54,7 @@ export function PublicNavbar() {
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           transparentNav
             ? 'border-b border-transparent bg-transparent'
-            : scrolled
-              ? 'border-b border-border/80 bg-gradient-to-r from-surface-alt/98 via-[#fff8f2]/98 to-surface-alt/98 shadow-sm backdrop-blur-md'
-              : 'border-b border-border/50 bg-gradient-to-r from-surface-alt/90 via-[#fffaf5]/88 to-surface-alt/90 backdrop-blur-sm'
+            : 'border-b border-border/80 bg-surface-alt/95 shadow-sm backdrop-blur-md'
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:py-3 lg:px-8">
@@ -77,7 +74,7 @@ export function PublicNavbar() {
                       : 'text-white/90 drop-shadow-sm hover:text-brand-light'
                     : active
                       ? 'text-brand'
-                      : 'text-text-muted hover:text-brand-light'
+                      : 'text-white hover:text-brand-light'
                 }`}
               >
                 {l.label}
@@ -94,7 +91,7 @@ export function PublicNavbar() {
               className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors ${
                 transparentNav
                   ? 'bg-white/15 text-white hover:bg-brand/25 hover:text-brand-light'
-                  : 'bg-accent/10 text-brand hover:bg-accent/20 hover:text-brand-light'
+                  : 'bg-white/10 text-white hover:bg-brand/20 hover:text-brand-light'
               }`}
             >
               <ShoppingCart className="h-5 w-5" strokeWidth={2} aria-hidden />
@@ -112,7 +109,7 @@ export function PublicNavbar() {
                     <Button variant="secondary" size="sm">Dashboard</Button>
                   </Link>
                 )}
-                <button type="button" onClick={logout} className="text-sm text-text-muted hover:text-brand">
+                <button type="button" onClick={logout} className="text-sm text-white hover:text-brand-light">
                   Logout
                 </button>
               </div>
@@ -122,7 +119,7 @@ export function PublicNavbar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={transparentNav ? 'text-white/90 hover:text-brand-light hover:bg-brand/10' : 'hover:text-brand-light'}
+                    className={transparentNav ? 'text-white/90 hover:text-brand-light hover:bg-brand/10' : 'text-white hover:text-brand-light'}
                   >
                     Login
                   </Button>
@@ -134,7 +131,7 @@ export function PublicNavbar() {
             <button
               type="button"
               className={`min-h-11 min-w-11 rounded-xl p-2.5 transition-colors lg:hidden ${
-                transparentNav ? 'text-white hover:text-brand-light' : 'hover:text-brand-light'
+                transparentNav ? 'text-white hover:text-brand-light' : 'text-white hover:text-brand-light'
               }`}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -149,10 +146,10 @@ export function PublicNavbar() {
           <motion.nav
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="border-t border-border/80 bg-gradient-to-b from-surface-alt to-white px-4 py-4 lg:hidden"
+            className="border-t border-border bg-surface-alt px-4 py-4 lg:hidden"
           >
             {publicLinks.map((l) => (
-              <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-text-muted hover:text-brand-light">{l.label}</Link>
+              <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-white hover:text-brand-light">{l.label}</Link>
             ))}
             {user ? (
               <div className="mt-4 space-y-2 border-t border-border pt-4">
@@ -164,7 +161,7 @@ export function PublicNavbar() {
                 <button
                   type="button"
                   onClick={logout}
-                  className="w-full rounded-lg border border-border py-2 text-sm font-medium text-text-muted hover:bg-surface-alt hover:text-brand"
+                  className="w-full rounded-lg border border-border py-2 text-sm font-medium text-white hover:bg-surface hover:text-brand-light"
                 >
                   Logout
                 </button>
@@ -199,7 +196,7 @@ function SocialIcon({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-white text-brand shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:bg-brand hover:text-white hover:shadow-md"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface-alt text-accent shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-white hover:shadow-md"
     >
       <Icon className="h-4 w-4" />
     </a>
@@ -226,7 +223,7 @@ function FooterLink({ to, label }: { to: string; label: string }) {
     <li>
       <Link
         to={to}
-        className="group inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-accent"
+        className="group inline-flex items-center gap-1.5 text-sm text-white transition-colors hover:text-brand-light"
       >
         <span>{label}</span>
         <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -236,11 +233,14 @@ function FooterLink({ to, label }: { to: string; label: string }) {
 }
 
 export function PublicFooter() {
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+
   return (
     <footer className="relative overflow-hidden border-t border-border bg-surface-alt">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgb(232_89_12_/_6%)_0%,_transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_6%)_0%,_transparent_50%)]" />
 
-      {/* CTA strip */}
+      {isHome && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -255,7 +255,7 @@ export function PublicFooter() {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link to="/shop">
-              <Button variant="secondary" size="sm" className="border-white/30 bg-white text-brand hover:bg-white/90">
+              <Button variant="secondary" size="sm" className="border-white bg-white font-semibold text-brand hover:bg-white/90 hover:text-brand">
                 <ShoppingCart className="h-4 w-4" /> Shop Now
               </Button>
             </Link>
@@ -267,13 +267,13 @@ export function PublicFooter() {
           </div>
         </div>
       </motion.div>
+      )}
 
       <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-14 lg:px-8 lg:pt-16 lg:pb-5">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
-          {/* Brand */}
           <div className="lg:col-span-4">
             <Logo size="lg" linked />
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-text-muted">
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white">
               Pakistan&apos;s premium electric mobility platform. Ride the future, branch by branch.
             </p>
             <div className="mt-5 flex gap-2.5">
@@ -284,7 +284,6 @@ export function PublicFooter() {
             </div>
           </div>
 
-          {/* Quick Links */}
           <div className="lg:col-span-2 lg:col-start-6">
             <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Quick Links</p>
             <ul className="mt-4 space-y-3">
@@ -295,7 +294,6 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Legal */}
           <div className="lg:col-span-2">
             <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Legal</p>
             <ul className="mt-4 space-y-3">
@@ -305,14 +303,13 @@ export function PublicFooter() {
             </ul>
           </div>
 
-          {/* Contact */}
           <div className="lg:col-span-3">
             <p className="font-display text-sm font-semibold uppercase tracking-wide text-brand">Contact</p>
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a
                   href={`mailto:${FOOTER_CONTACT.email}`}
-                  className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-accent"
+                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
                 >
                   <FooterContactIcon>
                     <Mail className="h-4 w-4" strokeWidth={2} />
@@ -323,7 +320,7 @@ export function PublicFooter() {
               <li>
                 <a
                   href={`tel:${FOOTER_CONTACT.phone.replace(/\s/g, '')}`}
-                  className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-accent"
+                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
                 >
                   <FooterContactIcon>
                     <Phone className="h-4 w-4" strokeWidth={2} />
@@ -336,7 +333,7 @@ export function PublicFooter() {
                   href={`https://wa.me/${FOOTER_CONTACT.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-start gap-3 text-sm text-text-muted transition-colors hover:text-[#25D366]"
+                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-[#25D366]"
                 >
                   <FooterContactIcon accent="whatsapp">
                     <WhatsAppIcon className="h-4 w-4" />
@@ -344,7 +341,7 @@ export function PublicFooter() {
                   <span className="pt-1.5 leading-snug">WhatsApp: {FOOTER_CONTACT.phone}</span>
                 </a>
               </li>
-              <li className="flex items-start gap-3 text-sm text-text-muted">
+              <li className="flex items-start gap-3 text-sm text-white">
                 <FooterContactIcon>
                   <MapPin className="h-4 w-4" strokeWidth={2} />
                 </FooterContactIcon>
@@ -354,7 +351,7 @@ export function PublicFooter() {
           </div>
         </div>
 
-        <p className="mt-8 border-t border-border pt-3 text-center text-[11px] text-text-muted">
+        <p className="mt-8 border-t border-border pt-3 text-center text-[11px] text-white/90">
           © {new Date().getFullYear()} All rights reserved @ Crown Ev Center
         </p>
       </div>
@@ -382,7 +379,7 @@ export function ScrollToTop() {
       exit={{ opacity: 0, scale: 0.85 }}
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Scroll to top"
-      className="fixed bottom-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white text-brand shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white sm:bottom-5 sm:left-auto sm:right-5"
+      className="fixed bottom-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-alt text-accent shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white sm:bottom-5 sm:left-auto sm:right-5"
     >
       <ChevronUp className="h-5 w-5" />
     </motion.button>
@@ -392,15 +389,11 @@ export function ScrollToTop() {
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isHome = location.pathname === '/';
-  const hideCompactStats = ['/', '/login', '/register', '/forgot-password', '/checkout'].includes(
-    location.pathname,
-  );
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-surface">
       <PublicNavbar />
       <main className={`flex-1 ${isHome ? 'pt-0' : 'pt-20 lg:pt-24'}`}>{children}</main>
-      {!hideCompactStats && <PublicAnalyticsStrip variant="compact" />}
       <PublicFooter />
       <WhatsAppFloat />
       <ScrollToTop />

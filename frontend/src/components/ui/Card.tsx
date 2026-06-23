@@ -19,10 +19,10 @@ export function Card({
           whileTap: { scale: 0.99 },
           transition: { duration: 0.2, ease: 'easeOut' as const },
           onClick,
-          className: `rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)] border border-border cursor-pointer ${className}`,
+          className: `rounded-[var(--radius-card)] bg-elevated p-6 shadow-[var(--shadow-elevated)] border border-border-light cursor-pointer ${className}`,
         }
       : {
-          className: `rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-card)] border border-border ${className}`,
+          className: `rounded-[var(--radius-card)] bg-elevated p-6 shadow-[var(--shadow-elevated)] border border-border-light ${className}`,
         };
 
   return <Comp {...motionProps}>{children}</Comp>;

@@ -62,19 +62,19 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4 py-16">
+    <div className="flex min-h-[70vh] items-center justify-center bg-subtle px-4 py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-[var(--shadow-card)]"
+        className="w-full max-w-md rounded-2xl border border-border-light bg-elevated p-8 shadow-[var(--shadow-elevated)]"
       >
         <div className="flex justify-center">
           <Logo size="lg" />
         </div>
         {step === 'otp' ? (
           <>
-            <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Verify Email</h1>
-            <p className="mt-1 text-sm text-text-muted">OTP sent to {email}</p>
+            <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Verify Email</h1>
+            <p className="mt-1 text-sm text-ink-muted">OTP sent to {email}</p>
             <form onSubmit={handleVerify} className="mt-8 space-y-4">
               {error && <p className="text-sm text-warning">{error}</p>}
               <Input placeholder="6-digit OTP" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value)} className="text-center tracking-widest" />
@@ -83,7 +83,7 @@ export default function RegisterPage() {
           </>
         ) : (
           <>
-            <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Create Account</h1>
+            <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Create Account</h1>
             <form onSubmit={handleRegister} className="mt-8 space-y-4">
               {error && <p className="text-sm text-warning">{error}</p>}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -105,7 +105,7 @@ export default function RegisterPage() {
               </Select>
               <Button type="submit" variant="accent" className="w-full">Register</Button>
             </form>
-            <p className="mt-4 text-center text-sm text-text-muted">
+            <p className="mt-4 text-center text-sm text-ink-muted">
               Already have an account? <Link to={redirectTo ? getLoginUrl(redirectTo) : '/login'} className="text-brand-light font-medium">Sign in</Link>
             </p>
           </>

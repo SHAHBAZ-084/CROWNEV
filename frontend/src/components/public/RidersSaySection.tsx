@@ -142,7 +142,7 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-4 shadow-lg backdrop-blur-sm sm:p-5"
+                className="rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-4 shadow-lg backdrop-blur-sm sm:p-5"
               >
                 <div className="flex gap-0.5">
                   {Array.from({ length: t.rating }).map((_, j) => (

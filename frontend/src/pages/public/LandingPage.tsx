@@ -5,7 +5,6 @@ import { publicApi } from '../../api/client';
 import type { LandingData } from '../../types';
 import { HomeHeroVideo } from '../../components/public/HomeHeroVideo';
 import { MotionItem, MotionSection, MotionStagger } from '../../components/public/MotionSection';
-import { PublicAnalyticsStrip } from '../../components/public/PublicAnalyticsStrip';
 import { ProductCard, FeatureGrid } from '../../components/public/ProductCard';
 import { Button } from '../../components/ui/Button';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
@@ -67,16 +66,14 @@ export default function LandingPage() {
         </MotionStagger>
       </HomeHeroVideo>
 
-      <PublicAnalyticsStrip variant="full" />
-
       <FeatureGrid />
 
-      <MotionSection className="py-20 lg:py-28">
+      <MotionSection className="bg-subtle py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-end justify-between mb-12">
             <div>
-              <h2 className="font-display text-3xl font-bold text-brand">Featured Models</h2>
-              <p className="mt-2 text-text-muted">Explore our latest electric bikes</p>
+              <h2 className="font-display text-3xl font-bold text-ink">Featured Models</h2>
+              <p className="mt-2 text-ink-muted">Explore our latest electric bikes</p>
             </div>
             <Link to="/shop" className="hidden sm:block text-sm font-medium text-brand hover:text-brand-light hover:underline">View all →</Link>
           </div>

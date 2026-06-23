@@ -1,9 +1,9 @@
 export const COLORS = {
-  brand: '#1F3A5F',
-  brandLight: '#2E75B6',
-  accent: '#FFB400',
-  success: '#1E8449',
-  warning: '#C0392B',
+  brand: '#f97316',
+  brandLight: '#fb923c',
+  accent: '#f97316',
+  success: '#22c55e',
+  warning: '#ef4444',
 } as const;
 
 export const PAKISTAN_CITIES = [
@@ -14,14 +14,14 @@ export const PAKISTAN_CITIES = [
 
 export const ORDER_STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800',
-  CONFIRMED: 'bg-blue-100 text-blue-800',
+  CONFIRMED: 'bg-neutral-100 text-neutral-800',
   DELIVERED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 };
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800',
-  CONFIRMED: 'bg-blue-100 text-blue-800',
+  CONFIRMED: 'bg-neutral-100 text-neutral-800',
   DONE: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 };

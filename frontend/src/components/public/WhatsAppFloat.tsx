@@ -36,7 +36,7 @@ export function WhatsAppFloat() {
         animate={{ opacity: 1, x: 0 }}
         onClick={restoreWidget}
         aria-label="Show WhatsApp chat"
-        className="fixed bottom-24 right-0 z-50 flex items-center gap-1.5 rounded-l-full border border-border border-r-0 bg-white py-2 pl-3 pr-2 text-xs font-semibold text-[#25D366] shadow-[var(--shadow-card)] hover:bg-surface-alt"
+        className="fixed bottom-24 right-0 z-50 flex items-center gap-1.5 rounded-l-full border border-border border-r-0 bg-surface-alt py-2 pl-3 pr-2 text-xs font-semibold text-[#25D366] shadow-[var(--shadow-card)] hover:bg-surface-alt"
       >
         <WhatsAppIcon className="h-4 w-4" />
         Chat
@@ -53,7 +53,7 @@ export function WhatsAppFloat() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="w-[min(100vw-2.5rem,18rem)] overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--shadow-card-hover)]"
+            className="w-[min(100vw-2.5rem,18rem)] overflow-hidden rounded-2xl border border-border bg-surface-alt shadow-[var(--shadow-card-hover)]"
           >
             <div className="bg-[#25D366] px-4 py-3 text-white">
               <div className="flex items-start justify-between gap-2">

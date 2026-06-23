@@ -47,7 +47,7 @@ function InfoRow({
   );
 
   const className =
-    'flex w-full items-start gap-2 text-sm leading-snug text-text-muted transition-colors hover:text-brand';
+    'flex w-full items-start gap-2 text-sm leading-snug text-ink-muted transition-colors hover:text-brand';
 
   if (href) {
     return (
@@ -80,10 +80,10 @@ export function BranchCard({
       viewport={{ once: true, margin: '-40px' }}
       transition={{ delay: index * 0.07, duration: 0.42, ease: 'easeOut' }}
       whileHover={{ y: -3, transition: { duration: 0.2 } }}
-      className="group flex overflow-hidden rounded-xl border border-border/80 bg-white shadow-[var(--shadow-card)] transition-[box-shadow,border-color] hover:border-accent/30 hover:shadow-[var(--shadow-card-hover)]"
+      className="group flex overflow-hidden rounded-xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-[box-shadow,border-color] hover:border-accent/30 hover:shadow-[var(--shadow-elevated-hover)]"
     >
       <div
-        className={`relative shrink-0 overflow-hidden bg-surface-alt ${
+        className={`relative shrink-0 overflow-hidden bg-subtle ${
           isCompact ? 'w-[34%] sm:w-[38%]' : 'w-[36%] sm:w-[40%]'
         }`}
       >
@@ -108,7 +108,7 @@ export function BranchCard({
         }`}
       >
         <h3
-          className={`font-display font-bold leading-tight text-brand ${
+          className={`font-display font-bold leading-tight text-ink ${
             isCompact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
           }`}
         >
@@ -127,7 +127,7 @@ export function BranchCard({
               href={whatsappUrl(branch.whatsapp)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-start gap-2 text-sm leading-snug text-text-muted transition-colors hover:text-[#25D366]"
+              className="flex w-full items-start gap-2 text-sm leading-snug text-ink-muted transition-colors hover:text-[#25D366]"
             >
               <WhatsAppIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#25D366]" />
               <span className="sr-only">WhatsApp: </span>
@@ -137,7 +137,7 @@ export function BranchCard({
         </div>
 
         {showDescription && branch.description && !isCompact ? (
-          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-text-muted sm:text-sm">
+          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-ink-muted sm:text-sm">
             {branch.description}
           </p>
         ) : null}
@@ -154,6 +154,7 @@ type BranchCardsSectionProps = {
   showDescription?: boolean;
   variant?: 'featured' | 'compact';
   className?: string;
+  tone?: 'light' | 'dark';
 };
 
 export function BranchCardsSection({
@@ -164,8 +165,12 @@ export function BranchCardsSection({
   showDescription = true,
   variant = 'featured',
   className = '',
+  tone = 'light',
 }: BranchCardsSectionProps) {
   if (branches.length === 0) return null;
+
+  const heading = tone === 'dark' ? 'text-text' : 'text-ink';
+  const sub = tone === 'dark' ? 'text-text-muted' : 'text-ink-muted';
 
   return (
     <section className={`py-16 lg:py-24 ${className}`}>
@@ -179,8 +184,8 @@ export function BranchCardsSection({
           {eyebrow && (
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{eyebrow}</p>
           )}
-          <h2 className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">{title}</h2>
-          {subtitle && <p className="mt-3 text-sm leading-relaxed text-text-muted lg:text-base">{subtitle}</p>}
+          <h2 className={`mt-2 font-display text-2xl font-bold sm:text-3xl ${heading}`}>{title}</h2>
+          {subtitle && <p className={`mt-3 text-sm leading-relaxed lg:text-base ${sub}`}>{subtitle}</p>}
         </motion.div>
 
         <div className="mx-auto flex max-w-3xl flex-col gap-4 lg:max-w-4xl lg:gap-5">

@@ -50,13 +50,13 @@ function ContactInfoCard({
   href?: string;
 }) {
   const content = (
-    <div className="flex gap-4 rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-card-hover)]">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10">
+    <div className="flex gap-4 rounded-[var(--radius-card)] border border-border-light bg-elevated p-5 shadow-[var(--shadow-elevated)] transition-shadow hover:shadow-[var(--shadow-elevated-hover)]">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent/10">
         <Icon className="h-5 w-5 text-accent" />
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-brand">{label}</p>
-        <p className="mt-1 text-sm leading-relaxed text-text-muted">{value}</p>
+        <p className="text-sm font-semibold text-ink">{label}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-muted">{value}</p>
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ export default function ContactPage() {
             </Link>
             <Link
               to="/track"
-              className="rounded-xl border border-border bg-white px-6 py-2.5 text-sm font-semibold text-brand hover:bg-surface-alt"
+              className="rounded-xl border border-border bg-surface-alt px-6 py-2.5 text-sm font-semibold text-brand hover:bg-surface-alt"
             >
               Track Order
             </Link>
@@ -142,7 +142,7 @@ export default function ContactPage() {
         subtitle="Questions about electric bikes, service bookings, orders, or branch locations? We're ready to help."
       />
 
-      <section className="bg-surface-alt/60 py-12 lg:py-16">
+      <section className="bg-subtle py-12 lg:py-16">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-2 lg:gap-14 lg:px-8">
           <motion.div
             initial={{ opacity: 0, x: -16 }}
@@ -152,10 +152,10 @@ export default function ContactPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               Reach Our Team
             </p>
-            <h2 className="mt-2 font-display text-2xl font-bold text-brand lg:text-3xl">
+            <h2 className="mt-2 font-display text-2xl font-bold text-ink lg:text-3xl">
               We&apos;re Here to Help
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-text-muted lg:text-base">
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted lg:text-base">
               Whether you need help choosing an electric bike, booking a service appointment, or
               following up on an order. Reach out and a Crown Ev team member will respond promptly.
             </p>
@@ -172,14 +172,14 @@ export default function ContactPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.35, delay: 0.06 }}
           >
-            <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)] lg:p-8">
+            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] lg:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
                 Send a Message
               </p>
-              <h2 className="mt-2 font-display text-xl font-bold text-brand lg:text-2xl">
+              <h2 className="mt-2 font-display text-xl font-bold text-ink lg:text-2xl">
                 Tell Us What You Need
               </h2>
-              <p className="mt-2 text-sm text-text-muted">
+              <p className="mt-2 text-sm text-ink-muted">
                 Fill in the form below and a member of our team will be in touch shortly.
               </p>
 
@@ -211,7 +211,8 @@ export default function ContactPage() {
         title="Our Branches"
         subtitle="Walk in for test rides, servicing, and genuine parts at any Crown Ev location."
         showDescription
-        className="bg-gradient-to-b from-white to-surface-alt/40"
+        className="bg-elevated"
+        tone="light"
       />
     </div>
   );
