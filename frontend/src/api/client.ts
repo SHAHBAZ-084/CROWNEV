@@ -499,4 +499,25 @@ export const branchApi = {
   deleteWalkInCustomer: (branchId: number, id: number) =>
     api<unknown>(`/walk-in/${branchId}/customers/${id}`, { method: 'DELETE' }),
   parts: () => adminApi.parts(),
+  salesSummary: (period: 'daily' | 'weekly' | 'monthly' | 'yearly') =>
+    api<{
+      period: string;
+      label: string;
+      from: string;
+      to: string;
+      totalSales: number;
+      onlineSales: number;
+      walkInSales: number;
+      posSales: number;
+      serviceSales: number;
+      onlineOrders: number;
+      walkInOrders: number;
+      serviceInvoices: number;
+      totalOrders: number;
+    }>(`/reports/branch/summary?period=${period}`),
+  exportOrders: (params?: { from?: string; to?: string }) => {
+    const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
+    return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
+  },
+  exportInventory: () => api<Record<string, unknown>[]>('/reports/export/inventory'),
 };

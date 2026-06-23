@@ -36,6 +36,30 @@ reportsRouter.get(
 );
 
 reportsRouter.get(
+  '/branch/summary',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId =
+      req.user!.role === Role.BRANCH_OWNER
+        ? req.user!.branchId
+        : req.query.branchId
+          ? parseInt(req.query.branchId as string, 10)
+          : null;
+    if (!branchId) {
+      res.status(400).json({ error: 'Branch required' });
+      return;
+    }
+    const period = (req.query.period as reportsService.ReportPeriod) || 'monthly';
+    if (!['daily', 'weekly', 'monthly', 'yearly'].includes(period)) {
+      res.status(400).json({ error: 'Invalid period' });
+      return;
+    }
+    const summary = await reportsService.getBranchSalesSummary(branchId, period);
+    res.json(summary);
+  }),
+);
+
+reportsRouter.get(
   '/export/orders',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {

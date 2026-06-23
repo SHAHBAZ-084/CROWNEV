@@ -188,3 +188,62 @@ export async function exportTrialBalanceReport(
     await exportToPdf(filename, TRIAL_BALANCE_COLUMNS, exportRows, meta);
   }
 }
+
+export type OrderExportRow = {
+  trackingId: string;
+  branch: string;
+  customer: string;
+  type: string;
+  status: string;
+  total: string | number;
+  paymentMethod: string;
+  paymentStatus: string;
+  createdAt: string;
+};
+
+export const ORDER_EXPORT_COLUMNS: ReportColumn<OrderExportRow>[] = [
+  { header: 'Tracking', value: (r) => r.trackingId },
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Customer', value: (r) => r.customer },
+  { header: 'Type', value: (r) => r.type },
+  { header: 'Status', value: (r) => r.status },
+  { header: 'Total (PKR)', value: (r) => Number(r.total).toLocaleString('en-PK') },
+  { header: 'Payment', value: (r) => r.paymentMethod },
+  { header: 'Pay Status', value: (r) => r.paymentStatus },
+  { header: 'Date', value: (r) => (r.createdAt ? formatDate(r.createdAt) : '') },
+];
+
+export type InventoryExportRow = {
+  branch: string;
+  itemCode: string;
+  partName: string;
+  quantity: number;
+  alertAt: number;
+  lowStock: string;
+};
+
+export const INVENTORY_EXPORT_COLUMNS: ReportColumn<InventoryExportRow>[] = [
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Item Code', value: (r) => r.itemCode },
+  { header: 'Part Name', value: (r) => r.partName },
+  { header: 'Quantity', value: (r) => r.quantity },
+  { header: 'Alert At', value: (r) => r.alertAt },
+  { header: 'Low Stock', value: (r) => r.lowStock },
+];
+
+export type SalesSummaryExportRow = {
+  metric: string;
+  value: string;
+};
+
+export async function exportSalesSummaryPdf(
+  filename: string,
+  rows: SalesSummaryExportRow[],
+  meta: { title: string; subtitle: string },
+) {
+  const columns: ReportColumn<SalesSummaryExportRow>[] = [
+    { header: 'Metric', value: (r) => r.metric },
+    { header: 'Value', value: (r) => r.value },
+  ];
+  await exportToPdf(filename, columns, rows, meta);
+}

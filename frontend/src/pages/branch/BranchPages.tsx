@@ -15,6 +15,14 @@ import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../li
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
+import {
+  exportSalesSummaryPdf,
+  exportToPdf,
+  INVENTORY_EXPORT_COLUMNS,
+  ORDER_EXPORT_COLUMNS,
+  type InventoryExportRow,
+  type OrderExportRow,
+} from '../../lib/reportExport';
 
 type Row = Record<string, unknown>;
 
@@ -1289,30 +1297,292 @@ export function BranchAccountingPage() {
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
+type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+const PERIOD_OPTIONS: { id: ReportPeriod; label: string }[] = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'yearly', label: 'Yearly' },
+];
+
+type SalesSummary = {
+  period: ReportPeriod;
+  label: string;
+  from: string;
+  to: string;
+  totalSales: number;
+  onlineSales: number;
+  walkInSales: number;
+  posSales: number;
+  serviceSales: number;
+  onlineOrders: number;
+  walkInOrders: number;
+  serviceInvoices: number;
+  totalOrders: number;
+};
+
 export function BranchReportsPage() {
   const branchId = useBranchId();
+  const { toast } = useToast();
   const token = localStorage.getItem('token');
+  const [period, setPeriod] = useState<ReportPeriod>('monthly');
+  const [summary, setSummary] = useState<SalesSummary | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
-  async function download(href: string, name: string) {
-    const res = await fetch(href, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
+  useEffect(() => {
+    setLoadingSummary(true);
+    branchApi
+      .salesSummary(period)
+      .then(setSummary)
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load sales summary', 'error');
+        setSummary(null);
+      })
+      .finally(() => setLoadingSummary(false));
+  }, [period, toast]);
+
+  const periodSubtitle = summary
+    ? `${summary.label} · ${formatDate(summary.from)} – ${formatDate(summary.to)}`
+    : '';
+
+  async function downloadCsv(href: string, name: string) {
+    setDownloading(`csv-${name}`);
+    try {
+      const res = await fetch(href, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('CSV downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  function periodQuery() {
+    if (!summary) return '';
+    const params = new URLSearchParams({
+      from: summary.from.slice(0, 10),
+      to: summary.to.slice(0, 10),
+    });
+    return `&${params.toString()}`;
+  }
+
+  async function downloadOrdersPdf() {
+    if (!summary) return;
+    setDownloading('pdf-orders');
+    try {
+      const data = await branchApi.exportOrders({
+        from: summary.from.slice(0, 10),
+        to: summary.to.slice(0, 10),
+      });
+      const exportRows: OrderExportRow[] = data.map((row) => ({
+        trackingId: String(row.trackingId ?? ''),
+        branch: String(row.branch ?? ''),
+        customer: String(row.customer ?? ''),
+        type: String(row.type ?? ''),
+        status: String(row.status ?? ''),
+        total: row.total as string | number,
+        paymentMethod: String(row.paymentMethod ?? ''),
+        paymentStatus: String(row.paymentStatus ?? ''),
+        createdAt: String(row.createdAt ?? ''),
+      }));
+      await exportToPdf(`orders_${period}_${summary.from.slice(0, 10)}`, ORDER_EXPORT_COLUMNS, exportRows, {
+        title: 'Orders Report',
+        subtitle: periodSubtitle,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadInventoryPdf() {
+    setDownloading('pdf-inventory');
+    try {
+      const data = await branchApi.exportInventory();
+      const exportRows: InventoryExportRow[] = data.map((row) => ({
+        branch: String(row.branch ?? ''),
+        itemCode: String(row.itemCode ?? ''),
+        partName: String(row.partName ?? ''),
+        quantity: Number(row.quantity ?? 0),
+        alertAt: Number(row.alertAt ?? 0),
+        lowStock: String(row.lowStock ?? ''),
+      }));
+      await exportToPdf('inventory_report', INVENTORY_EXPORT_COLUMNS, exportRows, {
+        title: 'Inventory Report',
+        subtitle: formatDate(new Date()),
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadSalesSummaryPdf() {
+    if (!summary) return;
+    setDownloading('pdf-summary');
+    try {
+      const rows = [
+        { metric: 'Total sales', value: formatPKR(summary.totalSales) },
+        { metric: 'Online sales', value: `${formatPKR(summary.onlineSales)} (${summary.onlineOrders} orders)` },
+        { metric: 'Walk-in sales (POS + service)', value: `${formatPKR(summary.walkInSales)} (${summary.walkInOrders} POS + ${summary.serviceInvoices} service)` },
+        { metric: 'POS product sales', value: formatPKR(summary.posSales) },
+        { metric: 'Service invoice sales', value: formatPKR(summary.serviceSales) },
+      ];
+      await exportSalesSummaryPdf(`sales_summary_${period}`, rows, {
+        title: 'Branch Sales Summary',
+        subtitle: periodSubtitle,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
   }
 
   return (
     <div>
-      <PageHeader title="Branch Reports" subtitle="Export your branch data" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <button type="button" onClick={() => download('/api/reports/export/orders?format=csv', 'orders.csv')} className="rounded-xl border bg-white p-6 text-left hover:shadow-md transition-shadow">
-          <p className="font-semibold text-brand">Orders CSV</p>
-        </button>
-        <button type="button" onClick={() => download(`/api/reports/export/inventory?format=csv&branchId=${branchId}`, 'inventory.csv')} className="rounded-xl border bg-white p-6 text-left hover:shadow-md transition-shadow">
-          <p className="font-semibold text-brand">Inventory CSV</p>
-        </button>
+      <PageHeader title="Branch Reports" subtitle="Sales overview and exports for your branch" />
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {PERIOD_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setPeriod(opt.id)}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+              period === opt.id
+                ? 'bg-accent text-white shadow-sm'
+                : 'border border-border bg-white text-text-muted hover:border-accent/40 hover:text-brand'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {loadingSummary ? (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-[var(--radius-card)] bg-surface-alt" />
+          ))}
+        </div>
+      ) : summary ? (
+        <>
+          <p className="mb-4 text-sm text-text-muted">{periodSubtitle}</p>
+          <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Total sales"
+              value={summary.totalSales}
+              icon={ShoppingCart}
+              prefix="PKR "
+            />
+            <StatCard
+              label="Online sales"
+              value={summary.onlineSales}
+              icon={Receipt}
+              prefix="PKR "
+              trend={`${summary.onlineOrders} orders`}
+            />
+            <StatCard
+              label="Walk-in sales"
+              value={summary.walkInSales}
+              icon={Users}
+              prefix="PKR "
+              trend={`${summary.walkInOrders} POS · ${summary.serviceInvoices} service`}
+            />
+          </div>
+        </>
+      ) : null}
+
+      <h2 className="mb-3 text-sm font-semibold text-text">Download reports</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Sales summary</p>
+          <p className="mt-1 text-sm text-text-muted">Totals for selected period</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-summary'}
+              disabled={!summary}
+              onClick={downloadSalesSummaryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Orders</p>
+          <p className="mt-1 text-sm text-text-muted">Online and walk-in orders in period</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-orders.csv'}
+              disabled={!summary}
+              onClick={() =>
+                downloadCsv(
+                  `/api/reports/export/orders?format=csv${periodQuery()}`,
+                  `orders_${period}.csv`,
+                )
+              }
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-orders'}
+              disabled={!summary}
+              onClick={downloadOrdersPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Inventory</p>
+          <p className="mt-1 text-sm text-text-muted">Current part stock levels</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-inventory.csv'}
+              onClick={() =>
+                downloadCsv(
+                  `/api/reports/export/inventory?format=csv&branchId=${branchId ?? ''}`,
+                  'inventory.csv',
+                )
+              }
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-inventory'}
+              onClick={downloadInventoryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
