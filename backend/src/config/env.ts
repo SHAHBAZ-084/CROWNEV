@@ -19,13 +19,17 @@ export const env = {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean),
+  appUrl: (process.env.APP_URL ?? process.env.ALLOWED_ORIGINS?.split(',')[0] ?? 'http://localhost:5173').replace(/\/$/, ''),
   smtp: {
     host: process.env.SMTP_HOST ?? '',
     port: parseInt(process.env.SMTP_PORT ?? '465', 10),
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
-    from: process.env.EMAIL_FROM ?? 'noreply@crown-eve.com',
+    from: process.env.EMAIL_FROM ?? 'onboarding@resend.dev',
   },
+  contactInboxEmail: process.env.CONTACT_INBOX_EMAIL ?? 'contact@crownevcenter.com',
+  /** Dev-only: receives contact inquiries when Resend sandbox blocks the real inbox. */
+  contactDevInboxEmail: process.env.CONTACT_DEV_INBOX_EMAIL ?? '',
   uploadDir: process.env.UPLOAD_DIR ?? './uploads',
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB ?? '5', 10),
 };

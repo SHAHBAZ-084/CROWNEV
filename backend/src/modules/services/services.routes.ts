@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { BookingStatus, Role } from '@prisma/client';
 import { z } from 'zod';
-import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
+import { asyncHandler, param, validateBody, validateQuery } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
 import * as servicesService from './services.service.js';
 
@@ -92,6 +92,19 @@ servicesRouter.post(
 );
 
 export const bookingsRouter = Router();
+
+bookingsRouter.get(
+  '/public/:id/ticket',
+  validateQuery(z.object({ email: z.string().email() })),
+  asyncHandler(async (req, res) => {
+    const receipt = await servicesService.getPublicBookingTicket(
+      parseInt(param(req.params.id), 10),
+      String(req.query.email),
+    );
+    res.json(receipt);
+  }),
+);
+
 bookingsRouter.use(authenticate);
 
 bookingsRouter.get(
@@ -208,8 +221,13 @@ bookingsRouter.get(
   '/:id/receipt',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER, Role.CUSTOMER),
   asyncHandler(async (req, res) => {
-    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
-    const receipt = await servicesService.getBookingReceipt(parseInt(param(req.params.id), 10), branchId);
+    const scope =
+      req.user!.role === Role.BRANCH_OWNER
+        ? { branchId: req.user!.branchId ?? undefined }
+        : req.user!.role === Role.CUSTOMER
+          ? { userId: req.user!.userId }
+          : undefined;
+    const receipt = await servicesService.getBookingReceipt(parseInt(param(req.params.id), 10), scope);
     res.json(receipt);
   })
 );

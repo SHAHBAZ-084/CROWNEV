@@ -23,11 +23,13 @@ export const COMPANY_STORY = `Crown Ev Bikes was born from a simple belief: Paki
 
 Every Crown Ev bike is selected for Pakistani roads: heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
 
+export const CONTACT_EMAIL = 'contact@crownevcenter.com';
+
 export const FOOTER_CONTACT = {
-  email: 'info@crowneve.pk',
+  email: CONTACT_EMAIL,
   phone: '+92 300 1234567',
   whatsapp: '+923001234567',
-  address: 'Head Office, F-10 Markaz, Islamabad, Pakistan',
+  address: 'Head Office, Hadi Ev Center Bwn road Chishtian',
   whatsappMessage: "Hi Crown Ev! I'd like to know more about your electric bikes.",
 } as const;
 

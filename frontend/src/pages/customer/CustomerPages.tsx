@@ -19,14 +19,30 @@ import { useToast } from '../../contexts/ToastContext';
 
 export function CustomerDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([customerApi.orders(), customerApi.bookings()])
       .then(([o, b]) => { setOrders(o.data); setBookings(b.data); })
       .catch(console.error);
   }, []);
+
+  async function handleDownloadTicket(id: number) {
+    setDownloadingId(id);
+    try {
+      const receipt = await customerApi.bookingReceipt(id);
+      downloadBookingReceipt(receipt);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load ticket', 'error');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  const scheduledBookings = bookings.filter((b) => b.date && b.confirmedTime);
 
   return (
     <div>
@@ -40,6 +56,21 @@ export function CustomerDashboard() {
           </div>
         }
       />
+
+      {scheduledBookings.length > 0 && (
+        <div className="mb-6 rounded-[var(--radius-card)] border border-accent/25 bg-gradient-to-r from-accent/10 to-brand/5 px-4 py-4 sm:px-5">
+          <p className="text-sm text-text">
+            <strong className="text-brand">Visit confirmed</strong>
+            {' — '}
+            We emailed your appointment time and branch details. Download your visit ticket below or from{' '}
+            <Link to="/customer/bookings" className="font-medium text-brand-light hover:underline">
+              My Bookings
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
           <h2 className="font-display font-semibold text-brand mb-4">Recent Orders ({orders.length})</h2>
@@ -58,13 +89,48 @@ export function CustomerDashboard() {
           <h2 className="font-display font-semibold text-brand mb-4">Service Bookings ({bookings.length})</h2>
           <DataTable
             columns={[
-              { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? '' },
-              { key: 'date', header: 'Date', render: (r) => formatDate(String(r.date)) },
+              { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? 'Service request' },
+              {
+                key: 'appointment',
+                header: 'Visit',
+                render: (r) => {
+                  const b = r as unknown as Booking;
+                  if (b.date && b.confirmedTime) {
+                    return `${formatDate(String(b.date))} · ${formatTime(b.confirmedTime)}`;
+                  }
+                  return <span className="text-text-muted">Awaiting branch</span>;
+                },
+              },
               { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+              {
+                key: 'ticket',
+                header: 'Ticket',
+                render: (r) => {
+                  const b = r as unknown as Booking;
+                  if (!b.date || !b.confirmedTime) {
+                    return <span className="text-xs text-text-muted">—</span>;
+                  }
+                  return (
+                    <Button
+                      size="sm"
+                      variant="accent"
+                      loading={downloadingId === Number(r.id)}
+                      onClick={() => handleDownloadTicket(Number(r.id))}
+                    >
+                      Download
+                    </Button>
+                  );
+                },
+              },
             ]}
             data={bookings.slice(0, 5) as unknown as Record<string, unknown>[]}
             emptyMessage="No bookings yet"
           />
+          {bookings.length > 5 && (
+            <Link to="/customer/bookings" className="text-sm text-brand-light mt-2 inline-block">
+              View all bookings →
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -222,6 +288,12 @@ export function CustomerBookingsPage() {
   return (
     <div>
       <PageHeader title="My Bookings" action={<Link to="/book-service"><Button variant="accent" size="sm">New Booking</Button></Link>} />
+
+      <p className="mb-6 rounded-[var(--radius-card)] border border-border bg-surface-alt/50 px-4 py-3 text-sm text-text-muted">
+        When your branch confirms a visit date and time, we email you the appointment details and branch location.
+        Download your printable visit ticket here anytime using <strong className="text-brand">Download Ticket</strong>.
+      </p>
+
       <DataTable
         columns={[
           { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
@@ -240,7 +312,7 @@ export function CustomerBookingsPage() {
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           {
             key: 'receipt',
-            header: 'Receipt',
+            header: 'Ticket',
             render: (r) => {
               const b = r as unknown as Booking;
               const canDownload = Boolean(b.date && b.confirmedTime);
@@ -251,10 +323,10 @@ export function CustomerBookingsPage() {
                   loading={downloadingId === Number(r.id)}
                   onClick={() => handleDownloadReceipt(Number(r.id))}
                 >
-                  Download Receipt
+                  Download Ticket
                 </Button>
               ) : (
-                <span className="text-xs text-text-muted"></span>
+                <span className="text-xs text-text-muted">Pending schedule</span>
               );
             },
           },
@@ -473,13 +545,6 @@ export function CustomerProfilePage() {
                     </div>
                   </div>
                 </div>
-
-                <p className="text-xs text-text-muted">
-                  Forgot your password?{' '}
-                  <Link to="/forgot-password" className="font-medium text-brand-light hover:underline">
-                    Reset via email
-                  </Link>
-                </p>
               </div>
             </section>
           </div>

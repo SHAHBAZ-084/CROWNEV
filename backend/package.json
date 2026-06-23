@@ -15,7 +15,8 @@
     "postinstall": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:cleanup": "tsx scripts/cleanup-test-branches.ts"
+    "test:cleanup": "tsx scripts/cleanup-test-branches.ts",
+    "email:test": "tsx scripts/test-smtp.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

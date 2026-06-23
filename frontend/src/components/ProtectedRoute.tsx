@@ -1,10 +1,11 @@
-import { Navigate, Outlet, useSearchParams } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { resolvePostAuthRedirect } from '../lib/authRedirect';
 import type { Role } from '../types';
 
 export function ProtectedRoute({ roles }: { roles?: Role[] }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -14,7 +15,10 @@ export function ProtectedRoute({ roles }: { roles?: Role[] }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const redirect = encodeURIComponent(`${location.pathname}${location.search}`);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+  }
 
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;

@@ -12,7 +12,6 @@ import {
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { generateTrackingId } from '../../utils/crypto.js';
-import { deductStock } from '../inventory/inventory.service.js';
 import {
   createVoucherInTx,
   ensureCustomerAccount,
@@ -220,26 +219,13 @@ export async function validateAndPriceItems(
       throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
     }
 
-    if (product.type === ProductType.BIKE) {
+    if (product.type === ProductType.BIKE || product.type === ProductType.PART) {
       const stock = product.branchProducts[0]?.stock ?? 0;
       if (stock < totalQty) {
         throw new AppError(
           400,
           `Insufficient stock for ${product.name}. Available: ${stock}`,
         );
-      }
-    }
-
-    if (product.type === ProductType.PART) {
-      for (const detail of product.bikePartDetails) {
-        if (!detail.partId) continue;
-        const inventory = await prisma.inventory.findUnique({
-          where: { branchId_partId: { branchId, partId: detail.partId } },
-        });
-        const available = inventory?.quantity ?? 0;
-        if (available < totalQty) {
-          throw new AppError(400, `Insufficient part stock for ${product.name}`);
-        }
       }
     }
   }
@@ -563,51 +549,21 @@ export async function deductStockForOrder(
   tx?: Prisma.TransactionClient
 ) {
   const db = tx ?? prisma;
-  const partDeductions: { partId: number; quantity: number }[] = [];
 
   for (const item of items) {
-    if (item.product.type === ProductType.BIKE) {
+    if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
       const branchProduct = await db.branchProduct.findUnique({
         where: { branchId_productId: { branchId, productId: item.productId } },
       });
       if (!branchProduct || branchProduct.stock < item.quantity) {
-        throw new AppError(400, 'Insufficient bike stock');
+        throw new AppError(400, `Insufficient stock for ${item.product.type.toLowerCase()}`);
       }
       await db.branchProduct.update({
         where: { branchId_productId: { branchId, productId: item.productId } },
         data: { stock: { decrement: item.quantity } },
       });
-      continue;
-    }
-
-    if (item.product.type !== ProductType.PART) continue;
-    for (const detail of item.product.bikePartDetails) {
-      if (detail.partId) {
-        partDeductions.push({ partId: detail.partId, quantity: item.quantity });
-      }
     }
   }
-
-  if (partDeductions.length === 0) return;
-
-  if (tx) {
-    for (const part of partDeductions) {
-      const inventory = await tx.inventory.findUnique({
-        where: { branchId_partId: { branchId, partId: part.partId } },
-      });
-      const currentQty = inventory?.quantity ?? 0;
-      if (currentQty < part.quantity) {
-        throw new AppError(400, `Insufficient stock for part ${part.partId}`);
-      }
-      await tx.inventory.update({
-        where: { branchId_partId: { branchId, partId: part.partId } },
-        data: { quantity: currentQty - part.quantity },
-      });
-    }
-    return;
-  }
-
-  await deductStock(branchId, partDeductions);
 }
 
 export async function updateOrderStatus(id: number, status: OrderStatus, branchId?: number) {

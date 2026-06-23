@@ -1,4 +1,5 @@
 import type { LegalSection } from './legalTypes';
+import { CONTACT_EMAIL } from './placeholders';
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {
@@ -85,7 +86,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
       'Crown Ev may update these Terms and Conditions at any time. Continued use of our website or services after changes constitutes acceptance.',
       'Material changes will be posted on this page with an updated effective date.',
       'These terms are governed by the laws of Pakistan. Disputes shall be subject to the jurisdiction of courts in Islamabad, Pakistan, unless otherwise required by law.',
-      'For questions about these terms, contact us at info@crowneve.pk or visit any Crown Ev branch.',
+      `For questions about these terms, contact us at ${CONTACT_EMAIL} or visit any Crown Ev branch.`,
     ],
   },
 ];

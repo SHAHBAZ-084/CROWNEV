@@ -1,4 +1,5 @@
 import type { LegalSection } from './legalTypes';
+import { CONTACT_EMAIL } from './placeholders';
 
 export const FAQ_SECTIONS: LegalSection[] = [
   {
@@ -58,7 +59,7 @@ export const FAQ_SECTIONS: LegalSection[] = [
   {
     title: 'How can I contact support?',
     items: [
-      'Email info@crowneve.pk, call or WhatsApp your nearest branch, or use the Contact page on our website. For order-specific help, include your tracking ID or order reference.',
+      `Email ${CONTACT_EMAIL}, call or WhatsApp your nearest branch, or use the Contact page on our website. For order-specific help, include your tracking ID or order reference.`,
     ],
   },
 ];

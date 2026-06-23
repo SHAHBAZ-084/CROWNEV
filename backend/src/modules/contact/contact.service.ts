@@ -1,6 +1,7 @@
 import { ContactStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { sendContactFormEmails } from '../../utils/email.js';
 
 export async function submitContact(data: {
   name: string;
@@ -9,7 +10,21 @@ export async function submitContact(data: {
   message: string;
   branchId?: number;
 }) {
-  return prisma.contactMessage.create({ data });
+  const message = await prisma.contactMessage.create({
+    data,
+    include: { branch: { select: { name: true } } },
+  });
+
+  void sendContactFormEmails({
+    messageId: message.id,
+    name: data.name,
+    email: data.email,
+    phone: data.phone ?? null,
+    message: data.message,
+    branchName: message.branch?.name ?? null,
+  });
+
+  return message;
 }
 
 export async function listContacts(query: {

@@ -10,6 +10,7 @@ export function sanitizeRedirect(path: string | null | undefined): string | null
 }
 
 function isCustomerReturnPath(path: string): boolean {
+  if (path === '/customer' || path.startsWith('/customer/')) return true;
   return CUSTOMER_RETURN_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
@@ -36,6 +37,9 @@ export function resolvePostAuthRedirect(
   const redirect = sanitizeRedirect(redirectParam);
   if (role === 'CUSTOMER' && redirect && isCustomerReturnPath(redirect)) {
     return redirect;
+  }
+  if (redirect && role !== 'CUSTOMER' && redirect.startsWith('/customer')) {
+    return defaultDashboardForRole(role);
   }
   return defaultDashboardForRole(role);
 }

@@ -93,7 +93,7 @@ export default function ContactPage() {
         message: String(fd.get('message')),
       });
       setSent(true);
-      toast('Message sent!', 'success');
+      toast('Message sent! Check your email for a confirmation.', 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to send', 'error');
     } finally {
@@ -108,11 +108,11 @@ export default function ContactPage() {
           page="contact"
           eyebrow="Thank You"
           title="Message Received"
-          subtitle="Our team will get back to you within 24 hours."
+          subtitle="A confirmation has been sent to your email. Our team will get back to you within 24 hours."
         />
         <div className="mx-auto max-w-lg px-4 py-16 text-center">
           <p className="text-text-muted">
-            In the meantime, browse our shop or track an existing order.
+            Check your inbox for a copy of your message. In the meantime, browse our shop or track an existing order.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link

@@ -180,37 +180,25 @@ export async function listBranchProducts(branchId: number) {
   }));
 }
 
-/** Branch-listed bikes/parts with available stock for POS sale invoices. */
-export async function listSaleableBranchProducts(branchId: number) {
-  const rows = await prisma.branchProduct.findMany({
+/** Branch-selected catalog products (isListed) for invoice line pickers. */
+async function listBranchSelectedProductRows(branchId: number) {
+  return prisma.branchProduct.findMany({
     where: { branchId, isListed: true },
     include: {
       product: {
         include: {
           images: { where: { isPrimary: true }, take: 1 },
           brand: true,
-          bikePartDetails: true,
         },
       },
     },
     orderBy: { product: { name: 'asc' } },
   });
+}
 
-  const partIds = new Set<number>();
-  for (const row of rows) {
-    if (row.product.type === ProductType.PART) {
-      for (const detail of row.product.bikePartDetails) {
-        if (detail.partId) partIds.add(detail.partId);
-      }
-    }
-  }
-
-  const inventories = partIds.size
-    ? await prisma.inventory.findMany({
-        where: { branchId, partId: { in: [...partIds] } },
-      })
-    : [];
-  const inventoryByPartId = new Map(inventories.map((i) => [i.partId, i.quantity]));
+/** Branch-selected bikes/parts for sale and service invoices (includes zero stock). */
+export async function listSaleableBranchProducts(branchId: number) {
+  const rows = await listBranchSelectedProductRows(branchId);
 
   const saleable: {
     id: string;
@@ -227,25 +215,11 @@ export async function listSaleableBranchProducts(branchId: number) {
     if (!product.isActive) continue;
     if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) continue;
 
-    let stockAtBranch = 0;
-    if (product.type === ProductType.BIKE) {
-      stockAtBranch = row.stock;
-    } else {
-      const linkedPartIds = product.bikePartDetails
-        .map((d) => d.partId)
-        .filter((id): id is number => id != null);
-      if (linkedPartIds.length === 0) continue;
-      const quantities = linkedPartIds.map((partId) => inventoryByPartId.get(partId) ?? 0);
-      stockAtBranch = Math.min(...quantities);
-    }
-
-    if (stockAtBranch <= 0) continue;
-
     saleable.push({
       id: product.id,
       name: product.name,
       type: product.type,
-      stockAtBranch,
+      stockAtBranch: row.stock,
       unitPrice: Number(product.salePrice ?? product.price),
       brand: product.brand,
       images: product.images,
@@ -255,17 +229,9 @@ export async function listSaleableBranchProducts(branchId: number) {
   return saleable;
 }
 
-/** Branch-listed bikes/parts available for purchase invoices (no pricing). */
+/** Branch-selected bikes/parts for purchase invoices (includes zero stock). */
 export async function listBranchPurchaseProducts(branchId: number) {
-  const rows = await prisma.branchProduct.findMany({
-    where: { branchId, isListed: true },
-    include: {
-      product: {
-        include: { bikePartDetails: true },
-      },
-    },
-    orderBy: { product: { name: 'asc' } },
-  });
+  const rows = await listBranchSelectedProductRows(branchId);
 
   const purchasable: { id: string; name: string; type: ProductType }[] = [];
 
@@ -273,10 +239,6 @@ export async function listBranchPurchaseProducts(branchId: number) {
     const product = row.product;
     if (!product.isActive) continue;
     if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) continue;
-    if (product.type === ProductType.PART) {
-      const hasPartLink = product.bikePartDetails.some((d) => d.partId != null);
-      if (!hasPartLink) continue;
-    }
     purchasable.push({
       id: product.id,
       name: product.name,

@@ -127,6 +127,10 @@ export const publicApi = {
     api<PaymentChannel[]>(`/branches/public/${branchId}/payment-channels`),
   services: (branchId: number) => api<{ id: number; name: string; basePrice: string; duration: number }[]>(`/services/public/${branchId}`),
   trackOrder: (trackingId: string) => api<Order>(`/orders/track/${trackingId}`),
+  bookingTicket: (id: number, email: string) =>
+    api<Record<string, unknown>>(
+      `/bookings/public/${id}/ticket?email=${encodeURIComponent(email)}`,
+    ),
   contact: (data: { name: string; email: string; phone?: string; message: string; branchId?: number }) =>
     api<{ message: string }>('/contact', { method: 'POST', body: JSON.stringify(data) }),
   page: (slug: string) => api<{ title: string; content: string }>(`/public/pages/${slug}`),

@@ -1,11 +1,17 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
+import { isSmtpConfigured } from './utils/email.js';
 
 const app = createApp();
 
 const server = app.listen(env.port, () => {
   console.log(`Crown Ev API running on port ${env.port} (${env.nodeEnv})`);
+  if (isSmtpConfigured()) {
+    console.log(`Email: SMTP via ${env.smtp.host} (from ${env.smtp.from})`);
+  } else {
+    console.log('Email: DEV mode — OTPs print to this terminal only (set SMTP_* in .env)');
+  }
 });
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;

@@ -21,6 +21,7 @@ const LoginPage = lazy(() => import('./pages/public/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/public/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/public/ForgotPasswordPage'));
 const TrackOrderPage = lazy(() => import('./pages/public/TrackOrderPage'));
+const ServiceTicketPage = lazy(() => import('./pages/public/ServiceTicketPage'));
 const ContactPage = lazy(() => import('./pages/public/ContactPage'));
 const CheckoutPage = lazy(() => import('./pages/public/CheckoutPage'));
 const BookServicePage = lazy(() => import('./pages/public/BookServicePage'));
@@ -103,6 +104,7 @@ export default function App() {
               <Route path="/shop" element={<PublicWrap><ShopPage /></PublicWrap>} />
               <Route path="/shop/:id" element={<PublicWrap><ProductDetailPage /></PublicWrap>} />
               <Route path="/track" element={<PublicWrap><TrackOrderPage /></PublicWrap>} />
+              <Route path="/service-ticket/:id" element={<PublicWrap><ServiceTicketPage /></PublicWrap>} />
               <Route path="/contact" element={<PublicWrap><ContactPage /></PublicWrap>} />
               <Route path="/about" element={<PublicWrap><AboutPage /></PublicWrap>} />
               <Route path="/privacy" element={<PublicWrap><PrivacyPage /></PublicWrap>} />

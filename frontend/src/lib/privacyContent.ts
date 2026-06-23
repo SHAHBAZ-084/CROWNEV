@@ -1,4 +1,5 @@
 import type { LegalSection } from './legalTypes';
+import { CONTACT_EMAIL } from './placeholders';
 
 export const PRIVACY_SECTIONS: LegalSection[] = [
   {
@@ -73,7 +74,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       'You may ask us to correct inaccurate or incomplete information in your account.',
       'You may request deletion of your account where no legal or contractual obligation requires us to retain the data.',
       'You may withdraw consent for optional marketing communications at any time.',
-      'To exercise these rights, contact us at info@crowneve.pk. We will respond within a reasonable timeframe.',
+      `To exercise these rights, contact us at ${CONTACT_EMAIL}. We will respond within a reasonable timeframe.`,
     ],
   },
   {
@@ -88,7 +89,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     items: [
       'We may update this Privacy Policy from time to time. The latest version will always be available on this page.',
       'Material changes will be posted here with an updated effective date. Continued use of our services after changes constitutes acceptance.',
-      'For privacy-related questions or requests, email info@crowneve.pk or visit any Crown Ev branch.',
+      `For privacy-related questions or requests, email ${CONTACT_EMAIL} or visit any Crown Ev branch.`,
     ],
   },
 ];

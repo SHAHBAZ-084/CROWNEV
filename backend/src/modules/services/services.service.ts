@@ -1,6 +1,8 @@
 import { BookingStatus, Role } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { env } from '../../config/env.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { sendBookingConfirmationEmail } from '../../utils/email.js';
 import { deductStock } from '../inventory/inventory.service.js';
 
 export async function listServices(branchId: number) {
@@ -133,7 +135,69 @@ export async function updateBookingStatus(
       ...(date !== undefined && { date: new Date(date) }),
       ...(serviceId !== undefined && { serviceId }),
     },
-    include: { service: true, parts: { include: { part: true } } },
+    include: {
+      service: true,
+      parts: { include: { part: true } },
+      user: { select: { email: true, firstName: true, lastName: true } },
+      branch: { select: { name: true, location: true, phone: true } },
+    },
+  }).then(async (updated) => {
+    await maybeNotifyBookingVisitScheduled(booking, updated);
+    return updated;
+  });
+}
+
+function bookingDateKey(value: Date | null | undefined): string | null {
+  if (!value) return null;
+  return value.toISOString().slice(0, 10);
+}
+
+async function maybeNotifyBookingVisitScheduled(
+  previous: {
+    status: BookingStatus;
+    date: Date | null;
+    confirmedTime: string | null;
+  },
+  updated: {
+    id: number;
+    status: BookingStatus;
+    date: Date | null;
+    confirmedTime: string | null;
+    customerName: string | null;
+    user: { email: string; firstName: string; lastName: string } | null;
+    branch: { name: string; location: string; phone: string | null };
+    service: { name: string } | null;
+  },
+) {
+  if (updated.status !== BookingStatus.CONFIRMED || !updated.date || !updated.confirmedTime) {
+    return;
+  }
+
+  const scheduleChanged =
+    previous.status !== BookingStatus.CONFIRMED ||
+    !previous.date ||
+    !previous.confirmedTime ||
+    bookingDateKey(previous.date) !== bookingDateKey(updated.date) ||
+    previous.confirmedTime !== updated.confirmedTime;
+
+  if (!scheduleChanged) return;
+
+  const email = updated.user?.email;
+  if (!email) return;
+
+  const customerName = updated.user
+    ? `${updated.user.firstName} ${updated.user.lastName}`.trim()
+    : updated.customerName ?? 'Customer';
+
+  await sendBookingConfirmationEmail({
+    to: email,
+    customerName,
+    bookingId: updated.id,
+    visitDate: updated.date,
+    visitTime: updated.confirmedTime,
+    branch: updated.branch,
+    serviceName: updated.service?.name ?? null,
+    dashboardUrl: env.appUrl,
   });
 }
 
@@ -166,9 +230,16 @@ export async function deleteBooking(id: number, branchId: number) {
   await prisma.serviceBooking.delete({ where: { id } });
 }
 
-export async function getBookingReceipt(id: number, branchId?: number) {
+export async function getBookingReceipt(
+  id: number,
+  scope?: { branchId?: number; userId?: string },
+) {
   const booking = await prisma.serviceBooking.findFirst({
-    where: { id, ...(branchId && { branchId }) },
+    where: {
+      id,
+      ...(scope?.branchId && { branchId: scope.branchId }),
+      ...(scope?.userId && { userId: scope.userId }),
+    },
     include: {
       service: true,
       parts: { include: { part: true } },
@@ -178,9 +249,49 @@ export async function getBookingReceipt(id: number, branchId?: number) {
   });
   if (!booking) throw new AppError(404, 'Booking not found');
 
+  return buildBookingReceipt(booking);
+}
+
+export async function getPublicBookingTicket(id: number, email: string) {
+  const normalized = email.trim().toLowerCase();
+  const booking = await prisma.serviceBooking.findFirst({
+    where: { id },
+    include: {
+      service: true,
+      parts: { include: { part: true } },
+      user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      branch: { select: { name: true, location: true, phone: true } },
+    },
+  });
+  if (!booking) throw new AppError(404, 'Booking not found');
+
+  const bookingEmail = booking.user?.email?.toLowerCase();
+  if (!bookingEmail || bookingEmail !== normalized) {
+    throw new AppError(403, 'Email does not match this booking');
+  }
+  if (!booking.date || !booking.confirmedTime) {
+    throw new AppError(400, 'Visit time is not scheduled yet');
+  }
+
+  return buildBookingReceipt(booking);
+}
+
+function buildBookingReceipt(booking: {
+  id: number;
+  date: Date | null;
+  time: string | null;
+  confirmedTime: string | null;
+  status: BookingStatus;
+  customerName: string | null;
+  customerPhone: string | null;
+  service: { name: string; basePrice: unknown; duration: number } | null;
+  branch: { name: string; location: string; phone: string | null };
+  user: { firstName: string; lastName: string; email: string; phone: string | null } | null;
+  parts: { quantity: number; part: { name: string; costPrice: unknown } }[];
+}) {
   const partsTotal = booking.parts.reduce(
     (sum, p) => sum + Number(p.part.costPrice) * p.quantity,
-    0
+    0,
   );
 
   return {

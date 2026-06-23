@@ -205,9 +205,6 @@ async function validatePurchaseItems(
     let partId: number | undefined;
     if (product.type === ProductType.PART) {
       partId = product.bikePartDetails.find((d) => d.partId != null)?.partId ?? undefined;
-      if (!partId) {
-        throw new AppError(400, `Part product "${product.name}" has no inventory link`);
-      }
     }
 
     pricedItems.push({
@@ -276,7 +273,7 @@ export async function createPurchaseInvoice(data: {
     }
 
     for (const item of pricedItems) {
-      if (item.product.type !== ProductType.BIKE) continue;
+      if (item.product.type !== ProductType.BIKE && item.product.type !== ProductType.PART) continue;
       await tx.branchProduct.upsert({
         where: {
           branchId_productId: { branchId: data.branchId, productId: item.productId },
