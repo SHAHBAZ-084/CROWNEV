@@ -28,7 +28,7 @@ export default function ProductDetailPage() {
 
   const images = useMemo(() => sortProductImages(product?.images), [product?.images]);
 
-  if (!product) return <div className="p-8"><ProductGridSkeleton count={1} /></div>;
+  if (!product) return <div className="min-h-[60vh] bg-white p-8"><ProductGridSkeleton count={1} /></div>;
 
   const price = Number(product.salePrice ?? product.price);
   const colors = (product.colorOptions as string[] | null) ?? [];
@@ -47,8 +47,9 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
-      <div className="grid gap-12 lg:grid-cols-2">
+    <div className="min-h-[60vh] bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+        <div className="grid gap-12 lg:grid-cols-2">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <ProductImageGallery images={product.images} alt={product.name} />
         </motion.div>
@@ -60,7 +61,7 @@ export default function ProductDetailPage() {
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold text-brand">{product.name}</h1>
           <p className="mt-4 font-display text-3xl font-bold tabular-nums text-brand">{formatPKR(price)}</p>
-          {product.description && <p className="mt-4 text-text-muted leading-relaxed">{product.description}</p>}
+          {product.description && <p className="mt-4 text-slate-600 leading-relaxed">{product.description}</p>}
 
           {colors.length > 0 && (
             <div className="mt-6">
@@ -71,7 +72,7 @@ export default function ProductDetailPage() {
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${color === c ? 'border-brand bg-brand/5 text-brand' : 'border-border text-text-muted'}`}
+                    className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${color === c ? 'border-brand bg-brand/5 text-brand' : 'border-slate-200 text-slate-600'}`}
                   >
                     {c}
                   </button>
@@ -87,7 +88,7 @@ export default function ProductDetailPage() {
               min={1}
               value={qty}
               onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-20 rounded-xl border border-border px-3 py-2 text-center"
+              className="w-20 rounded-xl border border-slate-200 px-3 py-2 text-center text-slate-900 bg-white"
             />
           </div>
 
@@ -107,6 +108,7 @@ export default function ProductDetailPage() {
           )}
         </motion.div>
       </div>
+    </div>
     </div>
   );
 }

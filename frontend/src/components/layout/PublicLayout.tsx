@@ -285,8 +285,9 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2 lg:col-start-6">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Quick Links</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Quick Links</p>
             <ul className="mt-4 space-y-3">
+              <FooterLink to="/" label="Home" />
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />
@@ -295,7 +296,7 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Legal</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Legal</p>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/privacy" label="Privacy Policy" />
               <FooterLink to="/terms" label="Terms & Conditions" />
@@ -304,7 +305,7 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-3">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Contact</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Contact</p>
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a
@@ -333,9 +334,9 @@ export function PublicFooter() {
                   href={`https://wa.me/${FOOTER_CONTACT.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-[#25D366]"
+                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
                 >
-                  <FooterContactIcon accent="whatsapp">
+                  <FooterContactIcon>
                     <WhatsAppIcon className="h-4 w-4" />
                   </FooterContactIcon>
                   <span className="pt-1.5 leading-snug">WhatsApp: {FOOTER_CONTACT.phone}</span>

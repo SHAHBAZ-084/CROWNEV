@@ -36,8 +36,9 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <MotionSection as="div" className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-2xl font-bold text-brand">Reset Password</h1>
+    <div className="min-h-[60vh] bg-white">
+      <MotionSection as="div" className="mx-auto max-w-md px-4 py-16">
+        <h1 className="font-display text-2xl font-bold text-brand">Reset Password</h1>
       {step === 'email' ? (
         <form onSubmit={handleEmail} className="mt-6 space-y-4">
           {error && <p className="text-sm text-warning">{error}</p>}
@@ -54,6 +55,7 @@ export default function ForgotPasswordPage() {
         </form>
       )}
       <p className="mt-4 text-center text-sm"><Link to="/login" className="text-brand-light">← Back to login</Link></p>
-    </MotionSection>
+      </MotionSection>
+    </div>
   );
 }

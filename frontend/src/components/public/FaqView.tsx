@@ -19,8 +19,8 @@ function FaqItem({
     <div
       className={`rounded-2xl border transition-shadow ${
         isOpen
-          ? 'border-accent/40 bg-surface-alt shadow-[var(--shadow-card-hover)]'
-          : 'border-border bg-surface-alt shadow-[var(--shadow-card)] hover:border-accent/25'
+          ? 'border-accent/40 bg-white shadow-[var(--shadow-card-hover)]'
+          : 'border-border bg-white shadow-[var(--shadow-card)] hover:border-accent/25'
       }`}
     >
       <button
@@ -31,7 +31,7 @@ function FaqItem({
       >
         <span
           className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
-            isOpen ? 'bg-accent text-white' : 'bg-surface-alt text-brand-light'
+            isOpen ? 'bg-accent text-white' : 'bg-slate-100 text-brand-light'
           }`}
         >
           {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -90,7 +90,7 @@ export function FaqView({ sections }: { sections: LegalSection[] }) {
   }
 
   return (
-    <div className="min-h-[60vh] bg-gradient-to-b from-surface-alt via-surface-alt to-surface-alt/50">
+    <div className="min-h-[60vh] bg-slate-100">
       <section className="mx-auto max-w-3xl px-4 pb-8 pt-16 lg:px-8 lg:pt-20">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15">
@@ -110,7 +110,7 @@ export function FaqView({ sections }: { sections: LegalSection[] }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search questions…"
-              className="w-full rounded-2xl border border-border bg-surface-alt py-3.5 pl-12 pr-4 text-sm text-brand shadow-[var(--shadow-card)] outline-none transition-shadow placeholder:text-text-muted/70 focus:border-accent/50 focus:shadow-[var(--shadow-card-hover)]"
+              className="w-full rounded-2xl border border-border bg-white py-3.5 pl-12 pr-4 text-sm text-brand shadow-[var(--shadow-card)] outline-none transition-shadow placeholder:text-text-muted/70 focus:border-accent/50 focus:shadow-[var(--shadow-card-hover)]"
             />
           </div>
         </motion.div>
@@ -118,7 +118,7 @@ export function FaqView({ sections }: { sections: LegalSection[] }) {
 
       <section className="mx-auto max-w-3xl px-4 pb-16 lg:px-8">
         {filtered.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border bg-surface-alt/80 px-6 py-10 text-center text-sm text-text-muted">
+          <p className="rounded-2xl border border-dashed border-border bg-white px-6 py-10 text-center text-sm text-text-muted">
             No questions match &ldquo;{query}&rdquo;. Try different keywords or{' '}
             <Link to="/contact" className="font-medium text-accent hover:underline">
               contact us
