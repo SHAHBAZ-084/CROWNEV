@@ -15,7 +15,15 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
   if (err instanceof Prisma.PrismaClientValidationError) {
     console.error(err);
-    res.status(500).json({ error: err.message.split('\n')[0] ?? 'Database query error' });
+    const detail = err.message
+      .split('\n')
+      .map((line) => line.trim())
+      .find(Boolean);
+    res.status(500).json({
+      error:
+        detail ??
+        'Database validation error. Run prisma migrate deploy && prisma generate, then restart the API.',
+    });
     return;
   }
 
