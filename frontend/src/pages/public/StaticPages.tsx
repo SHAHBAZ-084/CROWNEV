@@ -7,6 +7,7 @@ import { LegalPageLayout } from '../../components/public/LegalPageLayout';
 import { FaqView } from '../../components/public/FaqView';
 import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
 import { COMPANY_STORY, FOUNDERS } from '../../lib/placeholders';
+import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
 import { FAQ_SECTIONS } from '../../lib/faqContent';
 import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
 import { TERMS_SECTIONS } from '../../lib/termsContent';
@@ -38,6 +39,50 @@ export function AboutPage() {
           >
             {COMPANY_STORY.split('\n\n')[0]}
           </motion.p>
+        </div>
+      </section>
+
+      <section className="overflow-hidden border-y border-border bg-gradient-to-b from-white via-surface-alt/60 to-white py-16 lg:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="order-2 lg:order-1"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Our vision</p>
+              <h2 className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">
+                Built for Pakistani roads
+              </h2>
+              <p className="mt-4 text-text-muted leading-relaxed">
+                {COMPANY_STORY.split('\n\n')[1] ?? COMPANY_STORY.split('\n\n')[0]}
+              </p>
+              <ul className="mt-6 space-y-3 text-sm text-text-muted">
+                <li className="flex gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                  Premium electric bikes with heat-resistant batteries
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                  Nationwide branch network for sales and service
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                  Walk-in showrooms and online ordering
+                </li>
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="order-1 flex w-full justify-center lg:order-2 lg:justify-end"
+            >
+              <AboutBrandVideo />
+            </motion.div>
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { BIKE_VIDEO_AD } from '../../lib/placeholders';
 
@@ -8,63 +9,132 @@ type Testimonial = {
   rating: number;
 };
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(max-width: ${breakpoint}px)`).matches : false,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[] }) {
   const items = testimonials?.slice(0, 3) ?? [];
-  const hasFile = Boolean(BIKE_VIDEO_AD.src);
-  const hasYoutube = Boolean(BIKE_VIDEO_AD.youtubeId);
+  const reduceMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  const sectionRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [inView, setInView] = useState(false);
+
+  const videoSrc = isMobile ? BIKE_VIDEO_AD.mp4Mobile : BIKE_VIDEO_AD.mp4;
+  const posterSrc = isMobile ? BIKE_VIDEO_AD.posterMobile : BIKE_VIDEO_AD.poster;
+  const showVideo = !reduceMotion && Boolean(videoSrc);
+
+  useEffect(() => {
+    setVideoReady(false);
+  }, [videoSrc]);
+
+  useEffect(() => {
+    if (!showVideo) return;
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting);
+      },
+      { rootMargin: '120px 0px', threshold: 0.12 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [showVideo]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !showVideo) return;
+
+    if (inView) {
+      video.preload = 'auto';
+      const playPromise = video.play();
+      if (playPromise) playPromise.catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [inView, showVideo, videoSrc]);
 
   return (
-    <section className="relative min-h-[420px] overflow-hidden py-16 lg:min-h-[480px] lg:py-24">
+    <section
+      ref={sectionRef}
+      className="relative min-h-[520px] overflow-hidden py-14 sm:min-h-[480px] sm:py-16 lg:min-h-[520px] lg:py-24"
+    >
       <div className="absolute inset-0" aria-hidden>
-        {hasFile ? (
-          <video
-            className="h-full w-full scale-105 object-cover"
-            src={BIKE_VIDEO_AD.src}
-            poster={BIKE_VIDEO_AD.poster}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="none"
-          />
-        ) : hasYoutube ? (
-          <iframe
-            title={BIKE_VIDEO_AD.title}
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[300%] w-[300%] max-w-none -translate-x-1/2 -translate-y-1/2"
-            src={`https://www.youtube.com/embed/${BIKE_VIDEO_AD.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${BIKE_VIDEO_AD.youtubeId}&controls=0&rel=0&modestbranding=1`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          />
-        ) : (
+        <picture className="absolute inset-0">
+          <source media="(max-width: 768px)" srcSet={BIKE_VIDEO_AD.posterMobile} type="image/webp" />
           <img
             src={BIKE_VIDEO_AD.poster}
             alt=""
-            className="h-full w-full object-cover"
+            width={1280}
+            height={720}
+            decoding="async"
+            fetchPriority="high"
+            className={`h-full w-full object-cover transition-opacity duration-700 ${
+              isMobile ? 'object-[center_42%]' : 'object-center'
+            } ${showVideo && videoReady ? 'opacity-0' : 'opacity-100'}`}
           />
-        )}
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="absolute inset-0 bg-gradient-to-b from-brand/70 via-brand/35 to-brand/75" />
+        </picture>
+
+        {showVideo ? (
+          <video
+            ref={videoRef}
+            key={videoSrc}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+              isMobile ? 'object-[center_42%] scale-[1.08]' : 'object-center scale-105'
+            } ${videoReady ? 'opacity-100' : 'opacity-0'}`}
+            poster={posterSrc}
+            muted
+            loop
+            playsInline
+            autoPlay={false}
+            preload="none"
+            disablePictureInPicture
+            onLoadedData={() => setVideoReady(true)}
+          >
+            <source src={videoSrc} type="video/mp4" />
+          </video>
+        ) : null}
+
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-brand/25 via-brand/10 to-brand/35" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center"
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
             {BIKE_VIDEO_AD.subtitle}
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold text-white lg:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold text-white drop-shadow-md sm:text-3xl lg:text-4xl">
             What Riders Say
           </h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-white/85">
+          <p className="mx-auto mt-2 max-w-lg text-sm text-white/95 drop-shadow sm:text-base">
             {BIKE_VIDEO_AD.title}, trusted by riders across Pakistan
           </p>
         </motion.div>
 
         {items.length > 0 ? (
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+          <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
             {items.map((t, i) => (
               <motion.div
                 key={t.customerName + i}
@@ -72,7 +142,7 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-5 shadow-lg backdrop-blur-sm"
+                className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-4 shadow-lg backdrop-blur-sm sm:p-5"
               >
                 <div className="flex gap-0.5">
                   {Array.from({ length: t.rating }).map((_, j) => (
@@ -85,7 +155,7 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
             ))}
           </div>
         ) : (
-          <p className="mt-10 text-center text-sm text-white/80">Customer reviews coming soon.</p>
+          <p className="mt-10 text-center text-sm text-white/85">Customer reviews coming soon.</p>
         )}
       </div>
     </section>

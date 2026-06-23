@@ -29,14 +29,28 @@ export const FOOTER_CONTACT = {
   whatsappMessage: "Hi Crown Eve! I'd like to know more about your electric bikes.",
 } as const;
 
-/** Homepage background video (What Riders Say section). replace `src` with your own MP4 */
+/** About page brand story video — portrait 9:16 */
+export const ABOUT_VIDEO = {
+  mp4: '/videos/about-story.mp4',
+  mp4Mobile: '/videos/about-story-mobile.mp4',
+  poster: '/videos/about-story-poster.webp',
+  posterMobile: '/videos/about-story-poster-sm.webp',
+  aspectRatio: '9 / 16',
+  width: 1080,
+  height: 1920,
+} as const;
+
+/** Homepage background video (What Riders Say section) */
 export const BIKE_VIDEO_AD = {
-  /** Direct MP4/WebM. default is a preview clip until you add your own ad */
-  src: 'https://assets.mixkit.co/videos/preview/mixkit-man-riding-a-motorcycle-on-the-road-41757-large.mp4',
-  /** YouTube video ID. used only when `src` is empty */
+  /** Desktop H.264 — ~6 MB, 1280×720 */
+  mp4: '/videos/riders-say.mp4',
+  /** Mobile H.264 — ~2 MB, 720p */
+  mp4Mobile: '/videos/riders-say-mobile.mp4',
+  /** WebP poster — instant paint while video loads */
+  poster: '/videos/riders-say-poster.webp',
+  posterMobile: '/videos/riders-say-poster-sm.webp',
+  /** YouTube fallback when local files are unavailable */
   youtubeId: '',
-  poster:
-    'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=1920&q=80',
   title: 'Crown Eve Electric Bikes',
   subtitle: 'Ride the future',
 } as const;
