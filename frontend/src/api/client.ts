@@ -11,6 +11,8 @@ import type {
   ServiceInvoiceData,
   User,
 } from '../types';
+import { enqueueRequest } from '../lib/apiQueue';
+import { fetchWithRetry } from '../lib/queryRetry';
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -23,7 +25,7 @@ export function setToken(token: string | null) {
   else localStorage.removeItem('token');
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -31,17 +33,28 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   };
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    const message = err.error ?? err.message ?? 'Request failed';
-    if (Array.isArray(err.details)) {
-      throw new Error(err.details.join(', ') || message);
+  const method = (options.method ?? 'GET').toUpperCase();
+  const run = async () => {
+    const res = await fetchWithRetry(`${BASE}${path}`, { ...options, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      const message = err.error ?? err.message ?? 'Request failed';
+      if (Array.isArray(err.details)) {
+        throw new Error(err.details.join(', ') || message);
+      }
+      throw new Error(typeof message === 'string' ? message : 'Request failed');
     }
-    throw new Error(typeof message === 'string' ? message : 'Request failed');
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  };
+
+  return method === 'GET' || method === 'HEAD'
+    ? enqueueRequest(run)
+    : run();
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, options);
 }
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
@@ -49,7 +62,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { method: 'POST', body: formData, headers });
+  const res = await fetchWithRetry(`${BASE}${path}`, { method: 'POST', body: formData, headers }, { enabled: false });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? 'Upload failed');

@@ -42,7 +42,7 @@ export default function LoginPage() {
           <Logo size="lg" />
         </div>
         <h1 className="mt-6 text-center font-display text-2xl font-bold text-brand">Welcome Back</h1>
-        <p className="mt-1 text-sm text-text-muted">Sign in to your Crown Eve account</p>
+        <p className="mt-1 text-sm text-text-muted">Sign in to your Crown Ev account</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-warning">{error}</p>}

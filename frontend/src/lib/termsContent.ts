@@ -4,9 +4,9 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Eligibility & Accounts',
     items: [
-      'You must be at least 18 years old to create an account, place orders, or book services on Crown Eve.',
+      'You must be at least 18 years old to create an account, place orders, or book services on Crown Ev.',
       'Registration requires a valid email address and accurate personal information. You are responsible for keeping your login credentials secure.',
-      'One person may not maintain multiple accounts for fraudulent purposes. Crown Eve may suspend or terminate accounts that violate these terms.',
+      'One person may not maintain multiple accounts for fraudulent purposes. Crown Ev may suspend or terminate accounts that violate these terms.',
       'Business customers must provide valid business details when placing bulk or branch-specific orders.',
     ],
   },
@@ -22,7 +22,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Orders & Payment',
     items: [
-      'Placing an order constitutes an offer to purchase. Crown Eve reserves the right to accept or decline any order.',
+      'Placing an order constitutes an offer to purchase. Crown Ev reserves the right to accept or decline any order.',
       'We accept cash on delivery and bank transfer. Bank transfer orders require payment verification before dispatch.',
       'Orders with unverified or failed payments may be cancelled automatically after the stated verification window.',
       'You will receive a tracking ID (e.g. CE-XXXXX-XXXX) once your order is confirmed and processed.',
@@ -40,8 +40,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Warranty & Returns',
     items: [
-      'Crown Eve electric bikes include a manufacturer warranty as stated on the product page and purchase receipt.',
-      'Warranty claims must be submitted through an authorized Crown Eve branch with proof of purchase.',
+      'Crown Ev electric bikes include a manufacturer warranty as stated on the product page and purchase receipt.',
+      'Warranty claims must be submitted through an authorized Crown Ev branch with proof of purchase.',
       'Returns and exchanges are subject to branch policy, product condition, and applicable consumer protection laws in Pakistan.',
       'Damage caused by misuse, unauthorized modifications, or failure to follow maintenance guidelines is not covered under warranty.',
     ],
@@ -49,7 +49,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Service Bookings',
     items: [
-      'Registered customers may book maintenance, repair, or installation services at any active Crown Eve branch.',
+      'Registered customers may book maintenance, repair, or installation services at any active Crown Ev branch.',
       'Appointment times are estimates. Branches may reschedule due to workload, parts availability, or unforeseen circumstances.',
       'Cancellation or rescheduling should be requested at least 24 hours before the appointment when possible.',
       'Service fees quoted at booking are based on the selected service. Additional charges may apply if extra work is required and approved by you.',
@@ -59,7 +59,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     title: 'Branch Sales & POS',
     items: [
       'In-branch purchases through our POS system are governed by the same terms as online orders unless otherwise stated on your receipt.',
-      'Branch owners operate under Crown Eve standards but may offer branch-specific promotions approved by head office.',
+      'Branch owners operate under Crown Ev standards but may offer branch-specific promotions approved by head office.',
       'Inventory displayed at a branch reflects real-time stock where systems are connected; discrepancies will be resolved at the point of sale.',
     ],
   },
@@ -74,7 +74,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Limitation of Liability',
     items: [
-      'Crown Eve is not liable for indirect, incidental, or consequential damages arising from use of our products or services.',
+      'Crown Ev is not liable for indirect, incidental, or consequential damages arising from use of our products or services.',
       'Our total liability for any claim related to a product or service is limited to the amount you paid for that product or service.',
       'We are not responsible for delays caused by events outside our reasonable control, including weather, strikes, or supply chain disruptions.',
     ],
@@ -82,10 +82,10 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Changes & Governing Law',
     items: [
-      'Crown Eve may update these Terms and Conditions at any time. Continued use of our website or services after changes constitutes acceptance.',
+      'Crown Ev may update these Terms and Conditions at any time. Continued use of our website or services after changes constitutes acceptance.',
       'Material changes will be posted on this page with an updated effective date.',
       'These terms are governed by the laws of Pakistan. Disputes shall be subject to the jurisdiction of courts in Islamabad, Pakistan, unless otherwise required by law.',
-      'For questions about these terms, contact us at info@crowneve.pk or visit any Crown Eve branch.',
+      'For questions about these terms, contact us at info@crowneve.pk or visit any Crown Ev branch.',
     ],
   },
 ];

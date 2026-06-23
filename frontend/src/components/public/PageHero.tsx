@@ -19,10 +19,13 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
     src: '/images/about-hero.webp',
     srcMobile: '/images/about-hero-sm.webp',
   },
-  shop:
-    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=960&q=60',
-  contact:
-    'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=960&q=60',
+  shop: {
+    src: '/images/shop-hero.webp',
+  },
+  contact: {
+    src: '/images/contact-hero.webp',
+    srcMobile: '/images/contact-hero-sm.webp',
+  },
 };
 
 export type PageHeroPage = keyof typeof PAGE_BACKGROUNDS;

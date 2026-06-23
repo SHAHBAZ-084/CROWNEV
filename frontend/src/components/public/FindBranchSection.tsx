@@ -4,7 +4,7 @@ import type { Branch } from '../../types';
 import { BranchCard } from './BranchCard';
 
 const mapMaskStyle = {
-  backgroundColor: 'var(--color-accent)',
+  backgroundColor: 'var(--color-brand)',
   WebkitMaskImage: `url(${BRANCH_SECTION.mapBackground})`,
   maskImage: `url(${BRANCH_SECTION.mapBackground})`,
   maskSize: 'contain',
@@ -26,7 +26,7 @@ export function FindBranchSection({ branches }: { branches: Branch[] }) {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Nationwide network</p>
               <h2 className="mt-2 font-display text-3xl font-bold text-brand lg:text-4xl">Find a Branch</h2>
               <p className="mt-2 max-w-xl text-sm text-text-muted lg:text-base">
-                Visit a Crown Eve showroom near you for test rides, service, and parts.
+                Visit a Crown Ev showroom near you for test rides, service, and parts.
               </p>
             </motion.div>
 

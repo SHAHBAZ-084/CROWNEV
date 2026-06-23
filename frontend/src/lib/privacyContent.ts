@@ -34,10 +34,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'Sharing Your Information',
     items: [
-      'We share data with Crown Eve branches involved in fulfilling your order or service appointment.',
+      'We share data with Crown Ev branches involved in fulfilling your order or service appointment.',
       'Payment processors and banks may receive transaction details to verify and complete payments.',
       'Delivery partners receive the information needed to ship products to your address or branch.',
-      'We may disclose information when required by law, court order, or to protect the rights and safety of Crown Eve, our customers, and the public.',
+      'We may disclose information when required by law, court order, or to protect the rights and safety of Crown Ev, our customers, and the public.',
       'We do not sell your personal information to third parties for their marketing purposes.',
     ],
   },
@@ -62,7 +62,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'Data Security',
     items: [
       'We use industry-standard measures including encrypted connections (HTTPS), access controls, and secure server practices.',
-      'Only authorized Crown Eve staff and branch personnel with a business need may access customer data.',
+      'Only authorized Crown Ev staff and branch personnel with a business need may access customer data.',
       'No method of transmission or storage is completely secure. Please use a strong password and keep your login details confidential.',
     ],
   },
@@ -79,7 +79,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'Children\'s Privacy',
     items: [
-      'Crown Eve services are not directed at children under 18. We do not knowingly collect personal data from minors without parental consent.',
+      'Crown Ev services are not directed at children under 18. We do not knowingly collect personal data from minors without parental consent.',
       'If you believe a child has provided us with personal information, please contact us so we can take appropriate action.',
     ],
   },
@@ -88,7 +88,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     items: [
       'We may update this Privacy Policy from time to time. The latest version will always be available on this page.',
       'Material changes will be posted here with an updated effective date. Continued use of our services after changes constitutes acceptance.',
-      'For privacy-related questions or requests, email info@crowneve.pk or visit any Crown Eve branch.',
+      'For privacy-related questions or requests, email info@crowneve.pk or visit any Crown Ev branch.',
     ],
   },
 ];

@@ -47,7 +47,7 @@ function InfoRow({
   );
 
   const className =
-    'inline-flex items-start gap-2 text-sm text-text-muted transition-colors hover:text-brand';
+    'flex w-full items-start gap-2 text-sm leading-snug text-text-muted transition-colors hover:text-brand';
 
   if (href) {
     return (
@@ -115,7 +115,7 @@ export function BranchCard({
           {branch.name}
         </h3>
 
-        <div className={`space-y-1 ${isCompact ? 'mt-2' : 'mt-2.5'}`}>
+        <div className={`flex flex-col gap-1.5 ${isCompact ? 'mt-2' : 'mt-2.5'}`}>
           <InfoRow icon={MapPin} label="Location" href={mapsUrl(branch.location)} external>
             {branch.location}
           </InfoRow>
@@ -127,7 +127,7 @@ export function BranchCard({
               href={whatsappUrl(branch.whatsapp)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-start gap-2 text-sm text-text-muted transition-colors hover:text-[#25D366]"
+              className="flex w-full items-start gap-2 text-sm leading-snug text-text-muted transition-colors hover:text-[#25D366]"
             >
               <WhatsAppIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#25D366]" />
               <span className="sr-only">WhatsApp: </span>
@@ -160,7 +160,7 @@ export function BranchCardsSection({
   branches,
   eyebrow = 'Nationwide network',
   title = 'Our Branches',
-  subtitle = 'Visit a Crown Eve showroom for test rides, service, parts, and expert advice.',
+  subtitle = 'Visit a Crown Ev showroom for test rides, service, parts, and expert advice.',
   showDescription = true,
   variant = 'featured',
   className = '',

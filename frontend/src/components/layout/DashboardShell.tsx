@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Logo } from '../brand/Logo';
@@ -10,7 +11,12 @@ export function DashboardShell({
   sidebar: (props: { mobileOpen: boolean; onNavigate: () => void }) => React.ReactNode;
   children: React.ReactNode;
 }) {
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
 
   useEffect(() => {
     const onResize = () => {

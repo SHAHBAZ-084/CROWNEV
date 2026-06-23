@@ -6,7 +6,7 @@ import { publicApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import type { Branch } from '../../types';
 import { PageHero } from '../../components/public/PageHero';
-import { BranchCard } from '../../components/public/BranchCard';
+import { BranchCardsSection } from '../../components/public/BranchCard';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
@@ -157,7 +157,7 @@ export default function ContactPage() {
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-text-muted lg:text-base">
               Whether you need help choosing an electric bike, booking a service appointment, or
-              following up on an order. Reach out and a Crown Eve team member will respond promptly.
+              following up on an order. Reach out and a Crown Ev team member will respond promptly.
             </p>
 
             <div className="mt-8 space-y-4">
@@ -165,29 +165,6 @@ export default function ContactPage() {
                 <ContactInfoCard key={card.label} {...card} />
               ))}
             </div>
-
-            {branches.length > 0 && (
-              <div className="mt-8">
-                <motion.p
-                  initial={{ opacity: 0, y: 8 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-accent"
-                >
-                  Our Branches
-                </motion.p>
-                <div className="space-y-4">
-                  {branches.slice(0, 3).map((b, i) => (
-                    <BranchCard key={b.id} branch={b} index={i} variant="compact" showDescription={false} />
-                  ))}
-                </div>
-                {branches.length > 3 && (
-                  <Link to="/about" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
-                    View all branches →
-                  </Link>
-                )}
-              </div>
-            )}
           </motion.div>
 
           <motion.div
@@ -227,6 +204,15 @@ export default function ContactPage() {
           </motion.div>
         </div>
       </section>
+
+      <BranchCardsSection
+        branches={branches}
+        eyebrow="Visit us"
+        title="Our Branches"
+        subtitle="Walk in for test rides, servicing, and genuine parts at any Crown Ev location."
+        showDescription
+        className="bg-gradient-to-b from-white to-surface-alt/40"
+      />
     </div>
   );
 }

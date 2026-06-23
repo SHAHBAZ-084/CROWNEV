@@ -15,6 +15,7 @@ import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../li
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
+import { useDebounce } from '../../hooks/useDebounce';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
 import {
   exportSalesSummaryPdf,
@@ -307,6 +308,7 @@ export function BranchInventoryPage() {
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [filter, setFilter] = useState<StockFilter>('ALL');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<StockRow | null>(null);
   const [quantity, setQuantity] = useState('0');
@@ -344,7 +346,7 @@ export function BranchInventoryPage() {
   );
 
   const catalogMatches = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return [];
     return items
       .filter(
@@ -353,7 +355,7 @@ export function BranchInventoryPage() {
           (r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)),
       )
       .slice(0, 10);
-  }, [items, search]);
+  }, [items, debouncedSearch]);
 
   const displayed = useMemo(() => {
     let rows = selectedItems;
@@ -486,7 +488,7 @@ export function BranchInventoryPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {search.trim() && (
+          {debouncedSearch.trim() && (
             <div className="rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] overflow-hidden">
               <p className="px-4 py-2 text-xs font-medium text-text-muted border-b border-border bg-surface-alt/40">
                 Catalog: click Select to add to your branch stock
@@ -667,6 +669,7 @@ export function BranchBookingsPage() {
   const [statusValue, setStatusValue] = useState('PENDING');
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -678,7 +681,7 @@ export function BranchBookingsPage() {
   useEffect(() => { reload(); }, [reload]);
 
   const displayedBookings = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     let rows = bookings;
     if (q) {
       rows = rows.filter((r) => {
@@ -693,7 +696,7 @@ export function BranchBookingsPage() {
       if (statusDiff !== 0) return statusDiff;
       return Number(b.id) - Number(a.id);
     });
-  }, [bookings, search]);
+  }, [bookings, debouncedSearch]);
 
   const bookingDelete = useDeleteConfirm<Row>(
     async (row) => {

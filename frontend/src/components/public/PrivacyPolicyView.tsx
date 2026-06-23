@@ -75,7 +75,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
               </div>
               <h1 className="font-display text-3xl font-bold lg:text-4xl">Privacy Policy</h1>
               <p className="mt-3 text-sm leading-relaxed text-white/90 lg:text-base">
-                How Crown Eve collects, uses, and safeguards your personal information when you shop,
+                How Crown Ev collects, uses, and safeguards your personal information when you shop,
                 book services, or visit our branches.
               </p>
             </div>

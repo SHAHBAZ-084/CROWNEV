@@ -9,10 +9,12 @@ export function ProductCard({
   product,
   index = 0,
   animate = true,
+  size = 'default',
 }: {
   product: Product;
   index?: number;
   animate?: boolean;
+  size?: 'default' | 'lg';
 }) {
   const price = Number(product.salePrice ?? product.price);
   const original = product.salePrice ? Number(product.price) : null;
@@ -20,10 +22,14 @@ export function ProductCard({
   const discount =
     original && original > price ? Math.round(((original - price) / original) * 100) : null;
 
+  const isLarge = size === 'lg';
+
   const card = (
     <Link to={`/shop/${product.id}`} className="block h-full">
       <div className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-1.5 hover:border-accent/35 hover:shadow-[var(--shadow-card-hover)]">
-          <div className="relative aspect-[4/3] overflow-hidden bg-surface-alt">
+          <div
+            className={`relative overflow-hidden bg-surface-alt ${isLarge ? 'aspect-[4/3] lg:aspect-[5/4]' : 'aspect-[4/3]'}`}
+          >
             {image ? (
               <img
                 src={image}
@@ -64,27 +70,33 @@ export function ProductCard({
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col p-4">
+          <div className={`flex flex-1 flex-col ${isLarge ? 'p-4 lg:p-5' : 'p-4'}`}>
             <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
               {product.brand && <span className="font-medium text-brand-light">{product.brand.name}</span>}
               {product.brand && product.category && <span className="text-border">·</span>}
               {product.category && <span>{product.category.name}</span>}
             </div>
 
-            <h3 className="mt-1 line-clamp-2 font-display text-base font-semibold leading-snug text-brand group-hover:text-accent">
+            <h3
+              className={`mt-1 line-clamp-2 font-display font-semibold leading-snug text-brand group-hover:text-accent ${isLarge ? 'text-base lg:text-lg' : 'text-base'}`}
+            >
               {product.name}
             </h3>
 
             <div className="mt-auto flex items-end justify-between gap-2 pt-3">
               <div className="min-w-0">
-                <span className="block font-display text-lg font-bold tabular-nums text-brand">
+                <span
+                  className={`block font-display font-bold tabular-nums text-brand ${isLarge ? 'text-lg lg:text-xl' : 'text-lg'}`}
+                >
                   {formatPKR(price)}
                 </span>
                 {original && (
                   <span className="text-xs text-text-muted line-through">{formatPKR(original)}</span>
                 )}
               </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-alt text-brand-light transition-colors group-hover:bg-brand group-hover:text-white">
+              <span
+                className={`flex shrink-0 items-center justify-center rounded-xl bg-surface-alt text-brand-light transition-colors group-hover:bg-brand group-hover:text-white ${isLarge ? 'h-9 w-9 lg:h-11 lg:w-11' : 'h-9 w-9'}`}
+              >
                 <ArrowRight className="h-4 w-4" />
               </span>
             </div>
@@ -156,7 +168,7 @@ export function FeatureGrid() {
           className="mx-auto mb-10 max-w-2xl text-center"
         >
           <span className="inline-flex items-center rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand">
-            Why Crown Eve
+            Why Crown Ev
           </span>
           <h2 className="mt-4 font-display text-3xl font-bold text-brand lg:text-4xl">
             Built for Pakistan

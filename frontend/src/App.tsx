@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { BranchWorkspaceLayout } from './components/layout/BranchWorkspaceLayout';
@@ -73,7 +74,7 @@ function PublicWrap({ children }: { children: React.ReactNode }) {
     <PublicLayout>
       <PageTransition>
         <Suspense fallback={<div className="p-8"><ProductGridSkeleton count={4} /></div>}>
-          {children}
+          <ErrorBoundary scope="Page">{children}</ErrorBoundary>
         </Suspense>
       </PageTransition>
     </PublicLayout>
@@ -83,18 +84,21 @@ function PublicWrap({ children }: { children: React.ReactNode }) {
 function DashWrap({ children }: { children: React.ReactNode }) {
   return (
     <PageSuspense>
-      <PageTransition>{children}</PageTransition>
+      <PageTransition>
+        <ErrorBoundary scope="Page">{children}</ErrorBoundary>
+      </PageTransition>
     </PageSuspense>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
               <Route path="/" element={<PublicWrap><LandingPage /></PublicWrap>} />
               <Route path="/shop" element={<PublicWrap><ShopPage /></PublicWrap>} />
               <Route path="/shop/:id" element={<PublicWrap><ProductDetailPage /></PublicWrap>} />
@@ -180,10 +184,11 @@ export default function App() {
 
               <Route path="/unauthorized" element={<PublicWrap><UnauthorizedPage /></PublicWrap>} />
               <Route path="*" element={<PublicWrap><NotFoundPage /></PublicWrap>} />
-            </Routes>
-          </BrowserRouter>
-        </ToastProvider>
-      </CartProvider>
-    </AuthProvider>
+              </Routes>
+            </BrowserRouter>
+          </ToastProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

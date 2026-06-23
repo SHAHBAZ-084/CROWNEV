@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding Crown Eve database...');
+  console.log('Seeding Crown Ev database...');
 
   const adminPassword = await bcrypt.hash('Admin@123', 12);
   const admin = await prisma.user.upsert({
@@ -25,18 +25,18 @@ async function main() {
     where: { id: 1 },
     update: {},
     create: {
-      name: 'Crown Eve Karachi',
+      name: 'Crown Ev Karachi',
       location: 'Main Boulevard, Karachi',
       phone: '+92 300 1234567',
       whatsapp: '+92 300 1234567',
       description:
-        'Our Karachi branch has been serving the Clifton and DHA community since 2022, offering full sales, service, and genuine parts support for every Crown Eve model.',
+        'Our Karachi branch has been serving the Clifton and DHA community since 2022, offering full sales, service, and genuine parts support for every Crown Ev model.',
     },
   });
 
   const branch2 = await prisma.branch.create({
     data: {
-      name: 'Crown Eve Lahore',
+      name: 'Crown Ev Lahore',
       location: 'MM Alam Road, Lahore',
       phone: '+92 321 9876543',
       whatsapp: '+92 321 9876543',
@@ -85,7 +85,7 @@ async function main() {
   const brand = await prisma.brand.upsert({
     where: { slug: 'crown-eve' },
     update: {},
-    create: { name: 'Crown Eve', slug: 'crown-eve' },
+    create: { name: 'Crown Ev', slug: 'crown-eve' },
   });
 
   const category = await prisma.productCategory.upsert({
@@ -98,7 +98,7 @@ async function main() {
     where: { slug: 'crown-eve-pro-x1' },
     update: {},
     create: {
-      name: 'Crown Eve Pro X1',
+      name: 'Crown Ev Pro X1',
       slug: 'crown-eve-pro-x1',
       type: ProductType.BIKE,
       brandId: brand.id,
@@ -121,7 +121,7 @@ async function main() {
   await prisma.productImage.create({
     data: {
       productId: bike.id,
-      url: 'https://placehold.co/800x600/B34700/FFFFFF?text=Crown+Eve+Pro+X1',
+      url: 'https://placehold.co/800x600/B34700/FFFFFF?text=Crown+Ev+Pro+X1',
       isPrimary: true,
       sortOrder: 0,
     },
@@ -137,7 +137,7 @@ async function main() {
       brandId: brand.id,
       price: 52000,
       salePrice: 49000,
-      description: 'Replacement lithium battery for Crown Eve electric bikes.',
+      description: 'Replacement lithium battery for Crown Ev electric bikes.',
     },
   });
 
@@ -147,7 +147,7 @@ async function main() {
     create: {
       itemCode: 'CE-BAT-60V-32AH',
       name: '60V 32Ah Battery Pack',
-      description: 'Replacement lithium battery for Crown Eve bikes',
+      description: 'Replacement lithium battery for Crown Ev bikes',
       costPrice: 45000,
       alertAt: 3,
     },
@@ -203,7 +203,7 @@ async function main() {
   });
 
   for (const [slug, title, content] of [
-    ['about', 'About Crown Eve', 'Crown Eve Bikes is Pakistan\'s leading multi-branch EV bike retailer.'],
+    ['about', 'About Crown Ev', 'Crown Ev Bikes is Pakistan\'s leading multi-branch EV bike retailer.'],
     ['privacy', 'Privacy Policy', 'We respect your privacy and protect your personal data.'],
     ['terms', 'Terms of Service', 'By using our services you agree to these terms and conditions.'],
   ] as const) {

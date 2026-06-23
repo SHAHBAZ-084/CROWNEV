@@ -4,7 +4,7 @@ import { formatPKR } from '../../lib/format';
 
 // ─── Tunable constants (no backend) ───────────────────────────────────────────
 
-const BRAND_NAME = 'Crown Eve';
+const BRAND_NAME = 'Crown Ev';
 
 const ELECTRICITY_COST_PER_UNIT_PKR = 35;
 
@@ -24,10 +24,10 @@ const DAILY_DISTANCE_DEFAULT = 30;
 const MODEL_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026] as const;
 
 const ELECTRIC_BIKE_MODELS = [
-  { id: 'pro-x1', label: 'Crown Eve Pro X1', kmPerUnit: 45 },
-  { id: 'city-s', label: 'Crown Eve City S', kmPerUnit: 50 },
-  { id: 'urban-lite', label: 'Crown Eve Urban Lite', kmPerUnit: 55 },
-  { id: 'delivery-max', label: 'Crown Eve Delivery Max', kmPerUnit: 40 },
+  { id: 'pro-x1', label: 'Crown Ev Pro X1', kmPerUnit: 45 },
+  { id: 'city-s', label: 'Crown Ev City S', kmPerUnit: 50 },
+  { id: 'urban-lite', label: 'Crown Ev Urban Lite', kmPerUnit: 55 },
+  { id: 'delivery-max', label: 'Crown Ev Delivery Max', kmPerUnit: 40 },
 ] as const;
 
 const PETROL_BIKE_MODELS = [

@@ -25,6 +25,7 @@ import {
 } from '../../lib/reportExport';
 import { formatDate, formatPKR } from '../../lib/format';
 import { resolveUploadUrl } from '../../lib/media';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useToast } from '../../contexts/ToastContext';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -277,7 +278,7 @@ export function AdminBranchesPage() {
 
   return (
     <div>
-      <PageHeader title="Branches" subtitle="Manage all Crown Eve branches" action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch</Button>} />
+      <PageHeader title="Branches" subtitle="Manage all Crown Ev branches" action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch</Button>} />
       <DataTable
         columns={[
           {
@@ -402,12 +403,18 @@ export function AdminProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: CatalogTab = searchParams.get('tab') === 'parts' ? 'parts' : 'bikes';
   const productType = tab === 'bikes' ? 'BIKE' : 'PART';
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   const loadProducts = useCallback(
-    () => adminApi.products({ type: productType }),
-    [productType]
+    () =>
+      adminApi.products({
+        type: productType,
+        ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      }),
+    [productType, debouncedSearch],
   );
-  const { rows, reload } = useCrudList(loadProducts, [productType]);
+  const { rows, reload } = useCrudList(loadProducts, [productType, debouncedSearch]);
 
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -580,6 +587,15 @@ export function AdminProductsPage() {
         Showing <strong className="text-brand">{tabLabel}</strong>, same as the public shop filter (Bikes / Parts).
       </p>
 
+      <div className="mb-4 max-w-md">
+        <Input
+          label="Search catalog"
+          placeholder="Search by name or description…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
       <DataTable
         columns={[
           ...(tab === 'bikes' ? [{
@@ -670,7 +686,14 @@ export function AdminPartsPage() {
 
 export function AdminUsersPage() {
   const { toast } = useToast();
-  const { rows, reload } = useCrudList(() => adminApi.users());
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const loadUsers = useCallback(
+    () =>
+      adminApi.users(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : undefined),
+    [debouncedSearch],
+  );
+  const { rows, reload } = useCrudList(loadUsers, [debouncedSearch]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -733,6 +756,14 @@ export function AdminUsersPage() {
         subtitle="Create and manage branch owner accounts"
         action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch Owner</Button>}
       />
+      <div className="mb-4 max-w-md">
+        <Input
+          label="Search users"
+          placeholder="Search by name or email…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
       <DataTable
         columns={[
           { key: 'email', header: 'Email' },

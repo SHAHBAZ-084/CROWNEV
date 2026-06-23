@@ -26,7 +26,7 @@ export function AboutPage() {
       <PageHero
         page="about"
         eyebrow="Electric mobility for Pakistan"
-        title="About Crown Eve Bikes"
+        title="About Crown Ev Bikes"
         subtitle={COMPANY_STORY.split('\n\n')[0]}
       />
 
@@ -87,7 +87,7 @@ export function AboutPage() {
               Driving Pakistan&apos;s electric future
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-text-muted">
-              The team behind Crown Eve&apos;s mission to bring premium electric mobility nationwide.
+              The team behind Crown Ev&apos;s mission to bring premium electric mobility nationwide.
             </p>
           </motion.div>
 
@@ -126,7 +126,7 @@ export function AboutPage() {
         branches={branches}
         eyebrow="Visit us"
         title="Our Branches"
-        subtitle="Walk in for test rides, servicing, and genuine parts at any Crown Eve location."
+        subtitle="Walk in for test rides, servicing, and genuine parts at any Crown Ev location."
         showDescription
         className="bg-gradient-to-b from-white to-surface-alt/40"
       />
@@ -142,7 +142,7 @@ export function TermsPage() {
   return (
     <LegalPageLayout
       title="Terms and Conditions"
-      subtitle="Please read the following terms carefully. Using the Crown Eve website, purchasing products, or booking services constitutes acceptance of these conditions."
+      subtitle="Please read the following terms carefully. Using the Crown Ev website, purchasing products, or booking services constitutes acceptance of these conditions."
     >
       <LegalAccordion sections={TERMS_SECTIONS} />
     </LegalPageLayout>

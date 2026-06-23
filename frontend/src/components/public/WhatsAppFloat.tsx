@@ -58,7 +58,7 @@ export function WhatsAppFloat() {
             <div className="bg-[#25D366] px-4 py-3 text-white">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-display text-sm font-bold">Crown Eve Support</p>
+                  <p className="font-display text-sm font-bold">Crown Ev Support</p>
                   <p className="text-xs text-white/90">Typically replies within an hour</p>
                 </div>
                 <button

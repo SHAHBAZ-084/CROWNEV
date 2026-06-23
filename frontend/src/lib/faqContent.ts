@@ -16,13 +16,13 @@ export const FAQ_SECTIONS: LegalSection[] = [
   {
     title: 'Can I book a service without buying a bike?',
     items: [
-      'Yes. Registered customers can book maintenance, repair, or installation at any active Crown Eve branch. Sign in, choose your branch and service, then pick a date and time.',
+      'Yes. Registered customers can book maintenance, repair, or installation at any active Crown Ev branch. Sign in, choose your branch and service, then pick a date and time.',
     ],
   },
   {
     title: 'What is the warranty on electric bikes?',
     items: [
-      'All Crown Eve electric bikes include a manufacturer warranty as stated on the product page and your purchase receipt. Warranty claims must be submitted through an authorized branch with proof of purchase.',
+      'All Crown Ev electric bikes include a manufacturer warranty as stated on the product page and your purchase receipt. Warranty claims must be submitted through an authorized branch with proof of purchase.',
     ],
   },
   {
@@ -46,7 +46,7 @@ export const FAQ_SECTIONS: LegalSection[] = [
   {
     title: 'How do branch POS purchases work?',
     items: [
-      'You can buy bikes, parts, and accessories directly at any Crown Eve branch. In-branch sales follow the same warranty and return policies as online orders unless otherwise stated on your receipt.',
+      'You can buy bikes, parts, and accessories directly at any Crown Ev branch. In-branch sales follow the same warranty and return policies as online orders unless otherwise stated on your receipt.',
     ],
   },
   {

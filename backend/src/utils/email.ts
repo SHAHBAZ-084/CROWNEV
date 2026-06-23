@@ -25,9 +25,9 @@ export async function sendOtpEmail(email: string, otp: string, purpose: string) 
   await transport.sendMail({
     from: env.smtp.from,
     to: email,
-    subject: `Crown Eve — ${purpose} OTP`,
+    subject: `Crown Ev — ${purpose} OTP`,
     html: `
-      <h2>Crown Eve Bikes</h2>
+      <h2>Crown Ev Bikes</h2>
       <p>Your OTP for ${purpose} is:</p>
       <h1 style="letter-spacing:4px">${otp}</h1>
       <p>This code expires in ${env.otpExpiryMinutes} minutes.</p>

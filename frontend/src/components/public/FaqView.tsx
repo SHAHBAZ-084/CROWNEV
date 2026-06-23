@@ -100,7 +100,7 @@ export function FaqView({ sections }: { sections: LegalSection[] }) {
             Frequently Asked Questions
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-muted lg:text-base">
-            Quick answers about orders, delivery, services, and support at Crown Eve Bikes.
+            Quick answers about orders, delivery, services, and support at Crown Ev Bikes.
           </p>
 
           <div className="relative mt-8">

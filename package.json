@@ -2,7 +2,7 @@
   "name": "crown-eve",
   "private": true,
   "version": "1.0.0",
-  "description": "Crown Eve Bikes — PERN stack (PostgreSQL, Express, React, Node.js)",
+  "description": "Crown Ev Bikes — PERN stack (PostgreSQL, Express, React, Node.js)",
   "scripts": {
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

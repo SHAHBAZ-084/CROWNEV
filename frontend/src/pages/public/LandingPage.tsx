@@ -26,8 +26,8 @@ function AnimatedStat({ value, label }: { value: number; label: string }) {
   const n = useAnimatedNumber(value);
   return (
     <div className="text-center">
-      <p className="font-display text-3xl font-bold tabular-nums text-brand lg:text-4xl">{n}</p>
-      <p className="mt-1 text-sm text-text-muted">{label}</p>
+      <p className="font-display text-2xl font-bold tabular-nums text-white lg:text-3xl">{n}</p>
+      <p className="mt-0.5 text-xs font-medium text-white/85 sm:text-sm">{label}</p>
     </div>
   );
 }
@@ -49,10 +49,10 @@ export default function LandingPage() {
               Electric Mobility · Pakistan
             </p>
             <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-brand lg:text-6xl">
-              Ride the Future with <span className="text-brand">Crown Eve</span>
+              Ride the Future with <span className="text-brand">Crown Ev</span>
             </h1>
             <p className="mt-6 text-lg text-text-muted leading-relaxed">
-              Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order, all in PKR.
+              Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link to="/shop"><Button variant="accent" size="lg">Browse Shop <ArrowRight className="h-4 w-4" aria-hidden /></Button></Link>
@@ -63,8 +63,8 @@ export default function LandingPage() {
       </section>
 
       {data?.stats && (
-        <section className="border-y border-border bg-white py-16">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:grid-cols-3 sm:gap-8 lg:px-8">
+        <section className="bg-gradient-to-r from-brand via-brand-light to-accent py-6 lg:py-7">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 sm:grid-cols-3 sm:gap-6 lg:px-8">
             {[
               { label: 'Branches Nationwide', value: data.stats.branches },
               { label: 'Products Available', value: data.stats.products },
@@ -90,9 +90,9 @@ export default function LandingPage() {
           {!data ? (
             <ProductGridSkeleton />
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
               {data.featuredProducts.filter((p) => p.type === 'BIKE').map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
+                <ProductCard key={p.id} product={p} index={i} size="lg" />
               ))}
             </div>
           )}

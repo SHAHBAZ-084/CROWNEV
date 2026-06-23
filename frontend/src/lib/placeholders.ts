@@ -6,29 +6,29 @@ export const FOUNDERS = [
     title: 'Founder & CEO',
     vision:
       'Electric mobility should not be a luxury in Pakistan — it should be reliable, affordable, and available in every major city.',
-    bio: 'Ahmed founded Crown Eve to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
+    bio: 'Ahmed founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
     image: 'https://i.pravatar.cc/400?img=12',
   },
   {
     name: 'Bilal Khan',
     title: 'Co-Founder & COO',
     vision:
-      'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Eve promise on the ground.',
+      'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Ev promise on the ground.',
     bio: 'Bilal builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
     image: 'https://i.pravatar.cc/400?img=33',
   },
 ] as const;
 
-export const COMPANY_STORY = `Crown Eve Bikes was born from a simple belief: Pakistan deserves world-class electric mobility without compromise. From our first showroom in Karachi to a growing network of branches nationwide, we combine premium EV engineering with local service expertise.
+export const COMPANY_STORY = `Crown Ev Bikes was born from a simple belief: Pakistan deserves world-class electric mobility without compromise. From our first showroom in Karachi to a growing network of branches nationwide, we combine premium EV engineering with local service expertise.
 
-Every Crown Eve bike is selected for Pakistani roads: heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
+Every Crown Ev bike is selected for Pakistani roads: heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
 
 export const FOOTER_CONTACT = {
   email: 'info@crowneve.pk',
   phone: '+92 300 1234567',
   whatsapp: '+923001234567',
   address: 'Head Office, F-10 Markaz, Islamabad, Pakistan',
-  whatsappMessage: "Hi Crown Eve! I'd like to know more about your electric bikes.",
+  whatsappMessage: "Hi Crown Ev! I'd like to know more about your electric bikes.",
 } as const;
 
 /** About page brand story video — portrait 9:16 */
@@ -53,7 +53,7 @@ export const BIKE_VIDEO_AD = {
   posterMobile: '/videos/riders-say-poster-sm.webp',
   /** YouTube fallback when local files are unavailable */
   youtubeId: '',
-  title: 'Crown Eve Electric Bikes',
+  title: 'Crown Ev Electric Bikes',
   subtitle: 'Ride the future',
 } as const;
 
@@ -68,7 +68,7 @@ export const SITE_LOGO = {
 
 /** Find a Branch section. dotted Pakistan map background */
 export const BRANCH_SECTION = {
-  mapBackground: '/images/pakistan-map-bg.png',
+  mapBackground: '/images/pakistan-map-orange.png',
 } as const;
 
 /** PLACEHOLDER branch card photos — replace with real showroom images per branch */
