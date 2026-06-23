@@ -154,8 +154,19 @@ export const customerApi = {
 export const adminApi = {
   dashboard: () => api<Record<string, unknown>>('/reports/admin/dashboard'),
   branches: () => api<unknown[]>('/branches'),
-  createBranch: (data: { name: string; location: string; phone: string; whatsapp?: string; description?: string }) =>
-    api<unknown>('/branches', { method: 'POST', body: JSON.stringify(data) }),
+  createBranch: (data: {
+    name: string;
+    location: string;
+    phone: string;
+    whatsapp?: string;
+    description?: string;
+    imageUrl?: string;
+  }) => api<unknown>('/branches', { method: 'POST', body: JSON.stringify(data) }),
+  uploadBranchImage: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiUpload<{ url: string }>('/branches/upload-image', form);
+  },
   updateBranch: (id: number, data: Record<string, unknown>) =>
     api<unknown>(`/branches/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteBranch: (id: number) =>

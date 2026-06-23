@@ -3,6 +3,8 @@ import { PaymentChannelType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
+import { productImageUpload } from '../../middleware/upload.js';
+import { branchImagePublicUrl, saveBranchImageAsWebp } from '../../utils/imageProcessing.js';
 import * as branchesService from './branches.service.js';
 import * as paymentChannelsService from './payment-channels.service.js';
 
@@ -26,6 +28,20 @@ branchesRouter.get(
 );
 
 branchesRouter.use(authenticate);
+
+branchesRouter.post(
+  '/upload-image',
+  requireRoles(Role.ADMIN),
+  productImageUpload.single('image'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: 'No image uploaded' });
+      return;
+    }
+    const filename = await saveBranchImageAsWebp(req.file.buffer);
+    res.json({ url: branchImagePublicUrl(filename) });
+  }),
+);
 
 branchesRouter.get(
   '/',
@@ -91,6 +107,9 @@ branchesRouter.post(
       phone: z.string().min(1),
       whatsapp: z.string().optional(),
       description: z.string().optional(),
+      imageUrl: z
+        .union([z.string().startsWith('/uploads/branches/'), z.string().url()])
+        .optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -109,6 +128,10 @@ branchesRouter.patch(
       phone: z.string().optional(),
       whatsapp: z.string().optional(),
       description: z.string().optional(),
+      imageUrl: z
+        .union([z.string().startsWith('/uploads/branches/'), z.string().url()])
+        .nullable()
+        .optional(),
       isActive: z.boolean().optional(),
     })
   ),

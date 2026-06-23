@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { StatCard } from '../../components/ui/StatCard';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
+import { BranchPhotoField } from '../../components/crud/BranchPhotoField';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
 import { parseEvSpecsFromForm } from '../../lib/evSpecs';
@@ -199,6 +200,18 @@ export function AdminBranchesPage() {
   const [edit, setEdit] = useState<Row | null>(null);
   const [clearTarget, setClearTarget] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const [branchImageUrl, setBranchImageUrl] = useState<string | null>(null);
+  const [pendingBranchPhoto, setPendingBranchPhoto] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!modal) {
+      setBranchImageUrl(null);
+      setPendingBranchPhoto(null);
+      return;
+    }
+    setBranchImageUrl(edit?.imageUrl ? String(edit.imageUrl) : null);
+    setPendingBranchPhoto(null);
+  }, [modal, edit]);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       const result = await adminApi.deleteBranch(Number(item.id));
@@ -221,7 +234,7 @@ export function AdminBranchesPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const body = {
+    const body: Record<string, unknown> = {
       name: String(fd.get('name')),
       location: String(fd.get('location')),
       phone: String(fd.get('phone')),
@@ -231,8 +244,26 @@ export function AdminBranchesPage() {
     };
     setSaving(true);
     try {
+      if (pendingBranchPhoto) {
+        const { url } = await adminApi.uploadBranchImage(pendingBranchPhoto);
+        body.imageUrl = url;
+      } else if (modal === 'edit') {
+        body.imageUrl = branchImageUrl;
+      } else if (branchImageUrl) {
+        body.imageUrl = branchImageUrl;
+      }
+
       if (modal === 'edit' && edit) await adminApi.updateBranch(Number(edit.id), body);
-      else await adminApi.createBranch(body as { name: string; location: string; phone: string; whatsapp?: string });
+      else {
+        await adminApi.createBranch(body as {
+          name: string;
+          location: string;
+          phone: string;
+          whatsapp?: string;
+          description?: string;
+          imageUrl?: string;
+        });
+      }
       toast(modal === 'edit' ? 'Branch updated' : 'Branch created', 'success');
       setModal(null);
       reload();
@@ -285,6 +316,12 @@ export function AdminBranchesPage() {
           <Input name="location" label="Location" required defaultValue={String(edit?.location ?? '')} />
           <Input name="phone" label="Phone" required defaultValue={String(edit?.phone ?? '')} />
           <Input name="whatsapp" label="WhatsApp" defaultValue={String(edit?.whatsapp ?? '')} />
+          <BranchPhotoField
+            value={branchImageUrl}
+            onChange={setBranchImageUrl}
+            pendingFile={pendingBranchPhoto}
+            onPendingFileChange={setPendingBranchPhoto}
+          />
           <Textarea name="description" label="About-page description (shown on About Us)" rows={3} defaultValue={String(edit?.description ?? '')} />
           {modal === 'edit' && (
             <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>

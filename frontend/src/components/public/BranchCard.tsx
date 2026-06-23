@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Phone } from 'lucide-react';
 import { WhatsAppIcon } from '../icons/BrandIcons';
 import { getBranchCardImage } from '../../lib/placeholders';
+import { resolveUploadUrl } from '../../lib/media';
 import type { Branch } from '../../types';
 
 type BranchCardProps = {
@@ -70,7 +71,7 @@ export function BranchCard({
   showDescription = true,
 }: BranchCardProps) {
   const isCompact = variant === 'compact';
-  const imageSrc = getBranchCardImage(branch);
+  const imageSrc = resolveUploadUrl(branch.imageUrl) ?? getBranchCardImage(branch);
 
   return (
     <motion.article
@@ -88,7 +89,7 @@ export function BranchCard({
       >
         <motion.img
           src={imageSrc}
-          alt=""
+          alt={branch.name}
           loading="lazy"
           decoding="async"
           className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${

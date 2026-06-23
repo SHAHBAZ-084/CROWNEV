@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.js';
 import {
   bootstrapBranchChartOfAccounts,
 } from '../accounting/accounting.service.js';
+import { deleteBranchImageFile } from '../../utils/imageProcessing.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
 export async function listBranches(activeOnly = false) {
@@ -36,6 +37,7 @@ export async function createBranch(data: {
   phone: string;
   whatsapp?: string;
   description?: string;
+  imageUrl?: string;
 }) {
   const branch = await prisma.branch.create({ data });
   await bootstrapBranchChartOfAccounts(branch.id);
@@ -44,8 +46,22 @@ export async function createBranch(data: {
 
 export async function updateBranch(
   id: number,
-  data: Partial<{ name: string; location: string; phone: string; whatsapp: string; description: string; isActive: boolean }>
+  data: Partial<{
+    name: string;
+    location: string;
+    phone: string;
+    whatsapp: string;
+    description: string;
+    imageUrl: string | null;
+    isActive: boolean;
+  }>
 ) {
+  if (data.imageUrl !== undefined) {
+    const existing = await prisma.branch.findUnique({ where: { id }, select: { imageUrl: true } });
+    if (existing?.imageUrl && existing.imageUrl !== data.imageUrl) {
+      await deleteBranchImageFile(existing.imageUrl);
+    }
+  }
   return prisma.branch.update({ where: { id }, data });
 }
 

@@ -34,6 +34,7 @@ export interface Branch {
   phone: string;
   whatsapp?: string | null;
   description?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface PaymentChannel {

@@ -180,6 +180,7 @@ model Branch {
   phone     String
   whatsapp  String?
   description String?  @db.Text
+  imageUrl  String?
   isActive  Boolean  @default(true)
   ownerId   String?  @unique
   createdAt DateTime @default(now())
