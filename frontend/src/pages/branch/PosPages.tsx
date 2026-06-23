@@ -924,7 +924,7 @@ export function PosSaleInvoicePage() {
         <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent sale invoices</h2>
         <DataTable
           columns={[
-            { key: 'saleReference', header: 'Reference', render: (r) => String(r.saleReference ?? r.trackingId ?? '—') },
+            { key: 'saleReference', header: 'Reference', render: (r) => String(r.saleReference ?? '—') },
             {
               key: 'customer',
               header: 'Customer',

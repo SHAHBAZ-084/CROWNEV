@@ -39,12 +39,17 @@ export function getPeriodRange(period: ReportPeriod) {
   return { from, to, label, period };
 }
 
-export async function getBranchSalesSummary(branchId: number, period: ReportPeriod) {
+export async function getSalesSummary(period: ReportPeriod, branchId?: number) {
   const { from, to, label } = getPeriodRange(period);
 
   const orderWhere = {
-    branchId,
+    ...(branchId !== undefined && { branchId }),
     status: { in: CONFIRMED_STATUSES },
+    createdAt: { gte: from, lte: to },
+  };
+
+  const serviceWhere = {
+    ...(branchId !== undefined && { branchId }),
     createdAt: { gte: from, lte: to },
   };
 
@@ -67,12 +72,10 @@ export async function getBranchSalesSummary(branchId: number, period: ReportPeri
     prisma.order.count({ where: { ...orderWhere, type: OrderType.ONLINE } }),
     prisma.order.count({ where: { ...orderWhere, type: OrderType.POS } }),
     prisma.serviceInvoice.aggregate({
-      where: { branchId, createdAt: { gte: from, lte: to } },
+      where: serviceWhere,
       _sum: { total: true },
     }),
-    prisma.serviceInvoice.count({
-      where: { branchId, createdAt: { gte: from, lte: to } },
-    }),
+    prisma.serviceInvoice.count({ where: serviceWhere }),
   ]);
 
   const onlineSales = Number(onlineAgg._sum.total ?? 0);
@@ -85,6 +88,7 @@ export async function getBranchSalesSummary(branchId: number, period: ReportPeri
     label,
     from: from.toISOString(),
     to: to.toISOString(),
+    branchId: branchId ?? null,
     totalSales: onlineSales + walkInSales,
     onlineSales,
     walkInSales,
@@ -95,6 +99,10 @@ export async function getBranchSalesSummary(branchId: number, period: ReportPeri
     serviceInvoices: serviceCount,
     totalOrders: onlineCount + posCount,
   };
+}
+
+export async function getBranchSalesSummary(branchId: number, period: ReportPeriod) {
+  return getSalesSummary(period, branchId);
 }
 
 export async function getAdminDashboard() {
@@ -191,7 +199,8 @@ export async function exportOrders(branchId?: number, from?: string, to?: string
 
   return orders.map((o) => ({
     id: o.id,
-    trackingId: o.trackingId,
+    reference: o.saleReference ?? (o.type === OrderType.ONLINE ? o.trackingId : null),
+    trackingId: o.type === OrderType.ONLINE ? o.trackingId : null,
     branch: o.branch.name,
     customer: o.user
       ? `${o.user.firstName} ${o.user.lastName}`.trim()

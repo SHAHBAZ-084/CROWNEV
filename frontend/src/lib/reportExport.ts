@@ -190,7 +190,7 @@ export async function exportTrialBalanceReport(
 }
 
 export type OrderExportRow = {
-  trackingId: string;
+  id: string | number;
   branch: string;
   customer: string;
   type: string;
@@ -202,7 +202,7 @@ export type OrderExportRow = {
 };
 
 export const ORDER_EXPORT_COLUMNS: ReportColumn<OrderExportRow>[] = [
-  { header: 'Tracking', value: (r) => r.trackingId },
+  { header: 'ID', value: (r) => r.id },
   { header: 'Branch', value: (r) => r.branch },
   { header: 'Customer', value: (r) => r.customer },
   { header: 'Type', value: (r) => r.type },

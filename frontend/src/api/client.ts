@@ -218,17 +218,45 @@ export const adminApi = {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Order>>(`/orders${q}`);
   },
-  exportOrders: (params?: { branchId?: string }) => {
-    const q = params?.branchId ? `?branchId=${params.branchId}` : '';
+  exportOrders: (params?: { branchId?: string; from?: string; to?: string }) => {
+    const q = params
+      ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''))}`
+      : '';
     return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
+  },
+  exportBookings: (params?: { branchId?: string; from?: string; to?: string }) => {
+    const q = params
+      ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''))}`
+      : '';
+    return api<Record<string, unknown>[]>(`/reports/export/bookings${q}`);
+  },
+  exportInventory: (params?: { branchId?: string }) => {
+    const q = params?.branchId ? `?branchId=${params.branchId}` : '';
+    return api<Record<string, unknown>[]>(`/reports/export/inventory${q}`);
+  },
+  salesSummary: (period: 'daily' | 'weekly' | 'monthly' | 'yearly', branchId?: string) => {
+    const params = new URLSearchParams({ period });
+    if (branchId) params.set('branchId', branchId);
+    return api<{
+      period: string;
+      label: string;
+      from: string;
+      to: string;
+      branchId: number | null;
+      totalSales: number;
+      onlineSales: number;
+      walkInSales: number;
+      posSales: number;
+      serviceSales: number;
+      onlineOrders: number;
+      walkInOrders: number;
+      serviceInvoices: number;
+      totalOrders: number;
+    }>(`/reports/branch/summary?${params}`);
   },
   bookings: (params?: Record<string, string>) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Booking>>(`/bookings${q}`);
-  },
-  exportBookings: (params?: { branchId?: string }) => {
-    const q = params?.branchId ? `?branchId=${params.branchId}` : '';
-    return api<Record<string, unknown>[]>(`/reports/export/bookings${q}`);
   },
   revenue: (days = 30) => api<{ date: string; revenue: number }[]>(`/reports/revenue?days=${days}`),
   testimonials: () => api<unknown[]>('/testimonials/pending'),

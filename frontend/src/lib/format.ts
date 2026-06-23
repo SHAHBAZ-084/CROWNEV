@@ -32,6 +32,16 @@ export function formatTime(value: string) {
   return `${h12}:${m ?? '00'} ${ampm}`;
 }
 
+/** POS sales use sale reference; online orders use public tracking ID. */
+export function orderListReference(order: {
+  type?: string;
+  saleReference?: string | null;
+  trackingId?: string | null;
+}): string {
+  if (order.type === 'POS') return order.saleReference?.trim() || '—';
+  return order.trackingId?.trim() || '—';
+}
+
 /** Running balance: positive = Dr, negative = Cr (never show negative Dr). */
 export function formatLedgerBalance(balance: number | string) {
   const n = Number(balance);

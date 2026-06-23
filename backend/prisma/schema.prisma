@@ -386,7 +386,7 @@ model ProductImage {
 model Order {
   id                     Int           @id @default(autoincrement())
   publicId               String        @unique @default(uuid())
-  trackingId             String        @unique
+  trackingId             String?       @unique
   branchId               Int
   userId                 String?
   customerId             Int?

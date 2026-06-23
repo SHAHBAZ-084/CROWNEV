@@ -5,7 +5,7 @@ import { Badge } from './Badge';
 export interface Column<T> {
   key: string;
   header: string;
-  render?: (row: T) => React.ReactNode;
+  render?: (row: T, meta?: { rowIndex: number; serial: number }) => React.ReactNode;
   className?: string;
   align?: 'left' | 'right';
   /** Hide column on small screens (still shown in mobile cards) */
@@ -76,14 +76,18 @@ export function DataTable<T extends Record<string, unknown>>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
+            {rows.map((row, i) => {
+              const serial = paginate ? rangeStart + i : i + 1;
+              return (
               <tr
                 key={String(row[keyField])}
                 onClick={() => onRowClick?.(row)}
                 className={`border-b border-border last:border-0 transition-colors hover:bg-accent/5 ${onRowClick ? 'cursor-pointer' : ''} ${i % 2 === 1 ? 'bg-surface-alt/80' : ''}`}
               >
                 {columns.map((col) => {
-                  const cell = col.render ? col.render(row) : String(row[col.key] ?? '');
+                  const cell = col.render
+                    ? col.render(row, { rowIndex: i, serial })
+                    : String(row[col.key] ?? '');
                   return (
                     <td
                       key={col.key}
@@ -94,7 +98,8 @@ export function DataTable<T extends Record<string, unknown>>({
                   );
                 })}
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
@@ -176,5 +181,6 @@ export function StatusBadge({ status }: { status: string }) {
     APPROVED: 'success',
     REJECTED: 'danger',
   };
-  return <Badge variant={map[status] ?? 'default'}>{status}</Badge>;
+  const labels: Record<string, string> = { DELIVERED: 'Completed' };
+  return <Badge variant={map[status] ?? 'default'}>{labels[status] ?? status}</Badge>;
 }

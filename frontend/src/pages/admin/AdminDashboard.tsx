@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/layout/PageTransition';
 import { StatCard } from '../../components/ui/StatCard';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { TableSkeleton } from '../../components/ui/Skeleton';
+import { orderListReference } from '../../lib/format';
 
 export default function AdminDashboard() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
@@ -67,7 +68,19 @@ export default function AdminDashboard() {
             <h3 className="font-display font-semibold text-brand mb-4">Recent Orders</h3>
             <DataTable
               columns={[
-                { key: 'trackingId', header: 'Tracking ID' },
+                {
+                  key: 'reference',
+                  header: 'Reference',
+                  render: (r) => (
+                    <span className="font-mono text-xs">
+                      {orderListReference({
+                        type: String(r.type),
+                        saleReference: r.saleReference as string | null | undefined,
+                        trackingId: r.trackingId as string | null | undefined,
+                      })}
+                    </span>
+                  ),
+                },
                 { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
                 { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
                 { key: 'total', header: 'Total', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },

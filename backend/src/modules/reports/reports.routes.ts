@@ -41,11 +41,11 @@ reportsRouter.get(
   asyncHandler(async (req, res) => {
     const branchId =
       req.user!.role === Role.BRANCH_OWNER
-        ? req.user!.branchId
+        ? req.user!.branchId ?? undefined
         : req.query.branchId
           ? parseInt(req.query.branchId as string, 10)
-          : null;
-    if (!branchId) {
+          : undefined;
+    if (req.user!.role === Role.BRANCH_OWNER && branchId === undefined) {
       res.status(400).json({ error: 'Branch required' });
       return;
     }
@@ -54,7 +54,7 @@ reportsRouter.get(
       res.status(400).json({ error: 'Invalid period' });
       return;
     }
-    const summary = await reportsService.getBranchSalesSummary(branchId, period);
+    const summary = await reportsService.getSalesSummary(period, branchId);
     res.json(summary);
   }),
 );

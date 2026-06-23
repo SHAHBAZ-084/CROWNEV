@@ -119,7 +119,9 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     invoiceAvailable,
     currency: 'PKR' as const,
     invoiceNumber: `INV-${order.publicId.slice(0, 8).toUpperCase()}`,
+    orderType: order.type,
     trackingId: order.trackingId,
+    saleReference: order.saleReference,
     cargoTrackingId: order.cargoTrackingId,
     date: order.createdAt,
     deliveredAt: order.updatedAt,
@@ -332,7 +334,6 @@ export async function createPosOrder(data: {
 }) {
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
-  const trackingId = generateTrackingId();
   const isPaid = data.isPaid !== false;
 
   const order = await prisma.$transaction(async (tx) => {
@@ -341,12 +342,11 @@ export async function createPosOrder(data: {
         branchId: data.branchId,
         customerId: data.customerId,
         type: OrderType.POS,
-        status: OrderStatus.CONFIRMED,
+        status: OrderStatus.DELIVERED,
         paymentMethod: data.paymentMethod,
         paymentStatus: isPaid ? PaymentStatus.PAID : PaymentStatus.PENDING,
         subtotal,
         total: subtotal,
-        trackingId,
         notes: data.notes,
         items: {
           create: pricedItems.map((i) => ({
@@ -419,20 +419,17 @@ export async function createSaleInvoice(data: {
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (subtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
 
-  const trackingId = generateTrackingId();
-
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
         branchId: data.branchId,
         customerId: data.customerId,
         type: OrderType.POS,
-        status: OrderStatus.CONFIRMED,
+        status: OrderStatus.DELIVERED,
         paymentMethod: PaymentMethod.CASH,
         paymentStatus: PaymentStatus.PENDING,
         subtotal,
         total: subtotal,
-        trackingId,
         saleReference: reference,
         notes: data.notes,
         invoiceGeneratedAt: new Date(),

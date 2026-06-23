@@ -1384,7 +1384,7 @@ export function BranchReportsPage() {
         to: summary.to.slice(0, 10),
       });
       const exportRows: OrderExportRow[] = data.map((row) => ({
-        trackingId: String(row.trackingId ?? ''),
+        id: row.id as string | number,
         branch: String(row.branch ?? ''),
         customer: String(row.customer ?? ''),
         type: String(row.type ?? ''),

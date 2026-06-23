@@ -59,7 +59,8 @@ export interface OrderItem {
 export interface Order {
   id: number;
   publicId?: string;
-  trackingId: string;
+  trackingId?: string | null;
+  saleReference?: string | null;
   cargoTrackingId?: string;
   branchId?: number;
   userId?: string;
@@ -90,7 +91,9 @@ export interface InvoiceData {
   invoiceType: 'SALE';
   currency: 'PKR';
   invoiceNumber: string;
-  trackingId: string;
+  orderType?: 'ONLINE' | 'POS';
+  trackingId?: string | null;
+  saleReference?: string | null;
   cargoTrackingId?: string;
   date: string;
   deliveredAt?: string;

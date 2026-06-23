@@ -110,7 +110,15 @@ export function SaleInvoice({
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Order Info</p>
-            <p><span className="text-text-muted">Tracking:</span> <span className="font-mono">{data.trackingId}</span></p>
+            {data.orderType === 'POS' ? (
+              data.saleReference && (
+                <p><span className="text-text-muted">Reference:</span> <span className="font-mono">{data.saleReference}</span></p>
+              )
+            ) : (
+              data.trackingId && (
+                <p><span className="text-text-muted">Tracking:</span> <span className="font-mono">{data.trackingId}</span></p>
+              )
+            )}
             <p><span className="text-text-muted">Payment:</span> {data.paymentMethod.replace('_', ' ')}</p>
             <p><span className="text-text-muted">Status:</span> {data.status}</p>
             {data.cargoTrackingId && (

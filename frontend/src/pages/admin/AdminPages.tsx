@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { Receipt, ShoppingCart, Users } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
@@ -7,12 +8,24 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
+import { StatCard } from '../../components/ui/StatCard';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
 import { parseEvSpecsFromForm } from '../../lib/evSpecs';
-import { exportToPdf, type ReportColumn } from '../../lib/reportExport';
+import {
+  exportSalesSummaryPdf,
+  exportToPdf,
+  INVENTORY_EXPORT_COLUMNS,
+  ORDER_EXPORT_COLUMNS,
+  type InventoryExportRow,
+  type OrderExportRow,
+  type ReportColumn,
+} from '../../lib/reportExport';
+import { formatDate, formatPKR } from '../../lib/format';
 import { useToast } from '../../contexts/ToastContext';
+
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 type Row = Record<string, unknown>;
 
@@ -729,52 +742,62 @@ export function AdminUsersPage() {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
-type OrderExportRow = {
-  trackingId: string;
-  branch: string;
-  customer: string;
-  type: string;
-  status: string;
-  total: string | number;
-  paymentMethod: string;
-  paymentStatus: string;
-  createdAt: string;
-};
+function orderRowCustomer(r: Row): string {
+  const customer = r.customer as { name?: string } | undefined;
+  if (customer?.name) return customer.name;
+  const user = r.user as { firstName?: string; lastName?: string } | undefined;
+  if (user?.firstName) return `${user.firstName} ${user.lastName}`.trim();
+  if (r.customerName) return String(r.customerName);
+  return '—';
+}
 
-const ORDER_EXPORT_COLUMNS: ReportColumn<OrderExportRow>[] = [
-  { header: 'Tracking', value: (r) => r.trackingId },
-  { header: 'Branch', value: (r) => r.branch },
-  { header: 'Customer', value: (r) => r.customer },
-  { header: 'Type', value: (r) => r.type },
-  { header: 'Status', value: (r) => r.status },
-  { header: 'Total (PKR)', value: (r) => Number(r.total).toLocaleString() },
-  { header: 'Payment', value: (r) => r.paymentMethod },
-  { header: 'Pay Status', value: (r) => r.paymentStatus },
-  { header: 'Date', value: (r) => new Date(r.createdAt).toLocaleDateString() },
-];
+function branchOrderCount(branch: Row): number {
+  const count = branch._count as { orders?: number } | undefined;
+  return count?.orders ?? 0;
+}
 
 export function AdminOrdersPage() {
   const { toast } = useToast();
   const [branches, setBranches] = useState<Row[]>([]);
   const [branchFilter, setBranchFilter] = useState('');
+  const [rows, setRows] = useState<Row[]>([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
-  const loadOrders = useCallback(
-    () => adminApi.orders(branchFilter ? { branchId: branchFilter } : undefined),
-    [branchFilter],
-  );
-  const { rows, loading } = useCrudList(loadOrders, [branchFilter]);
+  const totalAllBranches = branches.reduce((sum, b) => sum + branchOrderCount(b), 0);
+  const selectedBranchName = branchFilter
+    ? String(branches.find((b) => String(b.id) === branchFilter)?.name ?? '')
+    : '';
 
   useEffect(() => {
     adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const params: Record<string, string> = { limit: '200' };
+    if (branchFilter) params.branchId = branchFilter;
+    adminApi
+      .orders(params)
+      .then((result) => {
+        setRows(result.data as Row[]);
+        setTotalOrders(result.pagination.total);
+      })
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load orders', 'error');
+        setRows([]);
+        setTotalOrders(0);
+      })
+      .finally(() => setLoading(false));
+  }, [branchFilter, toast]);
 
   async function downloadOrdersPdf() {
     setDownloading(true);
     try {
       const data = await adminApi.exportOrders(branchFilter ? { branchId: branchFilter } : undefined);
       const exportRows: OrderExportRow[] = data.map((row) => ({
-        trackingId: String(row.trackingId ?? ''),
+        id: row.id as string | number,
         branch: String(row.branch ?? ''),
         customer: String(row.customer ?? ''),
         type: String(row.type ?? ''),
@@ -805,7 +828,13 @@ export function AdminOrdersPage() {
     <div>
       <PageHeader
         title="All Orders"
-        subtitle="View only. Branch owners update order status"
+        subtitle={
+          loading
+            ? 'Loading orders…'
+            : branchFilter
+              ? `${totalOrders} order${totalOrders === 1 ? '' : 's'} · ${selectedBranchName}`
+              : `${totalOrders} order${totalOrders === 1 ? '' : 's'} across all branches`
+        }
         action={
           <Button variant="accent" size="sm" loading={downloading} onClick={downloadOrdersPdf}>
             Download PDF
@@ -819,51 +848,48 @@ export function AdminOrdersPage() {
           value={branchFilter}
           onChange={(e) => setBranchFilter(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">All branches ({totalAllBranches})</option>
           {branches.map((b) => (
-            <option key={String(b.id)} value={String(b.id)}>{String(b.name)}</option>
+            <option key={String(b.id)} value={String(b.id)}>
+              {String(b.name)} ({branchOrderCount(b)})
+            </option>
           ))}
         </Select>
       </div>
 
       <DataTable
         columns={[
-          { key: 'trackingId', header: 'Tracking' },
+          {
+            key: 'sr',
+            header: '#',
+            className: 'w-12 tabular-nums text-text-muted',
+            render: (_r, meta) => meta?.serial ?? '',
+          },
           { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name: string })?.name ?? '' },
+          { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
           { key: 'type', header: 'Type' },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
           { key: 'total', header: 'Total', render: (r) => `PKR ${Number(r.total).toLocaleString()}` },
+          {
+            key: 'createdAt',
+            header: 'Date',
+            render: (r) => (r.createdAt ? formatDate(String(r.createdAt)) : ''),
+          },
         ]}
         data={rows}
-        emptyMessage={loading ? 'Loading…' : 'No orders found'}
+        emptyMessage={
+          loading
+            ? 'Loading…'
+            : branchFilter
+              ? `No orders for ${selectedBranchName}. Select "All branches" to see orders from every branch.`
+              : 'No orders found'
+        }
       />
     </div>
   );
 }
 
 // ─── Bookings ────────────────────────────────────────────────────────────────
-
-type BookingExportRow = {
-  id: string | number;
-  branch: string;
-  service: string;
-  customer: string;
-  date: string;
-  time: string;
-  status: string;
-  price: string | number;
-};
-
-const BOOKING_EXPORT_COLUMNS: ReportColumn<BookingExportRow>[] = [
-  { header: 'ID', value: (r) => r.id },
-  { header: 'Branch', value: (r) => r.branch },
-  { header: 'Service', value: (r) => r.service },
-  { header: 'Customer', value: (r) => r.customer },
-  { header: 'Date', value: (r) => r.date },
-  { header: 'Time', value: (r) => r.time ?? '' },
-  { header: 'Status', value: (r) => r.status },
-  { header: 'Price (PKR)', value: (r) => Number(r.price).toLocaleString() },
-];
 
 export function AdminBookingsPage() {
   const { toast } = useToast();
@@ -1046,39 +1072,396 @@ export function AdminTestimonialsPage() {
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
-export function AdminReportsPage() {
-  const token = localStorage.getItem('token');
-  const reports = [
-    { label: 'Orders Report', href: '/api/reports/export/orders?format=csv' },
-    { label: 'Bookings Report', href: '/api/reports/export/bookings?format=csv' },
-    { label: 'Inventory Report', href: '/api/reports/export/inventory?format=csv' },
-  ];
+type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-  async function download(href: string, label: string) {
-    const res = await fetch(href, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${label.toLowerCase().replace(/\s/g, '-')}.csv`;
-    a.click();
+const REPORT_PERIOD_OPTIONS: { id: ReportPeriod; label: string }[] = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'yearly', label: 'Yearly' },
+];
+
+type SalesSummary = {
+  period: ReportPeriod;
+  label: string;
+  from: string;
+  to: string;
+  branchId: number | null;
+  totalSales: number;
+  onlineSales: number;
+  walkInSales: number;
+  posSales: number;
+  serviceSales: number;
+  onlineOrders: number;
+  walkInOrders: number;
+  serviceInvoices: number;
+  totalOrders: number;
+};
+
+type BookingExportRow = {
+  id: string | number;
+  branch: string;
+  service: string;
+  customer: string;
+  date: string;
+  time: string;
+  status: string;
+  price: string | number;
+};
+
+const BOOKING_EXPORT_COLUMNS: ReportColumn<BookingExportRow>[] = [
+  { header: 'ID', value: (r) => r.id },
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Service', value: (r) => r.service },
+  { header: 'Customer', value: (r) => r.customer },
+  { header: 'Date', value: (r) => r.date },
+  { header: 'Time', value: (r) => r.time ?? '' },
+  { header: 'Status', value: (r) => r.status },
+  { header: 'Price (PKR)', value: (r) => Number(r.price).toLocaleString() },
+];
+
+export function AdminReportsPage() {
+  const { toast } = useToast();
+  const token = localStorage.getItem('token');
+  const [branches, setBranches] = useState<Row[]>([]);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [period, setPeriod] = useState<ReportPeriod>('monthly');
+  const [summary, setSummary] = useState<SalesSummary | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const selectedBranchName = branchFilter
+    ? String(branches.find((b) => String(b.id) === branchFilter)?.name ?? '')
+    : 'All branches';
+
+  useEffect(() => {
+    adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    setLoadingSummary(true);
+    adminApi
+      .salesSummary(period, branchFilter || undefined)
+      .then(setSummary)
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load sales summary', 'error');
+        setSummary(null);
+      })
+      .finally(() => setLoadingSummary(false));
+  }, [period, branchFilter, toast]);
+
+  const periodSubtitle = summary
+    ? `${selectedBranchName} · ${summary.label} · ${formatDate(summary.from)} – ${formatDate(summary.to)}`
+    : '';
+
+  function exportParams() {
+    const params = new URLSearchParams({ format: 'csv' });
+    if (branchFilter) params.set('branchId', branchFilter);
+    if (summary) {
+      params.set('from', summary.from.slice(0, 10));
+      params.set('to', summary.to.slice(0, 10));
+    }
+    return params.toString();
+  }
+
+  async function downloadCsv(path: string, name: string) {
+    setDownloading(`csv-${name}`);
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('CSV downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Download failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadOrdersPdf() {
+    if (!summary) return;
+    setDownloading('pdf-orders');
+    try {
+      const data = await adminApi.exportOrders({
+        branchId: branchFilter || undefined,
+        from: summary.from.slice(0, 10),
+        to: summary.to.slice(0, 10),
+      });
+      const exportRows: OrderExportRow[] = data.map((row) => ({
+        id: row.id as string | number,
+        branch: String(row.branch ?? ''),
+        customer: String(row.customer ?? ''),
+        type: String(row.type ?? ''),
+        status: String(row.status ?? ''),
+        total: row.total as string | number,
+        paymentMethod: String(row.paymentMethod ?? ''),
+        paymentStatus: String(row.paymentStatus ?? ''),
+        createdAt: String(row.createdAt ?? ''),
+      }));
+      await exportToPdf(`orders_${period}_${summary.from.slice(0, 10)}`, ORDER_EXPORT_COLUMNS, exportRows, {
+        title: 'Orders Report',
+        subtitle: periodSubtitle,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadBookingsPdf() {
+    if (!summary) return;
+    setDownloading('pdf-bookings');
+    try {
+      const data = await adminApi.exportBookings({
+        branchId: branchFilter || undefined,
+        from: summary.from.slice(0, 10),
+        to: summary.to.slice(0, 10),
+      });
+      const exportRows: BookingExportRow[] = data.map((row) => ({
+        id: row.id as string | number,
+        branch: String(row.branch ?? ''),
+        service: String(row.service ?? ''),
+        customer: String(row.customer ?? ''),
+        date: String(row.date ?? ''),
+        time: String(row.time ?? ''),
+        status: String(row.status ?? ''),
+        price: row.price as string | number,
+      }));
+      await exportToPdf(`bookings_${period}_${summary.from.slice(0, 10)}`, BOOKING_EXPORT_COLUMNS, exportRows, {
+        title: 'Bookings Report',
+        subtitle: periodSubtitle,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadInventoryPdf() {
+    setDownloading('pdf-inventory');
+    try {
+      const data = await adminApi.exportInventory(branchFilter ? { branchId: branchFilter } : undefined);
+      const exportRows: InventoryExportRow[] = data.map((row) => ({
+        branch: String(row.branch ?? ''),
+        itemCode: String(row.itemCode ?? ''),
+        partName: String(row.partName ?? ''),
+        quantity: Number(row.quantity ?? 0),
+        alertAt: Number(row.alertAt ?? 0),
+        lowStock: String(row.lowStock ?? ''),
+      }));
+      await exportToPdf('inventory_report', INVENTORY_EXPORT_COLUMNS, exportRows, {
+        title: 'Inventory Report',
+        subtitle: `${selectedBranchName} · ${formatDate(new Date())}`,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadSalesSummaryPdf() {
+    if (!summary) return;
+    setDownloading('pdf-summary');
+    try {
+      const rows = [
+        { metric: 'Total sales', value: formatPKR(summary.totalSales) },
+        { metric: 'Online sales', value: `${formatPKR(summary.onlineSales)} (${summary.onlineOrders} orders)` },
+        {
+          metric: 'Walk-in sales (POS + service)',
+          value: `${formatPKR(summary.walkInSales)} (${summary.walkInOrders} POS + ${summary.serviceInvoices} service)`,
+        },
+        { metric: 'POS product sales', value: formatPKR(summary.posSales) },
+        { metric: 'Service invoice sales', value: formatPKR(summary.serviceSales) },
+      ];
+      await exportSalesSummaryPdf(`sales_summary_${period}`, rows, {
+        title: 'Sales Summary',
+        subtitle: periodSubtitle,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
   }
 
   return (
     <div>
-      <PageHeader title="Reports & Export" subtitle="Download cross-branch reports as CSV" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {reports.map((r) => (
+      <PageHeader
+        title="Reports & Export"
+        subtitle="Branch-wise sales overview and cross-branch exports"
+      />
+
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <Select
+          label="Branch"
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+          className="max-w-xs"
+        >
+          <option value="">All branches</option>
+          {branches.map((b) => (
+            <option key={String(b.id)} value={String(b.id)}>
+              {String(b.name)}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {REPORT_PERIOD_OPTIONS.map((opt) => (
           <button
-            key={r.label}
+            key={opt.id}
             type="button"
-            onClick={() => download(r.href, r.label)}
-            className="rounded-[var(--radius-card)] border border-border bg-white p-6 text-left shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow"
+            onClick={() => setPeriod(opt.id)}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+              period === opt.id
+                ? 'bg-accent text-white shadow-sm'
+                : 'border border-border bg-white text-text-muted hover:border-accent/40 hover:text-brand'
+            }`}
           >
-            <p className="font-semibold text-brand">{r.label}</p>
-            <p className="text-sm text-text-muted mt-1">Download CSV</p>
+            {opt.label}
           </button>
         ))}
+      </div>
+
+      {loadingSummary ? (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-[var(--radius-card)] bg-surface-alt" />
+          ))}
+        </div>
+      ) : summary ? (
+        <>
+          <p className="mb-4 text-sm text-text-muted">{periodSubtitle}</p>
+          <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard label="Total sales" value={summary.totalSales} icon={ShoppingCart} prefix="PKR " />
+            <StatCard
+              label="Online sales"
+              value={summary.onlineSales}
+              icon={Receipt}
+              prefix="PKR "
+              trend={`${summary.onlineOrders} orders`}
+            />
+            <StatCard
+              label="Walk-in sales"
+              value={summary.walkInSales}
+              icon={Users}
+              prefix="PKR "
+              trend={`${summary.walkInOrders} POS · ${summary.serviceInvoices} service`}
+            />
+          </div>
+        </>
+      ) : null}
+
+      <h2 className="mb-3 text-sm font-semibold text-text">Download reports</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Sales summary</p>
+          <p className="mt-1 text-sm text-text-muted">Totals for selected branch and period</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-summary'}
+              disabled={!summary}
+              onClick={downloadSalesSummaryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Orders</p>
+          <p className="mt-1 text-sm text-text-muted">Online and walk-in orders in period</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-orders.csv'}
+              disabled={!summary}
+              onClick={() => downloadCsv(`/reports/export/orders?${exportParams()}`, `orders_${period}.csv`)}
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-orders'}
+              disabled={!summary}
+              onClick={downloadOrdersPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Bookings</p>
+          <p className="mt-1 text-sm text-text-muted">Service appointments in period</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-bookings.csv'}
+              disabled={!summary}
+              onClick={() => downloadCsv(`/reports/export/bookings?${exportParams()}`, `bookings_${period}.csv`)}
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-bookings'}
+              disabled={!summary}
+              onClick={downloadBookingsPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-brand">Inventory</p>
+          <p className="mt-1 text-sm text-text-muted">Current part stock levels</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-inventory.csv'}
+              onClick={() =>
+                downloadCsv(
+                  `/reports/export/inventory?format=csv${branchFilter ? `&branchId=${branchFilter}` : ''}`,
+                  'inventory.csv',
+                )
+              }
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-inventory'}
+              onClick={downloadInventoryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
