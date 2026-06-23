@@ -63,7 +63,7 @@ export function CustomerDashboard() {
             <strong className="text-brand">Visit confirmed</strong>
             {' — '}
             We emailed your appointment time and branch details. Download your visit ticket below or from{' '}
-            <Link to="/customer/bookings" className="font-medium text-brand-light hover:underline">
+            <Link to="/customer/bookings" className="font-medium text-orange-500 hover:text-orange-600 hover:underline">
               My Bookings
             </Link>
             .
@@ -73,7 +73,7 @@ export function CustomerDashboard() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
-          <h2 className="font-display font-semibold text-brand mb-4">Recent Orders ({orders.length})</h2>
+          <h2 className="mb-4 font-display font-semibold text-slate-900">Recent Orders ({orders.length})</h2>
           <DataTable
             columns={[
               { key: 'trackingId', header: 'Tracking' },
@@ -83,10 +83,10 @@ export function CustomerDashboard() {
             data={orders.slice(0, 5) as unknown as Record<string, unknown>[]}
             emptyMessage="No orders yet"
           />
-          {orders.length > 5 && <Link to="/customer/orders" className="text-sm text-brand-light mt-2 inline-block">View all →</Link>}
+          {orders.length > 5 && <Link to="/customer/orders" className="mt-2 inline-block text-sm text-orange-500 hover:text-orange-600">View all →</Link>}
         </div>
         <div>
-          <h2 className="font-display font-semibold text-brand mb-4">Service Bookings ({bookings.length})</h2>
+          <h2 className="mb-4 font-display font-semibold text-slate-900">Service Bookings ({bookings.length})</h2>
           <DataTable
             columns={[
               { key: 'service', header: 'Service', render: (r) => (r.service as { name: string })?.name ?? 'Service request' },
@@ -127,7 +127,7 @@ export function CustomerDashboard() {
             emptyMessage="No bookings yet"
           />
           {bookings.length > 5 && (
-            <Link to="/customer/bookings" className="text-sm text-brand-light mt-2 inline-block">
+            <Link to="/customer/bookings" className="mt-2 inline-block text-sm text-orange-500 hover:text-orange-600">
               View all bookings →
             </Link>
           )}
@@ -432,7 +432,7 @@ export function CustomerProfilePage() {
                 <Pencil className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <h2 className="font-display text-lg font-semibold text-brand">Edit Profile</h2>
+                <h2 className="font-display text-lg font-semibold text-slate-900">Edit Profile</h2>
                 <p className="text-sm text-text-muted">Update your contact details below</p>
               </div>
             </div>
@@ -466,7 +466,7 @@ export function CustomerProfilePage() {
                   <UserAvatar name={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`} />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-display text-2xl font-bold text-brand sm:text-3xl">
+                  <h2 className="font-display text-2xl font-bold text-slate-900 sm:text-3xl">
                     {user?.firstName} {user?.lastName}
                   </h2>
                   <p className="mt-1 flex items-center gap-2 text-sm text-text-muted sm:text-base">
@@ -496,7 +496,7 @@ export function CustomerProfilePage() {
                   <User className="h-5 w-5 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-display text-lg font-semibold text-brand">Personal Information</h3>
+                  <h3 className="font-display text-lg font-semibold text-slate-900">Personal Information</h3>
                   <p className="text-sm text-text-muted">Your contact and location details</p>
                 </div>
               </div>
@@ -518,7 +518,7 @@ export function CustomerProfilePage() {
                   <Shield className="h-5 w-5 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-display text-lg font-semibold text-brand">Account Security</h3>
+                  <h3 className="font-display text-lg font-semibold text-slate-900">Account Security</h3>
                   <p className="text-sm text-text-muted">Keep your account protected</p>
                 </div>
               </div>

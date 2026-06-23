@@ -16,7 +16,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         id={id}
-        className={`w-full rounded-xl border border-border-light bg-subtle px-4 py-2.5 text-sm text-ink outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 ${error ? 'border-warning shake' : ''} ${className}`}
+        className={`w-full rounded-xl border border-border-light bg-subtle px-4 py-2.5 text-sm text-ink placeholder:text-slate-400 outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 ${error ? 'border-warning shake' : ''} ${className}`}
         {...props}
       />
       {error && <p className="text-xs text-warning">{error}</p>}
@@ -68,7 +68,7 @@ export function Textarea({
       )}
       <textarea
         id={id}
-        className={`w-full rounded-xl border border-border-light bg-subtle px-4 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 resize-none ${className}`}
+        className={`w-full rounded-xl border border-border-light bg-subtle px-4 py-2.5 text-sm text-ink placeholder:text-slate-400 outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 resize-none ${className}`}
         {...props}
       />
       {error && <p className="text-xs text-warning">{error}</p>}

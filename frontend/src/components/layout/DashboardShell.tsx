@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Logo } from '../brand/Logo';
+import './dashboardTheme.css';
 
 export function DashboardShell({
   sidebar,
@@ -36,7 +37,7 @@ export function DashboardShell({
   const close = () => setMobileOpen(false);
 
   return (
-    <div className="flex min-h-screen bg-subtle">
+    <div className="dashboard-root flex min-h-screen bg-surface">
       {mobileOpen && (
         <button
           type="button"
@@ -53,7 +54,7 @@ export function DashboardShell({
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="rounded-xl p-2 text-ink-muted hover:bg-subtle hover:text-ink"
+            className="rounded-xl p-2 text-orange-500 hover:bg-subtle hover:text-orange-600"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />

@@ -62,10 +62,13 @@ export function SearchSelect({
     setOpen(false);
   }
 
+  const fieldClass =
+    'w-full rounded-xl border border-border-light bg-subtle py-2.5 pl-4 pr-10 text-sm text-ink placeholder:text-slate-400 outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-subtle/50 disabled:opacity-60';
+
   return (
     <div ref={rootRef} className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-text">
+        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}
@@ -100,13 +103,13 @@ export function SearchSelect({
               pick(filtered[0]);
             }
           }}
-          className="w-full rounded-xl border border-border bg-surface-alt py-2.5 pl-4 pr-10 text-sm outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-surface-alt/50 disabled:opacity-60"
+          className={fieldClass}
         />
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         {open && (
-          <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border bg-surface-alt py-1 shadow-lg">
+          <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border-light bg-elevated py-1 shadow-lg">
             {filtered.length === 0 ? (
-              <li className="px-4 py-2.5 text-sm text-text-muted">No matches</li>
+              <li className="px-4 py-2.5 text-sm text-ink-muted">No matches</li>
             ) : (
               filtered.map((option) => (
                 <li key={option.value || '__empty'}>
@@ -114,8 +117,8 @@ export function SearchSelect({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pick(option)}
-                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent/10 ${
-                      option.value === value ? 'bg-accent/5 font-medium text-brand' : 'text-text'
+                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-brand/5 ${
+                      option.value === value ? 'bg-brand/5 font-medium text-brand' : 'text-ink'
                     }`}
                   >
                     {option.label}

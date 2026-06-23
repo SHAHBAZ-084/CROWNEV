@@ -91,7 +91,7 @@ export function BranchPOSPage() {
       )}
 
       <div>
-        <h2 className="mb-4 font-display text-sm font-bold text-brand">Workspace</h2>
+        <h2 className="mb-4 font-display text-sm font-bold text-slate-900">Workspace</h2>
         <PosNavGrid />
       </div>
     </div>
@@ -1520,7 +1520,7 @@ export function BranchReportsPage() {
       <h2 className="mb-3 text-sm font-semibold text-text">Download reports</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
-          <p className="font-semibold text-brand">Sales summary</p>
+          <p className="font-semibold text-slate-900">Sales summary</p>
           <p className="mt-1 text-sm text-text-muted">Totals for selected period</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
@@ -1536,7 +1536,7 @@ export function BranchReportsPage() {
         </div>
 
         <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
-          <p className="font-semibold text-brand">Orders</p>
+          <p className="font-semibold text-slate-900">Orders</p>
           <p className="mt-1 text-sm text-text-muted">Online and walk-in orders in period</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
@@ -1566,7 +1566,7 @@ export function BranchReportsPage() {
         </div>
 
         <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
-          <p className="font-semibold text-brand">Inventory</p>
+          <p className="font-semibold text-slate-900">Inventory</p>
           <p className="mt-1 text-sm text-text-muted">Current part stock levels</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button

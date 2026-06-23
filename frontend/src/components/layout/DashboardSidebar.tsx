@@ -32,7 +32,7 @@ function UserAvatar({ name }: { name: string }) {
     .toUpperCase();
 
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-bold text-brand">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 text-sm font-bold text-orange-500">
       {initials || '?'}
     </div>
   );
@@ -55,12 +55,12 @@ function SidebarNavLink({
       className={({ isActive }) =>
         `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
           isActive
-            ? 'border-r-2 border-brand bg-brand/10 text-brand'
-            : 'text-ink-muted hover:bg-subtle hover:text-ink'
+            ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+            : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
         }`
       }
     >
-      <item.icon className="h-4 w-4 shrink-0" />
+      <item.icon className="h-4 w-4 shrink-0 text-orange-500 transition-colors group-hover:text-orange-600" />
       <span className="truncate">{item.label}</span>
     </NavLink>
   );
@@ -109,37 +109,37 @@ export function DashboardSidebar({
 
   return (
     <aside
-      className={`dashboard-sidebar fixed left-0 top-0 z-50 flex h-full w-[17.5rem] flex-col border-r border-border-light bg-elevated transition-transform duration-300 ease-in-out lg:z-30 lg:translate-x-0 ${
+      className={`dashboard-sidebar fixed left-0 top-0 z-50 flex h-full w-[17.5rem] flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out lg:z-30 lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="relative flex flex-col items-center border-b border-border-light bg-elevated px-5 pb-5 pt-6 text-center">
+      <div className="relative flex flex-col items-center border-b border-slate-200 bg-white px-5 pb-5 pt-6 text-center">
         <button
           type="button"
           onClick={onNavigate}
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-ink-muted hover:bg-subtle hover:text-ink lg:hidden"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-orange-500 lg:hidden"
           aria-label="Close menu"
         >
           <X className="h-5 w-5" />
         </button>
         <Logo size="md" linked centered />
         {showBadge && (
-          <span className="mt-3 inline-flex rounded-full bg-subtle px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          <span className="mt-3 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
             {subtitle ?? roleLabels[role]}
           </span>
         )}
       </div>
 
-      <nav className="dashboard-sidebar-nav flex-1 space-y-4 overflow-y-auto px-3 py-4">
+      <nav className="dashboard-sidebar-nav flex-1 space-y-4 overflow-y-auto bg-slate-50 px-3 py-4">
         {navSections.map((section, si) => (
           <div key={section.title ?? `section-${si}`}>
             {section.title && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                 {section.title}
               </p>
             )}
             {!section.title && si === 0 && navSections.length === 1 && !sections && (
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Menu
               </p>
             )}
@@ -157,17 +157,17 @@ export function DashboardSidebar({
         ))}
       </nav>
 
-      <div className="border-t border-border-light px-4 py-4">
-        <div className="rounded-xl bg-subtle p-3">
+      <div className="border-t border-slate-200 bg-white px-4 py-4">
+        <div className="rounded-xl bg-slate-100 p-3">
           <div className="flex items-center gap-3">
             <UserAvatar name={userName ?? 'User'} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{userName ?? 'User'}</p>
+              <p className="truncate text-sm font-semibold text-slate-900">{userName ?? 'User'}</p>
               {userEmail && (
-                <p className="truncate text-[11px] text-ink-muted">{userEmail}</p>
+                <p className="truncate text-[11px] text-slate-500">{userEmail}</p>
               )}
               {userMeta && (
-                <p className="truncate text-[11px] text-ink-muted">{userMeta}</p>
+                <p className="truncate text-[11px] text-slate-500">{userMeta}</p>
               )}
             </div>
           </div>
@@ -177,9 +177,9 @@ export function DashboardSidebar({
           <button
             type="button"
             onClick={onSignOut}
-            className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+            className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-orange-500"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 text-orange-500" />
             Sign out
           </button>
         </div>
