@@ -12,7 +12,15 @@ export async function getLandingData() {
         isActive: true,
         NOT: { name: { startsWith: 'Accounting Test' } },
       },
-      select: { id: true, name: true, location: true, phone: true, whatsapp: true, description: true },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        phone: true,
+        whatsapp: true,
+        description: true,
+        imageUrl: true,
+      },
       orderBy: { name: 'asc' },
     }),
     prisma.productCategory.findMany({

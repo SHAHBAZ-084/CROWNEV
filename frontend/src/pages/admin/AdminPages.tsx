@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Receipt, ShoppingCart, Users } from 'lucide-react';
+import { Building2, Receipt, ShoppingCart, Users } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
@@ -24,6 +24,7 @@ import {
   type ReportColumn,
 } from '../../lib/reportExport';
 import { formatDate, formatPKR } from '../../lib/format';
+import { resolveUploadUrl } from '../../lib/media';
 import { useToast } from '../../contexts/ToastContext';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -279,6 +280,30 @@ export function AdminBranchesPage() {
       <PageHeader title="Branches" subtitle="Manage all Crown Eve branches" action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch</Button>} />
       <DataTable
         columns={[
+          {
+            key: 'imageUrl',
+            header: 'Photo',
+            className: 'w-24',
+            render: (r) => {
+              const src = resolveUploadUrl(r.imageUrl ? String(r.imageUrl) : null);
+              const name = String(r.name ?? 'Branch');
+              return src ? (
+                <img
+                  src={src}
+                  alt={name}
+                  className="h-12 w-[4.5rem] rounded-lg border border-border object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-[4.5rem] items-center justify-center rounded-lg border border-dashed border-border bg-surface-alt text-text-muted"
+                  title="No photo uploaded"
+                >
+                  <Building2 className="h-5 w-5" aria-hidden />
+                  <span className="sr-only">No photo for {name}</span>
+                </div>
+              );
+            },
+          },
           { key: 'name', header: 'Name' },
           { key: 'location', header: 'Location' },
           { key: 'phone', header: 'Phone' },
