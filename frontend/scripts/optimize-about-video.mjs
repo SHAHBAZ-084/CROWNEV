@@ -7,7 +7,7 @@ import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
-const input = resolve(root, 'lv_0_20260623104655.mp4');
+const input = resolve(root, 'frontend/scripts/sources/about-story-source.mp4');
 const outDir = resolve(__dirname, '../public/videos');
 
 if (!ffmpegPath) {

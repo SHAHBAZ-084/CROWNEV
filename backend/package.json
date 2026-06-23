@@ -13,9 +13,6 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:cleanup": "tsx scripts/cleanup-test-branches.ts",
     "email:test": "tsx scripts/test-smtp.ts"
   },
   "prisma": {
@@ -48,7 +45,6 @@
     "@types/uuid": "^10.0.0",
     "prisma": "^6.9.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3",
-    "vitest": "^4.1.9"
+    "typescript": "^5.8.3"
   }
 }

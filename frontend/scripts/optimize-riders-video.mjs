@@ -7,7 +7,7 @@ import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
-const input = resolve(root, 'lv_0_20260623101516.mp4');
+const input = resolve(root, 'frontend/scripts/sources/riders-say-source.mp4');
 const outDir = resolve(__dirname, '../public/videos');
 
 if (!ffmpegPath) {
@@ -25,7 +25,6 @@ const ff = (args) => execFileSync(ffmpegPath, args, { stdio: 'inherit' });
 
 const mp4 = join(outDir, 'riders-say.mp4');
 const mp4Mobile = join(outDir, 'riders-say-mobile.mp4');
-const webm = join(outDir, 'riders-say.webm');
 const posterJpg = join(outDir, '_poster-temp.jpg');
 
 console.log('Encoding desktop MP4…');
@@ -52,18 +51,6 @@ ff([
   '-movflags', '+faststart',
   '-pix_fmt', 'yuv420p',
   mp4Mobile,
-]);
-
-console.log('Encoding WebM…');
-ff([
-  '-y', '-i', input,
-  '-an',
-  '-vf', 'scale=1280:-2',
-  '-c:v', 'libvpx-vp9',
-  '-crf', '35',
-  '-b:v', '0',
-  '-row-mt', '1',
-  webm,
 ]);
 
 console.log('Extracting poster frame…');
