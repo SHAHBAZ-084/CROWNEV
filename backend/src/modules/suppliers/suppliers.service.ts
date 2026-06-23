@@ -114,13 +114,23 @@ export async function createSupplier(data: {
   email?: string;
   address?: string;
 }) {
-  return prisma.supplier.create({ data });
+  return prisma.$transaction(async (tx) => {
+    const supplier = await tx.supplier.create({ data });
+    await ensureSupplierAccount(tx, data.branchId, { id: supplier.id, name: supplier.name });
+    return supplier;
+  });
 }
 
 export async function updateSupplier(id: number, branchId: number, data: Record<string, unknown>) {
-  const supplier = await prisma.supplier.findFirst({ where: { id, branchId } });
-  if (!supplier) throw new AppError(404, 'Supplier not found');
-  return prisma.supplier.update({ where: { id }, data });
+  return prisma.$transaction(async (tx) => {
+    const supplier = await tx.supplier.findFirst({ where: { id, branchId } });
+    if (!supplier) throw new AppError(404, 'Supplier not found');
+    const updated = await tx.supplier.update({ where: { id }, data });
+    if (typeof data.name === 'string' && data.name.trim()) {
+      await ensureSupplierAccount(tx, branchId, { id: updated.id, name: updated.name });
+    }
+    return updated;
+  });
 }
 
 export async function softDeleteSupplier(id: number, branchId: number) {

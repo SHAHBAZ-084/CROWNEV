@@ -98,13 +98,10 @@ export function PosAccountsPage() {
   const { toast } = useToast();
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
-  const [categoryCustomers, setCategoryCustomers] = useState<Row[]>([]);
-  const [categorySuppliers, setCategorySuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<'account' | 'category' | null>(null);
   const [viewCategory, setViewCategory] = useState<Row | null>(null);
   const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loadingEntityRows, setLoadingEntityRows] = useState(false);
 
   const viewingCustomers = isCustomersCategory(viewCategory);
   const viewingSuppliers = isSuppliersCategory(viewCategory);
@@ -119,35 +116,7 @@ export function PosAccountsPage() {
     });
   }, [accounts, viewCategory]);
 
-  const customerAccountRows = useMemo(
-    () =>
-      categoryCustomers.map((c) => ({
-        id: c.id,
-        code: `C${String(c.id).padStart(4, '0')}`,
-        name: c.name,
-        type: String(c.type ?? 'WALK_IN'),
-        ledger: { balance: Number(c.balance ?? 0) },
-      })),
-    [categoryCustomers],
-  );
-
-  const supplierAccountRows = useMemo(
-    () =>
-      categorySuppliers.map((s) => ({
-        id: s.id,
-        code: `S${String(s.id).padStart(4, '0')}`,
-        name: s.name,
-        type: 'SUPPLIER',
-        ledger: { balance: Number(s.balance ?? 0) },
-      })),
-    [categorySuppliers],
-  );
-
-  const viewedAccounts = viewingCustomers
-    ? customerAccountRows
-    : viewingSuppliers
-      ? supplierAccountRows
-      : categoryAccounts;
+  const viewedAccounts = categoryAccounts;
 
   function openAddAccount(categoryId?: number) {
     setPresetCategoryId(categoryId ?? null);
@@ -170,36 +139,6 @@ export function PosAccountsPage() {
   }, [branchId, toast]);
 
   useEffect(() => { reload(); }, [reload]);
-
-  useEffect(() => {
-    if (!branchId || !viewingCustomers) {
-      setCategoryCustomers([]);
-      return;
-    }
-    setLoadingEntityRows(true);
-    branchApi.branchCustomers(branchId)
-      .then((r) => setCategoryCustomers(r.data as Row[]))
-      .catch((err) => {
-        toast(err instanceof Error ? err.message : 'Failed to load customers', 'error');
-        setCategoryCustomers([]);
-      })
-      .finally(() => setLoadingEntityRows(false));
-  }, [branchId, viewingCustomers, toast]);
-
-  useEffect(() => {
-    if (!branchId || !viewingSuppliers) {
-      setCategorySuppliers([]);
-      return;
-    }
-    setLoadingEntityRows(true);
-    branchApi.branchSuppliers(branchId)
-      .then((r) => setCategorySuppliers(r.data as Row[]))
-      .catch((err) => {
-        toast(err instanceof Error ? err.message : 'Failed to load suppliers', 'error');
-        setCategorySuppliers([]);
-      })
-      .finally(() => setLoadingEntityRows(false));
-  }, [branchId, viewingSuppliers, toast]);
 
   function openViewCategory(category: Row) {
     setViewCategory(category);
@@ -373,9 +312,11 @@ export function PosAccountsPage() {
           ]}
           data={viewedAccounts}
           emptyMessage={
-            viewingCustomers || viewingSuppliers
-              ? (loadingEntityRows ? 'Loading accounts…' : 'No accounts in this category yet')
-              : 'No accounts in this category yet'
+            viewingCustomers
+              ? 'No customer accounts yet. Add customers from the Customers menu.'
+              : viewingSuppliers
+                ? 'No supplier accounts yet. Add suppliers from the Suppliers menu.'
+                : 'No accounts in this category yet'
           }
         />
         {accountDelete.modal}

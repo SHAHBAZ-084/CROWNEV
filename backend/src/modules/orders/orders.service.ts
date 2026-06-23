@@ -694,19 +694,22 @@ export async function createWalkInCustomer(data: {
   email?: string;
   address?: string;
 }) {
-  const customer = await prisma.customer.upsert({
-    where: { branchId_cnic: { branchId: data.branchId, cnic: data.cnic } },
-    create: { ...data, type: CustomerType.WALK_IN },
-    update: {
-      name: data.name,
-      phone: data.phone,
-      email: data.email,
-      address: data.address,
-      type: CustomerType.WALK_IN,
-      isActive: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.upsert({
+      where: { branchId_cnic: { branchId: data.branchId, cnic: data.cnic } },
+      create: { ...data, type: CustomerType.WALK_IN },
+      update: {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        type: CustomerType.WALK_IN,
+        isActive: true,
+      },
+    });
+    await ensureCustomerAccount(tx, data.branchId, { id: customer.id, name: customer.name });
+    return { ...customer, balance: Number(customer.balance) };
   });
-  return { ...customer, balance: Number(customer.balance) };
 }
 
 export async function getWalkInCustomer(id: number, branchId: number) {
@@ -723,11 +726,17 @@ export async function updateWalkInCustomer(
   branchId: number,
   data: Partial<{ name: string; phone: string; email: string; address: string }>
 ) {
-  const customer = await prisma.customer.findFirst({
-    where: { id, branchId, type: CustomerType.WALK_IN },
+  return prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.findFirst({
+      where: { id, branchId, type: CustomerType.WALK_IN },
+    });
+    if (!customer) throw new AppError(404, 'Customer not found');
+    const updated = await tx.customer.update({ where: { id }, data });
+    if (data.name) {
+      await ensureCustomerAccount(tx, branchId, { id: updated.id, name: updated.name });
+    }
+    return updated;
   });
-  if (!customer) throw new AppError(404, 'Customer not found');
-  return prisma.customer.update({ where: { id }, data });
 }
 
 export async function getWalkInLedger(customerId: number, branchId: number) {

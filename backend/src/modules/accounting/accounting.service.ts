@@ -554,6 +554,7 @@ function reportBalanceFromEntries(
 export async function listAccounts(branchId: number) {
   await prisma.$transaction(async (tx) => {
     await consolidateDuplicateInventoryAccounts(tx, branchId);
+    await syncCustomerSupplierAccountsInTx(tx, branchId);
   });
 
   const accounts = await prisma.account.findMany({
@@ -654,7 +655,15 @@ export async function ensureCustomerAccount(
     where: { branchId, isActive: true, code },
     include: { ledger: true },
   });
-  if (existing?.ledger) return existing;
+  if (existing) {
+    if (!existing.ledger) {
+      await tx.ledger.create({ data: { branchId, accountId: existing.id, balance: 0 } });
+    }
+    if (existing.name !== customer.name) {
+      await tx.account.update({ where: { id: existing.id }, data: { name: customer.name } });
+    }
+    return tx.account.findUniqueOrThrow({ where: { id: existing.id }, include: { ledger: true } });
+  }
 
   const account = await tx.account.create({
     data: {
@@ -689,7 +698,15 @@ export async function ensureSupplierAccount(
     where: { branchId, isActive: true, code },
     include: { ledger: true },
   });
-  if (existing?.ledger) return existing;
+  if (existing) {
+    if (!existing.ledger) {
+      await tx.ledger.create({ data: { branchId, accountId: existing.id, balance: 0 } });
+    }
+    if (existing.name !== supplier.name) {
+      await tx.account.update({ where: { id: existing.id }, data: { name: supplier.name } });
+    }
+    return tx.account.findUniqueOrThrow({ where: { id: existing.id }, include: { ledger: true } });
+  }
 
   const account = await tx.account.create({
     data: {
@@ -702,6 +719,32 @@ export async function ensureSupplierAccount(
   });
   await tx.ledger.create({ data: { branchId, accountId: account.id, balance: 0 } });
   return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
+}
+
+async function syncCustomerSupplierAccountsInTx(tx: Prisma.TransactionClient, branchId: number) {
+  const [customers, suppliers] = await Promise.all([
+    tx.customer.findMany({
+      where: { branchId, isActive: true },
+      select: { id: true, name: true },
+    }),
+    tx.supplier.findMany({
+      where: { branchId, isActive: true },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  for (const customer of customers) {
+    await ensureCustomerAccount(tx, branchId, customer);
+  }
+  for (const supplier of suppliers) {
+    await ensureSupplierAccount(tx, branchId, supplier);
+  }
+}
+
+export async function syncCustomerSupplierAccounts(branchId: number) {
+  await prisma.$transaction(async (tx) => {
+    await syncCustomerSupplierAccountsInTx(tx, branchId);
+  });
 }
 
 export async function ensureInventoryAccount(tx: Prisma.TransactionClient, branchId: number) {
