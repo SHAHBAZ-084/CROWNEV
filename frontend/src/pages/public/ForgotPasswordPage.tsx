@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { authApi } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { MotionSection } from '../../components/public/MotionSection';
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'email' | 'reset'>('email');
@@ -35,7 +36,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
+    <MotionSection as="div" className="mx-auto max-w-md px-4 py-16">
       <h1 className="font-display text-2xl font-bold text-brand">Reset Password</h1>
       {step === 'email' ? (
         <form onSubmit={handleEmail} className="mt-6 space-y-4">
@@ -53,6 +54,6 @@ export default function ForgotPasswordPage() {
         </form>
       )}
       <p className="mt-4 text-center text-sm"><Link to="/login" className="text-brand-light">← Back to login</Link></p>
-    </div>
+    </MotionSection>
   );
 }

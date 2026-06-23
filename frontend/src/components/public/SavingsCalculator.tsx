@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Calculator } from 'lucide-react';
+import { fadeUp, motionTransition, staggerContainer } from '../../lib/publicMotion';
 import { formatPKR } from '../../lib/format';
 
 // ─── Tunable constants (no backend) ───────────────────────────────────────────
@@ -165,11 +167,21 @@ export function SavingsCalculator() {
   }, [electricModelId, petrolModelId, petrolPrice, modelYear, dailyDistance]);
 
   return (
-    <section className="border-y border-border bg-white py-10 lg:py-12">
+    <motion.section
+      className="border-y border-border bg-white py-10 lg:py-12"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-48px' }}
+      variants={staggerContainer}
+    >
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
           {/* Inputs */}
-          <div className="rounded-[var(--radius-card)] border border-border bg-surface-alt/50 p-4 shadow-[var(--shadow-card)] lg:p-5">
+          <motion.div
+            variants={fadeUp}
+            transition={motionTransition}
+            className="rounded-[var(--radius-card)] border border-border bg-surface-alt/50 p-4 shadow-[var(--shadow-card)] lg:p-5"
+          >
             <h2 className="font-display text-lg font-bold leading-snug text-brand lg:text-xl">
               Calculate Your Ride &amp; Save with {BRAND_NAME}
             </h2>
@@ -267,10 +279,14 @@ export function SavingsCalculator() {
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Results */}
-          <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]">
+          <motion.div
+            variants={fadeUp}
+            transition={motionTransition}
+            className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-card)]"
+          >
             <div className="flex items-center gap-2 bg-brand px-4 py-2.5 text-white">
               <Calculator className="h-4 w-4" />
               <h3 className="font-display text-sm font-bold">Savings Calculator</h3>
@@ -300,9 +316,9 @@ export function SavingsCalculator() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

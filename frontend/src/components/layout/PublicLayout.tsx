@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
 import { CartDrawer } from '../cart/CartDrawer';
+import { PublicAnalyticsStrip } from '../public/PublicAnalyticsStrip';
 import { WhatsAppFloat } from '../public/WhatsAppFloat';
 import { Button } from '../ui/Button';
 
@@ -43,32 +44,46 @@ export function PublicNavbar() {
     user?.role === 'BRANCH_OWNER' ? '/branch' :
     user?.role === 'CUSTOMER' ? '/customer' : null;
 
+  const isHome = location.pathname === '/';
+  const transparentNav = isHome && !scrolled;
+
   return (
     <>
       <motion.header
         initial={false}
         animate={{ y: 0, opacity: 1 }}
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          scrolled
-            ? 'border-b border-border/80 bg-gradient-to-r from-surface-alt/98 via-[#fff8f2]/98 to-surface-alt/98 shadow-sm backdrop-blur-md'
-            : 'border-b border-border/50 bg-gradient-to-r from-surface-alt/90 via-[#fffaf5]/88 to-surface-alt/90 backdrop-blur-sm'
+          transparentNav
+            ? 'border-b border-transparent bg-transparent'
+            : scrolled
+              ? 'border-b border-border/80 bg-gradient-to-r from-surface-alt/98 via-[#fff8f2]/98 to-surface-alt/98 shadow-sm backdrop-blur-md'
+              : 'border-b border-border/50 bg-gradient-to-r from-surface-alt/90 via-[#fffaf5]/88 to-surface-alt/90 backdrop-blur-sm'
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:py-3 lg:px-8">
-          <Logo size="sm" linked />
+          <Logo size="sm" linked className={transparentNav ? 'drop-shadow-md' : ''} />
 
           <nav className="hidden items-center gap-8 lg:flex">
-            {publicLinks.map((l) => (
+            {publicLinks.map((l) => {
+              const active = l.to === '/' ? location.pathname === '/' : location.pathname === l.to;
+              return (
               <Link
                 key={l.to}
                 to={l.to}
-                className={`text-sm font-medium transition-colors hover:text-accent ${
-                  (l.to === '/' ? location.pathname === '/' : location.pathname === l.to) ? 'text-accent' : 'text-text-muted'
+                className={`text-sm font-medium transition-colors ${
+                  transparentNav
+                    ? active
+                      ? 'text-brand drop-shadow-sm'
+                      : 'text-white/90 drop-shadow-sm hover:text-brand-light'
+                    : active
+                      ? 'text-brand'
+                      : 'text-text-muted hover:text-brand-light'
                 }`}
               >
                 {l.label}
               </Link>
-            ))}
+            );
+            })}
           </nav>
 
           <div className="flex items-center gap-3">
@@ -76,7 +91,11 @@ export function PublicNavbar() {
               type="button"
               onClick={() => setCartOpen(true)}
               aria-label={count > 0 ? `Open cart, ${count} items` : 'Open cart'}
-              className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full bg-accent/10 text-brand transition-colors hover:bg-accent/20"
+              className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors ${
+                transparentNav
+                  ? 'bg-white/15 text-white hover:bg-brand/25 hover:text-brand-light'
+                  : 'bg-accent/10 text-brand hover:bg-accent/20 hover:text-brand-light'
+              }`}
             >
               <ShoppingCart className="h-5 w-5" strokeWidth={2} aria-hidden />
               {count > 0 && (
@@ -99,14 +118,24 @@ export function PublicNavbar() {
               </div>
             ) : (
               <div className="hidden items-center gap-2 sm:flex">
-                <Link to="/login"><Button variant="ghost" size="sm">Login</Button></Link>
+                <Link to="/login">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={transparentNav ? 'text-white/90 hover:text-brand-light hover:bg-brand/10' : 'hover:text-brand-light'}
+                  >
+                    Login
+                  </Button>
+                </Link>
                 <Link to="/register"><Button variant="accent" size="sm">Register</Button></Link>
               </div>
             )}
 
             <button
               type="button"
-              className="min-h-11 min-w-11 rounded-xl p-2.5 lg:hidden"
+              className={`min-h-11 min-w-11 rounded-xl p-2.5 transition-colors lg:hidden ${
+                transparentNav ? 'text-white hover:text-brand-light' : 'hover:text-brand-light'
+              }`}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
@@ -123,7 +152,7 @@ export function PublicNavbar() {
             className="border-t border-border/80 bg-gradient-to-b from-surface-alt to-white px-4 py-4 lg:hidden"
           >
             {publicLinks.map((l) => (
-              <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-text-muted hover:text-accent">{l.label}</Link>
+              <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-text-muted hover:text-brand-light">{l.label}</Link>
             ))}
             {user ? (
               <div className="mt-4 space-y-2 border-t border-border pt-4">
@@ -212,7 +241,13 @@ export function PublicFooter() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgb(232_89_12_/_6%)_0%,_transparent_50%)]" />
 
       {/* CTA strip */}
-      <div className="relative border-b border-border bg-gradient-to-r from-brand via-brand-light to-accent">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative border-b border-border bg-gradient-to-r from-brand via-brand-light to-accent"
+      >
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-10 lg:flex-row lg:px-8">
           <div className="text-center lg:text-left">
             <p className="font-display text-xl font-bold text-white lg:text-2xl">Ready to ride electric?</p>
@@ -231,7 +266,7 @@ export function PublicFooter() {
             </Link>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-14 lg:px-8 lg:pt-16 lg:pb-5">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
@@ -355,10 +390,17 @@ export function ScrollToTop() {
 }
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+  const hideCompactStats = ['/', '/login', '/register', '/forgot-password', '/checkout'].includes(
+    location.pathname,
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <PublicNavbar />
-      <main className="flex-1 pt-20 lg:pt-24">{children}</main>
+      <main className={`flex-1 ${isHome ? 'pt-0' : 'pt-20 lg:pt-24'}`}>{children}</main>
+      {!hideCompactStats && <PublicAnalyticsStrip variant="compact" />}
       <PublicFooter />
       <WhatsAppFloat />
       <ScrollToTop />

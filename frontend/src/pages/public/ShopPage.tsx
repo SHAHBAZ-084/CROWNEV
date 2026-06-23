@@ -4,6 +4,7 @@ import { Bike, Package, Search, SlidersHorizontal, Wrench, X } from 'lucide-reac
 import { publicApi } from '../../api/client';
 import type { Product } from '../../types';
 import { ProductCard } from '../../components/public/ProductCard';
+import { MotionSection } from '../../components/public/MotionSection';
 import { PageHero } from '../../components/public/PageHero';
 import { Select } from '../../components/ui/Input';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
@@ -96,7 +97,7 @@ export default function ShopPage() {
         subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."
       />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+      <MotionSection as="div" className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         <div className="rounded-[var(--radius-card)] border border-border bg-white p-4 shadow-[var(--shadow-card)] lg:p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-brand">
             <SlidersHorizontal className="h-4 w-4 text-accent" />
@@ -229,14 +230,14 @@ export default function ShopPage() {
             <>
               <h2 className="sr-only">Product catalog</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {products.map((p) => (
-                  <ProductCard key={p.id} product={p} animate={false} />
+                {products.map((p, i) => (
+                  <ProductCard key={p.id} product={p} index={i} />
                 ))}
               </div>
             </>
           )}
         </div>
-      </div>
+      </MotionSection>
     </div>
   );
 }

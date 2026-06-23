@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import type { LandingData } from '../../types';
+import { HomeHeroVideo } from '../../components/public/HomeHeroVideo';
+import { MotionItem, MotionSection, MotionStagger } from '../../components/public/MotionSection';
+import { PublicAnalyticsStrip } from '../../components/public/PublicAnalyticsStrip';
 import { ProductCard, FeatureGrid } from '../../components/public/ProductCard';
 import { Button } from '../../components/ui/Button';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber';
 
 const SavingsCalculator = lazy(() =>
   import('../../components/public/SavingsCalculator').then((m) => ({ default: m.SavingsCalculator }))
@@ -22,16 +24,6 @@ function SectionFallback({ className = 'py-16' }: { className?: string }) {
   return <div className={className} aria-hidden />;
 }
 
-function AnimatedStat({ value, label }: { value: number; label: string }) {
-  const n = useAnimatedNumber(value);
-  return (
-    <div className="text-center">
-      <p className="font-display text-2xl font-bold tabular-nums text-white lg:text-3xl">{n}</p>
-      <p className="mt-0.5 text-xs font-medium text-white/85 sm:text-sm">{label}</p>
-    </div>
-  );
-}
-
 export default function LandingPage() {
   const [data, setData] = useState<LandingData | null>(null);
 
@@ -41,51 +33,52 @@ export default function LandingPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden bg-gradient-to-b from-surface-alt via-white to-white py-24 lg:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent-soft/15 via-transparent to-transparent" />
-        <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand">
+      <HomeHeroVideo>
+        <MotionStagger immediate>
+          <MotionItem>
+            <p className="text-sm font-semibold uppercase tracking-wider text-brand drop-shadow-sm">
               Electric Mobility · Pakistan
             </p>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-brand lg:text-6xl">
-              Ride the Future with <span className="text-brand">Crown Ev</span>
+          </MotionItem>
+          <MotionItem>
+            <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-white drop-shadow-md lg:text-6xl">
+              Ride the Future with Crown Ev
             </h1>
-            <p className="mt-6 text-lg text-text-muted leading-relaxed">
+          </MotionItem>
+          <MotionItem>
+            <p className="mt-6 text-lg leading-relaxed text-white/90 drop-shadow-sm">
               Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order.
             </p>
+          </MotionItem>
+          <MotionItem>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link to="/shop"><Button variant="accent" size="lg">Browse Shop <ArrowRight className="h-4 w-4" aria-hidden /></Button></Link>
-              <Link to="/book-service"><Button variant="secondary" size="lg">Book Service</Button></Link>
+              <Link to="/book-service">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="border-white/80 text-white hover:border-brand-light hover:bg-brand/15 hover:text-brand-light"
+                >
+                  Book Service
+                </Button>
+              </Link>
             </div>
-          </div>
-        </div>
-      </section>
+          </MotionItem>
+        </MotionStagger>
+      </HomeHeroVideo>
 
-      {data?.stats && (
-        <section className="bg-gradient-to-r from-brand via-brand-light to-accent py-6 lg:py-7">
-          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 sm:grid-cols-3 sm:gap-6 lg:px-8">
-            {[
-              { label: 'Branches Nationwide', value: data.stats.branches },
-              { label: 'Products Available', value: data.stats.products },
-              { label: 'Orders Delivered', value: data.stats.ordersDelivered },
-            ].map((s) => (
-              <AnimatedStat key={s.label} value={s.value} label={s.label} />
-            ))}
-          </div>
-        </section>
-      )}
+      <PublicAnalyticsStrip variant="full" />
 
       <FeatureGrid />
 
-      <section className="py-20 lg:py-28">
+      <MotionSection className="py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-end justify-between mb-12">
             <div>
               <h2 className="font-display text-3xl font-bold text-brand">Featured Models</h2>
               <p className="mt-2 text-text-muted">Explore our latest electric bikes</p>
             </div>
-            <Link to="/shop" className="hidden sm:block text-sm font-medium text-brand hover:underline">View all →</Link>
+            <Link to="/shop" className="hidden sm:block text-sm font-medium text-brand hover:text-brand-light hover:underline">View all →</Link>
           </div>
           {!data ? (
             <ProductGridSkeleton />
@@ -97,7 +90,7 @@ export default function LandingPage() {
             </div>
           )}
         </div>
-      </section>
+      </MotionSection>
 
       <Suspense fallback={<SectionFallback className="border-y border-border py-10 lg:py-12" />}>
         <SavingsCalculator />

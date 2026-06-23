@@ -10,6 +10,7 @@ import { formatPKR } from '../../lib/format';
 import { getLoginUrl, defaultDashboardForRole } from '../../lib/authRedirect';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
+import { MotionSection } from '../../components/public/MotionSection';
 
 const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
 
@@ -117,7 +118,7 @@ export default function CheckoutPage() {
   if (!user || items.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 lg:px-8">
+    <MotionSection as="div" className="mx-auto max-w-3xl px-4 py-12 lg:px-8">
       <h1 className="font-display text-3xl font-bold text-brand">Checkout</h1>
       <p className="mt-1 text-sm text-text-muted">Review your order and complete payment</p>
 
@@ -243,6 +244,6 @@ export default function CheckoutPage() {
       <p className="mt-4 text-center text-sm text-text-muted">
         <Link to="/shop" className="text-brand-light hover:underline">← Continue shopping</Link>
       </p>
-    </div>
+    </MotionSection>
   );
 }

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { motion } from 'framer-motion';
+import { fadeUp, motionTransition, staggerContainer } from '../../lib/publicMotion';
 
 type PageBackground =
   | string
@@ -85,28 +87,50 @@ export function PageHero({
       <div
         className={`relative mx-auto flex w-full max-w-7xl flex-col justify-center px-4 lg:px-8 ${HERO_PAD} ${minH}`}
       >
-        <div className={`w-full max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}>
+        <motion.div
+          className={`w-full max-w-2xl ${isCenter ? 'mx-auto text-center' : 'text-left'}`}
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+        >
           {eyebrow && (
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80 drop-shadow-sm">
+            <motion.p
+              variants={fadeUp}
+              transition={motionTransition}
+              className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80 drop-shadow-sm"
+            >
               {eyebrow}
-            </p>
+            </motion.p>
           )}
-          <h1 className="mt-2 font-display text-3xl font-bold text-white drop-shadow-md lg:text-4xl">
+          <motion.h1
+            variants={fadeUp}
+            transition={motionTransition}
+            className="mt-2 font-display text-3xl font-bold text-white drop-shadow-md lg:text-4xl"
+          >
             {title}
-          </h1>
+          </motion.h1>
           {subtitle && (
-            <p className="mt-3 text-sm leading-relaxed text-white/95 drop-shadow-sm lg:text-base">
+            <motion.p
+              variants={fadeUp}
+              transition={motionTransition}
+              className="mt-3 text-sm leading-relaxed text-white/95 drop-shadow-sm lg:text-base"
+            >
               {subtitle}
-            </p>
+            </motion.p>
           )}
-        </div>
+        </motion.div>
 
         {children && (
-          <div className={`mt-6 w-full max-w-lg ${isCenter ? 'mx-auto' : ''}`}>
+          <motion.div
+            className={`mt-6 w-full max-w-lg ${isCenter ? 'mx-auto' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...motionTransition, delay: 0.25 }}
+          >
             <div className="rounded-[var(--radius-card)] border border-white/20 bg-white/95 p-6 shadow-[var(--shadow-card-hover)] backdrop-blur-sm">
               {children}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </section>

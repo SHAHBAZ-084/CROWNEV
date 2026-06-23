@@ -7,6 +7,7 @@ import { customerApi, publicApi } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Select, Textarea } from '../../components/ui/Input';
 import { PageHero } from '../../components/public/PageHero';
+import { MotionSection } from '../../components/public/MotionSection';
 
 export default function BookServicePage() {
   const { user } = useAuth();
@@ -47,7 +48,7 @@ export default function BookServicePage() {
         subtitle="Request maintenance or repair. The branch will confirm your appointment"
       />
 
-      <div className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
+      <MotionSection as="div" className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
         {!user && (
           <div className="mb-6 rounded-xl border border-border bg-surface-alt p-4 text-sm text-text-muted">
             Please <a href="/login" className="text-brand-light font-medium">sign in</a> to book a service.
@@ -70,7 +71,7 @@ export default function BookServicePage() {
             Submit Request
           </Button>
         </form>
-      </div>
+      </MotionSection>
     </div>
   );
 }

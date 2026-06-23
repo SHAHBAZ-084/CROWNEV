@@ -44,6 +44,14 @@ export const ABOUT_VIDEO = {
   height: 1920,
 } as const;
 
+/** Homepage hero background video */
+export const HOME_HERO_VIDEO = {
+  mp4: '/videos/home-hero.mp4',
+  mp4Mobile: '/videos/home-hero-mobile.mp4',
+  poster: '/videos/home-hero-poster.webp',
+  posterMobile: '/videos/home-hero-poster-sm.webp',
+} as const;
+
 /** Homepage background video (What Riders Say section) */
 export const BIKE_VIDEO_AD = {
   /** Desktop H.264 — ~6 MB, 1280×720 */

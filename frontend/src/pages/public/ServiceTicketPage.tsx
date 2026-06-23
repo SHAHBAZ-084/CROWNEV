@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Download, Ticket } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { PageHero } from '../../components/public/PageHero';
+import { MotionSection } from '../../components/public/MotionSection';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { downloadBookingReceipt } from '../../lib/receiptDownload';
@@ -70,7 +71,7 @@ export default function ServiceTicketPage() {
         subtitle="No login required — confirm your email to open your printable ticket."
       />
 
-      <div className="mx-auto max-w-lg px-4 pb-16 pt-4">
+      <MotionSection as="div" className="mx-auto max-w-lg px-4 pb-16 pt-4">
         <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]">
           {bookingId && !Number.isNaN(bookingId) && (
             <p className="mb-4 text-sm text-text-muted">
@@ -118,7 +119,7 @@ export default function ServiceTicketPage() {
             </p>
           </div>
         </div>
-      </div>
+      </MotionSection>
     </div>
   );
 }
