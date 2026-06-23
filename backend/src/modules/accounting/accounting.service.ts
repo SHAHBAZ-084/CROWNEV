@@ -324,6 +324,13 @@ export async function createAccount(data: {
   });
   if (!category) throw new AppError(400, 'Invalid category for this branch');
 
+  if (isCustomersCategoryName(category.name) || isSuppliersCategoryName(category.name)) {
+    throw new AppError(
+      400,
+      'Customer and supplier accounts are created from the Customers and Suppliers menus',
+    );
+  }
+
   const type = await resolveAccountType(data.branchId, data.categoryId, data.type);
   const trimmedCode = data.code
     ? await assertUniqueAccountCode(data.branchId, data.code)

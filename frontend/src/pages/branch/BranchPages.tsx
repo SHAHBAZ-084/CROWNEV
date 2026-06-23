@@ -12,6 +12,7 @@ import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../lib/format';
+import { filterManualAccountCategories } from '../../lib/accountingCategories';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
@@ -1091,6 +1092,11 @@ export function BranchAccountingPage() {
   const [modal, setModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const manualAccountCategories = useMemo(
+    () => filterManualAccountCategories(categories),
+    [categories],
+  );
+
   const reload = useCallback(() => {
     if (!branchId) return;
     branchApi.accounts(branchId).then((r) => setAccounts(r as Row[])).catch(console.error);
@@ -1256,7 +1262,7 @@ export function BranchAccountingPage() {
         <form onSubmit={handleAccount} className="space-y-4">
           <Select name="categoryId" label="Category" required>
             <option value="">Select category</option>
-            {categories.map((c) => <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>)}
+            {manualAccountCategories.map((c) => <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>)}
           </Select>
           <Input name="name" label="Account Name" required />
           <Input name="openingBalance" label="Opening Balance" type="number" step="0.01" min="0" defaultValue="0" />

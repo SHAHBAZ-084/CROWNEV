@@ -17,6 +17,12 @@ import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
+import {
+  filterManualAccountCategories,
+  isCustomersCategory,
+  isProtectedCategory,
+  isSuppliersCategory,
+} from '../../lib/accountingCategories';
 import { FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
@@ -67,32 +73,6 @@ export function PosViewVoucherPage() {
   );
 }
 
-function isCustomersCategory(row: Row | null) {
-  if (!row) return false;
-  if (row.isCustomersCategory === true) return true;
-  return String(row.name ?? '').trim().toLowerCase() === 'customers';
-}
-
-function isSuppliersCategory(row: Row | null) {
-  if (!row) return false;
-  if (row.isSuppliersCategory === true) return true;
-  return String(row.name ?? '').trim().toLowerCase() === 'suppliers';
-}
-
-function isInventoryCategory(row: Row | null) {
-  if (!row) return false;
-  if (row.isInventoryCategory === true) return true;
-  return String(row.name ?? '').trim().toLowerCase() === 'inventory';
-}
-
-function isSystemEntityCategory(row: Row | null) {
-  return isCustomersCategory(row) || isSuppliersCategory(row);
-}
-
-function isProtectedCategory(row: Row | null) {
-  return isSystemEntityCategory(row) || isInventoryCategory(row);
-}
-
 export function PosAccountsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
@@ -117,6 +97,18 @@ export function PosAccountsPage() {
   }, [accounts, viewCategory]);
 
   const viewedAccounts = categoryAccounts;
+
+  const manualAccountCategories = useMemo(
+    () => filterManualAccountCategories(categories),
+    [categories],
+  );
+
+  const presetCategoryValue = useMemo(() => {
+    if (presetCategoryId == null) return '';
+    return manualAccountCategories.some((c) => Number(c.id) === presetCategoryId)
+      ? String(presetCategoryId)
+      : '';
+  }, [manualAccountCategories, presetCategoryId]);
 
   function openAddAccount(categoryId?: number) {
     setPresetCategoryId(categoryId ?? null);
@@ -323,17 +315,19 @@ export function PosAccountsPage() {
       </Modal>
 
       <Modal open={modal === 'account'} onClose={closeAccountModal} title="Add Account">
-        <form key={presetCategoryId ?? 'new'} onSubmit={handleAccount} className="space-y-4">
+        <form key={presetCategoryValue || 'new'} onSubmit={handleAccount} className="space-y-4">
           <div className="flex items-end justify-between gap-2">
             <div className="flex-1">
               <Select
                 name="categoryId"
                 label="Category"
                 required
-                defaultValue={presetCategoryId ? String(presetCategoryId) : ''}
+                defaultValue={presetCategoryValue}
               >
                 <option value="">Select category</option>
-                {categories.map((c) => <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>)}
+                {manualAccountCategories.map((c) => (
+                  <option key={String(c.id)} value={String(c.id)}>{String(c.name)}</option>
+                ))}
               </Select>
             </div>
             <Button type="button" variant="secondary" size="sm" className="mb-0.5 shrink-0" onClick={() => setModal('category')}>+ Category</Button>
