@@ -18,6 +18,9 @@ const RidersSaySection = lazy(() =>
 const FindBranchSection = lazy(() =>
   import('../../components/public/FindBranchSection').then((m) => ({ default: m.FindBranchSection }))
 );
+const HomeFaqSection = lazy(() =>
+  import('../../components/public/HomeFaqSection').then((m) => ({ default: m.HomeFaqSection }))
+);
 
 function SectionFallback({ className = 'py-16' }: { className?: string }) {
   return <div className={className} aria-hidden />;
@@ -102,6 +105,10 @@ export default function LandingPage() {
           <FindBranchSection branches={data.branches} />
         </Suspense>
       )}
+
+      <Suspense fallback={<SectionFallback />}>
+        <HomeFaqSection />
+      </Suspense>
     </>
   );
 }

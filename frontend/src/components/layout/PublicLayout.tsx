@@ -300,7 +300,6 @@ export function PublicFooter() {
             <ul className="mt-4 space-y-3">
               <FooterLink to="/privacy" label="Privacy Policy" />
               <FooterLink to="/terms" label="Terms & Conditions" />
-              <FooterLink to="/faq" label="FAQ" />
             </ul>
           </div>
 
