@@ -57,9 +57,9 @@ export default function LandingPage() {
               <Link to="/shop"><Button variant="accent" size="lg">Browse Shop <ArrowRight className="h-4 w-4" aria-hidden /></Button></Link>
               <Link to="/book-service">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   size="lg"
-                  className="border-white/80 text-white hover:border-brand-light hover:bg-brand/15 hover:text-brand-light"
+                  className="border border-white/80 text-white hover:border-brand-light hover:bg-brand/15 hover:text-brand-light"
                 >
                   Book Service
                 </Button>
