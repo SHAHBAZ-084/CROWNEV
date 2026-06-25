@@ -6,18 +6,65 @@ import { Logo } from '../brand/Logo';
 import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon, YoutubeIcon } from '../icons/BrandIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { ctaArrowClass } from '../../lib/publicMotion';
 import { FOOTER_CONTACT } from '../../lib/placeholders';
 import { CartDrawer } from '../cart/CartDrawer';
 import { WhatsAppFloat } from '../public/WhatsAppFloat';
 import { Button } from '../ui/Button';
+import { scrollToHash } from '../../lib/scrollToHash';
 
 const publicLinks = [
   { to: '/', label: 'Home' },
   { to: '/shop', label: 'Shop' },
-  { to: '/book-service', label: 'Book Service' },
+  { to: '/compare', label: 'Compare Models', shortLabel: 'Compare' },
+  { to: '/book-service', label: 'Book Service', shortLabel: 'Service' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
-];
+] as const;
+
+function isPublicLinkActive(pathname: string, to: string): boolean {
+  if (to === '/') return pathname === '/';
+  if (to === '/shop') return pathname === '/shop' || pathname.startsWith('/shop/');
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function PublicNavLink({
+  to,
+  label,
+  shortLabel,
+  active,
+  transparentNav,
+  className = '',
+}: {
+  to: string;
+  label: string;
+  shortLabel?: string;
+  active: boolean;
+  transparentNav: boolean;
+  className?: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`shrink-0 border-b-2 px-0.5 py-1 text-sm font-medium transition-colors ${
+        active
+          ? 'border-brand text-brand'
+          : transparentNav
+            ? 'border-transparent text-white/90 drop-shadow-sm hover:border-brand/40 hover:text-brand-light'
+            : 'border-transparent text-white/90 hover:border-brand/40 hover:text-brand-light'
+      } ${className}`}
+    >
+      {shortLabel ? (
+        <>
+          <span className="xl:hidden">{shortLabel}</span>
+          <span className="hidden xl:inline">{label}</span>
+        </>
+      ) : (
+        label
+      )}
+    </Link>
+  );
+}
 
 export function PublicNavbar() {
   const { user, logout } = useAuth();
@@ -35,8 +82,10 @@ export function PublicNavbar() {
 
   useEffect(() => {
     setMobileOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [location.pathname]);
+    if (!location.hash) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.pathname, location.hash]);
 
   const dashLink =
     user?.role === 'ADMIN' ? '/admin' :
@@ -57,44 +106,43 @@ export function PublicNavbar() {
             : 'border-b border-border/80 bg-surface-alt/95 shadow-sm backdrop-blur-md'
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:py-3 lg:px-8">
-          <Logo size="sm" linked className={transparentNav ? 'drop-shadow-md' : ''} />
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 lg:h-[4.5rem] lg:gap-4 lg:px-8">
+          <div className="shrink-0">
+            <Logo
+              size="sm"
+              linked
+              className={transparentNav ? 'drop-shadow-md' : ''}
+            />
+          </div>
 
-          <nav className="hidden items-center gap-8 lg:flex">
-            {publicLinks.map((l) => {
-              const active = l.to === '/' ? location.pathname === '/' : location.pathname === l.to;
-              return (
-              <Link
+          <nav
+            className="hidden min-w-0 flex-1 items-center justify-center gap-5 lg:flex xl:gap-7"
+            aria-label="Main navigation"
+          >
+            {publicLinks.map((l) => (
+              <PublicNavLink
                 key={l.to}
                 to={l.to}
-                className={`text-sm font-medium transition-colors ${
-                  transparentNav
-                    ? active
-                      ? 'text-brand drop-shadow-sm'
-                      : 'text-white/90 drop-shadow-sm hover:text-brand-light'
-                    : active
-                      ? 'text-brand'
-                      : 'text-white hover:text-brand-light'
-                }`}
-              >
-                {l.label}
-              </Link>
-            );
-            })}
+                label={l.label}
+                shortLabel={'shortLabel' in l ? l.shortLabel : undefined}
+                active={isPublicLinkActive(location.pathname, l.to)}
+                transparentNav={transparentNav}
+              />
+            ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
             <button
               type="button"
               onClick={() => setCartOpen(true)}
               aria-label={count > 0 ? `Open cart, ${count} items` : 'Open cart'}
-              className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors ${
+              className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
                 transparentNav
                   ? 'bg-white/15 text-white hover:bg-brand/25 hover:text-brand-light'
-                  : 'bg-white/10 text-white hover:bg-brand/20 hover:text-brand-light'
+                  : 'border border-white/10 bg-white/10 text-white hover:border-brand/30 hover:bg-brand/20 hover:text-brand-light'
               }`}
             >
-              <ShoppingCart className="h-5 w-5" strokeWidth={2} aria-hidden />
+              <ShoppingCart className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} aria-hidden />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
                   {count}
@@ -103,18 +151,18 @@ export function PublicNavbar() {
             </button>
 
             {user ? (
-              <div className="hidden items-center gap-3 sm:flex">
+              <div className="hidden items-center gap-2 lg:flex">
                 {dashLink && (
                   <Link to={dashLink}>
                     <Button variant="secondary" size="sm">Dashboard</Button>
                   </Link>
                 )}
-                <button type="button" onClick={logout} className="text-sm text-white hover:text-brand-light">
+                <button type="button" onClick={logout} className="px-1 text-sm text-white/90 hover:text-brand-light">
                   Logout
                 </button>
               </div>
             ) : (
-              <div className="hidden items-center gap-2 sm:flex">
+              <div className="hidden items-center gap-2 lg:flex">
                 <Link to="/login">
                   <Button
                     variant="ghost"
@@ -130,8 +178,8 @@ export function PublicNavbar() {
 
             <button
               type="button"
-              className={`min-h-11 min-w-11 rounded-xl p-2.5 transition-colors lg:hidden ${
-                transparentNav ? 'text-white hover:text-brand-light' : 'text-white hover:text-brand-light'
+              className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors lg:hidden ${
+                transparentNav ? 'text-white hover:bg-white/10 hover:text-brand-light' : 'text-white hover:bg-white/10 hover:text-brand-light'
               }`}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -146,11 +194,27 @@ export function PublicNavbar() {
           <motion.nav
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="border-t border-border bg-surface-alt px-4 py-4 lg:hidden"
+            exit={{ opacity: 0, height: 0 }}
+            className="border-t border-border/80 bg-surface-alt px-4 py-3 lg:hidden"
+            aria-label="Mobile navigation"
           >
-            {publicLinks.map((l) => (
-              <Link key={l.to} to={l.to} className="block py-2 text-sm font-medium text-white hover:text-brand-light">{l.label}</Link>
-            ))}
+            {publicLinks.map((l) => {
+              const active = isPublicLinkActive(location.pathname, l.to);
+              return (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setMobileOpen(false)}
+                  className={`block border-l-2 py-2.5 pl-3 text-sm font-medium transition-colors ${
+                    active
+                      ? 'border-brand text-brand'
+                      : 'border-transparent text-white hover:border-brand/40 hover:text-brand-light'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
             {user ? (
               <div className="mt-4 space-y-2 border-t border-border pt-4">
                 {dashLink && (
@@ -213,15 +277,23 @@ function FooterContactIcon({ children }: { children: ReactNode }) {
   );
 }
 
-function FooterLink({ to, label }: { to: string; label: string }) {
+function FooterColumnHeading({ children }: { children: ReactNode }) {
+  return (
+    <p className="font-display text-sm font-semibold uppercase tracking-[0.14em] text-brand">
+      {children}
+    </p>
+  );
+}
+
+function FooterLink({ to, label, hash }: { to: string; label: string; hash?: string }) {
   return (
     <li>
       <Link
-        to={to}
+        to={hash ? { pathname: to, hash: `#${hash}` } : to}
         className="group inline-flex items-center gap-1.5 text-sm text-white transition-colors hover:text-brand-light"
       >
         <span>{label}</span>
-        <ArrowUpRight className="h-3.5 w-3.5 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <ArrowUpRight className={`h-3.5 w-3.5 opacity-0 transition-all group-hover:opacity-100 group-hover:-translate-y-0.5 ${ctaArrowClass}`} />
       </Link>
     </li>
   );
@@ -280,26 +352,27 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2 lg:col-start-6">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Quick Links</p>
+            <FooterColumnHeading>Quick Links</FooterColumnHeading>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />
+              <FooterLink to="/compare" label="Compare Models" />
               <FooterLink to="/book-service" label="Book Service" />
             </ul>
           </div>
 
           <div className="lg:col-span-2">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Legal</p>
+            <FooterColumnHeading>Legal</FooterColumnHeading>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/privacy" label="Privacy Policy" />
               <FooterLink to="/terms" label="Terms & Conditions" />
-              <FooterLink to="/faq" label="FAQ" />
+              <FooterLink to="/" hash="faqs" label="FAQ" />
             </ul>
           </div>
 
           <div className="lg:col-span-3">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Contact</p>
+            <FooterColumnHeading>Contact</FooterColumnHeading>
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a
@@ -384,6 +457,11 @@ export function ScrollToTop() {
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    if (!location.hash) return;
+    return scrollToHash(location.hash);
+  }, [location.pathname, location.hash]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">

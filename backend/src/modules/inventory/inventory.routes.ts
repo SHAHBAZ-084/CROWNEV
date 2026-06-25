@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Role, StockAdjustmentReason } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
+import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as inventoryService from './inventory.service.js';
 
 export const inventoryRouter = Router();
@@ -78,6 +78,7 @@ inventoryRouter.get(
 inventoryRouter.put(
   '/:branchId/:partId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(z.object({ quantity: z.number().int().nonnegative() })),
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
@@ -91,6 +92,7 @@ inventoryRouter.put(
 inventoryRouter.delete(
   '/:branchId/:partId',
   requireRoles(Role.BRANCH_OWNER),
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     const partId = parseInt(param(req.params.partId), 10);

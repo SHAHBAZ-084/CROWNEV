@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Role } from '@prisma/client';
+import { BranchPermission, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
@@ -35,6 +35,7 @@ usersRouter.post(
       phone: z.string().optional(),
       city: z.string().optional(),
       branchId: z.number().int(),
+      branchPermission: z.nativeEnum(BranchPermission).optional(),
     }),
   ),
   asyncHandler(async (req, res) => {
@@ -53,6 +54,7 @@ usersRouter.patch(
       city: z.string().optional(),
       branchId: z.number().int().optional(),
       isActive: z.boolean().optional(),
+      branchPermission: z.nativeEnum(BranchPermission).optional(),
     }),
   ),
   asyncHandler(async (req, res) => {

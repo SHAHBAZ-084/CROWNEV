@@ -11,15 +11,15 @@ export function LegalPageLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-[60vh] bg-surface-alt py-16 lg:py-24">
+    <div className="min-h-[60vh] bg-subtle py-16 lg:py-24">
       <div className="mx-auto max-w-4xl px-4 lg:px-8">
         <motion.header
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-12 text-center"
         >
-          <h1 className="font-display text-3xl font-bold text-brand lg:text-4xl">{title}</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-text-muted lg:text-base">
+          <h1 className="font-display text-3xl font-bold text-ink lg:text-4xl">{title}</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-ink-muted lg:text-base">
             {subtitle}
           </p>
         </motion.header>

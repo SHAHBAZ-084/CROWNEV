@@ -6,6 +6,8 @@ import type { Product } from '../../types';
 import { ProductCard } from '../../components/public/ProductCard';
 import { MotionSection } from '../../components/public/MotionSection';
 import { PageHero } from '../../components/public/PageHero';
+import { PageHeader } from '../../components/layout/PageTransition';
+import { useAuth } from '../../contexts/AuthContext';
 import { Select } from '../../components/ui/Input';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -17,6 +19,8 @@ const TYPE_FILTERS = [
 ] as const;
 
 export default function ShopPage() {
+  const { user } = useAuth();
+  const isCustomerDashboard = user?.role === 'CUSTOMER';
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
@@ -89,15 +93,22 @@ export default function ShopPage() {
   }
 
   return (
-    <div className="bg-subtle">
-      <PageHero
-        page="shop"
-        eyebrow="Crown Ev Store"
-        title="Shop"
-        subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."
-      />
+    <div className={isCustomerDashboard ? '' : 'bg-subtle'}>
+      {isCustomerDashboard ? (
+        <PageHeader
+          title="Shop"
+          subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."
+        />
+      ) : (
+        <PageHero
+          page="shop"
+          eyebrow="Crown Ev Store"
+          title="Shop"
+          subtitle="Electric bikes and genuine parts. Browse, filter, and order in PKR."
+        />
+      )}
 
-      <MotionSection as="div" className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+      <MotionSection as="div" className={`mx-auto max-w-7xl ${isCustomerDashboard ? '' : 'px-4 py-6 lg:px-8 lg:py-8'}`}>
         <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-4 shadow-[var(--shadow-elevated)] lg:p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-ink">
             <SlidersHorizontal className="h-4 w-4 text-accent" />

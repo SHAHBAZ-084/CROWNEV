@@ -20,7 +20,7 @@ export const staggerContainer = {
   },
 };
 
-export const defaultViewport = { once: true, margin: '-48px' as const };
+export const defaultViewport = { once: true, amount: 0.15 } as const;
 
 export const easeOut = [0.22, 1, 0.36, 1] as const;
 
@@ -28,3 +28,6 @@ export const motionTransition = {
   duration: 0.5,
   ease: easeOut,
 };
+
+/** Tailwind classes for CTA arrow icons inside a `group` hover target. */
+export const ctaArrowClass = 'transition-transform group-hover:translate-x-1';

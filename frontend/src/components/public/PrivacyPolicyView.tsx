@@ -14,7 +14,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { defaultViewport } from '../../lib/publicMotion';
 import type { LegalSection } from '../../lib/legalTypes';
+import { SectionHeadingIcon } from './SectionHeadingIcon';
 
 const PRIVACY_ICONS: LucideIcon[] = [
   Database,
@@ -57,7 +59,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
   }, [sections]);
 
   return (
-    <div className="min-h-[60vh] bg-surface">
+    <div className="min-h-[60vh] bg-subtle">
       <section className="relative overflow-hidden bg-gradient-to-br from-brand via-brand-light to-accent px-4 py-16 text-white lg:py-20">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-black/10 blur-2xl" aria-hidden />
@@ -89,7 +91,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
       <div className="mx-auto max-w-6xl px-4 py-12 lg:flex lg:gap-12 lg:px-8 lg:py-16">
         <aside className="mb-10 lg:mb-0 lg:w-56 lg:shrink-0">
           <nav className="lg:sticky lg:top-24">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">
               On this page
             </p>
             <ul className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -103,8 +105,8 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
                       onClick={() => setActiveId(id)}
                       className={`block rounded-lg px-3 py-2 text-sm transition-colors whitespace-nowrap lg:whitespace-normal ${
                         isActive
-                          ? 'bg-surface-alt font-medium text-brand'
-                          : 'text-text-muted hover:bg-surface-alt/60 hover:text-brand'
+                          ? 'bg-elevated font-medium text-brand shadow-sm'
+                          : 'text-ink-muted hover:bg-elevated/80 hover:text-brand'
                       }`}
                     >
                       {section.title}
@@ -126,22 +128,22 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
                 id={id}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                className="scroll-mt-28 rounded-[var(--radius-card)] border border-border bg-surface-alt/40 p-6 lg:p-8"
+                viewport={defaultViewport}
+                className="scroll-mt-28 rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] lg:p-8"
               >
                 <div className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15">
-                    <Icon className="h-5 w-5 text-accent" />
-                  </div>
+                  <SectionHeadingIcon className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/10">
+                    <Icon className="h-5 w-5 text-brand" />
+                  </SectionHeadingIcon>
                   <div className="min-w-0 flex-1">
-                    <h2 className="font-display text-xl font-bold text-brand">{section.title}</h2>
+                    <h2 className="font-display text-xl font-bold text-ink">{section.title}</h2>
                     <ul className="mt-4 space-y-2.5">
                       {section.items.map((item) => (
                         <li
                           key={item.slice(0, 48)}
-                          className="flex gap-3 text-sm leading-relaxed text-text-muted"
+                          className="flex gap-3 text-sm leading-relaxed text-ink-muted"
                         >
-                          <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand-light" aria-hidden />
+                          <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand" aria-hidden />
                           <span>{item}</span>
                         </li>
                       ))}

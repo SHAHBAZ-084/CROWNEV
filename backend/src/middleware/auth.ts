@@ -1,8 +1,30 @@
 import { NextFunction, Request, Response } from 'express';
-import { Role } from '@prisma/client';
+import { BranchPermission, Role } from '@prisma/client';
 import { prisma } from '../config/database.js';
 import { verifyToken } from '../utils/crypto.js';
 import { AppError } from '../utils/helpers.js';
+
+const RESTRICTED_MSG = 'Your permission is restricted by admin';
+
+async function loadAuthUser(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { isActive: true, role: true, branchId: true, branchPermission: true },
+  });
+}
+
+function attachUser(
+  req: Request,
+  payload: import('../types/jwt.js').JwtPayload,
+  user: NonNullable<Awaited<ReturnType<typeof loadAuthUser>>>,
+) {
+  req.user = {
+    ...payload,
+    role: user.role,
+    branchId: user.branchId,
+    branchPermission: user.branchPermission,
+  };
+}
 
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
@@ -14,15 +36,12 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   try {
     const token = header.slice(7);
     const payload = verifyToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { isActive: true, role: true, branchId: true },
-    });
+    const user = await loadAuthUser(payload.userId);
     if (!user?.isActive) {
       next(new AppError(401, 'Account deactivated'));
       return;
     }
-    req.user = { ...payload, role: user.role, branchId: user.branchId };
+    attachUser(req, payload, user);
     next();
   } catch {
     next(new AppError(401, 'Invalid or expired token'));
@@ -34,12 +53,9 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
   if (header?.startsWith('Bearer ')) {
     try {
       const payload = verifyToken(header.slice(7));
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: { isActive: true, role: true, branchId: true },
-      });
+      const user = await loadAuthUser(payload.userId);
       if (user?.isActive) {
-        req.user = { ...payload, role: user.role, branchId: user.branchId };
+        attachUser(req, payload, user);
       }
     } catch {
       // ignore invalid token for optional auth
@@ -97,4 +113,34 @@ export function enforceBranchAccess(branchId: number | undefined, userBranchId?:
   if (role === Role.BRANCH_OWNER && branchId !== userBranchId) {
     throw new AppError(403, 'Cross-branch access denied');
   }
+}
+
+export function requireBranchWritePermission(req: Request, _res: Response, next: NextFunction) {
+  next();
+}
+
+export function requireBranchUpdatePermission(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== Role.BRANCH_OWNER) {
+    next();
+    return;
+  }
+  const perm = req.user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE;
+  if (perm === BranchPermission.WRITE_ONLY) {
+    res.status(403).json({ error: `${RESTRICTED_MSG}. You cannot update records.` });
+    return;
+  }
+  next();
+}
+
+export function requireBranchDeletePermission(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== Role.BRANCH_OWNER) {
+    next();
+    return;
+  }
+  const perm = req.user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE;
+  if (perm === BranchPermission.WRITE_ONLY || perm === BranchPermission.WRITE_UPDATE) {
+    res.status(403).json({ error: `${RESTRICTED_MSG}. You cannot delete records.` });
+    return;
+  }
+  next();
 }

@@ -8,17 +8,29 @@ export function RowActions({
   onDelete,
   deleteLabel,
   extra,
+  editDisabled,
+  deleteDisabled,
+  disabledTitle = 'Your permission is restricted by admin',
 }: {
   onEdit?: () => void;
   onDelete?: () => void;
   deleteLabel?: string;
   extra?: React.ReactNode;
+  editDisabled?: boolean;
+  deleteDisabled?: boolean;
+  disabledTitle?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {extra}
       {onEdit && (
-        <button type="button" onClick={onEdit} className="rounded-lg p-1.5 text-brand hover:text-brand-light hover:bg-brand/5" title="Edit">
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={editDisabled}
+          className="rounded-lg p-1.5 text-brand hover:text-brand-light hover:bg-brand/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          title={editDisabled ? disabledTitle : 'Edit'}
+        >
           <Pencil className="h-4 w-4" />
         </button>
       )}
@@ -26,8 +38,9 @@ export function RowActions({
         <button
           type="button"
           onClick={onDelete}
-          className={`inline-flex items-center gap-1 rounded-lg text-warning hover:bg-warning/10 ${deleteLabel ? 'px-2 py-1 text-xs font-medium' : 'p-1.5'}`}
-          title="Delete"
+          disabled={deleteDisabled}
+          className={`inline-flex items-center gap-1 rounded-lg text-warning hover:bg-warning/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${deleteLabel ? 'px-2 py-1 text-xs font-medium' : 'p-1.5'}`}
+          title={deleteDisabled ? disabledTitle : 'Delete'}
         >
           <Trash2 className="h-4 w-4 shrink-0" />
           {deleteLabel}
@@ -101,11 +114,21 @@ export function useDeleteConfirm<T extends { id?: string | number; name?: string
   };
 }
 
-export function FormActions({ onCancel, loading }: { onCancel: () => void; loading?: boolean }) {
+export function FormActions({
+  onCancel,
+  loading,
+  submitDisabled,
+  submitTitle,
+}: {
+  onCancel: () => void;
+  loading?: boolean;
+  submitDisabled?: boolean;
+  submitTitle?: string;
+}) {
   return (
     <div className="mt-6 flex justify-end gap-2">
       <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
-      <Button type="submit" variant="accent" loading={loading}>Save</Button>
+      <Button type="submit" variant="accent" loading={loading} disabled={submitDisabled} title={submitTitle}>Save</Button>
     </div>
   );
 }

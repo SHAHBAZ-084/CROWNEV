@@ -25,6 +25,9 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
   shop: {
     src: '/images/shop-hero.webp',
   },
+  compare: {
+    src: '/images/shop-hero.webp',
+  },
   contact: {
     src: '/images/contact-hero.webp',
     srcMobile: '/images/contact-hero-sm.webp',

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as suppliersService from './suppliers.service.js';
 
 export const suppliersRouter = Router();
@@ -54,6 +54,7 @@ suppliersRouter.post(
 suppliersRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       branchId: z.number().int(),
@@ -78,6 +79,7 @@ suppliersRouter.patch(
 suppliersRouter.delete(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchDeletePermission,
   validateBody(z.object({ branchId: z.number().int() })),
   asyncHandler(async (req, res) => {
     const branchId = req.body.branchId;

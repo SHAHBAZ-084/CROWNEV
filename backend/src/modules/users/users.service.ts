@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { BranchPermission, Role } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { hashPassword } from '../../utils/crypto.js';
@@ -38,6 +38,7 @@ export async function listUsers(query: { page?: string; limit?: string; role?: R
         phone: true,
         city: true,
         branchId: true,
+        branchPermission: true,
         isVerified: true,
         isActive: true,
         createdAt: true,
@@ -59,6 +60,7 @@ export async function createUser(data: {
   phone?: string;
   city?: string;
   branchId?: number;
+  branchPermission?: BranchPermission;
 }) {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new AppError(409, 'Email already exists');
@@ -81,6 +83,10 @@ export async function createUser(data: {
       phone: data.phone,
       city: data.city,
       branchId: data.role === Role.BRANCH_OWNER ? data.branchId : undefined,
+      branchPermission:
+        data.role === Role.BRANCH_OWNER
+          ? data.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE
+          : BranchPermission.WRITE_UPDATE_DELETE,
       isVerified: true,
     },
   });
@@ -105,6 +111,7 @@ export async function updateUser(
     role: Role;
     branchId: number | null;
     isActive: boolean;
+    branchPermission: BranchPermission;
   }>
 ) {
   const user = await prisma.user.findUnique({ where: { id } });
@@ -144,6 +151,7 @@ export async function updateUser(
         city: data.city,
         branchId: nextBranchId,
         isActive: data.isActive,
+        ...(data.branchPermission !== undefined && { branchPermission: data.branchPermission }),
       },
     });
 

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { LogOut, X } from 'lucide-react';
@@ -9,6 +9,7 @@ export interface SidebarNavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  match?: (pathname: string) => boolean;
 }
 
 const roleLabels: Record<Role, string> = {
@@ -47,21 +48,41 @@ function SidebarNavLink({
   end?: boolean;
   onNavigate?: () => void;
 }) {
+  const location = useLocation();
+  const activeClass =
+    'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors border-l-2 border-orange-500 bg-slate-200 text-slate-900';
+  const inactiveClass =
+    'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-slate-900 hover:bg-slate-100 hover:text-orange-500';
+
+  const content = (
+    <>
+      <item.icon className="h-4 w-4 shrink-0 text-orange-500 transition-colors group-hover:text-orange-600" />
+      <span className="truncate">{item.label}</span>
+    </>
+  );
+
+  if (item.match) {
+    const isActive = item.match(location.pathname);
+    return (
+      <Link
+        to={item.to}
+        onClick={onNavigate}
+        aria-current={isActive ? 'page' : undefined}
+        className={isActive ? activeClass : inactiveClass}
+      >
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <NavLink
       to={item.to}
       end={end}
       onClick={onNavigate}
-      className={({ isActive }) =>
-        `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-          isActive
-            ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
-            : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
-        }`
-      }
+      className={({ isActive }) => (isActive ? activeClass : inactiveClass)}
     >
-      <item.icon className="h-4 w-4 shrink-0 text-orange-500 transition-colors group-hover:text-orange-600" />
-      <span className="truncate">{item.label}</span>
+      {content}
     </NavLink>
   );
 }
@@ -85,6 +106,8 @@ type DashboardSidebarProps = {
   footerExtra?: ReactNode;
   /** Override which routes use NavLink `end` (exact match) */
   endPaths?: string[];
+  /** Logo link target when linked */
+  logoTo?: string;
   mobileOpen?: boolean;
   onNavigate?: () => void;
 };
@@ -101,6 +124,7 @@ export function DashboardSidebar({
   showBadge = true,
   footerExtra,
   endPaths: endPathsOverride,
+  logoTo = '/',
   mobileOpen = false,
   onNavigate,
 }: DashboardSidebarProps) {
@@ -122,7 +146,7 @@ export function DashboardSidebar({
         >
           <X className="h-5 w-5" />
         </button>
-        <Logo size="md" linked centered />
+        <Logo size="md" linked centered to={logoTo} />
         {showBadge && (
           <span className="mt-3 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
             {subtitle ?? roleLabels[role]}

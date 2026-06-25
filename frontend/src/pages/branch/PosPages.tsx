@@ -13,6 +13,7 @@ import { Input, Select } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
 import { TablePagination } from '../../components/ui/TablePagination';
 import { usePagination } from '../../hooks/usePagination';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
@@ -76,6 +77,7 @@ export function PosViewVoucherPage() {
 export function PosAccountsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canDelete, restrictedTitle } = useBranchPermission();
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
   const [modal, setModal] = useState<'account' | 'category' | null>(null);
@@ -248,6 +250,8 @@ export function PosAccountsPage() {
                       }
                       categoryDelete.setTarget(r);
                     }}
+                    deleteDisabled={!canDelete}
+                    disabledTitle={restrictedTitle}
                   />
                 </div>
               ),
@@ -297,6 +301,8 @@ export function PosAccountsPage() {
                     <RowActions
                       deleteLabel="Delete"
                       onDelete={() => accountDelete.setTarget(r)}
+                      deleteDisabled={!canDelete}
+                      disabledTitle={restrictedTitle}
                     />
                   ),
                 }]
@@ -359,6 +365,8 @@ const entityTableColumns = (
   thirdColumn: { key: string; header: string; render: (r: Row) => string },
   statusLabel: (r: Row) => string,
   onDelete: (r: Row) => void,
+  deleteDisabled?: boolean,
+  disabledTitle?: string,
 ) => [
   { key: 'name', header: 'Name' },
   { key: 'phone', header: 'Phone', render: (r: Row) => String(r.phone ?? '—') },
@@ -373,7 +381,12 @@ const entityTableColumns = (
     key: 'actions',
     header: '',
     render: (r: Row) => (
-      <RowActions deleteLabel="Delete" onDelete={() => onDelete(r)} />
+      <RowActions
+        deleteLabel="Delete"
+        onDelete={() => onDelete(r)}
+        deleteDisabled={deleteDisabled}
+        disabledTitle={disabledTitle}
+      />
     ),
   },
 ];
@@ -381,6 +394,7 @@ const entityTableColumns = (
 export function PosCustomersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canDelete, restrictedTitle } = useBranchPermission();
   const [customers, setCustomers] = useState<Row[]>([]);
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -477,6 +491,8 @@ export function PosCustomersPage() {
           },
           (r) => String(r.type ?? 'WALK_IN').toLowerCase().replace('_', '-'),
           (r) => customerDelete.setTarget(r),
+          !canDelete,
+          restrictedTitle,
         )}
         data={customers}
         emptyMessage="No customers yet"
@@ -515,6 +531,7 @@ export function PosCustomersPage() {
 export function PosSuppliersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canDelete, restrictedTitle } = useBranchPermission();
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -575,6 +592,8 @@ export function PosSuppliersPage() {
           },
           () => 'supplier',
           (r) => supplierDelete.setTarget(r),
+          !canDelete,
+          restrictedTitle,
         )}
         data={suppliers}
         emptyMessage="No suppliers yet"

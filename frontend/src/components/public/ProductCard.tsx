@@ -2,8 +2,10 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Battery, Gauge, Shield, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Product } from '../../types';
+import { ctaArrowClass, defaultViewport } from '../../lib/publicMotion';
 import { formatPKR } from '../../lib/format';
 import { Badge } from '../ui/Badge';
+import { SectionHeadingIcon } from './SectionHeadingIcon';
 
 export function ProductCard({
   product,
@@ -26,7 +28,11 @@ export function ProductCard({
 
   const card = (
     <Link to={`/shop/${product.id}`} className="block h-full">
-      <div className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-all duration-200 hover:-translate-y-1.5 hover:border-accent/30 hover:shadow-[var(--shadow-elevated-hover)]">
+      <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ duration: 0.2 }}
+        className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-colors duration-200 hover:border-accent/30 group-hover:shadow-lg"
+      >
           <div
             className={`relative overflow-hidden bg-subtle ${isLarge ? 'aspect-[4/3] lg:aspect-[5/4]' : 'aspect-[4/3]'}`}
           >
@@ -66,7 +72,7 @@ export function ProductCard({
 
             <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-2 bg-gradient-to-t from-brand/90 to-brand/70 py-3 text-sm font-semibold text-white transition-transform duration-300 group-hover:translate-y-0">
               View Details
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} />
             </div>
           </div>
 
@@ -97,11 +103,11 @@ export function ProductCard({
               <span
                 className={`flex shrink-0 items-center justify-center rounded-xl bg-border-light text-ink-muted transition-colors group-hover:bg-brand group-hover:text-white ${isLarge ? 'h-9 w-9 lg:h-11 lg:w-11' : 'h-9 w-9'}`}
               >
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} />
               </span>
             </div>
           </div>
-      </div>
+      </motion.div>
     </Link>
   );
 
@@ -113,7 +119,7 @@ export function ProductCard({
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      viewport={defaultViewport}
       transition={{ duration: 0.3, delay: index * 0.06, ease: 'easeOut' }}
       className="h-full"
     >
@@ -162,7 +168,7 @@ export function FeatureGrid() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={defaultViewport}
           className="mx-auto mb-10 max-w-2xl text-center"
         >
           <span className="inline-flex items-center rounded-full border border-border-light bg-subtle px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand">
@@ -182,7 +188,7 @@ export function FeatureGrid() {
               key={f.title}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={defaultViewport}
               transition={{ delay: i * 0.08, duration: 0.35, ease: 'easeOut' }}
               whileHover={{ y: -6, boxShadow: 'var(--shadow-card-hover)' }}
               className="group relative overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] transition-colors hover:border-accent/30"
@@ -190,9 +196,9 @@ export function FeatureGrid() {
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-accent to-accent-soft opacity-0 transition-opacity group-hover:opacity-100" />
 
               <div className="flex items-start justify-between gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-elevated ring-1 ring-border-light transition-transform group-hover:scale-105">
+                <SectionHeadingIcon className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-elevated ring-1 ring-border-light transition-transform group-hover:scale-105">
                   <f.icon className="h-7 w-7 text-accent" />
-                </div>
+                </SectionHeadingIcon>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold tabular-nums text-brand">{f.stat}</p>
                   <p className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">{f.statLabel}</p>

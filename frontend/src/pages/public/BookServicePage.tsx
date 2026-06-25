@@ -7,6 +7,7 @@ import { customerApi, publicApi } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Select, Textarea } from '../../components/ui/Input';
 import { PageHero } from '../../components/public/PageHero';
+import { PageHeader } from '../../components/layout/PageTransition';
 import { MotionSection } from '../../components/public/MotionSection';
 
 export default function BookServicePage() {
@@ -40,16 +41,26 @@ export default function BookServicePage() {
     }
   }
 
+  const isCustomerDashboard = user?.role === 'CUSTOMER';
+
   return (
     <div>
-      <PageHero
-        page="bookService"
-        title="Book a Service"
-        subtitle="Request maintenance or repair. The branch will confirm your appointment"
-      />
+      {isCustomerDashboard ? (
+        <PageHeader
+          title="Book a Service"
+          subtitle="Request maintenance or repair at your nearest branch. We'll confirm your appointment."
+        />
+      ) : (
+        <PageHero
+          page="bookService"
+          eyebrow="Crown Ev Service"
+          title="Book a Service"
+          subtitle="Request maintenance or repair at your nearest branch. We'll confirm your appointment."
+        />
+      )}
 
-      <div className="bg-subtle">
-        <MotionSection as="div" className="mx-auto max-w-xl px-4 pb-16 pt-8 lg:px-8">
+      <div className={isCustomerDashboard ? '' : 'bg-subtle'}>
+        <MotionSection as="div" className={`mx-auto max-w-xl ${isCustomerDashboard ? '' : 'px-4 pb-16 pt-8 lg:px-8'}`}>
           {!user && (
             <div className="mb-6 rounded-xl border border-border-light bg-elevated p-4 text-sm text-ink-muted">
               Please <a href="/login" className="font-medium text-brand hover:text-brand-light">sign in</a> to book a service.

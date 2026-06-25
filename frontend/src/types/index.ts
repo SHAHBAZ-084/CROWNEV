@@ -1,5 +1,7 @@
 export type Role = 'ADMIN' | 'BRANCH_OWNER' | 'CUSTOMER';
 
+export type BranchPermission = 'WRITE_ONLY' | 'WRITE_UPDATE' | 'WRITE_UPDATE_DELETE';
+
 export interface User {
   id: string;
   email: string;
@@ -9,6 +11,7 @@ export interface User {
   phone?: string | null;
   city?: string | null;
   branchId?: number | null;
+  branchPermission?: BranchPermission;
 }
 
 export interface Product {

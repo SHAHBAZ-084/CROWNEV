@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import { RotateCcw, Trash2 } from 'lucide-react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { formatDate, formatPKR } from '../../lib/format';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -31,12 +32,18 @@ export function VoucherDetailCard({
   restoring,
   onCancel,
   onRestore,
+  cancelDisabled,
+  restoreDisabled,
+  disabledTitle,
 }: {
   voucher: Row;
   deleting: boolean;
   restoring: boolean;
   onCancel: () => void;
   onRestore: () => void;
+  cancelDisabled?: boolean;
+  restoreDisabled?: boolean;
+  disabledTitle?: string;
 }) {
   const voucherType = voucher.type as VoucherType;
   const status = String(voucher.status ?? 'ACTIVE');
@@ -90,12 +97,28 @@ export function VoucherDetailCard({
           <p className="mt-0.5 text-sm text-text-muted">{formatDate(String(voucher.createdAt))}</p>
         </div>
         {isCancelled ? (
-          <Button type="button" variant="secondary" size="sm" loading={restoring} onClick={onRestore}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            loading={restoring}
+            disabled={restoreDisabled}
+            title={restoreDisabled ? disabledTitle : undefined}
+            onClick={onRestore}
+          >
             <RotateCcw className="h-3.5 w-3.5" />
             Restore
           </Button>
         ) : (
-          <Button type="button" variant="danger" size="sm" loading={deleting} onClick={onCancel}>
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            loading={deleting}
+            disabled={cancelDisabled}
+            title={cancelDisabled ? disabledTitle : undefined}
+            onClick={onCancel}
+          >
             <Trash2 className="h-3.5 w-3.5" />
             Cancel
           </Button>
@@ -144,6 +167,7 @@ export function ViewVoucherPanel({
   defaultType?: VoucherType | '';
 }) {
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -273,6 +297,9 @@ export function ViewVoucherPanel({
           restoring={restoring}
           onCancel={handleCancel}
           onRestore={handleRestore}
+          cancelDisabled={!canDelete}
+          restoreDisabled={!canUpdate}
+          disabledTitle={restrictedTitle}
         />
       )}
     </div>

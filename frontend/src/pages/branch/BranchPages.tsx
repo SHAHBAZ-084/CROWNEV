@@ -16,6 +16,7 @@ import { filterManualAccountCategories } from '../../lib/accountingCategories';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
 import {
   exportSalesSummaryPdf,
@@ -110,6 +111,7 @@ function orderRowCustomer(r: Row): string {
 
 export function BranchOrdersPage() {
   const { toast } = useToast();
+  const { canUpdate, restrictedTitle } = useBranchPermission();
   const [orders, setOrders] = useState<Row[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
@@ -211,10 +213,10 @@ export function BranchOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
                 {r.paymentMethod === 'BANK_TRANSFER' && r.paymentStatus === 'PENDING' && (
-                  <Button size="sm" variant="secondary" onClick={() => setPaymentModal(r)}>Verify</Button>
+                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => setPaymentModal(r)}>Verify</Button>
                 )}
                 {r.status === 'CONFIRMED' && (
-                  <Button size="sm" variant="secondary" onClick={() => { setBiltyModal(r); setBiltyId(''); }}>Bilty</Button>
+                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyModal(r); setBiltyId(''); }}>Bilty</Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => openInvoice(r)}>Invoice</Button>
               </div>
@@ -255,8 +257,8 @@ export function BranchOrdersPage() {
               />
             ) : null}
             <div className="flex gap-2">
-              <Button variant="accent" loading={saving} onClick={() => handleApprove(true)}>Approve Payment</Button>
-              <Button variant="danger" loading={saving} onClick={() => handleApprove(false)}>Reject</Button>
+              <Button variant="accent" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(true)}>Approve Payment</Button>
+              <Button variant="danger" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(false)}>Reject</Button>
             </div>
           </div>
         )}
@@ -274,7 +276,7 @@ export function BranchOrdersPage() {
             placeholder="e.g. TCS-12345678"
             required
           />
-          <FormActions onCancel={() => setBiltyModal(null)} loading={saving} />
+          <FormActions onCancel={() => setBiltyModal(null)} loading={saving} submitDisabled={!canUpdate} submitTitle={!canUpdate ? restrictedTitle : undefined} />
         </form>
       </Modal>
 
@@ -304,6 +306,7 @@ type StockFilter = 'ALL' | 'BIKE' | 'PART' | 'LOW';
 export function BranchInventoryPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [items, setItems] = useState<StockRow[]>([]);
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [filter, setFilter] = useState<StockFilter>('ALL');
@@ -477,6 +480,8 @@ export function BranchInventoryPage() {
               <button
                 key={`${item.type}-${item.id}`}
                 type="button"
+                disabled={!canUpdate}
+                title={!canUpdate ? restrictedTitle : undefined}
                 onClick={() => openEdit(item)}
                 className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-900 hover:border-orange-400"
               >
@@ -600,12 +605,14 @@ export function BranchInventoryPage() {
                 const key = `${row.source}-${row.id}`;
                 return (
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
+                    <Button variant="secondary" size="sm" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => openEdit(row)}>
                       Update Stock
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={!canDelete}
+                      title={!canDelete ? restrictedTitle : undefined}
                       loading={togglingId === key}
                       onClick={() => handleToggleSelect(row)}
                     >
@@ -722,6 +729,7 @@ function bookingRowCustomer(r: Row): string {
 export function BranchBookingsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [bookings, setBookings] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | null>(null);
   const [statusValue, setStatusValue] = useState('PENDING');
@@ -849,8 +857,10 @@ export function BranchBookingsPage() {
             render: (r) => (
               <RowActions
                 onEdit={() => setEdit(r)}
-                deleteLabel="Delete"
+                editDisabled={!canUpdate}
                 onDelete={() => bookingDelete.setTarget(r)}
+                deleteDisabled={!canDelete}
+                disabledTitle={restrictedTitle}
               />
             ),
           },
@@ -899,6 +909,7 @@ export function BranchBookingsPage() {
 export function BranchServicesPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [services, setServices] = useState<Row[]>([]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -961,7 +972,10 @@ export function BranchServicesPage() {
             render: (r) => (
               <RowActions
                 onEdit={() => { setEdit(r); setModal('edit'); }}
+                editDisabled={!canUpdate}
                 onDelete={() => deactivate(Number(r.id))}
+                deleteDisabled={!canDelete}
+                disabledTitle={restrictedTitle}
               />
             ),
           },
@@ -994,6 +1008,7 @@ export function BranchServicesPage() {
 export function BranchSuppliersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canUpdate, restrictedTitle } = useBranchPermission();
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -1039,7 +1054,13 @@ export function BranchSuppliersPage() {
           { key: 'name', header: 'Name' },
           { key: 'contactPerson', header: 'Contact' },
           { key: 'phone', header: 'Phone' },
-          { key: 'actions', header: '', render: (r) => <RowActions onEdit={() => { setEdit(r); setModal('edit'); }} /> },
+          { key: 'actions', header: '', render: (r) => (
+            <RowActions
+              onEdit={() => { setEdit(r); setModal('edit'); }}
+              editDisabled={!canUpdate}
+              disabledTitle={restrictedTitle}
+            />
+          ) },
         ]}
         data={suppliers}
       />
@@ -1144,6 +1165,7 @@ export function BranchPurchasesPage() {
 export function BranchAccountingPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canDelete, restrictedTitle } = useBranchPermission();
   const [tab, setTab] = useState<'accounts' | 'vouchers' | 'banks' | 'trial'>('accounts');
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [vouchers, setVouchers] = useState<Row[]>([]);
@@ -1282,7 +1304,12 @@ export function BranchAccountingPage() {
               key: 'actions',
               header: '',
               render: (r) => (
-                <RowActions deleteLabel="Delete" onDelete={() => accountDelete.setTarget(r)} />
+                <RowActions
+                  deleteLabel="Delete"
+                  onDelete={() => accountDelete.setTarget(r)}
+                  deleteDisabled={!canDelete}
+                  disabledTitle={restrictedTitle}
+                />
               ),
             },
           ]} data={accounts} />
@@ -1660,6 +1687,7 @@ export function BranchReportsPage() {
 export function BranchPaymentsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [channels, setChannels] = useState<Row[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
   const [channelModal, setChannelModal] = useState<'create' | 'edit' | null>(null);
@@ -1750,7 +1778,10 @@ export function BranchPaymentsPage() {
               render: (r) => (
                 <RowActions
                   onEdit={() => { setEditChannel(r); setChannelModal('edit'); }}
+                  editDisabled={!canUpdate}
                   onDelete={() => handleDeleteChannel(Number(r.id))}
+                  deleteDisabled={!canDelete}
+                  disabledTitle={restrictedTitle}
                 />
               ),
             },
@@ -1772,8 +1803,8 @@ export function BranchPaymentsPage() {
               header: 'Actions',
               render: (r) => (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="accent" onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
-                  <Button size="sm" variant="danger" onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
+                  <Button size="sm" variant="accent" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
+                  <Button size="sm" variant="danger" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
                 </div>
               ),
             },

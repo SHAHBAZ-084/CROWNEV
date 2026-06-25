@@ -5,6 +5,7 @@ import { CartProvider } from './contexts/CartContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PublicLayout } from './components/layout/PublicLayout';
+import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { BranchWorkspaceLayout } from './components/layout/BranchWorkspaceLayout';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
@@ -16,6 +17,7 @@ const lazyNamed = (loader: () => Promise<Record<string, unknown>>, name: string)
 
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const ShopPage = lazy(() => import('./pages/public/ShopPage'));
+const ModelComparisonPage = lazy(() => import('./pages/public/ModelComparisonPage'));
 const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage'));
 const LoginPage = lazy(() => import('./pages/public/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/public/RegisterPage'));
@@ -28,7 +30,6 @@ const BookServicePage = lazy(() => import('./pages/public/BookServicePage'));
 const AboutPage = lazyNamed(() => import('./pages/public/StaticPages'), 'AboutPage');
 const PrivacyPage = lazyNamed(() => import('./pages/public/StaticPages'), 'PrivacyPage');
 const TermsPage = lazyNamed(() => import('./pages/public/StaticPages'), 'TermsPage');
-const FAQPage = lazyNamed(() => import('./pages/public/StaticPages'), 'FAQPage');
 const NotFoundPage = lazyNamed(() => import('./pages/public/StaticPages'), 'NotFoundPage');
 const UnauthorizedPage = lazyNamed(() => import('./pages/public/StaticPages'), 'UnauthorizedPage');
 
@@ -101,17 +102,18 @@ export default function App() {
             <BrowserRouter>
               <Routes>
               <Route path="/" element={<PublicWrap><LandingPage /></PublicWrap>} />
-              <Route path="/shop" element={<PublicWrap><ShopPage /></PublicWrap>} />
-              <Route path="/shop/:id" element={<PublicWrap><ProductDetailPage /></PublicWrap>} />
+              <Route path="/shop" element={<CustomerOrPublicWrap><ShopPage /></CustomerOrPublicWrap>} />
+              <Route path="/compare" element={<CustomerOrPublicWrap><ModelComparisonPage /></CustomerOrPublicWrap>} />
+              <Route path="/shop/:id" element={<CustomerOrPublicWrap><ProductDetailPage /></CustomerOrPublicWrap>} />
               <Route path="/track" element={<PublicWrap><TrackOrderPage /></PublicWrap>} />
               <Route path="/service-ticket/:id" element={<PublicWrap><ServiceTicketPage /></PublicWrap>} />
               <Route path="/contact" element={<PublicWrap><ContactPage /></PublicWrap>} />
               <Route path="/about" element={<PublicWrap><AboutPage /></PublicWrap>} />
               <Route path="/privacy" element={<PublicWrap><PrivacyPage /></PublicWrap>} />
               <Route path="/terms" element={<PublicWrap><TermsPage /></PublicWrap>} />
-              <Route path="/faq" element={<PublicWrap><FAQPage /></PublicWrap>} />
-              <Route path="/book-service" element={<PublicWrap><BookServicePage /></PublicWrap>} />
-              <Route path="/checkout" element={<PublicWrap><CheckoutPage /></PublicWrap>} />
+              <Route path="/faq" element={<Navigate to={{ pathname: '/', hash: '#faqs' }} replace />} />
+              <Route path="/book-service" element={<CustomerOrPublicWrap><BookServicePage /></CustomerOrPublicWrap>} />
+              <Route path="/checkout" element={<CustomerOrPublicWrap><CheckoutPage /></CustomerOrPublicWrap>} />
 
               <Route element={<GuestRoute />}>
                 <Route path="/login" element={<PublicWrap><LoginPage /></PublicWrap>} />

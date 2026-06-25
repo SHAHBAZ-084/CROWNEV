@@ -19,19 +19,19 @@ function LegalAccordionItem({
   const num = String(index + 1).padStart(2, '0');
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface-alt shadow-[var(--shadow-card)]">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)]">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-surface-alt/50"
+        className="flex w-full items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-subtle/80"
         aria-expanded={isOpen}
       >
-        <span className="w-8 shrink-0 font-display text-sm font-semibold tabular-nums text-accent">
+        <span className="w-8 shrink-0 font-display text-sm font-semibold tabular-nums text-brand">
           {num}
         </span>
-        <span className="flex-1 font-display text-lg font-semibold text-brand">{title}</span>
+        <span className="flex-1 font-display text-lg font-semibold text-ink">{title}</span>
         <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-5 w-5 shrink-0 text-brand-light" />
+          <ChevronDown className="h-5 w-5 shrink-0 text-brand" />
         </motion.span>
       </button>
 
@@ -41,14 +41,14 @@ function LegalAccordionItem({
         transition={{ duration: 0.25, ease: 'easeOut' }}
         className="overflow-hidden"
       >
-        <div className="border-t border-border px-6 pb-6 pt-5">
+        <div className="border-t border-border-light px-6 pb-6 pt-5">
           {items.length === 1 ? (
-            <p className="pl-10 text-sm leading-relaxed text-text-muted">{items[0]}</p>
+            <p className="pl-10 text-sm leading-relaxed text-ink-muted">{items[0]}</p>
           ) : (
             <ul className="space-y-3 pl-10">
               {items.map((item) => (
-                <li key={item.slice(0, 48)} className="flex gap-3 text-sm leading-relaxed text-text-muted">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
+                <li key={item.slice(0, 48)} className="flex gap-3 text-sm leading-relaxed text-ink-muted">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
                   <span>{item}</span>
                 </li>
               ))}

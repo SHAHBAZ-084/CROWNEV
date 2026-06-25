@@ -126,6 +126,12 @@ enum ContactStatus {
   REPLIED
 }
 
+enum BranchPermission {
+  WRITE_ONLY
+  WRITE_UPDATE
+  WRITE_UPDATE_DELETE
+}
+
 // ─── 1. User ─────────────────────────────────────────────────────────────────
 
 model User {
@@ -139,8 +145,9 @@ model User {
   city         String?
   isVerified   Boolean  @default(false)
   googleId     String?  @unique
-  branchId     Int?
-  isActive     Boolean  @default(true)
+  branchId         Int?
+  branchPermission BranchPermission @default(WRITE_UPDATE_DELETE)
+  isActive         Boolean          @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

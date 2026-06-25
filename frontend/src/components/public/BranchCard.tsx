@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Phone } from 'lucide-react';
-import { WhatsAppIcon } from '../icons/BrandIcons';
 import { getBranchCardImage } from '../../lib/placeholders';
 import { resolveUploadUrl } from '../../lib/media';
 import type { Branch } from '../../types';
@@ -12,10 +11,6 @@ type BranchCardProps = {
   variant?: 'featured' | 'compact';
   showDescription?: boolean;
 };
-
-function whatsappUrl(whatsapp: string) {
-  return `https://wa.me/${whatsapp.replace(/\D/g, '')}`;
-}
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/\s/g, '')}`;
@@ -122,18 +117,6 @@ export function BranchCard({
           <InfoRow icon={Phone} label="Contact" href={telHref(branch.phone)}>
             {branch.phone}
           </InfoRow>
-          {branch.whatsapp ? (
-            <a
-              href={whatsappUrl(branch.whatsapp)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-start gap-2 text-sm leading-snug text-ink-muted transition-colors hover:text-[#25D366]"
-            >
-              <WhatsAppIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#25D366]" />
-              <span className="sr-only">WhatsApp: </span>
-              <span className="font-medium text-[#25D366]">WhatsApp</span>
-            </a>
-          ) : null}
         </div>
 
         {showDescription && branch.description && !isCompact ? (

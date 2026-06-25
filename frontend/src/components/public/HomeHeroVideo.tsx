@@ -1,6 +1,43 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { easeOut } from '../../lib/publicMotion';
 import { HOME_HERO_VIDEO } from '../../lib/placeholders';
+
+export function HeroHeadline({ text, className = '' }: { text: string; className?: string }) {
+  const reduceMotion = useReducedMotion();
+  const words = text.split(' ');
+
+  return (
+    <h1 className={className}>
+      {words.map((word, index) => (
+        <motion.span
+          key={`${word}-${index}`}
+          className="inline-block"
+          style={{ marginRight: index < words.length - 1 ? '0.28em' : undefined }}
+          initial={reduceMotion ? false : { opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: index * 0.08, ease: easeOut }}
+        >
+          {word}
+        </motion.span>
+      ))}
+    </h1>
+  );
+}
+
+export function HeroCta({ children, className = '' }: { children: ReactNode; className?: string }) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      className={className}
+      whileHover={reduceMotion ? undefined : { scale: 1.04 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() =>

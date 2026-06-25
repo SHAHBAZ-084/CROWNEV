@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AccountType, Role, VoucherType } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as accountingService from './accounting.service.js';
 
 export const accountingRouter = Router();
@@ -69,6 +69,7 @@ accountingRouter.post(
 
 accountingRouter.delete(
   '/:branchId/categories/:id',
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
@@ -146,6 +147,7 @@ accountingRouter.post(
 
 accountingRouter.delete(
   '/:branchId/vouchers/:voucherId',
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
@@ -160,6 +162,7 @@ accountingRouter.delete(
 
 accountingRouter.post(
   '/:branchId/vouchers/:voucherId/restore',
+  requireBranchUpdatePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
@@ -252,6 +255,7 @@ accountingRouter.get(
 
 accountingRouter.patch(
   '/:branchId/banks/:id',
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       name: z.string().optional(),
@@ -274,6 +278,7 @@ accountingRouter.patch(
 
 accountingRouter.patch(
   '/:branchId/accounts/:id',
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       name: z.string().optional(),
@@ -295,6 +300,7 @@ accountingRouter.patch(
 
 accountingRouter.delete(
   '/:branchId/accounts/:id',
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);

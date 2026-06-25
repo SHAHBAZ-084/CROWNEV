@@ -753,6 +753,7 @@ export function AdminUsersPage() {
       lastName: String(fd.get('lastName')),
       role: 'BRANCH_OWNER',
       branchId: parseInt(branchRaw, 10),
+      branchPermission: String(fd.get('branchPermission') || 'WRITE_UPDATE_DELETE'),
       phone: String(fd.get('phone') || '') || undefined,
       city: String(fd.get('city') || '') || undefined,
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
@@ -799,6 +800,11 @@ export function AdminUsersPage() {
           { key: 'email', header: 'Email' },
           { key: 'firstName', header: 'Name', render: (r) => `${r.firstName} ${r.lastName}` },
           { key: 'role', header: 'Role' },
+          {
+            key: 'branchPermission',
+            header: 'Permission',
+            render: (r) => (r.role === 'BRANCH_OWNER' ? String(r.branchPermission ?? 'WRITE_UPDATE_DELETE').replace(/_/g, ' ') : '—'),
+          },
           { key: 'isVerified', header: 'Verified', render: (r) => r.isVerified ? 'Yes' : 'No' },
           { key: 'actions', header: '', render: (r) => (
             <RowActions
@@ -848,6 +854,15 @@ export function AdminUsersPage() {
               })}
             </Select>
           )}
+          <Select
+            name="branchPermission"
+            label="Branch Permission"
+            defaultValue={String(edit?.branchPermission ?? 'WRITE_UPDATE_DELETE')}
+          >
+            <option value="WRITE_ONLY">Write Only (view + create)</option>
+            <option value="WRITE_UPDATE">Write &amp; Update (view + create + edit)</option>
+            <option value="WRITE_UPDATE_DELETE">Full Access (write + update + delete)</option>
+          </Select>
           <Input name="phone" label="Phone" defaultValue={String(edit?.phone ?? '')} />
           <Input name="city" label="City" defaultValue={String(edit?.city ?? '')} />
           {modal === 'edit' && !editingAdmin && (

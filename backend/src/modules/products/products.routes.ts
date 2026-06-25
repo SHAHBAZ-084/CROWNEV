@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ProductType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, branchScope, optionalAuth, requireRoles } from '../../middleware/auth.js';
+import { authenticate, branchScope, optionalAuth, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import {
   productImagePublicUrl,
@@ -309,6 +309,7 @@ branchProductsRouter.get(
 
 branchProductsRouter.put(
   '/:branchId/products/:productId',
+  requireBranchUpdatePermission,
   validateBody(z.object({ isListed: z.boolean() })),
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
@@ -327,6 +328,7 @@ branchProductsRouter.put(
 
 branchProductsRouter.patch(
   '/:branchId/products/:productId/stock',
+  requireBranchUpdatePermission,
   validateBody(z.object({ quantity: z.number().int().min(0) })),
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);

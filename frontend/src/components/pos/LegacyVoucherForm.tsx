@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { formatLedgerBalance, formatPKR } from '../../lib/format';
 import { Button } from '../ui/Button';
 import { WorkspaceCloseBar, WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
@@ -124,6 +125,7 @@ export function LegacyVoucherScreen({
   branchId: number | null;
 }) {
   const { toast } = useToast();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
 
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
@@ -417,6 +419,9 @@ export function LegacyVoucherScreen({
             restoring={restoring}
             onCancel={handleCancelVoucher}
             onRestore={handleRestoreVoucher}
+            cancelDisabled={!canDelete}
+            restoreDisabled={!canUpdate}
+            disabledTitle={restrictedTitle}
           />
         )}
       </Modal>

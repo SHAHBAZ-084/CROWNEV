@@ -6,6 +6,8 @@ type LogoProps = {
   size?: 'sm' | 'md' | 'lg';
   /** Wrap in home link */
   linked?: boolean;
+  /** Link target when linked (defaults to home) */
+  to?: string;
   /** Center logo (sidebar / auth) */
   centered?: boolean;
   className?: string;
@@ -17,7 +19,7 @@ const sizeClass = {
   lg: 'h-20 w-auto max-w-[320px] lg:h-24 lg:max-w-[380px]',
 } as const;
 
-export function Logo({ size = 'sm', linked = false, centered = false, className = '' }: LogoProps) {
+export function Logo({ size = 'sm', linked = false, to = '/', centered = false, className = '' }: LogoProps) {
   const img = (
     <picture>
       <source srcSet={SITE_LOGO.srcLarge} media="(min-width: 1024px)" type="image/webp" />
@@ -34,7 +36,7 @@ export function Logo({ size = 'sm', linked = false, centered = false, className 
 
   if (linked) {
     return (
-      <Link to="/" className={`inline-flex shrink-0 items-center ${centered ? 'justify-center' : ''}`}>
+      <Link to={to} className={`inline-flex shrink-0 items-center ${centered ? 'justify-center' : ''}`}>
         {img}
       </Link>
     );

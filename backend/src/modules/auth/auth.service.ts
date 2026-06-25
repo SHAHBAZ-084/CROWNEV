@@ -1,4 +1,4 @@
-import { OtpType, Role } from '@prisma/client';
+import { BranchPermission, OtpType, Role } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
 import { ensureOnlineCustomer } from '../customers/customers.service.js';
 import { prisma } from '../../config/database.js';
@@ -15,6 +15,46 @@ import { sendOtpEmail } from '../../utils/email.js';
 const oauthClient = new OAuth2Client(env.googleClientId);
 
 const MAX_OTP_ATTEMPTS = 5;
+
+function authUserPayload(user: {
+  id: string;
+  email: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  branchId: number | null;
+  branchPermission?: BranchPermission;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    branchId: user.branchId,
+    ...(user.role === Role.BRANCH_OWNER && {
+      branchPermission: user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE,
+    }),
+  };
+}
+
+function signAuthToken(user: {
+  id: string;
+  email: string;
+  role: Role;
+  branchId: number | null;
+  branchPermission?: BranchPermission;
+}) {
+  return signToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    branchId: user.branchId,
+    ...(user.role === Role.BRANCH_OWNER && {
+      branchPermission: user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE,
+    }),
+  });
+}
 
 type RegistrationPayload = {
   passwordHash: string;
@@ -137,23 +177,11 @@ export async function verifyRegistration(email: string, otp: string) {
     return created;
   });
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    branchId: user.branchId,
-  });
+  const token = signAuthToken(user);
 
   return {
     token,
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      branchId: user.branchId,
-    },
+    user: authUserPayload(user),
   };
 }
 
@@ -180,23 +208,11 @@ export async function login(email: string, password: string) {
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) throw new AppError(401, 'Invalid credentials');
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    branchId: user.branchId,
-  });
+  const token = signAuthToken(user);
 
   return {
     token,
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      branchId: user.branchId,
-    },
+    user: authUserPayload(user),
   };
 }
 
@@ -306,23 +322,11 @@ export async function googleAuth(idToken: string) {
 
   await ensureOnlineCustomer(user);
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    branchId: user.branchId,
-  });
+  const token = signAuthToken(user);
 
   return {
     token,
-    user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      branchId: user.branchId,
-    },
+    user: authUserPayload(user),
   };
 }
 
@@ -335,26 +339,29 @@ const userSelect = {
   phone: true,
   city: true,
   branchId: true,
+  branchPermission: true,
   isVerified: true,
   createdAt: true,
 } as const;
 
 export async function getMe(userId: string) {
-  return prisma.user.findUniqueOrThrow({
+  const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: userSelect,
   });
+  return authUserPayload(user);
 }
 
 export async function updateProfile(
   userId: string,
   data: { firstName?: string; lastName?: string; phone?: string; city?: string }
 ) {
-  return prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: userId },
     data,
     select: userSelect,
   });
+  return authUserPayload(user);
 }
 
 export async function changePassword(

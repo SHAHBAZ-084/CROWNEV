@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PaymentChannelType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
+import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import { branchImagePublicUrl, saveBranchImageAsWebp } from '../../utils/imageProcessing.js';
 import * as branchesService from './branches.service.js';
@@ -254,6 +254,7 @@ branchesRouter.post(
 branchesRouter.patch(
   '/:branchId/payment-channels/:channelId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(
     paymentChannelBody.partial().extend({ isActive: z.boolean().optional() })
   ),
@@ -275,6 +276,7 @@ branchesRouter.patch(
 branchesRouter.delete(
   '/:branchId/payment-channels/:channelId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {

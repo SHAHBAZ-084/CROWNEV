@@ -1,10 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import mongoSanitize from 'express-mongo-sanitize';
 
 const MAX_INPUT_STRING_LENGTH = 500;
 const POLLUTED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-/** Strip prototype-pollution keys from parsed JSON bodies/queries. */
+/** Strip prototype-pollution and `$`-operator keys from parsed JSON bodies/queries. */
 function stripPollutedKeys(value: unknown): void {
   if (!value || typeof value !== 'object') return;
 
@@ -43,15 +42,6 @@ function findOversizedString(value: unknown, path: string): string | null {
   }
   return null;
 }
-
-export const mongoSanitizeMiddleware = mongoSanitize({
-  replaceWith: '_',
-  onSanitize: ({ req, key }) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`[security] Sanitized operator key "${key}" on ${req.method} ${req.path}`);
-    }
-  },
-});
 
 export function stripPollutionMiddleware(req: Request, _res: Response, next: NextFunction) {
   stripPollutedKeys(req.body);

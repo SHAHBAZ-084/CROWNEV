@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { BookingStatus, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody, validateQuery } from '../../utils/helpers.js';
-import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as servicesService from './services.service.js';
 
 export const servicesRouter = Router();
@@ -58,6 +58,7 @@ servicesRouter.post(
 servicesRouter.patch(
   '/:branchId/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       name: z.string().min(1).max(200).optional(),
@@ -176,6 +177,7 @@ bookingsRouter.post(
 bookingsRouter.patch(
   '/:id/status',
   requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       branchId: z.number().int(),
@@ -208,6 +210,7 @@ bookingsRouter.patch(
 bookingsRouter.delete(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const id = parseInt(param(req.params.id), 10);
     const branchId =
@@ -245,6 +248,7 @@ bookingsRouter.get(
 servicesRouter.delete(
   '/:branchId/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { OrderStatus, OrderType, PaymentMethod, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
-import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
+import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import { paymentScreenshotUpload } from '../../middleware/upload.js';
 import * as ordersService from './orders.service.js';
 
@@ -194,6 +194,7 @@ ordersRouter.post(
 ordersRouter.patch(
   '/:id/status',
   requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(z.object({ status: z.nativeEnum(OrderStatus) })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
@@ -213,6 +214,7 @@ ordersRouter.patch(
 ordersRouter.patch(
   '/:id/payment',
   requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(z.object({ approved: z.boolean() })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
@@ -232,6 +234,7 @@ ordersRouter.patch(
 ordersRouter.patch(
   '/:id/bilty-tracking',
   requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
   validateBody(z.object({ biltyTrackingId: z.string().min(1) })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
@@ -278,6 +281,7 @@ walkInRouter.get(
 
 walkInRouter.patch(
   '/:branchId/customers/:id',
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       name: z.string().optional(),
@@ -299,6 +303,7 @@ walkInRouter.patch(
 
 walkInRouter.delete(
   '/:branchId/customers/:id',
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     const customer = await ordersService.softDeleteWalkInCustomer(

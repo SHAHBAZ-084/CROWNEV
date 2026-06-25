@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
-import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as partsService from './parts.service.js';
 
 export const partsRouter = Router();
@@ -52,6 +52,7 @@ partsRouter.post(
 partsRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN),
+  requireBranchUpdatePermission,
   validateBody(
     z.object({
       itemCode: z.string().min(1).max(64).optional(),
@@ -71,6 +72,7 @@ partsRouter.patch(
 partsRouter.delete(
   '/:id',
   requireRoles(Role.ADMIN),
+  requireBranchDeletePermission,
   asyncHandler(async (req, res) => {
     await partsService.deletePart(parseInt(param(req.params.id), 10));
     res.status(204).send();

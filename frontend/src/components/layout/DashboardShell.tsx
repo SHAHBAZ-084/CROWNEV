@@ -8,9 +8,11 @@ import './dashboardTheme.css';
 export function DashboardShell({
   sidebar,
   children,
+  headerActions,
 }: {
   sidebar: (props: { mobileOpen: boolean; onNavigate: () => void }) => React.ReactNode;
   children: React.ReactNode;
+  headerActions?: React.ReactNode;
 }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -62,7 +64,14 @@ export function DashboardShell({
           <div className="min-w-0 flex-1">
             <Logo size="sm" linked />
           </div>
+          {headerActions}
         </header>
+
+        {headerActions && (
+          <div className="sticky top-0 z-20 hidden items-center justify-end border-b border-border-light bg-elevated px-6 py-2.5 shadow-sm lg:flex">
+            {headerActions}
+          </div>
+        )}
 
         <motion.main
           initial={{ opacity: 0, y: 8 }}
