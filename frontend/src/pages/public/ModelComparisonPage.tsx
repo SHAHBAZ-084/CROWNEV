@@ -187,9 +187,11 @@ function BikePreview({
   product: Product | null;
   slotLabel: string;
 }) {
+  const imageAreaClass = 'relative aspect-[4/3] overflow-hidden bg-subtle';
+
   if (!product) {
     return (
-      <div className="flex aspect-[5/4] items-center justify-center rounded-[var(--radius-card)] border border-border-light bg-subtle sm:aspect-[4/3]">
+      <div className="flex aspect-[4/3] items-center justify-center rounded-[var(--radius-card)] border border-border-light bg-subtle">
         <p className="text-xs text-ink-muted sm:text-sm">Select a model</p>
       </div>
     );
@@ -202,29 +204,31 @@ function BikePreview({
       <p className="border-b border-border-light bg-subtle px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-brand sm:hidden">
         {slotLabel}
       </p>
-      <div className="relative aspect-[5/4] bg-subtle sm:aspect-[4/3]">
+      <div className={imageAreaClass}>
         {image ? (
           <img src={image} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1.5 text-ink-muted">
-            <Zap className="h-8 w-8 text-accent/50 sm:h-10 sm:w-10" aria-hidden />
-            <span className="text-[10px] sm:text-xs">No image</span>
+          <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-subtle via-elevated to-accent/5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-elevated shadow-sm ring-1 ring-border-light sm:h-16 sm:w-16">
+              <Zap className="h-6 w-6 text-accent/60 sm:h-8 sm:w-8" aria-hidden />
+            </div>
+            <p className="mt-2 text-[10px] font-medium text-ink-muted/70 sm:text-xs">No image</p>
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-3 sm:p-5">
+      <div className="flex flex-1 flex-col p-4">
         <h3
-          className="line-clamp-2 font-display text-sm font-bold leading-snug text-ink sm:text-lg"
+          className="line-clamp-2 font-display text-base font-semibold leading-snug text-ink"
           title={product.name}
         >
           {product.name}
         </h3>
         <Link
           to={`/shop/${product.id}`}
-          className="group mt-auto inline-flex items-center gap-1 pt-2 text-xs font-semibold text-brand transition-colors hover:text-brand-light sm:pt-3 sm:text-sm"
+          className="group mt-auto inline-flex items-center gap-1 pt-3 text-sm font-semibold text-brand transition-colors hover:text-brand-light"
         >
           Learn More
-          <ArrowRight className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${ctaArrowClass}`} aria-hidden />
+          <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} aria-hidden />
         </Link>
       </div>
     </div>

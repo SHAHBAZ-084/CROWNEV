@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import { SITE_LOGO } from '../../lib/placeholders';
 
 type LogoProps = {
-  /** sm = navbar, md = sidebar, lg = footer / auth */
-  size?: 'sm' | 'md' | 'lg';
+  /** nav = public navbar, sm = compact header, md = sidebar, lg = footer / auth */
+  size?: 'nav' | 'sm' | 'md' | 'lg';
   /** Wrap in home link */
   linked?: boolean;
   /** Link target when linked (defaults to home) */
@@ -14,6 +14,7 @@ type LogoProps = {
 };
 
 const sizeClass = {
+  nav: 'h-16 w-auto max-w-[260px] sm:h-[4.25rem] sm:max-w-[300px] lg:h-20 lg:max-w-[360px]',
   sm: 'h-14 w-auto max-w-[220px] sm:h-16 sm:max-w-[260px] lg:h-[4.5rem] lg:max-w-[300px]',
   md: 'h-[5.5rem] w-auto max-w-[300px] lg:h-[7rem] lg:max-w-[340px]',
   lg: 'h-20 w-auto max-w-[320px] lg:h-24 lg:max-w-[380px]',

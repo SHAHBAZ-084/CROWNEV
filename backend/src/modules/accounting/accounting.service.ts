@@ -1155,6 +1155,94 @@ export async function listVouchers(branchId: number) {
   });
 }
 
+async function shiftSubsequentEntryBalances(
+  tx: Prisma.TransactionClient,
+  ledgerId: number,
+  afterEntryId: number,
+  shift: number,
+) {
+  if (shift === 0) return;
+  await tx.ledgerEntry.updateMany({
+    where: { ledgerId, id: { gt: afterEntryId } },
+    data: { balance: { increment: shift } },
+  });
+}
+
+export async function updateVoucherAmount(
+  branchId: number,
+  voucherId: number,
+  newAmount: number,
+  userId: string,
+) {
+  if (newAmount <= 0) {
+    throw new AppError(400, 'Amount must be greater than zero');
+  }
+
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const voucher = await tx.voucher.findFirst({
+      where: { id: voucherId, branchId },
+    });
+    if (!voucher) throw new AppError(404, 'Voucher not found');
+    if (voucher.status === VoucherStatus.CANCELLED) {
+      throw new AppError(400, 'Cannot update amount on a cancelled voucher');
+    }
+
+    const oldAmount = Number(voucher.amount);
+    const delta = newAmount - oldAmount;
+    if (Math.abs(delta) < 0.005) {
+      return tx.voucher.findUniqueOrThrow({ where: { id: voucher.id }, include: voucherInclude });
+    }
+
+    const entries = await tx.ledgerEntry.findMany({
+      where: { voucherId: voucher.id, isReversal: false },
+      orderBy: { id: 'asc' },
+    });
+
+    if (entries.length !== 2) {
+      throw new AppError(400, 'Voucher ledger entries are invalid for amount update');
+    }
+
+    const debitEntry = entries.find((e) => e.type === LedgerEntryType.DEBIT);
+    const creditEntry = entries.find((e) => e.type === LedgerEntryType.CREDIT);
+    if (!debitEntry || !creditEntry) {
+      throw new AppError(400, 'Voucher ledger entries are invalid for amount update');
+    }
+
+    await tx.ledgerEntry.update({
+      where: { id: debitEntry.id },
+      data: {
+        amount: newAmount,
+        balance: Number(debitEntry.balance) + delta,
+      },
+    });
+    await tx.ledgerEntry.update({
+      where: { id: creditEntry.id },
+      data: {
+        amount: newAmount,
+        balance: Number(creditEntry.balance) - delta,
+      },
+    });
+
+    await shiftSubsequentEntryBalances(tx, debitEntry.ledgerId, debitEntry.id, delta);
+    await shiftSubsequentEntryBalances(tx, creditEntry.ledgerId, creditEntry.id, -delta);
+
+    await tx.ledger.update({
+      where: { id: debitEntry.ledgerId },
+      data: { balance: { increment: delta } },
+    });
+    await tx.ledger.update({
+      where: { id: creditEntry.ledgerId },
+      data: { balance: { increment: -delta } },
+    });
+
+    return tx.voucher.update({
+      where: { id: voucher.id },
+      data: { amount: newAmount, modifiedById: userId },
+      include: voucherInclude,
+    });
+  });
+}
+
 export async function cancelVoucher(branchId: number, voucherId: number, userId: string) {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const voucher = await tx.voucher.findFirst({

@@ -145,6 +145,23 @@ accountingRouter.post(
   })
 );
 
+accountingRouter.patch(
+  '/:branchId/vouchers/:voucherId',
+  requireBranchUpdatePermission,
+  validateBody(z.object({ amount: z.number().positive() })),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const voucher = await accountingService.updateVoucherAmount(
+      branchId,
+      parseInt(param(req.params.voucherId), 10),
+      req.body.amount,
+      req.user!.userId,
+    );
+    res.json(voucher);
+  }),
+);
+
 accountingRouter.delete(
   '/:branchId/vouchers/:voucherId',
   requireBranchDeletePermission,

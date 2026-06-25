@@ -552,6 +552,11 @@ export const branchApi = {
     api<unknown>(`/accounting/${branchId}/vouchers`, { method: 'POST', body: JSON.stringify(data) }),
   deleteVoucher: (branchId: number, voucherId: number) =>
     api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}`, { method: 'DELETE' }),
+  updateVoucherAmount: (branchId: number, voucherId: number, amount: number) =>
+    api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ amount }),
+    }),
   restoreVoucher: (branchId: number, voucherId: number) =>
     api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}/restore`, { method: 'POST' }),
   banks: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/banks`),

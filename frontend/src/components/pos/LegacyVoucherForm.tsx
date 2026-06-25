@@ -134,6 +134,7 @@ export function LegacyVoucherScreen({
   const [viewVoucher, setViewVoucher] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const [voucherDate, setVoucherDate] = useState(todayInputValue());
   const [debitCategoryId, setDebitCategoryId] = useState('');
@@ -286,6 +287,28 @@ export function LegacyVoucherScreen({
     }
   }
 
+  async function handleUpdateVoucherAmount(amount: number) {
+    if (!branchId || !viewVoucher) return;
+    const current = Number(viewVoucher.amount);
+    if (Math.abs(amount - current) < 0.005) {
+      toast('Amount unchanged', 'info');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updated = await branchApi.updateVoucherAmount(branchId, Number(viewVoucher.id), amount);
+      setViewVoucher(updated as Row);
+      toast('Voucher amount updated', 'success');
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Update failed', 'error');
+      throw err;
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   return (
     <div className="w-full max-w-5xl">
       <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm lg:p-8">
@@ -417,10 +440,13 @@ export function LegacyVoucherScreen({
             voucher={viewVoucher}
             deleting={deleting}
             restoring={restoring}
+            updating={updating}
             onCancel={handleCancelVoucher}
             onRestore={handleRestoreVoucher}
+            onUpdateAmount={handleUpdateVoucherAmount}
             cancelDisabled={!canDelete}
             restoreDisabled={!canUpdate}
+            updateDisabled={!canUpdate}
             disabledTitle={restrictedTitle}
           />
         )}

@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { RotateCcw, Trash2 } from 'lucide-react';
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
@@ -30,19 +30,25 @@ export function VoucherDetailCard({
   voucher,
   deleting,
   restoring,
+  updating,
   onCancel,
   onRestore,
+  onUpdateAmount,
   cancelDisabled,
   restoreDisabled,
+  updateDisabled,
   disabledTitle,
 }: {
   voucher: Row;
   deleting: boolean;
   restoring: boolean;
+  updating?: boolean;
   onCancel: () => void;
   onRestore: () => void;
+  onUpdateAmount?: (amount: number) => void | Promise<void>;
   cancelDisabled?: boolean;
   restoreDisabled?: boolean;
+  updateDisabled?: boolean;
   disabledTitle?: string;
 }) {
   const voucherType = voucher.type as VoucherType;
@@ -52,6 +58,15 @@ export function VoucherDetailCard({
   const creditAccount = voucher.creditAccount as Row | undefined;
   const createdBy = voucher.createdBy as { firstName?: string; lastName?: string } | undefined;
   const deletedBy = voucher.deletedBy as { firstName?: string; lastName?: string } | undefined;
+  const modifiedBy = voucher.modifiedBy as { firstName?: string; lastName?: string } | undefined;
+
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [amountDraft, setAmountDraft] = useState(String(voucher.amount ?? ''));
+
+  useEffect(() => {
+    setEditingAmount(false);
+    setAmountDraft(String(voucher.amount ?? ''));
+  }, [voucher.id, voucher.amount]);
 
   const rows = useMemo(() => {
     if (voucherType === 'JOURNAL') {
@@ -69,11 +84,33 @@ export function VoucherDetailCard({
   const auditParts: string[] = [];
   const creator = userName(createdBy);
   if (creator) auditParts.push(`Created by ${creator}`);
+  const modifier = userName(modifiedBy);
+  if (modifier && voucher.updatedAt && voucher.updatedAt !== voucher.createdAt) {
+    auditParts.push(`Updated by ${modifier} on ${formatDate(String(voucher.updatedAt))}`);
+  }
   if (isCancelled && deletedBy) {
     const canceller = userName(deletedBy);
     if (canceller && voucher.deletedAt) {
       auditParts.push(`Cancelled by ${canceller} on ${formatDate(String(voucher.deletedAt))}`);
     }
+  }
+
+  function startEditAmount() {
+    setAmountDraft(String(voucher.amount ?? ''));
+    setEditingAmount(true);
+  }
+
+  function cancelEditAmount() {
+    setAmountDraft(String(voucher.amount ?? ''));
+    setEditingAmount(false);
+  }
+
+  async function submitAmount(e: FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(amountDraft);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    await onUpdateAmount?.(amount);
+    setEditingAmount(false);
   }
 
   return (
@@ -110,18 +147,33 @@ export function VoucherDetailCard({
             Restore
           </Button>
         ) : (
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            loading={deleting}
-            disabled={cancelDisabled}
-            title={cancelDisabled ? disabledTitle : undefined}
-            onClick={onCancel}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Cancel
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onUpdateAmount && !editingAmount ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={updateDisabled}
+                title={updateDisabled ? disabledTitle : undefined}
+                onClick={startEditAmount}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Update
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              loading={deleting}
+              disabled={cancelDisabled || editingAmount}
+              title={cancelDisabled ? disabledTitle : undefined}
+              onClick={onCancel}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Cancel
+            </Button>
+          </div>
         )}
       </div>
 
@@ -134,7 +186,37 @@ export function VoucherDetailCard({
         ))}
         <div className="grid gap-1 py-3 sm:grid-cols-[120px_1fr] sm:gap-4">
           <dt className="text-sm text-text-muted">Amount</dt>
-          <dd className="text-sm font-semibold text-text">{formatPKR(Number(voucher.amount))}</dd>
+          <dd className="text-sm font-semibold text-text">
+            {editingAmount ? (
+              <form onSubmit={submitAmount} className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[160px] flex-1">
+                  <Input
+                    label=""
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={amountDraft}
+                    onChange={(e) => setAmountDraft(e.target.value)}
+                    placeholder="Amount (PKR)"
+                  />
+                </div>
+                <Button type="submit" variant="accent" size="sm" loading={updating}>
+                  Save
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={cancelEditAmount}>
+                  Discard
+                </Button>
+              </form>
+            ) : (
+              <>
+                {formatPKR(Number(voucher.amount))}
+                <p className="mt-1 text-xs font-normal text-text-muted">
+                  Debit and credit entries use the same amount; accounts cannot be changed here.
+                </p>
+              </>
+            )}
+          </dd>
         </div>
         {voucher.reference ? (
           <div className="grid gap-1 py-3 sm:grid-cols-[120px_1fr] sm:gap-4">
@@ -172,6 +254,7 @@ export function ViewVoucherPanel({
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchType, setSearchType] = useState<VoucherType | ''>(defaultType);
   const [searchNo, setSearchNo] = useState('');
@@ -249,6 +332,28 @@ export function ViewVoucherPanel({
     }
   }
 
+  async function handleUpdateAmount(amount: number) {
+    if (!branchId || !result || result === 'notfound') return;
+    const current = Number(result.amount);
+    if (Math.abs(amount - current) < 0.005) {
+      toast('Amount unchanged', 'info');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updated = await branchApi.updateVoucherAmount(branchId, Number(result.id), amount);
+      setResult(updated as Row);
+      toast('Voucher amount updated', 'success');
+      loadVouchers();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Update failed', 'error');
+      throw err;
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   const voucher = result && result !== 'notfound' ? result : null;
 
   return (
@@ -295,10 +400,13 @@ export function ViewVoucherPanel({
           voucher={voucher}
           deleting={deleting}
           restoring={restoring}
+          updating={updating}
           onCancel={handleCancel}
           onRestore={handleRestore}
+          onUpdateAmount={handleUpdateAmount}
           cancelDisabled={!canDelete}
           restoreDisabled={!canUpdate}
+          updateDisabled={!canUpdate}
           disabledTitle={restrictedTitle}
         />
       )}
