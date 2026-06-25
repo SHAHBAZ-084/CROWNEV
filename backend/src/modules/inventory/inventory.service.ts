@@ -1,5 +1,6 @@
-import { Prisma, StockAdjustmentReason } from '@prisma/client';
+import { Prisma, ProductType, StockAdjustmentReason } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
 export async function getBranchInventory(branchId: number, query: { page?: string; limit?: string; lowStock?: boolean }) {
@@ -37,6 +38,49 @@ export async function updateStock(branchId: number, partId: number, quantity: nu
 
 export async function removePartFromBranch(branchId: number, partId: number) {
   await prisma.inventory.deleteMany({ where: { branchId, partId } });
+}
+
+export async function deductBranchProductStockInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  productId: string,
+  quantity: number,
+  productType: ProductType,
+) {
+  if (productType !== ProductType.BIKE && productType !== ProductType.PART) return;
+
+  const updated = await tx.branchProduct.updateMany({
+    where: {
+      branchId,
+      productId,
+      stock: { gte: quantity },
+    },
+    data: { stock: { decrement: quantity } },
+  });
+
+  if (updated.count !== 1) {
+    throw new AppError(400, `Insufficient stock for ${productType.toLowerCase()}`);
+  }
+}
+
+export async function deductPartInventoryInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  partId: number,
+  quantity: number,
+) {
+  const updated = await tx.inventory.updateMany({
+    where: {
+      branchId,
+      partId,
+      quantity: { gte: quantity },
+    },
+    data: { quantity: { decrement: quantity } },
+  });
+
+  if (updated.count !== 1) {
+    throw new AppError(400, `Insufficient stock for part ${partId}`);
+  }
 }
 
 export async function adjustStock(data: {
@@ -82,17 +126,7 @@ export async function adjustStock(data: {
 export async function deductStock(branchId: number, items: { partId: number; quantity: number }[]) {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     for (const item of items) {
-      const inventory = await tx.inventory.findUnique({
-        where: { branchId_partId: { branchId, partId: item.partId } },
-      });
-      const currentQty = inventory?.quantity ?? 0;
-      if (currentQty < item.quantity) {
-        throw new AppError(400, `Insufficient stock for part ${item.partId}`);
-      }
-      await tx.inventory.update({
-        where: { branchId_partId: { branchId, partId: item.partId } },
-        data: { quantity: currentQty - item.quantity },
-      });
+      await deductPartInventoryInTx(tx, branchId, item.partId, item.quantity);
     }
   });
 }
@@ -119,10 +153,15 @@ export async function addStock(branchId: number, items: { partId: number; quanti
 
 export async function getLowStockAlerts(branchId?: number) {
   const inventories = await prisma.inventory.findMany({
-    where: branchId ? { branchId } : undefined,
+    where: {
+      ...(branchId && { branchId }),
+      part: { isActive: true },
+    },
     include: { part: true, branch: { select: { id: true, name: true } } },
+    orderBy: { quantity: 'asc' },
+    take: 500,
   });
-  return inventories.filter((i: (typeof inventories)[number]) => i.quantity <= i.part.alertAt && i.part.isActive);
+  return inventories.filter((i) => i.quantity <= i.part.alertAt);
 }
 
 const BIKE_LOW_STOCK_THRESHOLD = 3;
@@ -155,12 +194,16 @@ export async function getBranchStock(branchId: number) {
 
   const inventoryByPartId = new Map(inventories.map((i) => [i.partId, i]));
 
-  const productItems: BranchStockItem[] = catalogProducts.map((product) => {
+  const productItems: BranchStockItem[] = [];
+  for (const product of catalogProducts) {
     const branchLink = product.branchProducts[0];
-    const quantity = branchLink?.stock ?? 0;
+    let quantity = branchLink?.stock ?? 0;
+    if (product.type === 'BIKE') {
+      quantity = await countInStockChassis(branchId, product.id);
+    }
     const isSelected = branchLink?.isListed ?? false;
     const alertAt = product.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5;
-    return {
+    productItems.push({
       type: product.type,
       source: 'PRODUCT',
       id: product.id,
@@ -170,8 +213,8 @@ export async function getBranchStock(branchId: number) {
       alertAt,
       isLowStock: isSelected && quantity <= alertAt,
       isSelected,
-    };
-  });
+    });
+  }
 
   const servicePartItems: BranchStockItem[] = serviceParts.map((part) => {
     const inventory = inventoryByPartId.get(part.id);

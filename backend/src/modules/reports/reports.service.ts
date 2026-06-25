@@ -1,6 +1,7 @@
 import { OrderStatus, OrderType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { getLowStockAlerts } from '../inventory/inventory.service.js';
+import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -106,52 +107,74 @@ export async function getBranchSalesSummary(branchId: number, period: ReportPeri
 }
 
 export async function getAdminDashboard() {
-  const [revenue, orderCount, branchCount, lowStock, recentOrders, branches] = await Promise.all([
-    prisma.order.aggregate({
-      where: { status: { in: ['CONFIRMED', 'DELIVERED'] } },
-      _sum: { total: true },
-    }),
-    prisma.order.count(),
-    prisma.branch.count({ where: { isActive: true } }),
-    getLowStockAlerts(),
-    prisma.order.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: { branch: { select: { name: true } }, user: { select: { firstName: true, lastName: true } } },
-    }),
-    prisma.branch.findMany({
-      where: { isActive: true },
-      include: {
-        _count: { select: { orders: true } },
-        orders: {
+  return withTimeout(
+    (async () => {
+      const [
+        revenue,
+        orderCount,
+        branchCount,
+        lowStock,
+        recentOrders,
+        branchMeta,
+        revenueByBranch,
+      ] = await Promise.all([
+        prisma.order.aggregate({
           where: { status: { in: ['CONFIRMED', 'DELIVERED'] } },
-          select: { total: true },
-        },
-      },
-    }),
-  ]);
+          _sum: { total: true },
+        }),
+        prisma.order.count(),
+        prisma.branch.count({ where: { isActive: true } }),
+        getLowStockAlerts(),
+        prisma.order.findMany({
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            branch: { select: { name: true } },
+            user: { select: { firstName: true, lastName: true } },
+          },
+        }),
+        prisma.branch.findMany({
+          where: { isActive: true },
+          select: { id: true, name: true, _count: { select: { orders: true } } },
+          take: 100,
+        }),
+        prisma.order.groupBy({
+          by: ['branchId'],
+          where: { status: { in: ['CONFIRMED', 'DELIVERED'] } },
+          _sum: { total: true },
+        }),
+      ]);
 
-  const branchComparison = branches.map((b: (typeof branches)[number]) => ({
-    id: b.id,
-    name: b.name,
-    orderCount: b._count.orders,
-    revenue: b.orders.reduce((sum: number, o: (typeof b.orders)[number]) => sum + Number(o.total), 0),
-  }));
+      const revenueMap = new Map(
+        revenueByBranch.map((row) => [row.branchId, Number(row._sum.total ?? 0)])
+      );
 
-  return {
-    totalRevenue: revenue._sum.total ?? 0,
-    totalOrders: orderCount,
-    totalBranches: branchCount,
-    lowStockAlerts: lowStock.length,
-    lowStock,
-    recentOrders,
-    branchComparison,
-  };
+      const branchComparison = branchMeta.map((b) => ({
+        id: b.id,
+        name: b.name,
+        orderCount: b._count.orders,
+        revenue: revenueMap.get(b.id) ?? 0,
+      }));
+
+      return {
+        totalRevenue: revenue._sum.total ?? 0,
+        totalOrders: orderCount,
+        totalBranches: branchCount,
+        lowStockAlerts: lowStock.length,
+        lowStock,
+        recentOrders,
+        branchComparison,
+      };
+    })(),
+    25_000,
+    'Admin dashboard'
+  );
 }
 
 export async function getRevenueTrend(branchId?: number, days = 30) {
+  const cappedDays = Math.min(Math.max(days, 1), 365);
   const since = new Date();
-  since.setDate(since.getDate() - days);
+  since.setDate(since.getDate() - cappedDays);
 
   const orders = await prisma.order.findMany({
     where: {
@@ -159,8 +182,9 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
       status: { in: ['CONFIRMED', 'DELIVERED'] },
       createdAt: { gte: since },
     },
-    select: { total: true, createdAt: true, branchId: true },
+    select: { total: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
+    take: EXPORT_MAX_ROWS,
   });
 
   const dailyMap = new Map<string, number>();
@@ -172,10 +196,28 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
   return Array.from(dailyMap.entries()).map(([date, revenue]) => ({ date, revenue }));
 }
 
-export async function exportOrders(branchId?: number, from?: string, to?: string) {
+type ExportPagination = { page?: string; limit?: string };
+
+function exportPagination(query?: ExportPagination) {
+  const page = Math.max(1, parseInt(query?.page ?? '1', 10) || 1);
+  const limit = Math.min(
+    EXPORT_MAX_ROWS,
+    Math.max(1, parseInt(query?.limit ?? String(EXPORT_MAX_ROWS), 10) || EXPORT_MAX_ROWS)
+  );
+  return { skip: (page - 1) * limit, take: limit };
+}
+
+export async function exportOrders(
+  branchId?: number,
+  from?: string,
+  to?: string,
+  pagination?: ExportPagination
+) {
   const fromDate = from ? new Date(from) : undefined;
   const toDate = to ? new Date(to) : undefined;
   if (toDate) toDate.setHours(23, 59, 59, 999);
+
+  const { take, skip } = exportPagination(pagination);
 
   const orders = await prisma.order.findMany({
     where: {
@@ -195,6 +237,8 @@ export async function exportOrders(branchId?: number, from?: string, to?: string
       customer: { select: { name: true, type: true } },
     },
     orderBy: { createdAt: 'desc' },
+    take,
+    skip,
   });
 
   return orders.map((o) => ({
@@ -214,7 +258,14 @@ export async function exportOrders(branchId?: number, from?: string, to?: string
   }));
 }
 
-export async function exportBookings(branchId?: number, from?: string, to?: string) {
+export async function exportBookings(
+  branchId?: number,
+  from?: string,
+  to?: string,
+  pagination?: ExportPagination
+) {
+  const { take, skip } = exportPagination(pagination);
+
   const bookings = await prisma.serviceBooking.findMany({
     where: {
       ...(branchId && { branchId }),
@@ -233,25 +284,31 @@ export async function exportBookings(branchId?: number, from?: string, to?: stri
       user: { select: { firstName: true, lastName: true } },
     },
     orderBy: { date: 'desc' },
+    take,
+    skip,
   });
 
   return bookings.map((b) => ({
     id: b.id,
     branch: b.branch.name,
-    service: b.service.name,
+    service: b.service?.name ?? '',
     customer: b.user ? `${b.user.firstName} ${b.user.lastName}` : b.customerName,
-    date: b.date.toISOString().split('T')[0],
+    date: b.date ? b.date.toISOString().split('T')[0] : '',
     time: b.time,
     status: b.status,
-    price: b.service.basePrice,
+    price: b.service?.basePrice ?? 0,
   }));
 }
 
-export async function exportInventory(branchId?: number) {
+export async function exportInventory(branchId?: number, pagination?: ExportPagination) {
+  const { take, skip } = exportPagination(pagination);
+
   const inventories = await prisma.inventory.findMany({
     where: branchId ? { branchId } : undefined,
     include: { part: true, branch: { select: { name: true } } },
     orderBy: [{ branchId: 'asc' }, { partId: 'asc' }],
+    take,
+    skip,
   });
 
   return inventories.map((i) => ({

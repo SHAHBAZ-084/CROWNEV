@@ -54,7 +54,16 @@ suppliersRouter.post(
 suppliersRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      branchId: z.number().int(),
+      name: z.string().min(1).max(200).optional(),
+      contactPerson: z.string().max(200).optional(),
+      phone: z.string().max(32).optional(),
+      email: z.string().email().max(254).optional(),
+      address: z.string().max(500).optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const branchId = req.body.branchId as number;
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
@@ -115,6 +124,7 @@ purchasesRouter.post(
             productId: z.string().uuid(),
             quantity: z.number().int().positive(),
             unitCost: z.coerce.number().positive(),
+            chassisNumbers: z.array(z.string().trim().min(1)).optional(),
           }),
         )
         .min(1),

@@ -62,7 +62,7 @@ export interface Order {
   publicId?: string;
   trackingId?: string | null;
   saleReference?: string | null;
-  cargoTrackingId?: string;
+  biltyTrackingId?: string;
   branchId?: number;
   userId?: string;
   type: 'ONLINE' | 'POS';
@@ -95,7 +95,7 @@ export interface InvoiceData {
   orderType?: 'ONLINE' | 'POS';
   trackingId?: string | null;
   saleReference?: string | null;
-  cargoTrackingId?: string;
+  biltyTrackingId?: string;
   date: string;
   deliveredAt?: string;
   branch: { name: string; location: string; phone: string; whatsapp?: string | null };

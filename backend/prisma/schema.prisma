@@ -99,6 +99,11 @@ enum CustomerLedgerType {
   CREDIT
 }
 
+enum ChassisStatus {
+  IN_STOCK
+  SOLD
+}
+
 enum SupplierLedgerType {
   DEBIT
   CREDIT
@@ -207,6 +212,7 @@ model Branch {
   trialBalanceApprovals TrialBalanceApproval[]
   contactMessages    ContactMessage[]
   paymentChannels    BranchPaymentChannel[]
+  bikeChassisNumbers BikeChassisNumber[]
 
   @@index([isActive])
 }
@@ -297,6 +303,7 @@ model Product {
   orderItems     OrderItem[]
   purchaseItems  PurchaseItem[]
   serviceInvoiceItems ServiceInvoiceItem[]
+  bikeChassisNumbers BikeChassisNumber[]
 
   @@index([type])
   @@index([brandId])
@@ -397,7 +404,7 @@ model Order {
   paymentStatus          PaymentStatus @default(PENDING)
   bankTransferScreenshot String?
   paymentTransactionId   String?
-  cargoTrackingId        String?
+  biltyTrackingId        String?
   customerName           String?
   customerPhone          String?
   customerAddress        String?
@@ -414,7 +421,6 @@ model Order {
   customer         Customer?         @relation(fields: [customerId], references: [id])
   items            OrderItem[]
   customerLedger   CustomerLedger[]
-
   @@index([branchId])
   @@index([status])
   @@index([createdAt])
@@ -434,8 +440,9 @@ model OrderItem {
   color         String?
   chassisNumber String?
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product            @relation(fields: [productId], references: [id])
+  soldChassis BikeChassisNumber?
 
   @@index([orderId])
 }
@@ -575,6 +582,7 @@ model Purchase {
   supplier Supplier       @relation(fields: [supplierId], references: [id])
   items    PurchaseItem[]
   ledger   SupplierLedger[]
+  chassis  BikeChassisNumber[]
 
   @@index([branchId])
   @@index([createdAt])
@@ -596,6 +604,29 @@ model PurchaseItem {
   part     Part?    @relation(fields: [partId], references: [id])
   product  Product? @relation(fields: [productId], references: [id])
 
+  @@index([purchaseId])
+}
+
+// ─── 20b. BikeChassisNumber ──────────────────────────────────────────────────
+
+model BikeChassisNumber {
+  id            Int           @id @default(autoincrement())
+  chassisNumber String        @unique
+  productId     String
+  branchId      Int
+  status        ChassisStatus @default(IN_STOCK)
+  purchaseId      Int
+  saleOrderItemId Int?          @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  product       Product    @relation(fields: [productId], references: [id])
+  branch        Branch     @relation(fields: [branchId], references: [id])
+  purchase      Purchase   @relation(fields: [purchaseId], references: [id])
+  saleOrderItem OrderItem? @relation(fields: [saleOrderItemId], references: [id])
+
+  @@index([productId, branchId, status])
+  @@index([branchId])
   @@index([purchaseId])
 }
 
@@ -627,7 +658,7 @@ model Customer {
   userId    String?      @unique
   type      CustomerType
   name      String
-  cnic      String?
+  cnic      String?      @unique
   phone     String?
   email     String?
   address   String?
@@ -642,7 +673,6 @@ model Customer {
   serviceInvoices ServiceInvoice[]
   ledger  CustomerLedger[]
 
-  @@unique([branchId, cnic])
   @@index([branchId])
   @@index([type])
 }

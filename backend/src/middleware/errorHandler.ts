@@ -9,7 +9,44 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    res.status(400).json({ error: 'Invalid data submitted' });
+    if (err.code === 'P2002') {
+      const target = err.meta?.target;
+      const fields = Array.isArray(target) ? target : typeof target === 'string' ? [target] : [];
+      if (fields.some((field) => String(field).includes('cnic'))) {
+        res.status(409).json({ error: 'A customer with this CNIC already exists.' });
+        return;
+      }
+      if (fields.some((field) => String(field).includes('chassisNumber'))) {
+        res.status(409).json({ error: 'Chassis number(s) already exist' });
+        return;
+      }
+      if (fields.some((field) => String(field).includes('saleOrderItemId'))) {
+        res.status(409).json({ error: 'This chassis is already linked to a sale line' });
+        return;
+      }
+      res.status(409).json({
+        error: `Duplicate value for: ${fields.join(', ') || 'unknown field'}`,
+      });
+      return;
+    }
+    if (err.code === 'P2021' || err.code === 'P2022') {
+      res.status(500).json({
+        error: 'Database schema is out of date. Run: npx prisma migrate deploy && npx prisma generate, then restart the API.',
+      });
+      return;
+    }
+    if (err.code === 'P2003') {
+      res.status(400).json({ error: 'Invalid reference — linked record not found' });
+      return;
+    }
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'Record not found' });
+      return;
+    }
+    console.error('Prisma error:', err.code, err.meta);
+    res.status(400).json({
+      error: err.message || `Database error (${err.code})`,
+    });
     return;
   }
 

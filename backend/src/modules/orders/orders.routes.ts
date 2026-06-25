@@ -17,6 +17,7 @@ const orderItemSchema = z.object({
 
 const saleInvoiceItemSchema = orderItemSchema.extend({
   unitPrice: z.optional(z.coerce.number().positive()),
+  bikeChassisNumberId: z.number().int().positive().optional(),
 });
 
 ordersRouter.get(
@@ -229,18 +230,18 @@ ordersRouter.patch(
 );
 
 ordersRouter.patch(
-  '/:id/cargo-tracking',
+  '/:id/bilty-tracking',
   requireRoles(Role.BRANCH_OWNER),
-  validateBody(z.object({ cargoTrackingId: z.string().min(1) })),
+  validateBody(z.object({ biltyTrackingId: z.string().min(1) })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
     if (!branchId) {
       res.status(403).json({ error: 'Branch not assigned' });
       return;
     }
-    const order = await ordersService.setCargoTracking(
+    const order = await ordersService.setBiltyTracking(
       parseInt(param(req.params.id), 10),
-      req.body.cargoTrackingId,
+      req.body.biltyTrackingId,
       branchId,
     );
     res.json(order);
@@ -337,7 +338,11 @@ walkInRouter.post(
   validateBody(
     z.object({
       name: z.string().min(1),
-      cnic: z.string().min(13).max(15),
+      cnic: z
+        .string()
+        .min(1)
+        .transform((value) => value.replace(/\D/g, ''))
+        .pipe(z.string().regex(/^\d{13}$/, 'CNIC must be 13 digits')),
       phone: z.string().optional(),
       email: z.string().email().optional(),
       address: z.string().optional(),

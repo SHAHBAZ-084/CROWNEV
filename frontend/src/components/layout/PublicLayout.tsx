@@ -203,15 +203,10 @@ function SocialIcon({
   );
 }
 
-function FooterContactIcon({ children, accent = 'accent' }: { children: ReactNode; accent?: 'accent' | 'whatsapp' }) {
-  const tone =
-    accent === 'whatsapp'
-      ? 'bg-[#25D366]/10 text-[#25D366] group-hover:bg-[#25D366] group-hover:text-white'
-      : 'bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white';
-
+function FooterContactIcon({ children }: { children: ReactNode }) {
   return (
     <span
-      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${tone}`}
+      className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-white"
     >
       {children}
     </span>
@@ -285,9 +280,8 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2 lg:col-start-6">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Quick Links</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Quick Links</p>
             <ul className="mt-4 space-y-3">
-              <FooterLink to="/" label="Home" />
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />
@@ -296,15 +290,16 @@ export function PublicFooter() {
           </div>
 
           <div className="lg:col-span-2">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Legal</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Legal</p>
             <ul className="mt-4 space-y-3">
               <FooterLink to="/privacy" label="Privacy Policy" />
               <FooterLink to="/terms" label="Terms & Conditions" />
+              <FooterLink to="/faq" label="FAQ" />
             </ul>
           </div>
 
           <div className="lg:col-span-3">
-            <p className="font-display text-sm font-semibold uppercase tracking-wide text-orange-500">Contact</p>
+            <p className="font-display text-sm font-semibold uppercase tracking-wide text-text-muted">Contact</p>
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a

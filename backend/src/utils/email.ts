@@ -22,6 +22,9 @@ function getTransporter() {
       secure: port === 465,
       requireTLS: port === 587,
       auth: { user: user || 'resend', pass },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
     });
   }
   return transporter;
@@ -34,6 +37,7 @@ function resendSandboxHint(message: string): string | null {
 }
 
 function logDevOtp(email: string, otp: string, purpose: string, smtpNote?: string) {
+  if (env.nodeEnv === 'production') return;
   console.log(`[DEV] OTP for ${email} (${purpose}): ${otp}`);
   if (smtpNote) console.log(`[DEV] ${smtpNote}`);
 }

@@ -107,10 +107,18 @@ export async function verifyRegistration(email: string, otp: string) {
   }
 
   const user = await prisma.$transaction(async (tx) => {
-    await tx.otpVerification.update({
-      where: { id: record.id },
+    const marked = await tx.otpVerification.updateMany({
+      where: {
+        id: record.id,
+        usedAt: null,
+        otp,
+        expiresAt: { gt: new Date() },
+      },
       data: { usedAt: new Date() },
     });
+    if (marked.count !== 1) {
+      throw new AppError(400, 'Invalid or expired OTP');
+    }
 
     const created = await tx.user.create({
       data: {
@@ -226,16 +234,25 @@ export async function resetPassword(email: string, otp: string, newPassword: str
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.$transaction([
-    prisma.otpVerification.update({
-      where: { id: record.id },
+  await prisma.$transaction(async (tx) => {
+    const marked = await tx.otpVerification.updateMany({
+      where: {
+        id: record.id,
+        usedAt: null,
+        otp,
+        expiresAt: { gt: new Date() },
+      },
       data: { usedAt: new Date() },
-    }),
-    prisma.user.update({
+    });
+    if (marked.count !== 1) {
+      throw new AppError(400, 'Invalid or expired OTP');
+    }
+
+    await tx.user.update({
       where: { email },
       data: { passwordHash },
-    }),
-  ]);
+    });
+  });
 
   return { message: 'Password reset successful' };
 }

@@ -72,7 +72,8 @@ reportsRouter.get(
     const rows = await reportsService.exportOrders(
       branchId,
       req.query.from as string,
-      req.query.to as string
+      req.query.to as string,
+      { page: req.query.page as string, limit: req.query.limit as string }
     );
     if (req.query.format === 'csv') {
       csvResponse(res, 'orders.csv', toCsv(rows));
@@ -95,7 +96,8 @@ reportsRouter.get(
     const rows = await reportsService.exportBookings(
       branchId,
       req.query.from as string,
-      req.query.to as string
+      req.query.to as string,
+      { page: req.query.page as string, limit: req.query.limit as string }
     );
     if (req.query.format === 'csv') {
       csvResponse(res, 'bookings.csv', toCsv(rows));
@@ -115,7 +117,10 @@ reportsRouter.get(
         : req.query.branchId
           ? parseInt(req.query.branchId as string, 10)
           : undefined;
-    const rows = await reportsService.exportInventory(branchId);
+    const rows = await reportsService.exportInventory(branchId, {
+      page: req.query.page as string,
+      limit: req.query.limit as string,
+    });
     if (req.query.format === 'csv') {
       csvResponse(res, 'inventory.csv', toCsv(rows));
       return;
@@ -133,11 +138,11 @@ reportsRouter.get(
       res.status(403).json({ error: 'Cross-branch access denied' });
       return;
     }
-    const rows = await accountingService.getTrialBalance(branchId);
+    const trialBalance = await accountingService.getTrialBalance(branchId);
     if (req.query.format === 'csv') {
-      csvResponse(res, `trial-balance-${branchId}.csv`, toCsv(rows));
+      csvResponse(res, `trial-balance-${branchId}.csv`, toCsv(trialBalance.accounts));
       return;
     }
-    res.json(rows);
+    res.json(trialBalance);
   })
 );

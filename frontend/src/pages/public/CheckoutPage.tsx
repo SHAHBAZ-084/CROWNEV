@@ -14,6 +14,10 @@ import { MotionSection } from '../../components/public/MotionSection';
 
 const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
 
+const orderCard =
+  'rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-[var(--shadow-elevated)]';
+const orderSectionTitle = 'mb-4 font-display font-semibold text-slate-900';
+
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, total, branchId, setBranchId, clearCart } = useCart();
@@ -118,31 +122,32 @@ export default function CheckoutPage() {
   if (!user || items.length === 0) return null;
 
   return (
-    <MotionSection as="div" className="mx-auto max-w-3xl px-4 py-12 lg:px-8">
-      <h1 className="font-display text-3xl font-bold text-brand">Checkout</h1>
-      <p className="mt-1 text-sm text-text-muted">Review your order and complete payment</p>
+    <div className="min-h-full w-full bg-slate-50">
+      <MotionSection as="div" className="mx-auto max-w-3xl px-4 py-12 lg:px-8">
+      <h1 className="font-display text-3xl font-bold text-slate-900">Checkout</h1>
+      <p className="mt-1 text-sm text-slate-500">Review your order and complete payment</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
-          <h2 className="mb-4 font-semibold text-brand">1. Order Summary</h2>
+        <section className={orderCard}>
+          <h2 className={orderSectionTitle}>1. Order Summary</h2>
           <ul className="space-y-3">
             {items.map((i) => (
-              <li key={`${i.productId}-${i.color ?? ''}`} className="flex justify-between text-sm">
+              <li key={`${i.productId}-${i.color ?? ''}`} className="flex justify-between text-sm text-slate-700">
                 <span>
                   {i.name} × {i.quantity}
-                  {i.color && <span className="text-text-muted"> ({i.color})</span>}
+                  {i.color && <span className="text-slate-500"> ({i.color})</span>}
                 </span>
-                <span className="tabular-nums">{formatPKR(i.price * i.quantity)}</span>
+                <span className="tabular-nums text-slate-900">{formatPKR(i.price * i.quantity)}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-4 border-t border-border pt-4 font-display text-xl font-bold text-brand tabular-nums">
+          <p className="mt-4 border-t border-slate-200 pt-4 font-display text-xl font-bold tabular-nums text-slate-900">
             Total: {formatPKR(total)}
           </p>
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
-          <h2 className="mb-4 font-semibold text-brand">2. Select Branch</h2>
+        <section className={orderCard}>
+          <h2 className={orderSectionTitle}>2. Select Branch</h2>
           <Select
             label="Fulfillment Branch"
             value={branchId ?? ''}
@@ -155,12 +160,12 @@ export default function CheckoutPage() {
             ))}
           </Select>
           {selectedBranch && (
-            <p className="mt-2 text-xs text-text-muted">Phone: {selectedBranch.phone}</p>
+            <p className="mt-2 text-xs text-slate-500">Phone: {selectedBranch.phone}</p>
           )}
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
-          <h2 className="mb-4 font-semibold text-brand">3. Customer Details</h2>
+        <section className={orderCard}>
+          <h2 className={orderSectionTitle}>3. Customer Details</h2>
           <div className="space-y-4">
             <Input label="Full Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
             <Input label="Phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} required />
@@ -168,25 +173,25 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <section className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)]">
-          <h2 className="mb-4 font-semibold text-brand">4. Payment</h2>
+        <section className={orderCard}>
+          <h2 className={orderSectionTitle}>4. Payment</h2>
 
           {!branchId ? (
-            <p className="text-sm text-text-muted">Select a branch to see payment details.</p>
+            <p className="text-sm text-slate-500">Select a branch to see payment details.</p>
           ) : channels.length === 0 ? (
             <p className="text-sm text-warning">No payment accounts set up for this branch yet. Please choose another branch or contact the branch.</p>
           ) : (
-            <div className="space-y-3 rounded-xl bg-surface-alt p-4 text-sm">
-              <p className="font-medium text-brand">Pay {formatPKR(total)} to:</p>
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+              <p className="font-medium text-slate-900">Pay {formatPKR(total)} to:</p>
               <ul className="space-y-2">
                 {channels.map((ch) => (
-                  <li key={ch.id} className="rounded-lg border border-border/60 bg-surface-alt px-3 py-2">
-                    <span className="text-xs font-semibold uppercase text-text-muted">
+                  <li key={ch.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <span className="text-xs font-semibold uppercase text-slate-500">
                       {ch.type === 'WALLET' ? 'Wallet' : 'Bank'}
                     </span>
-                    <p className="font-medium">{ch.name}</p>
-                    {ch.accountTitle && <p className="text-text-muted">{ch.accountTitle}</p>}
-                    <p className="font-mono text-brand">{ch.accountNumber}</p>
+                    <p className="font-medium text-slate-900">{ch.name}</p>
+                    {ch.accountTitle && <p className="text-slate-500">{ch.accountTitle}</p>}
+                    <p className="font-mono text-orange-500">{ch.accountNumber}</p>
                   </li>
                 ))}
               </ul>
@@ -201,7 +206,7 @@ export default function CheckoutPage() {
               placeholder="Paste your bank/wallet transaction ID"
               required
             />
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-brand">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-orange-500 hover:text-orange-600">
               <Upload className="h-4 w-4" />
               Upload payment screenshot *
               <input
@@ -212,17 +217,17 @@ export default function CheckoutPage() {
                 onChange={(e) => handleScreenshot(e.target.files?.[0] ?? null)}
               />
             </label>
-            {uploading && <p className="text-xs text-text-muted">Uploading…</p>}
+            {uploading && <p className="text-xs text-slate-500">Uploading…</p>}
             {screenshotUrl && (
               <img
                 src={`${BASE}${screenshotUrl}`}
                 alt="Payment proof"
-                className="max-h-36 rounded-lg border border-border object-contain"
+                className="max-h-36 rounded-lg border border-slate-200 object-contain"
               />
             )}
           </div>
 
-          <p className="mt-3 text-xs text-text-muted italic">
+          <p className="mt-3 text-xs italic text-slate-500">
             Cash only? Visit your nearest Crown EV branch to buy in person.
           </p>
         </section>
@@ -241,9 +246,10 @@ export default function CheckoutPage() {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-text-muted">
-        <Link to="/shop" className="text-brand-light hover:underline">← Continue shopping</Link>
+      <p className="mt-4 text-center text-sm text-slate-500">
+        <Link to="/shop" className="text-orange-500 hover:text-orange-600 hover:underline">← Continue shopping</Link>
       </p>
     </MotionSection>
+    </div>
   );
 }

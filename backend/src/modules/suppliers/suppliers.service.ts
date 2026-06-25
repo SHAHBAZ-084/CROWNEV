@@ -3,6 +3,12 @@ import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { addStockInTx } from '../inventory/inventory.service.js';
 import {
+  createChassisRecordsInTx,
+  normalizeChassisNumber,
+  validateBikePurchaseChassis,
+  validateChassisNumbersAvailable,
+} from '../chassis/chassis.service.js';
+import {
   createVoucherInTx,
   ensureInventoryAccount,
   ensureSupplierAccount,
@@ -164,7 +170,7 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
 
 async function validatePurchaseItems(
   branchId: number,
-  items: { productId: string; quantity: number; unitCost: number }[],
+  items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[],
 ) {
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
@@ -185,6 +191,7 @@ async function validatePurchaseItems(
     quantity: number;
     unitCost: number;
     total: number;
+    chassisNumbers?: string[];
     product: (typeof products)[number];
   }[] = [];
 
@@ -196,6 +203,8 @@ async function validatePurchaseItems(
     if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) {
       throw new AppError(400, `Product "${product.name}" cannot be purchased`);
     }
+
+    validateBikePurchaseChassis(product.type, item.quantity, item.chassisNumbers);
 
     const unitCost = Number(item.unitCost);
     if (!Number.isFinite(unitCost) || unitCost <= 0) {
@@ -213,6 +222,7 @@ async function validatePurchaseItems(
       quantity: item.quantity,
       unitCost,
       total: unitCost * item.quantity,
+      chassisNumbers: item.chassisNumbers?.map(normalizeChassisNumber),
       product,
     });
   }
@@ -226,7 +236,7 @@ export async function createPurchaseInvoice(data: {
   reference: string;
   notes?: string;
   createdById: string;
-  items: { productId: string; quantity: number; unitCost: number }[];
+  items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
 }) {
   const supplier = await prisma.supplier.findFirst({
     where: { id: data.supplierId, branchId: data.branchId, isActive: true },
@@ -244,6 +254,11 @@ export async function createPurchaseInvoice(data: {
   const pricedItems = await validatePurchaseItems(data.branchId, data.items);
   const total = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (total <= 0) throw new AppError(400, 'Purchase total must be greater than zero');
+
+  const allChassis = pricedItems.flatMap((i) => i.chassisNumbers ?? []);
+  if (allChassis.length > 0) {
+    await validateChassisNumbersAvailable(allChassis);
+  }
 
   return prisma.$transaction(async (tx) => {
     const purchase = await tx.purchase.create({
@@ -264,6 +279,18 @@ export async function createPurchaseInvoice(data: {
       },
       include: { items: true, supplier: true },
     });
+
+    const bikeChassisRecords = pricedItems
+      .filter((i) => i.product.type === ProductType.BIKE && i.chassisNumbers?.length)
+      .map((i) => ({ productId: i.productId, chassisNumbers: i.chassisNumbers! }));
+
+    if (bikeChassisRecords.length > 0) {
+      await createChassisRecordsInTx(tx, {
+        branchId: data.branchId,
+        purchaseId: purchase.id,
+        records: bikeChassisRecords,
+      });
+    }
 
     const partItems = pricedItems
       .filter((i) => i.partId)

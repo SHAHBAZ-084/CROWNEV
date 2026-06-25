@@ -16,7 +16,7 @@ partsRouter.get(
     const result = await partsService.listParts({
       page: req.query.page as string,
       limit: req.query.limit as string,
-      search: req.query.search as string,
+      search: typeof req.query.search === 'string' ? req.query.search.slice(0, 500) : undefined,
     });
     res.json(result);
   })
@@ -52,7 +52,16 @@ partsRouter.post(
 partsRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN),
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      itemCode: z.string().min(1).max(64).optional(),
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(2000).optional(),
+      costPrice: z.number().nonnegative().optional(),
+      alertAt: z.number().int().nonnegative().optional(),
+      isActive: z.boolean().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const part = await partsService.updatePart(parseInt(param(req.params.id), 10), req.body);
     res.json(part);

@@ -60,7 +60,7 @@ function SidebarNavLink({
         }`
       }
     >
-      <item.icon className="h-5 w-5 shrink-0 text-orange-500 transition-colors group-hover:text-orange-600" />
+      <item.icon className="h-4 w-4 shrink-0 text-orange-500 transition-colors group-hover:text-orange-600" />
       <span className="truncate">{item.label}</span>
     </NavLink>
   );
@@ -113,7 +113,7 @@ export function DashboardSidebar({
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="relative flex flex-col items-center border-b border-slate-200 bg-white px-5 pb-5 pt-6 text-center">
+      <div className="relative flex flex-col items-center border-b border-slate-200 bg-white px-5 pb-6 pt-7 text-center">
         <button
           type="button"
           onClick={onNavigate}
@@ -179,7 +179,7 @@ export function DashboardSidebar({
             onClick={onSignOut}
             className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-orange-500"
           >
-            <LogOut className="h-5 w-5 text-orange-500" />
+            <LogOut className="h-4 w-4 text-orange-500" />
             Sign out
           </button>
         </div>

@@ -58,7 +58,17 @@ servicesRouter.post(
 servicesRouter.patch(
   '/:branchId/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(2000).optional(),
+      basePrice: z.number().nonnegative().optional(),
+      duration: z.number().int().positive().optional(),
+      categoryId: z.number().int().optional(),
+      checklist: z.record(z.unknown()).optional(),
+      isActive: z.boolean().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {

@@ -43,7 +43,7 @@ export default function TrackOrderPage() {
   }
 
   return (
-    <div>
+    <div className="bg-slate-50">
       <PageHero
         page="trackOrder"
         title="Track Order"
@@ -67,45 +67,45 @@ export default function TrackOrderPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rounded-[var(--radius-card)] border border-border bg-surface-alt p-6 shadow-[var(--shadow-card)] space-y-6"
+            className="space-y-6 rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-[var(--shadow-elevated)]"
           >
             <div className="flex items-center justify-between">
-              <p className="font-mono text-sm text-brand-light">{order.trackingId}</p>
+              <p className="font-mono text-sm text-orange-500">{order.trackingId}</p>
               <StatusBadge status={order.status} />
             </div>
 
             <OrderStatusTimeline status={order.status} />
 
-            {order.cargoTrackingId && (
-              <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
-                <div className="flex items-center gap-2 text-accent">
+            {order.biltyTrackingId && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                <div className="flex items-center gap-2 text-orange-600">
                   <Package className="h-5 w-5" />
-                  <span className="font-semibold">Cargo Tracking</span>
+                  <span className="font-semibold">Bilty Tracking</span>
                 </div>
-                <p className="mt-2 font-mono text-lg font-bold">{order.cargoTrackingId}</p>
-                <p className="mt-1 text-xs text-text-muted">
+                <p className="mt-2 font-mono text-lg font-bold text-slate-900">{order.biltyTrackingId}</p>
+                <p className="mt-1 text-xs text-slate-500">
                   Use this number to track your shipment with the courier.
                 </p>
               </div>
             )}
 
-            <p className="font-display text-2xl font-bold tabular-nums text-brand">{formatPKR(Number(order.total))}</p>
-            <p className="text-sm text-text-muted">Placed {formatDate(order.createdAt)}</p>
+            <p className="font-display text-2xl font-bold tabular-nums text-slate-900">{formatPKR(Number(order.total))}</p>
+            <p className="text-sm text-slate-500">Placed {formatDate(order.createdAt)}</p>
 
             {order.branch && (
-              <div className="rounded-lg bg-surface-alt p-3 text-sm">
-                <p className="font-medium">{order.branch.name}</p>
-                <p className="text-text-muted">{order.branch.location}</p>
-                <p className="text-text-muted">Phone: {order.branch.phone}</p>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                <p className="font-medium text-slate-900">{order.branch.name}</p>
+                <p className="text-slate-500">{order.branch.location}</p>
+                <p className="text-slate-500">Phone: {order.branch.phone}</p>
               </div>
             )}
 
             {order.items && order.items.length > 0 && (
               <div>
-                <p className="mb-2 text-sm font-medium">Items</p>
+                <p className="mb-2 text-sm font-medium text-slate-900">Items</p>
                 <ul className="space-y-1 text-sm">
                   {order.items.map((item, i) => (
-                    <li key={i} className="flex justify-between border-b border-border/30 py-1">
+                    <li key={i} className="flex justify-between border-b border-slate-200 py-1 text-slate-700">
                       <span>{item.product?.name ?? 'Item'} ×{item.quantity}</span>
                     </li>
                   ))}

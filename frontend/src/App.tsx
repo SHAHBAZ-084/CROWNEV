@@ -28,6 +28,7 @@ const BookServicePage = lazy(() => import('./pages/public/BookServicePage'));
 const AboutPage = lazyNamed(() => import('./pages/public/StaticPages'), 'AboutPage');
 const PrivacyPage = lazyNamed(() => import('./pages/public/StaticPages'), 'PrivacyPage');
 const TermsPage = lazyNamed(() => import('./pages/public/StaticPages'), 'TermsPage');
+const FAQPage = lazyNamed(() => import('./pages/public/StaticPages'), 'FAQPage');
 const NotFoundPage = lazyNamed(() => import('./pages/public/StaticPages'), 'NotFoundPage');
 const UnauthorizedPage = lazyNamed(() => import('./pages/public/StaticPages'), 'UnauthorizedPage');
 
@@ -108,6 +109,7 @@ export default function App() {
               <Route path="/about" element={<PublicWrap><AboutPage /></PublicWrap>} />
               <Route path="/privacy" element={<PublicWrap><PrivacyPage /></PublicWrap>} />
               <Route path="/terms" element={<PublicWrap><TermsPage /></PublicWrap>} />
+              <Route path="/faq" element={<PublicWrap><FAQPage /></PublicWrap>} />
               <Route path="/book-service" element={<PublicWrap><BookServicePage /></PublicWrap>} />
               <Route path="/checkout" element={<PublicWrap><CheckoutPage /></PublicWrap>} />
 

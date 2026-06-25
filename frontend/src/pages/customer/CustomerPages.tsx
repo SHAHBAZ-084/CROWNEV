@@ -216,40 +216,40 @@ export function CustomerOrdersPage() {
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${detail?.trackingId}`} size="lg">
         {detail && (
-          <div className="space-y-5 text-sm">
-            <p className="font-mono text-lg font-bold text-brand">{detail.trackingId}</p>
+          <div className="space-y-5 text-sm text-slate-700">
+            <p className="font-mono text-lg font-bold text-slate-900">{detail.trackingId}</p>
             <OrderStatusTimeline status={detail.status} />
-            {detail.cargoTrackingId && (
-              <div className="rounded-xl border border-accent/30 bg-accent/5 p-4">
-                <p className="text-xs font-semibold uppercase text-accent">Your cargo tracking</p>
-                <p className="mt-1 font-mono text-lg font-bold">{detail.cargoTrackingId}</p>
-                <p className="mt-1 text-xs text-text-muted">Use this number to track your shipment with the courier.</p>
+            {detail.biltyTrackingId && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                <p className="text-xs font-semibold uppercase text-orange-600">Your bilty tracking</p>
+                <p className="mt-1 font-mono text-lg font-bold text-slate-900">{detail.biltyTrackingId}</p>
+                <p className="mt-1 text-xs text-slate-500">Use this number to track your shipment with the courier.</p>
               </div>
             )}
             <div className="grid gap-2 sm:grid-cols-2">
-              <p><span className="text-text-muted">Payment:</span> {detail.paymentMethod} ({detail.paymentStatus})</p>
+              <p><span className="text-slate-500">Payment:</span> {detail.paymentMethod} ({detail.paymentStatus})</p>
               {detail.paymentTransactionId && (
-                <p><span className="text-text-muted">TID:</span> <span className="font-mono">{detail.paymentTransactionId}</span></p>
+                <p><span className="text-slate-500">TID:</span> <span className="font-mono">{detail.paymentTransactionId}</span></p>
               )}
-              <p><span className="text-text-muted">Total:</span> {formatPKR(Number(detail.total))}</p>
+              <p><span className="text-slate-500">Total:</span> {formatPKR(Number(detail.total))}</p>
               {detail.branch && (
                 <>
-                  <p><span className="text-text-muted">Branch:</span> {detail.branch.name}</p>
-                  <p><span className="text-text-muted">Phone:</span> {detail.branch.phone ?? ''}</p>
+                  <p><span className="text-slate-500">Branch:</span> {detail.branch.name}</p>
+                  <p><span className="text-slate-500">Phone:</span> {detail.branch.phone ?? ''}</p>
                 </>
               )}
             </div>
             {detail.items && (
               <div>
-                <p className="mb-2 font-medium">Items</p>
+                <p className="mb-2 font-medium text-slate-900">Items</p>
                 <ul className="space-y-2">
                   {detail.items.map((item, i) => (
-                    <li key={i} className="flex justify-between border-b border-border/40 py-2">
+                    <li key={i} className="flex justify-between border-b border-slate-200 py-2">
                       <span>
                         {item.product?.name ?? 'Product'} ×{item.quantity}
-                        {item.chassisNumber && <span className="block text-xs text-text-muted">Chassis: {item.chassisNumber}</span>}
+                        {item.chassisNumber && <span className="block text-xs text-slate-500">Chassis: {item.chassisNumber}</span>}
                       </span>
-                      <span>{formatPKR(Number(item.total))}</span>
+                      <span className="tabular-nums text-slate-900">{formatPKR(Number(item.total))}</span>
                     </li>
                   ))}
                 </ul>

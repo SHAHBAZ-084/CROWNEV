@@ -32,8 +32,8 @@ export function ProductImageGallery({
 
   if (!sorted.length) {
     return (
-      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-surface-alt">
-        <Zap className="h-24 w-24 text-brand/20" />
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+        <Zap className="h-24 w-24 text-orange-200" />
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function ProductImageGallery({
 
   return (
     <div className="space-y-3">
-      <div className="group relative aspect-square overflow-hidden rounded-2xl border border-border/60 bg-surface-alt shadow-[var(--shadow-card)]">
+      <div className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-card)]">
         <AnimatePresence mode="wait" initial={false}>
           <motion.img
             key={current.url}
@@ -71,7 +71,7 @@ export function ProductImageGallery({
               type="button"
               onClick={goPrev}
               aria-label="Previous image"
-              className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-surface-alt/90 text-brand opacity-0 shadow-md backdrop-blur-sm transition-all hover:bg-surface-alt group-hover:opacity-100 focus:opacity-100"
+              className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 opacity-0 shadow-md backdrop-blur-sm transition-all hover:bg-white group-hover:opacity-100 focus:opacity-100"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -79,7 +79,7 @@ export function ProductImageGallery({
               type="button"
               onClick={goNext}
               aria-label="Next image"
-              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-surface-alt/90 text-brand opacity-0 shadow-md backdrop-blur-sm transition-all hover:bg-surface-alt group-hover:opacity-100 focus:opacity-100"
+              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 opacity-0 shadow-md backdrop-blur-sm transition-all hover:bg-white group-hover:opacity-100 focus:opacity-100"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -103,8 +103,8 @@ export function ProductImageGallery({
                 aria-current={selected}
                 className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
                   selected
-                    ? 'border-accent ring-2 ring-accent/25 shadow-[var(--shadow-card)]'
-                    : 'border-border/70 opacity-75 hover:border-accent/40 hover:opacity-100'
+                    ? 'border-orange-500 ring-2 ring-orange-500/25 shadow-[var(--shadow-card)]'
+                    : 'border-slate-200 opacity-75 hover:border-orange-300 hover:opacity-100'
                 }`}
               >
                 <img src={img.url} alt="" className="h-full w-full object-cover" />

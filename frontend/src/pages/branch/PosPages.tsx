@@ -384,6 +384,8 @@ export function PosCustomersPage() {
   const [customers, setCustomers] = useState<Row[]>([]);
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cnic, setCnic] = useState('');
+  const [cnicError, setCnicError] = useState('');
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -392,23 +394,59 @@ export function PosCustomersPage() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  function normalizeCnic(value: string) {
+    return value.replace(/\D/g, '');
+  }
+
+  function validateCnic(value: string): string | null {
+    const digits = normalizeCnic(value);
+    if (!digits) return 'CNIC is required';
+    if (digits.length !== 13 || !/^\d+$/.test(digits)) return 'CNIC must be 13 digits';
+    return null;
+  }
+
+  function openModal() {
+    setCnic('');
+    setCnicError('');
+    setModal(true);
+  }
+
+  function closeModal() {
+    setModal(false);
+    setCnic('');
+    setCnicError('');
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!branchId) return;
+
+    const validationError = validateCnic(cnic);
+    if (validationError) {
+      setCnicError(validationError);
+      return;
+    }
+
     const fd = new FormData(e.currentTarget);
     setSaving(true);
+    setCnicError('');
     try {
       await branchApi.createWalkInCustomer(branchId, {
         name: String(fd.get('name')),
         phone: String(fd.get('phone') || '') || undefined,
-        cnic: String(fd.get('cnic') || '') || undefined,
+        cnic: normalizeCnic(cnic),
         address: String(fd.get('address') || '') || undefined,
       });
       toast('Customer added', 'success');
-      setModal(false);
+      closeModal();
       reload();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
+      const message = err instanceof Error ? err.message : 'Failed';
+      if (message === 'A customer with this CNIC already exists.') {
+        setCnicError('This CNIC is already registered.');
+      } else {
+        toast(message, 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -429,7 +467,7 @@ export function PosCustomersPage() {
 
   return (
     <div>
-      <PageHeader title="Customers" subtitle="Walk-in and online customers (same database)" action={<Button variant="accent" onClick={() => setModal(true)}>Add Customer</Button>} />
+      <PageHeader title="Customers" subtitle="Walk-in and online customers (same database)" action={<Button variant="accent" onClick={openModal}>Add Customer</Button>} />
       <DataTable
         columns={entityTableColumns(
           {
@@ -444,13 +482,29 @@ export function PosCustomersPage() {
         emptyMessage="No customers yet"
       />
       {customerDelete.modal}
-      <Modal open={modal} onClose={() => setModal(false)} title="Add Customer">
+      <Modal open={modal} onClose={closeModal} title="Add Customer">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="name" label="Full Name" required />
           <Input name="phone" label="Phone" />
-          <Input name="cnic" label="CNIC" placeholder="12345-1234567-1" />
+          <Input
+            name="cnic"
+            label="CNIC"
+            placeholder="1234567890123"
+            inputMode="numeric"
+            required
+            value={cnic}
+            onChange={(e) => {
+              setCnic(e.target.value);
+              if (cnicError) setCnicError('');
+            }}
+            onBlur={() => {
+              const validationError = validateCnic(cnic);
+              if (validationError && normalizeCnic(cnic)) setCnicError(validationError);
+            }}
+            error={cnicError}
+          />
           <Input name="address" label="Address" />
-          <FormActions onCancel={() => setModal(false)} loading={saving} />
+          <FormActions onCancel={closeModal} loading={saving} />
         </form>
       </Modal>
       <WorkspaceCloseBar className="mt-8" />
@@ -554,10 +608,17 @@ type SaleLine = {
   productId: string;
   quantity: number;
   unitPrice?: number;
+  bikeChassisNumberId?: number;
 };
 
 function newSaleLine(): SaleLine {
   return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
+}
+
+function resizeChassisNumbers(current: string[] | undefined, qty: number): string[] {
+  const next = [...(current ?? [])];
+  while (next.length < qty) next.push('');
+  return next.slice(0, qty);
 }
 
 type PurchaseLine = {
@@ -565,6 +626,7 @@ type PurchaseLine = {
   productId: string;
   quantity: number;
   unitCost?: number;
+  chassisNumbers?: string[];
 };
 
 function newPurchaseLine(): PurchaseLine {
@@ -591,6 +653,7 @@ export function PosSaleInvoicePage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [chassisOptions, setChassisOptions] = useState<Record<string, { id: number; chassisNumber: string }[]>>({});
 
   const reloadOrders = useCallback(() => {
     if (!branchId) return;
@@ -611,14 +674,21 @@ export function PosSaleInvoicePage() {
       setCustomerLedger(null);
       return;
     }
+    let cancelled = false;
     setLoadingLedger(true);
     branchApi.customerLedger(branchId, parseInt(customerId, 10))
-      .then(setCustomerLedger)
+      .then((data) => {
+        if (!cancelled) setCustomerLedger(data);
+      })
       .catch((err) => {
+        if (cancelled) return;
         toast(err instanceof Error ? err.message : 'Failed to load customer ledger', 'error');
         setCustomerLedger(null);
       })
-      .finally(() => setLoadingLedger(false));
+      .finally(() => {
+        if (!cancelled) setLoadingLedger(false);
+      });
+    return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
 
   const customerOptions: SearchSelectOption[] = useMemo(
@@ -659,7 +729,22 @@ export function PosSaleInvoicePage() {
 
   function selectProductForLine(lineKey: string, productId: string) {
     if (!productId) {
-      updateLine(lineKey, { productId: '', unitPrice: undefined });
+      updateLine(lineKey, { productId: '', unitPrice: undefined, bikeChassisNumberId: undefined });
+      setChassisOptions((prev) => {
+        const next = { ...prev };
+        delete next[lineKey];
+        return next;
+      });
+      return;
+    }
+    const product = productById.get(productId);
+    if (product?.type === 'BIKE') {
+      updateLine(lineKey, { productId, unitPrice: product.unitPrice, quantity: 1, bikeChassisNumberId: undefined });
+      if (branchId) {
+        branchApi.availableChassis(branchId, productId)
+          .then((opts) => setChassisOptions((prev) => ({ ...prev, [lineKey]: opts })))
+          .catch(console.error);
+      }
       return;
     }
     const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
@@ -667,16 +752,18 @@ export function PosSaleInvoicePage() {
       toast('Product is already selected', 'error');
       return;
     }
-    const product = productById.get(productId);
-    updateLine(lineKey, { productId, unitPrice: product?.unitPrice });
+    updateLine(lineKey, { productId, unitPrice: product?.unitPrice, bikeChassisNumberId: undefined });
   }
 
   function productOptionsForLine(lineKey: string): SearchSelectOption[] {
-    const selectedElsewhere = new Set(
-      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    const selectedPartIds = new Set(
+      lines
+        .filter((l) => l.key !== lineKey && l.productId)
+        .map((l) => l.productId)
+        .filter((id) => productById.get(id)?.type === 'PART'),
     );
     return products
-      .filter((p) => !selectedElsewhere.has(p.id))
+      .filter((p) => p.type === 'BIKE' || !selectedPartIds.has(p.id))
       .map((p) => ({
         value: p.id,
         label: `${p.name} [${p.type}]`,
@@ -684,7 +771,14 @@ export function PosSaleInvoicePage() {
   }
 
   function updateLine(key: string, patch: Partial<SaleLine>) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    setLines((prev) => prev.map((l) => {
+      if (l.key !== key) return l;
+      const next = { ...l, ...patch };
+      if (productById.get(next.productId)?.type === 'BIKE' && patch.quantity !== undefined) {
+        next.quantity = 1;
+      }
+      return next;
+    }));
   }
 
   function removeLine(key: string) {
@@ -708,18 +802,26 @@ export function PosSaleInvoicePage() {
         productId: l.productId,
         quantity: l.qty,
         unitPrice: Number(l.unitPrice),
+        ...(l.product?.type === 'BIKE' && l.bikeChassisNumberId
+          ? { bikeChassisNumberId: l.bikeChassisNumberId }
+          : {}),
       }));
     if (items.length === 0) {
       toast('Add at least one product', 'error');
       return;
     }
-    if (new Set(items.map((i) => i.productId)).size !== items.length) {
-      toast('Product is already selected', 'error');
-      return;
-    }
     for (const l of lineDetails) {
       if (!l.product) continue;
-      if (l.qty > l.maxQty) {
+      if (l.product.type === 'BIKE') {
+        if (!l.bikeChassisNumberId) {
+          toast(`Select a chassis number for ${l.product.name}`, 'error');
+          return;
+        }
+        if (l.qty !== 1) {
+          toast('Bike quantity must be 1 per line', 'error');
+          return;
+        }
+      } else if (l.qty > l.maxQty) {
         toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty}`, 'error');
         return;
       }
@@ -727,6 +829,11 @@ export function PosSaleInvoicePage() {
         toast(`Enter a valid price for ${l.product.name}`, 'error');
         return;
       }
+    }
+    const chassisIds = lineDetails.map((l) => l.bikeChassisNumberId).filter(Boolean);
+    if (new Set(chassisIds).size !== chassisIds.length) {
+      toast('Duplicate chassis selection', 'error');
+      return;
     }
     setSaving(true);
     try {
@@ -807,7 +914,8 @@ export function PosSaleInvoicePage() {
 
         <div className="space-y-3">
           {lineDetails.map((line) => (
-            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+            <div key={line.key} className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <SearchSelect
                 label="Product"
                 value={line.productId}
@@ -828,8 +936,9 @@ export function PosSaleInvoicePage() {
                 label="Qty"
                 type="number"
                 min={1}
-                max={line.maxQty || undefined}
-                value={line.qty}
+                max={line.product?.type === 'BIKE' ? 1 : line.maxQty || undefined}
+                value={line.product?.type === 'BIKE' ? 1 : line.qty}
+                disabled={line.product?.type === 'BIKE'}
                 onChange={(e) => updateLine(line.key, { quantity: parseInt(e.target.value, 10) || 1 })}
               />
               <div>
@@ -852,6 +961,23 @@ export function PosSaleInvoicePage() {
               >
                 <Trash2 className="h-4 w-4 text-red-600" />
               </Button>
+              </div>
+              {line.product?.type === 'BIKE' && (
+                <SearchSelect
+                  label="Chassis number (in stock)"
+                  value={line.bikeChassisNumberId ? String(line.bikeChassisNumberId) : ''}
+                  onChange={(id) => updateLine(line.key, { bikeChassisNumberId: id ? parseInt(id, 10) : undefined })}
+                  options={(chassisOptions[line.key] ?? []).map((c) => ({
+                    value: String(c.id),
+                    label: c.chassisNumber,
+                  }))}
+                  placeholder={
+                    (chassisOptions[line.key]?.length ?? 0) === 0
+                      ? 'No chassis in stock for this model'
+                      : 'Search chassis…'
+                  }
+                />
+              )}
             </div>
           ))}
         </div>
@@ -1038,7 +1164,7 @@ export function PosPurchaseInvoicePage() {
 
   function selectProductForLine(lineKey: string, productId: string) {
     if (!productId) {
-      updateLine(lineKey, { productId: '', unitCost: undefined });
+      updateLine(lineKey, { productId: '', unitCost: undefined, chassisNumbers: undefined });
       return;
     }
     const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
@@ -1046,7 +1172,13 @@ export function PosPurchaseInvoicePage() {
       toast('Product is already selected', 'error');
       return;
     }
-    updateLine(lineKey, { productId, unitCost: undefined });
+    const product = productById.get(productId);
+    const qty = lines.find((l) => l.key === lineKey)?.quantity ?? 1;
+    updateLine(lineKey, {
+      productId,
+      unitCost: undefined,
+      chassisNumbers: product?.type === 'BIKE' ? resizeChassisNumbers(undefined, Math.max(1, qty)) : undefined,
+    });
   }
 
   function productOptionsForLine(lineKey: string): SearchSelectOption[] {
@@ -1059,7 +1191,28 @@ export function PosPurchaseInvoicePage() {
   }
 
   function updateLine(key: string, patch: Partial<PurchaseLine>) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+    setLines((prev) => prev.map((l) => {
+      if (l.key !== key) return l;
+      const next = { ...l, ...patch };
+      const product = productById.get(next.productId);
+      if (product?.type === 'BIKE') {
+        if (patch.quantity !== undefined) {
+          next.chassisNumbers = resizeChassisNumbers(next.chassisNumbers, Math.max(1, next.quantity));
+        }
+      } else {
+        next.chassisNumbers = undefined;
+      }
+      return next;
+    }));
+  }
+
+  function updateChassisNumber(lineKey: string, index: number, value: string) {
+    setLines((prev) => prev.map((l) => {
+      if (l.key !== lineKey) return l;
+      const nums = resizeChassisNumbers(l.chassisNumbers, l.quantity);
+      nums[index] = value;
+      return { ...l, chassisNumbers: nums };
+    }));
   }
 
   function removeLine(key: string) {
@@ -1077,12 +1230,43 @@ export function PosPurchaseInvoicePage() {
       toast('Enter a reference number', 'error');
       return;
     }
+    for (const l of lineDetails) {
+      if (!l.product) continue;
+      if (l.product.type === 'BIKE') {
+        const nums = (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean);
+        if (nums.length !== l.qty) {
+          toast(`Enter all ${l.qty} chassis numbers for ${l.product.name}`, 'error');
+          return;
+        }
+        const normalized = nums.map((n) => n.toUpperCase());
+        if (new Set(normalized).size !== normalized.length) {
+          toast('Duplicate chassis numbers on this invoice', 'error');
+          return;
+        }
+      }
+    }
+    const allChassis = lineDetails.flatMap((l) =>
+      l.product?.type === 'BIKE'
+        ? (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean)
+        : [],
+    );
+    if (allChassis.length > 0) {
+      try {
+        await branchApi.validateChassisNumbers(branchId, allChassis);
+      } catch (err) {
+        toast(err instanceof Error ? err.message : 'Chassis validation failed', 'error');
+        return;
+      }
+    }
     const items = lineDetails
       .filter((l) => l.product)
       .map((l) => ({
         productId: l.productId,
         quantity: l.qty,
         unitCost: Number(l.unitCost),
+        ...(l.product?.type === 'BIKE'
+          ? { chassisNumbers: (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean) }
+          : {}),
       }));
     if (items.length === 0) {
       toast('Add at least one product', 'error');
@@ -1178,7 +1362,8 @@ export function PosPurchaseInvoicePage() {
 
         <div className="space-y-3">
           {lineDetails.map((line) => (
-            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+            <div key={line.key} className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <SearchSelect
                 label="Product"
                 value={line.productId}
@@ -1220,6 +1405,21 @@ export function PosPurchaseInvoicePage() {
               >
                 <Trash2 className="h-4 w-4 text-red-600" />
               </Button>
+              </div>
+              {line.product?.type === 'BIKE' && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {resizeChassisNumbers(line.chassisNumbers, line.qty).map((num, idx) => (
+                    <Input
+                      key={`${line.key}-chassis-${idx}`}
+                      label={`Chassis #${idx + 1}`}
+                      value={num}
+                      required
+                      placeholder="Unique chassis number"
+                      onChange={(e) => updateChassisNumber(line.key, idx, e.target.value)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1360,14 +1560,21 @@ export function PosServiceInvoicePage() {
       setCustomerLedger(null);
       return;
     }
+    let cancelled = false;
     setLoadingLedger(true);
     branchApi.customerLedger(branchId, parseInt(customerId, 10))
-      .then(setCustomerLedger)
+      .then((data) => {
+        if (!cancelled) setCustomerLedger(data);
+      })
       .catch((err) => {
+        if (cancelled) return;
         toast(err instanceof Error ? err.message : 'Failed to load customer ledger', 'error');
         setCustomerLedger(null);
       })
-      .finally(() => setLoadingLedger(false));
+      .finally(() => {
+        if (!cancelled) setLoadingLedger(false);
+      });
+    return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
 
   const customerOptions: SearchSelectOption[] = useMemo(

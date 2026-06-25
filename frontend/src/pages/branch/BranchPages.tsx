@@ -115,11 +115,11 @@ export function BranchOrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
   const [paymentModal, setPaymentModal] = useState<Row | null>(null);
-  const [cargoModal, setCargoModal] = useState<Row | null>(null);
+  const [biltyModal, setBiltyModal] = useState<Row | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<Row | null>(null);
   const [invoiceData, setInvoiceData] = useState<import('../../types').InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [cargoId, setCargoId] = useState('');
+  const [biltyId, setBiltyId] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -146,15 +146,15 @@ export function BranchOrdersPage() {
     }
   }
 
-  async function handleCargo(e: FormEvent) {
+  async function handleBilty(e: FormEvent) {
     e.preventDefault();
-    if (!cargoModal || !cargoId.trim()) return;
+    if (!biltyModal || !biltyId.trim()) return;
     setSaving(true);
     try {
-      await branchApi.setCargoTracking(Number(cargoModal.id), cargoId.trim());
-      toast('Cargo tracking set. Order marked delivered', 'success');
-      setCargoModal(null);
-      setCargoId('');
+      await branchApi.setBiltyTracking(Number(biltyModal.id), biltyId.trim());
+      toast('Bilty tracking set. Order marked delivered', 'success');
+      setBiltyModal(null);
+      setBiltyId('');
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -181,7 +181,7 @@ export function BranchOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Branch Orders" subtitle="Online orders — verify payment and set cargo tracking" />
+      <PageHeader title="Branch Orders" subtitle="Online orders — verify payment and set bilty tracking" />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
         <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
@@ -214,7 +214,7 @@ export function BranchOrdersPage() {
                   <Button size="sm" variant="secondary" onClick={() => setPaymentModal(r)}>Verify</Button>
                 )}
                 {r.status === 'CONFIRMED' && (
-                  <Button size="sm" variant="secondary" onClick={() => { setCargoModal(r); setCargoId(''); }}>Cargo</Button>
+                  <Button size="sm" variant="secondary" onClick={() => { setBiltyModal(r); setBiltyId(''); }}>Bilty</Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => openInvoice(r)}>Invoice</Button>
               </div>
@@ -227,15 +227,15 @@ export function BranchOrdersPage() {
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${String(detail?.trackingId ?? '')}`} size="lg">
         {detail && (
-          <div className="space-y-3 text-sm">
-            <p><span className="text-text-muted">Customer:</span> {orderRowCustomer(detail)}</p>
-            <p><span className="text-text-muted">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '')}</p>
-            <p><span className="text-text-muted">Address:</span> {String(detail.customerAddress ?? '')}</p>
-            <p><span className="text-text-muted">Status:</span> <StatusBadge status={String(detail.status)} /></p>
-            <p><span className="text-text-muted">Payment:</span> {String(detail.paymentMethod)} <StatusBadge status={String(detail.paymentStatus)} /></p>
-            <p><span className="text-text-muted">Total:</span> {formatPKR(Number(detail.total))}</p>
-            {detail.cargoTrackingId ? (
-              <p><span className="text-text-muted">Cargo:</span> {String(detail.cargoTrackingId)}</p>
+          <div className="space-y-3 text-sm text-slate-700">
+            <p><span className="text-slate-500">Customer:</span> {orderRowCustomer(detail)}</p>
+            <p><span className="text-slate-500">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '')}</p>
+            <p><span className="text-slate-500">Address:</span> {String(detail.customerAddress ?? '')}</p>
+            <p><span className="text-slate-500">Status:</span> <StatusBadge status={String(detail.status)} /></p>
+            <p><span className="text-slate-500">Payment:</span> {String(detail.paymentMethod)} <StatusBadge status={String(detail.paymentStatus)} /></p>
+            <p><span className="text-slate-500">Total:</span> {formatPKR(Number(detail.total))}</p>
+            {detail.biltyTrackingId ? (
+              <p><span className="text-slate-500">Bilty:</span> {String(detail.biltyTrackingId)}</p>
             ) : null}
           </div>
         )}
@@ -243,15 +243,15 @@ export function BranchOrdersPage() {
 
       <Modal open={!!paymentModal} onClose={() => setPaymentModal(null)} title="Verify Payment" size="lg">
         {paymentModal && (
-          <div className="space-y-4">
-            <p className="text-sm">Customer: <strong>{orderRowCustomer(paymentModal)}</strong></p>
-            <p className="text-sm">Total: <strong>{formatPKR(Number(paymentModal.total))}</strong></p>
-            <p className="text-sm">TID: <strong className="font-mono">{String(paymentModal.paymentTransactionId ?? '')}</strong></p>
+          <div className="space-y-4 text-sm text-slate-700">
+            <p>Customer: <strong className="text-slate-900">{orderRowCustomer(paymentModal)}</strong></p>
+            <p>Total: <strong className="text-slate-900">{formatPKR(Number(paymentModal.total))}</strong></p>
+            <p>TID: <strong className="font-mono text-slate-900">{String(paymentModal.paymentTransactionId ?? '')}</strong></p>
             {paymentModal.bankTransferScreenshot ? (
               <img
                 src={`${BASE}${String(paymentModal.bankTransferScreenshot)}`}
                 alt="Payment screenshot"
-                className="max-h-64 rounded-lg border border-border object-contain"
+                className="max-h-64 rounded-lg border border-slate-200 object-contain"
               />
             ) : null}
             <div className="flex gap-2">
@@ -262,19 +262,19 @@ export function BranchOrdersPage() {
         )}
       </Modal>
 
-      <Modal open={!!cargoModal} onClose={() => setCargoModal(null)} title="Set Cargo Tracking ID">
-        <form onSubmit={handleCargo} className="space-y-4">
-          <p className="text-sm text-text-muted">
-            Enter the cargo/courier tracking number (e.g. TCS, Leopard). Order will be marked as delivered.
+      <Modal open={!!biltyModal} onClose={() => setBiltyModal(null)} title="Set Bilty Tracking ID">
+        <form onSubmit={handleBilty} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Enter the bilty/courier tracking number (e.g. TCS, Leopard). Order will be marked as delivered.
           </p>
           <Input
-            label="Cargo Tracking ID"
-            value={cargoId}
-            onChange={(e) => setCargoId(e.target.value)}
+            label="Bilty Tracking ID"
+            value={biltyId}
+            onChange={(e) => setBiltyId(e.target.value)}
             placeholder="e.g. TCS-12345678"
             required
           />
-          <FormActions onCancel={() => setCargoModal(null)} loading={saving} />
+          <FormActions onCancel={() => setBiltyModal(null)} loading={saving} />
         </form>
       </Modal>
 
@@ -315,6 +315,15 @@ export function BranchInventoryPage() {
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [chassisRows, setChassisRows] = useState<{
+    id: number;
+    chassisNumber: string;
+    status: 'IN_STOCK' | 'SOLD';
+    product: { name: string };
+    purchase: { documentRef: string | null; invoiceNumber: string | null };
+    saleOrder: { saleReference: string | null; trackingId: string | null } | null;
+    saleOrderItem?: { order: { saleReference: string | null; trackingId: string | null } } | null;
+  }[]>([]);
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -327,6 +336,7 @@ export function BranchInventoryPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+    branchApi.listChassis(branchId).then(setChassisRows).catch(console.error);
   }, [branchId]);
 
   useEffect(() => {
@@ -609,6 +619,54 @@ export function BranchInventoryPage() {
           data={displayed as unknown as Row[]}
           emptyMessage="No bikes or parts selected yet. Search the catalog above to select items for your branch"
         />
+      )}
+
+      {chassisRows.length > 0 && (
+        <div className="mt-10">
+          <h2 className="mb-4 font-display text-lg font-semibold text-slate-900">Bike chassis numbers</h2>
+          <p className="mb-4 text-sm text-slate-500">
+            Each bike unit is tracked by a unique chassis number from purchase through sale.
+          </p>
+          <DataTable
+            columns={[
+              { key: 'model', header: 'Model', render: (r) => String((r as { product?: { name?: string } }).product?.name ?? '') },
+              { key: 'chassis', header: 'Chassis', render: (r) => <span className="font-mono text-sm">{String(r.chassisNumber)}</span> },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (r) => (
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    r.status === 'IN_STOCK' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {String(r.status).replace('_', ' ')}
+                  </span>
+                ),
+              },
+              {
+                key: 'purchase',
+                header: 'Purchase ref',
+                render: (r) => {
+                  const p = r.purchase as { documentRef?: string | null; invoiceNumber?: string | null };
+                  return p.documentRef ?? p.invoiceNumber ?? '—';
+                },
+              },
+              {
+                key: 'sale',
+                header: 'Sale ref',
+                render: (r) => {
+                  const s =
+                    (r.saleOrderItem as { order?: { saleReference?: string | null; trackingId?: string | null } } | null)
+                      ?.order ??
+                    (r.saleOrder as { saleReference?: string | null; trackingId?: string | null } | null);
+                  if (!s) return '—';
+                  return s.saleReference ?? s.trackingId ?? '—';
+                },
+              },
+            ]}
+            data={chassisRows as unknown as Row[]}
+            emptyMessage="No chassis numbers recorded yet"
+          />
+        </div>
       )}
 
       <Modal

@@ -6,8 +6,14 @@ import { env } from '../config/env.js';
 
 const productsDir = path.resolve(env.uploadDir, 'products');
 const branchesDir = path.resolve(env.uploadDir, 'branches');
-fs.mkdirSync(productsDir, { recursive: true });
-fs.mkdirSync(branchesDir, { recursive: true });
+
+/** Async directory bootstrap — avoids blocking sync I/O on the event loop at import time. */
+export async function ensureUploadDirectories() {
+  await Promise.all([
+    fs.promises.mkdir(productsDir, { recursive: true }),
+    fs.promises.mkdir(branchesDir, { recursive: true }),
+  ]);
+}
 
 const WEBP_QUALITY = 82;
 

@@ -3,11 +3,13 @@ import { motion } from 'framer-motion';
 import { publicApi } from '../../api/client';
 import { LegalAccordion } from '../../components/public/LegalAccordion';
 import { LegalPageLayout } from '../../components/public/LegalPageLayout';
+import { FaqView } from '../../components/public/FaqView';
 import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
 import { PageHero } from '../../components/public/PageHero';
 import { BranchCardsSection } from '../../components/public/BranchCard';
 import { COMPANY_STORY, FOUNDERS } from '../../lib/placeholders';
 import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
+import { FAQ_SECTIONS } from '../../lib/faqContent';
 import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
 import { TERMS_SECTIONS } from '../../lib/termsContent';
 import type { Branch } from '../../types';
@@ -150,6 +152,10 @@ export function TermsPage() {
       <LegalAccordion sections={TERMS_SECTIONS} />
     </LegalPageLayout>
   );
+}
+
+export function FAQPage() {
+  return <FaqView sections={FAQ_SECTIONS} />;
 }
 
 export function UnauthorizedPage() {

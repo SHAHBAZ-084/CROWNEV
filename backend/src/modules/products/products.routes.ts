@@ -217,7 +217,14 @@ productsRouter.post(
 productsRouter.patch(
   '/categories/:id',
   requireRoles(Role.ADMIN),
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      name: z.string().min(1).max(200).optional(),
+      parentId: z.number().int().optional(),
+      imageUrl: z.string().max(2048).optional(),
+      isActive: z.boolean().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const category = await productsService.updateCategory(parseInt(param(req.params.id), 10), req.body);
     res.json(category);
@@ -236,7 +243,13 @@ productsRouter.delete(
 productsRouter.patch(
   '/brands/:id',
   requireRoles(Role.ADMIN),
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      name: z.string().min(1).max(200).optional(),
+      logoUrl: z.string().max(2048).optional(),
+      isActive: z.boolean().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const brand = await productsService.updateBrand(parseInt(param(req.params.id), 10), req.body);
     res.json(brand);

@@ -11,7 +11,7 @@ export function LegalPageLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-[60vh] bg-slate-100 py-16 lg:py-24">
+    <div className="min-h-[60vh] bg-surface-alt py-16 lg:py-24">
       <div className="mx-auto max-w-4xl px-4 lg:px-8">
         <motion.header
           initial={{ opacity: 0, y: 16 }}

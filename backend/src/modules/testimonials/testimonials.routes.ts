@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Role } from '@prisma/client';
+import { Role, TestimonialStatus } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
@@ -84,7 +84,17 @@ testimonialsRouter.patch(
 
 testimonialsRouter.patch(
   '/:id',
-  validateBody(z.record(z.unknown())),
+  validateBody(
+    z.object({
+      customerName: z.string().min(1).max(200).optional(),
+      content: z.string().min(1).max(5000).optional(),
+      rating: z.number().int().min(1).max(5).optional(),
+      imageUrl: z.string().max(2048).optional(),
+      sortOrder: z.number().int().optional(),
+      status: z.nativeEnum(TestimonialStatus).optional(),
+      isActive: z.boolean().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const testimonial = await testimonialsService.updateTestimonial(parseInt(param(req.params.id), 10), req.body);
     res.json(testimonial);

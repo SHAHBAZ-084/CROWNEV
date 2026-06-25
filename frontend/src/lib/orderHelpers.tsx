@@ -13,20 +13,20 @@ export function OrderStatusTimeline({ status }: { status: string }) {
         const active = !cancelled && idx === currentIdx;
         return (
           <div key={step} className="flex flex-1 items-center gap-2">
-            <div className="flex flex-col items-center gap-1 flex-1">
+            <div className="flex flex-1 flex-col items-center gap-1">
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                  done ? 'bg-success text-white' : 'bg-surface-alt text-text-muted'
+                  done ? 'bg-success text-white' : 'bg-slate-200 text-slate-500'
                 } ${active ? 'ring-2 ring-success/40' : ''}`}
               >
                 {idx + 1}
               </div>
-              <span className={`text-xs capitalize ${active ? 'font-semibold text-brand' : 'text-text-muted'}`}>
+              <span className={`text-xs capitalize ${active ? 'font-semibold text-orange-500' : 'text-slate-500'}`}>
                 {step.toLowerCase()}
               </span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div className={`mb-5 h-0.5 flex-1 ${done && idx < currentIdx ? 'bg-success' : 'bg-border'}`} />
+              <div className={`mb-5 h-0.5 flex-1 ${done && idx < currentIdx ? 'bg-success' : 'bg-slate-200'}`} />
             )}
           </div>
         );

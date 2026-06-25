@@ -22,11 +22,15 @@ function FaqItem({
         className="flex w-full items-center justify-between gap-4 text-left cursor-pointer"
         aria-expanded={isOpen}
       >
-        <span className="font-display text-base font-semibold text-brand lg:text-lg">
+        <motion.span
+          className="font-display text-base font-semibold text-brand lg:text-lg"
+          whileHover={{ x: 4 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
           {question}
-        </span>
+        </motion.span>
         <ChevronDown
-          className={`h-5 w-5 text-brand shrink-0 transition-transform duration-200 ${
+          className={`h-5 w-5 text-brand shrink-0 transition-transform duration-300 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -38,12 +42,21 @@ function FaqItem({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <p className="mt-3 text-sm leading-relaxed text-text-muted lg:text-base">
-              {answer}
-            </p>
+            <motion.div
+              className="mt-3 border-l-2 border-orange-500 pl-4"
+              initial={{ scaleY: 0, opacity: 0 }}
+              animate={{ scaleY: 1, opacity: 1 }}
+              exit={{ scaleY: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              style={{ transformOrigin: 'top' }}
+            >
+              <p className="text-sm leading-relaxed text-text-muted lg:text-base">
+                {answer}
+              </p>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,5 +1,6 @@
 import { ProductType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { slugify } from '../../utils/crypto.js';
 
@@ -215,11 +216,16 @@ export async function listSaleableBranchProducts(branchId: number) {
     if (!product.isActive) continue;
     if (product.type !== ProductType.BIKE && product.type !== ProductType.PART) continue;
 
+    let stockAtBranch = row.stock;
+    if (product.type === ProductType.BIKE) {
+      stockAtBranch = await countInStockChassis(branchId, product.id);
+    }
+
     saleable.push({
       id: product.id,
       name: product.name,
       type: product.type,
-      stockAtBranch: row.stock,
+      stockAtBranch,
       unitPrice: Number(product.salePrice ?? product.price),
       brand: product.brand,
       images: product.images,

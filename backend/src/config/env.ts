@@ -32,4 +32,12 @@ export const env = {
   contactDevInboxEmail: process.env.CONTACT_DEV_INBOX_EMAIL ?? '',
   uploadDir: process.env.UPLOAD_DIR ?? './uploads',
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB ?? '5', 10),
+  /** HTTP request / socket timeout (ms) — slow clients cannot block workers forever. */
+  requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS ?? '30000', 10),
+  /** Prisma interactive transaction timeout (ms). */
+  dbTransactionTimeoutMs: parseInt(process.env.DB_TRANSACTION_TIMEOUT_MS ?? '30000', 10),
+  /** Max wait to acquire a connection for a transaction (ms). */
+  dbTransactionMaxWaitMs: parseInt(process.env.DB_TRANSACTION_MAX_WAIT_MS ?? '10000', 10),
+  /** Suggested DATABASE_URL pool size — append ?connection_limit=N to your URL in production. */
+  dbConnectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT ?? '10', 10),
 };

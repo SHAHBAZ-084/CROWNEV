@@ -18,9 +18,6 @@ const RidersSaySection = lazy(() =>
 const FindBranchSection = lazy(() =>
   import('../../components/public/FindBranchSection').then((m) => ({ default: m.FindBranchSection }))
 );
-const HomeFaqSection = lazy(() =>
-  import('../../components/public/HomeFaqSection').then((m) => ({ default: m.HomeFaqSection }))
-);
 
 function SectionFallback({ className = 'py-16' }: { className?: string }) {
   return <div className={className} aria-hidden />;
@@ -57,9 +54,9 @@ export default function LandingPage() {
               <Link to="/shop"><Button variant="accent" size="lg">Browse Shop <ArrowRight className="h-4 w-4" aria-hidden /></Button></Link>
               <Link to="/book-service">
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="lg"
-                  className="border border-white/80 text-white hover:border-brand-light hover:bg-brand/15 hover:text-brand-light"
+                  className="border-white/80 text-white hover:border-brand-light hover:bg-brand/15 hover:text-brand-light"
                 >
                   Book Service
                 </Button>
@@ -105,10 +102,6 @@ export default function LandingPage() {
           <FindBranchSection branches={data.branches} />
         </Suspense>
       )}
-
-      <Suspense fallback={<SectionFallback />}>
-        <HomeFaqSection />
-      </Suspense>
     </>
   );
 }

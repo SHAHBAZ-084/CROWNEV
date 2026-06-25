@@ -1,14 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import hpp from 'hpp';
 import path from 'path';
 import { env } from './config/env.js';
+import { requestTimeoutMiddleware } from './middleware/requestTimeout.js';
+import {
+  inputLengthMiddleware,
+  mongoSanitizeMiddleware,
+  stripPollutionMiddleware,
+} from './middleware/security.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { branchesRouter } from './modules/branches/branches.routes.js';
 import { productsRouter, branchProductsRouter } from './modules/products/products.routes.js';
 import { partsRouter } from './modules/parts/parts.routes.js';
 import { inventoryRouter } from './modules/inventory/inventory.routes.js';
+import { chassisRouter } from './modules/chassis/chassis.routes.js';
 import { ordersRouter, walkInRouter } from './modules/orders/orders.routes.js';
 import { servicesRouter, bookingsRouter } from './modules/services/services.routes.js';
 import { serviceInvoicesRouter } from './modules/services/service-invoices.routes.js';
@@ -24,6 +32,8 @@ export function createApp() {
   const app = express();
 
   app.use(helmet());
+  app.use(hpp());
+  app.use(requestTimeoutMiddleware);
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || env.allowedOrigins.includes(origin)) {
@@ -34,8 +44,11 @@ export function createApp() {
     },
     credentials: true,
   }));
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(mongoSanitizeMiddleware);
+  app.use(stripPollutionMiddleware);
+  app.use(inputLengthMiddleware);
   app.use('/uploads', express.static(path.resolve(env.uploadDir)));
 
   app.get('/health', (_req, res) => {
@@ -47,6 +60,7 @@ export function createApp() {
   app.use('/api/branches', branchesRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/branches', branchProductsRouter);
+  app.use('/api/branches', chassisRouter);
   app.use('/api/parts', partsRouter);
   app.use('/api/inventory', inventoryRouter);
   app.use('/api/orders', ordersRouter);

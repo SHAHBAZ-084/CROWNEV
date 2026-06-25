@@ -57,7 +57,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
   }, [sections]);
 
   return (
-    <div className="min-h-[60vh] bg-slate-100">
+    <div className="min-h-[60vh] bg-surface">
       <section className="relative overflow-hidden bg-gradient-to-br from-brand via-brand-light to-accent px-4 py-16 text-white lg:py-20">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-black/10 blur-2xl" aria-hidden />
@@ -103,8 +103,8 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
                       onClick={() => setActiveId(id)}
                       className={`block rounded-lg px-3 py-2 text-sm transition-colors whitespace-nowrap lg:whitespace-normal ${
                         isActive
-                          ? 'bg-white font-medium text-brand'
-                          : 'text-text-muted hover:bg-white/60 hover:text-brand'
+                          ? 'bg-surface-alt font-medium text-brand'
+                          : 'text-text-muted hover:bg-surface-alt/60 hover:text-brand'
                       }`}
                     >
                       {section.title}
@@ -127,7 +127,7 @@ export function PrivacyPolicyView({ sections }: { sections: LegalSection[] }) {
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-40px' }}
-                className="scroll-mt-28 rounded-[var(--radius-card)] border border-border bg-white p-6 lg:p-8"
+                className="scroll-mt-28 rounded-[var(--radius-card)] border border-border bg-surface-alt/40 p-6 lg:p-8"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15">

@@ -75,54 +75,54 @@ export function SaleInvoice({
       <div
         id="invoice-print-area"
         ref={printRef}
-        className="print-area rounded-xl border border-border bg-white p-8 text-sm text-text shadow-sm"
+        className="print-area rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-700 shadow-sm"
       >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
           <div className="flex items-center gap-3">
             <Logo size="sm" className="!h-10 !max-w-[140px]" />
             <div>
-              <p className="font-semibold text-brand">{data.branch.name}</p>
-              <p className="text-xs text-text-muted">{data.branch.location}</p>
-              <p className="text-xs text-text-muted">Phone: {data.branch.phone}</p>
+              <p className="font-semibold text-slate-900">{data.branch.name}</p>
+              <p className="text-xs text-slate-500">{data.branch.location}</p>
+              <p className="text-xs text-slate-500">Phone: {data.branch.phone}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-accent">SALE INVOICE</p>
-            <p className="font-mono text-xs text-text-muted">{data.invoiceNumber}</p>
-            <p className="text-xs text-text-muted">{formatDate(data.date)}</p>
+            <p className="text-lg font-bold text-orange-500">SALE INVOICE</p>
+            <p className="font-mono text-xs text-slate-500">{data.invoiceNumber}</p>
+            <p className="text-xs text-slate-500">{formatDate(data.date)}</p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Billed To</p>
-            <p className="font-medium">{data.customer.name}</p>
-            {data.customer.phone && <p className="text-text-muted">{data.customer.phone}</p>}
-            {data.customer.email && <p className="text-text-muted">{data.customer.email}</p>}
-            {data.customer.address && <p className="text-text-muted">{data.customer.address}</p>}
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Billed To</p>
+            <p className="font-medium text-slate-900">{data.customer.name}</p>
+            {data.customer.phone && <p className="text-slate-500">{data.customer.phone}</p>}
+            {data.customer.email && <p className="text-slate-500">{data.customer.email}</p>}
+            {data.customer.address && <p className="text-slate-500">{data.customer.address}</p>}
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Order Info</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Order Info</p>
             {data.orderType === 'POS' ? (
               data.saleReference && (
-                <p><span className="text-text-muted">Reference:</span> <span className="font-mono">{data.saleReference}</span></p>
+                <p><span className="text-slate-500">Reference:</span> <span className="font-mono">{data.saleReference}</span></p>
               )
             ) : (
               data.trackingId && (
-                <p><span className="text-text-muted">Tracking:</span> <span className="font-mono">{data.trackingId}</span></p>
+                <p><span className="text-slate-500">Tracking:</span> <span className="font-mono">{data.trackingId}</span></p>
               )
             )}
-            <p><span className="text-text-muted">Payment:</span> {data.paymentMethod.replace('_', ' ')}</p>
-            <p><span className="text-text-muted">Status:</span> {data.status}</p>
-            {data.cargoTrackingId && (
-              <p><span className="text-text-muted">Cargo:</span> {data.cargoTrackingId}</p>
+            <p><span className="text-slate-500">Payment:</span> {data.paymentMethod.replace('_', ' ')}</p>
+            <p><span className="text-slate-500">Status:</span> {data.status}</p>
+            {data.biltyTrackingId && (
+              <p><span className="text-slate-500">Bilty:</span> {data.biltyTrackingId}</p>
             )}
           </div>
         </div>
 
         <table className="mt-8 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b-2 border-border bg-surface-alt/50 text-left text-xs uppercase text-text-muted">
+            <tr className="border-b-2 border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
               <th className="px-2 py-2">#</th>
               <th className="px-2 py-2">Product</th>
               <th className="px-2 py-2 text-right">Qty</th>
@@ -132,13 +132,13 @@ export function SaleInvoice({
           </thead>
           <tbody>
             {data.items.map((item, idx) => (
-              <tr key={idx} className="border-b border-border/40 align-top">
+              <tr key={idx} className="border-b border-slate-200 align-top">
                 <td className="px-2 py-3">{idx + 1}</td>
                 <td className="px-2 py-3">
-                  <p className="font-medium">{item.name}</p>
-                  {item.color && <p className="text-xs text-text-muted">Color: {item.color}</p>}
+                  <p className="font-medium text-slate-900">{item.name}</p>
+                  {item.color && <p className="text-xs text-slate-500">Color: {item.color}</p>}
                   {item.chassisNumber && (
-                    <p className="text-xs text-text-muted">Chassis: {item.chassisNumber}</p>
+                    <p className="text-xs text-slate-500">Chassis: {item.chassisNumber}</p>
                   )}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums">{item.quantity}</td>
@@ -152,12 +152,12 @@ export function SaleInvoice({
         <div className="mt-4 flex justify-end">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-text-muted">Subtotal</span>
-              <span className="tabular-nums">{formatPKR(data.subtotal)}</span>
+              <span className="text-slate-500">Subtotal</span>
+              <span className="tabular-nums text-slate-900">{formatPKR(data.subtotal)}</span>
             </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
+            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
               <span>Total</span>
-              <span className="tabular-nums text-brand">{formatPKR(data.total)}</span>
+              <span className="tabular-nums text-orange-500">{formatPKR(data.total)}</span>
             </div>
           </div>
         </div>
@@ -169,11 +169,11 @@ export function SaleInvoice({
               <span className="text-lg font-bold">AMOUNT PAID</span>
             </div>
             <p className="mt-1 text-xl font-bold tabular-nums">{formatPKR(data.total)}</p>
-            <p className="text-sm text-text-muted">{paymentLabel(data.paymentMethod, data.paymentStatus)}</p>
+            <p className="text-sm text-slate-500">{paymentLabel(data.paymentMethod, data.paymentStatus)}</p>
           </div>
         )}
 
-        <p className="mt-8 border-t border-border pt-4 text-center text-xs text-text-muted">
+        <p className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-500">
           This document is proof of sale. Generated by Crown EV Management System.
           <br />
           Thank you for choosing Crown EV!
@@ -192,12 +192,12 @@ export function InvoiceModalContent({
   invoice: InvoiceData | null;
   error?: string;
 }) {
-  if (loading) return <p className="py-8 text-center text-text-muted">Loading invoice…</p>;
+  if (loading) return <p className="py-8 text-center text-slate-500">Loading invoice…</p>;
   if (error) return <p className="py-8 text-center text-warning">{error}</p>;
   if (!invoice) return null;
   if (!invoice.invoiceAvailable) {
     return (
-      <p className="py-8 text-center text-text-muted">
+      <p className="py-8 text-center text-slate-500">
         Invoice pending. Available once the order is delivered and payment is verified.
       </p>
     );

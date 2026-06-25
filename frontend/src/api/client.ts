@@ -399,7 +399,7 @@ export const branchApi = {
   createSaleInvoice: (data: {
     branchId: number;
     customerId: number;
-    items: { productId: string; quantity: number; unitPrice?: number }[];
+    items: { productId: string; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
     reference: string;
     notes?: string;
   }) => api<{ order: Order; voucher: unknown }>('/orders/sale-invoice', {
@@ -446,10 +446,10 @@ export const branchApi = {
   pendingPayments: () => api<Order[]>('/orders/pending-payments'),
   approvePayment: (id: number, approved: boolean) =>
     api<Order>(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ approved }) }),
-  setCargoTracking: (orderId: number, cargoTrackingId: string) =>
-    api<Order>(`/orders/${orderId}/cargo-tracking`, {
+  setBiltyTracking: (orderId: number, biltyTrackingId: string) =>
+    api<Order>(`/orders/${orderId}/bilty-tracking`, {
       method: 'PATCH',
-      body: JSON.stringify({ cargoTrackingId }),
+      body: JSON.stringify({ biltyTrackingId }),
     }),
   orderInvoice: (id: number) => api<InvoiceData>(`/orders/${id}/invoice`),
   paymentChannels: (branchId: number) => api<PaymentChannel[]>(`/branches/${branchId}/payment-channels`),
@@ -479,11 +479,33 @@ export const branchApi = {
   purchaseProducts: (branchId: number) => api<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>(
     `/branches/${branchId}/purchase-products`,
   ),
+  availableChassis: (branchId: number, productId: string) =>
+    api<{ id: number; chassisNumber: string }[]>(`/branches/${branchId}/chassis/available/${productId}`),
+  validateChassisNumbers: (branchId: number, chassisNumbers: string[]) =>
+    api<{ valid: boolean }>(`/branches/${branchId}/chassis/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ chassisNumbers }),
+    }),
+  listChassis: (branchId: number, params?: { productId?: string; status?: 'IN_STOCK' | 'SOLD' }) => {
+    const q = new URLSearchParams();
+    if (params?.productId) q.set('productId', params.productId);
+    if (params?.status) q.set('status', params.status);
+    const qs = q.toString();
+    return api<{
+      id: number;
+      chassisNumber: string;
+      status: 'IN_STOCK' | 'SOLD';
+      product: { id: string; name: string; type: string };
+      purchase: { id: number; documentRef: string | null; invoiceNumber: string | null; createdAt: string };
+      saleOrder: { id: number; saleReference: string | null; trackingId: string | null; createdAt: string } | null;
+      saleOrderItem?: { order: { id: number; saleReference: string | null; trackingId: string | null; createdAt: string } } | null;
+    }[]>(`/branches/${branchId}/chassis${qs ? `?${qs}` : ''}`);
+  },
   createPurchaseInvoice: (data: {
     branchId: number;
     supplierId: number;
     reference: string;
-    items: { productId: string; quantity: number; unitCost: number }[];
+    items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
     notes?: string;
   }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {
     method: 'POST',
