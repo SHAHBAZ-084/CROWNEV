@@ -7,6 +7,7 @@ import {
   ensureServiceRevenueAccount,
 } from '../accounting/accounting.service.js';
 import { deductStockForOrder, validateAndPriceItems } from '../orders/orders.service.js';
+import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
 
 export async function listServiceInvoices(branchId: number, query: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query);
@@ -31,7 +32,7 @@ export async function createServiceInvoice(data: {
   customerId: number;
   items: { productId: string; quantity: number; unitPrice?: number }[];
   labourCost: number;
-  reference: string;
+  reference?: string;
   notes?: string;
   createdById: string;
 }) {
@@ -44,9 +45,6 @@ export async function createServiceInvoice(data: {
     },
   });
   if (!customer) throw new AppError(404, 'Walk-in customer not found');
-
-  const reference = data.reference.trim();
-  if (!reference) throw new AppError(400, 'Reference is required');
 
   const labourCost = Number(data.labourCost);
   if (!Number.isFinite(labourCost) || labourCost < 0) {
@@ -70,6 +68,9 @@ export async function createServiceInvoice(data: {
   }
 
   return prisma.$transaction(async (tx) => {
+    const reference =
+      data.reference?.trim() || (await allocateServiceInvoiceNumber(tx, data.branchId));
+
     const invoice = await tx.serviceInvoice.create({
       data: {
         branchId: data.branchId,
@@ -154,7 +155,7 @@ export async function getServiceInvoiceFormatted(id: number, branchId?: number) 
     invoiceType: 'SERVICE' as const,
     invoiceAvailable: true,
     currency: 'PKR' as const,
-    invoiceNumber: `SVC-${reference}`,
+    invoiceNumber: reference,
     reference,
     date: invoice.createdAt,
     branch: {

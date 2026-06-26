@@ -5,6 +5,7 @@ import {
 } from '../accounting/accounting.service.js';
 import { deleteBranchImageFile } from '../../utils/imageProcessing.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { previewNextDocumentNumbers } from '../../utils/documentNumbers.js';
 
 export async function listBranches(activeOnly = false) {
   const excludeTestBranches = { NOT: { name: { startsWith: 'Accounting Test' } } };
@@ -193,7 +194,7 @@ export async function getBranchDashboard(branchId: number) {
       _sum: { total: true },
     }),
     prisma.serviceBooking.count({
-      where: { branchId, date: { gte: today, lt: tomorrow }, status: { not: 'CANCELLED' } },
+      where: { branchId, date: { gte: today, lt: tomorrow }, status: 'SCHEDULED' },
     }),
     prisma.order.count({ where: { branchId, status: 'PENDING' } }),
     prisma.inventory.count({
@@ -471,4 +472,9 @@ export async function getPosWorkspaceStats(branchId: number) {
     todayCustomers,
     todaySales: Number(salesAgg._sum.total ?? 0),
   };
+}
+
+export async function getNextDocumentNumbers(branchId: number) {
+  await getBranch(branchId);
+  return prisma.$transaction((tx) => previewNextDocumentNumbers(tx, branchId));
 }

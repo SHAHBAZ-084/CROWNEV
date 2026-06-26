@@ -1,4 +1,4 @@
-import { AccountType, LedgerEntryType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
+import { AccountType, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError } from '../../utils/helpers.js';
 
@@ -190,8 +190,9 @@ async function generateNextAccountCode(branchId: number): Promise<string> {
     select: { code: true },
   });
 
-  let max = 1000;
+  let max = 0;
   for (const { code } of accounts) {
+    if (!/^\d+$/.test(code)) continue;
     const num = parseInt(code, 10);
     if (!Number.isNaN(num) && num > max) max = num;
   }
@@ -217,8 +218,9 @@ async function generateNextAccountCodeInTx(
   branchId: number,
 ): Promise<string> {
   const accounts = await tx.account.findMany({ where: { branchId }, select: { code: true } });
-  let max = 1000;
+  let max = 0;
   for (const { code } of accounts) {
+    if (!/^\d+$/.test(code)) continue;
     const num = parseInt(code, 10);
     if (!Number.isNaN(num) && num > max) max = num;
   }
@@ -481,6 +483,75 @@ function voucherDisplayNo(_type: VoucherType | null | undefined, number: number 
   return String(number);
 }
 
+export function formatPurchaseItemsDescription(
+  items: { quantity: number; product?: { name: string } | null; part?: { name: string } | null }[],
+): string {
+  if (!items.length) return '';
+  return items
+    .map((item) => {
+      const name = item.product?.name ?? item.part?.name ?? 'Item';
+      return `${name} × ${item.quantity}`;
+    })
+    .join(', ');
+}
+
+async function loadPurchaseDescriptionsByRef(branchId: number, refs: string[]) {
+  const map = new Map<string, string>();
+  const uniqueRefs = [...new Set(refs.map((ref) => ref.trim()).filter(Boolean))];
+  if (!uniqueRefs.length) return map;
+
+  const purchases = await prisma.purchase.findMany({
+    where: { branchId, documentRef: { in: uniqueRefs } },
+    include: {
+      items: {
+        include: {
+          product: { select: { name: true } },
+          part: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  for (const purchase of purchases) {
+    const ref = purchase.documentRef?.trim();
+    if (!ref) continue;
+    const description = formatPurchaseItemsDescription(purchase.items);
+    if (description) map.set(ref, description);
+  }
+
+  return map;
+}
+
+async function loadSaleDescriptionsByRef(branchId: number, refs: string[]) {
+  const map = new Map<string, string>();
+  const uniqueRefs = [...new Set(refs.map((ref) => ref.trim()).filter(Boolean))];
+  if (!uniqueRefs.length) return map;
+
+  const orders = await prisma.order.findMany({
+    where: {
+      branchId,
+      type: OrderType.POS,
+      saleReference: { in: uniqueRefs },
+    },
+    include: {
+      items: {
+        include: { product: { select: { name: true } } },
+      },
+    },
+  });
+
+  for (const order of orders) {
+    const ref = order.saleReference?.trim();
+    if (!ref) continue;
+    const description = formatPurchaseItemsDescription(
+      order.items.map((item) => ({ quantity: item.quantity, product: item.product })),
+    );
+    if (description) map.set(ref, description);
+  }
+
+  return map;
+}
+
 function buildLedgerEntryDescription(
   e: { isOpeningBalance: boolean; notes?: string | null },
   voucher: {
@@ -489,6 +560,8 @@ function buildLedgerEntryDescription(
     creditAccount?: { name: string } | null;
     debitAccount?: { name: string } | null;
   } | null,
+  purchaseSummary?: string,
+  saleSummary?: string,
 ): string {
   if (e.isOpeningBalance) return 'Opening Balance';
   if (!voucher?.creditAccount || !voucher?.debitAccount) {
@@ -496,11 +569,13 @@ function buildLedgerEntryDescription(
   }
 
   if (isSaleVoucher(voucher)) {
-    return `From sale revenue to ${voucher.debitAccount.name}`;
+    const base = `From sale revenue to ${voucher.debitAccount.name}`;
+    return saleSummary ? `${base} — ${saleSummary}` : base;
   }
 
   if (isPurchaseVoucher(voucher)) {
-    return `From ${voucher.creditAccount.name} to inventory`;
+    const base = `From ${voucher.creditAccount.name} to inventory`;
+    return purchaseSummary ? `${base} — ${purchaseSummary}` : base;
   }
 
   const auto = `From ${voucher.creditAccount.name} to ${voucher.debitAccount.name}`;
@@ -976,7 +1051,7 @@ export async function bootstrapBranchChartOfAccounts(branchId: number) {
       cashCategory.id,
       CASH_IN_HAND_ACCOUNT_NAME,
       AccountType.ASSET,
-      '1001',
+      '1',
     );
 
     await ensureInventoryAccount(tx, branchId);
@@ -1425,6 +1500,19 @@ export async function getLedgerEntries(
     periodEntries.push(e);
   }
 
+  const purchaseRefs = periodEntries
+    .map((e) => e.voucher)
+    .filter((v): v is NonNullable<typeof v> => Boolean(v && isPurchaseVoucher(v) && v.reference?.trim()))
+    .map((v) => v.reference!.trim());
+  const saleRefs = periodEntries
+    .map((e) => e.voucher)
+    .filter((v): v is NonNullable<typeof v> => Boolean(v && isSaleVoucher(v) && v.reference?.trim()))
+    .map((v) => v.reference!.trim());
+  const [purchaseDescriptions, saleDescriptions] = await Promise.all([
+    loadPurchaseDescriptionsByRef(branchId, purchaseRefs),
+    loadSaleDescriptionsByRef(branchId, saleRefs),
+  ]);
+
   type LedgerRow = {
     date: string;
     voucherNo: string;
@@ -1464,6 +1552,12 @@ export async function getLedgerEntries(
     totalCredit += credit;
 
     const voucher = e.voucher;
+    const purchaseSummary = voucher?.reference?.trim()
+      ? purchaseDescriptions.get(voucher.reference.trim())
+      : undefined;
+    const saleSummary = voucher?.reference?.trim()
+      ? saleDescriptions.get(voucher.reference.trim())
+      : undefined;
     rows.push({
       date: e.createdAt.toISOString(),
       voucherNo: e.isOpeningBalance
@@ -1473,7 +1567,7 @@ export async function getLedgerEntries(
       type: e.isOpeningBalance
         ? 'Opening Balance'
         : voucherTypeLabel(voucher ?? null, false),
-      description: buildLedgerEntryDescription(e, voucher ?? null),
+      description: buildLedgerEntryDescription(e, voucher ?? null, purchaseSummary, saleSummary),
       debit,
       credit,
       balance: running,

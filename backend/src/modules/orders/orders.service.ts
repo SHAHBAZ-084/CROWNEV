@@ -12,10 +12,12 @@ import {
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { generateTrackingId } from '../../utils/crypto.js';
+import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import {
   createVoucherInTx,
   ensureCustomerAccount,
   ensureSaleRevenueAccount,
+  formatPurchaseItemsDescription,
 } from '../accounting/accounting.service.js';
 import { countInStockChassis, markChassisSoldInTx } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
@@ -124,7 +126,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     invoiceType: 'SALE' as const,
     invoiceAvailable,
     currency: 'PKR' as const,
-    invoiceNumber: `INV-${order.publicId.slice(0, 8).toUpperCase()}`,
+    invoiceNumber: order.saleReference?.trim() || String(order.id),
     orderType: order.type,
     trackingId: order.trackingId,
     saleReference: order.saleReference,
@@ -389,7 +391,7 @@ export async function createSaleInvoice(data: {
   branchId: number;
   customerId: number;
   items: { productId: string; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
-  reference: string;
+  reference?: string;
   notes?: string;
   createdById: string;
 }) {
@@ -402,9 +404,6 @@ export async function createSaleInvoice(data: {
     },
   });
   if (!customer) throw new AppError(404, 'Walk-in customer not found');
-
-  const reference = data.reference.trim();
-  if (!reference) throw new AppError(400, 'Reference is required');
 
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
@@ -469,6 +468,9 @@ export async function createSaleInvoice(data: {
   }
 
   return prisma.$transaction(async (tx) => {
+    const reference =
+      data.reference?.trim() || (await allocateSaleInvoiceNumber(tx, data.branchId));
+
     const order = await tx.order.create({
       data: {
         branchId: data.branchId,
@@ -568,7 +570,14 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
 
   const entries = await prisma.customerLedger.findMany({
     where: { customerId },
-    include: { order: true, serviceInvoice: true },
+    include: {
+      order: {
+        include: {
+          items: { include: { product: { select: { name: true } } } },
+        },
+      },
+      serviceInvoice: true,
+    },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
 
@@ -596,16 +605,24 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
     const serviceRef = e.serviceInvoice?.reference?.trim() || null;
     const ref = orderRef ?? serviceRef;
     const isService = Boolean(serviceRef && !orderRef);
+    const saleBase = `From sale revenue to ${customer.name}`;
+    const saleItems = e.order?.items?.length
+      ? formatPurchaseItemsDescription(
+          e.order.items.map((item) => ({ quantity: item.quantity, product: item.product })),
+        )
+      : '';
     rows.push({
       date: e.createdAt.toISOString(),
-      voucherNo: orderRef ? `SI-${orderRef}` : serviceRef ? `SVI-${serviceRef}` : `CL-${e.id}`,
+      voucherNo: orderRef ?? serviceRef ?? String(e.id),
       ref,
       type: e.type === CustomerLedgerType.DEBIT ? (isService ? 'Service' : 'Sale') : 'Receipt',
       description:
         e.type === CustomerLedgerType.DEBIT
           ? isService
             ? `From service revenue to ${customer.name}`
-            : `From sale revenue to ${customer.name}`
+            : saleItems
+              ? `${saleBase} — ${saleItems}`
+              : saleBase
           : (e.notes ?? 'Payment'),
       debit,
       credit,

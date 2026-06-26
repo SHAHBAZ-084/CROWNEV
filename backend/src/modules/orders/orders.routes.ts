@@ -174,7 +174,7 @@ ordersRouter.post(
       branchId: z.number().int(),
       customerId: z.number().int(),
       items: z.array(saleInvoiceItemSchema).min(1),
-      reference: z.string().trim().min(1).max(64),
+      reference: z.string().trim().min(1).max(64).optional(),
       notes: z.string().optional(),
     }),
   ),

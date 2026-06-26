@@ -185,7 +185,6 @@ bookingsRouter.patch(
       confirmedTime: z.string().optional(),
       date: z.string().optional(),
       serviceId: z.number().int().optional(),
-      parts: z.array(z.object({ partId: z.number().int(), quantity: z.number().int().positive() })).optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -198,10 +197,9 @@ bookingsRouter.patch(
       parseInt(param(req.params.id), 10),
       req.body.branchId,
       req.body.status,
-      req.body.parts,
       req.body.confirmedTime,
       req.body.date,
-      req.body.serviceId
+      req.body.serviceId,
     );
     res.json(booking);
   })

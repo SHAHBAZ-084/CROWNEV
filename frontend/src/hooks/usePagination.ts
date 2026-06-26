@@ -2,14 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 
 export const DEFAULT_PAGE_SIZE = 10;
 
+function getPaginationItemKey(item: unknown, index: number): string {
+  const row = item as Record<string, unknown>;
+  if (row.id != null && row.id !== '') return String(row.id);
+  if (row.voucherNo != null && row.date != null) {
+    return `${String(row.voucherNo)}|${String(row.date)}|${String(row.description ?? '')}`;
+  }
+  return `row-${index}`;
+}
+
 export function usePagination<T>(items: T[], pageSize = DEFAULT_PAGE_SIZE) {
   const [page, setPage] = useState(1);
 
   const itemsKey = useMemo(
-    () =>
-      items
-        .map((item, index) => String((item as Record<string, unknown>).id ?? index))
-        .join(','),
+    () => items.map((item, index) => getPaginationItemKey(item, index)).join('\n'),
     [items],
   );
 

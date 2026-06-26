@@ -54,19 +54,19 @@ export function SearchSelect({
     (nextQuery: string) => {
       const trimmed = nextQuery.trim();
       if (allowCustom) {
-        onChange(trimmed);
+        if (trimmed !== value) onChange(trimmed);
         setQuery(trimmed);
         return;
       }
       const match = options.find((o) => o.label.toLowerCase() === trimmed.toLowerCase());
       if (match) {
-        onChange(match.value);
+        if (match.value !== value) onChange(match.value);
         setQuery(match.label);
       } else {
         setQuery(selected?.label ?? '');
       }
     },
-    [allowCustom, onChange, options, selected?.label],
+    [allowCustom, onChange, options, selected?.label, value],
   );
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function SearchSelect({
   }, [query, commitValue]);
 
   function pick(option: SearchSelectOption) {
-    onChange(option.value);
+    if (option.value !== value) onChange(option.value);
     setQuery(option.label);
     setOpen(false);
   }

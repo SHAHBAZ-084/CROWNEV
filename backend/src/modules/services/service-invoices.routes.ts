@@ -16,7 +16,7 @@ serviceInvoicesRouter.post(
     z.object({
       branchId: z.number().int(),
       customerId: z.number().int(),
-      reference: z.string().trim().min(1).max(64),
+      reference: z.string().trim().min(1).max(64).optional(),
       labourCost: z.coerce.number().min(0),
       notes: z.string().optional(),
       items: z

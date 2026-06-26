@@ -621,7 +621,7 @@ async function main() {
     }));
 
   const existingCash = await prisma.account.findFirst({
-    where: { branchId: branch1.id, code: '1001' },
+    where: { branchId: branch1.id, code: '1' },
   });
   if (!existingCash) {
     const cashAccount = await prisma.account.create({
@@ -629,7 +629,7 @@ async function main() {
         branchId: branch1.id,
         categoryId: accCategory.id,
         name: 'Cash in Hand',
-        code: '1001',
+        code: '1',
         type: AccountType.ASSET,
       },
     });

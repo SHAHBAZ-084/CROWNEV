@@ -19,7 +19,10 @@ export function TablePagination({
   if (totalItems <= 0 || totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border-light bg-subtle/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="flex flex-col gap-3 border-t border-border-light bg-subtle/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <p className="text-sm text-ink-muted">
         Showing <span className="font-medium text-ink">{rangeStart}</span>
         {' – '}

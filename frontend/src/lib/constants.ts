@@ -150,7 +150,5 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800',
-  CONFIRMED: 'bg-neutral-100 text-neutral-800',
-  DONE: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  SCHEDULED: 'bg-green-100 text-green-800',
 };

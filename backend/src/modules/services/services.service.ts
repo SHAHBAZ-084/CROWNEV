@@ -1,9 +1,8 @@
-import { BookingStatus, Role } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { sendBookingConfirmationEmail } from '../../utils/email.js';
-import { deductStock } from '../inventory/inventory.service.js';
 
 export async function listServices(branchId: number) {
   return prisma.service.findMany({
@@ -97,54 +96,47 @@ export async function updateBookingStatus(
   id: number,
   branchId: number,
   status: BookingStatus,
-  parts?: { partId: number; quantity: number }[],
   confirmedTime?: string,
   date?: string,
-  serviceId?: number
+  serviceId?: number,
 ) {
   const booking = await prisma.serviceBooking.findFirst({
     where: { id, branchId },
-    include: { parts: true },
   });
   if (!booking) throw new AppError(404, 'Booking not found');
 
-  const completing = status === BookingStatus.DONE && booking.status !== BookingStatus.DONE;
+  const visitDate = date?.trim();
+  const visitTime = confirmedTime?.trim();
+  const isScheduled = status === BookingStatus.SCHEDULED;
 
-  if (completing) {
-    if (parts?.length) {
-      await prisma.serviceBookingPart.deleteMany({ where: { bookingId: id } });
-      await prisma.serviceBookingPart.createMany({
-        data: parts.map((p) => ({ bookingId: id, partId: p.partId, quantity: p.quantity })),
-      });
-    }
-
-    const bookingParts = await prisma.serviceBookingPart.findMany({ where: { bookingId: id } });
-    if (bookingParts.length) {
-      await deductStock(
-        branchId,
-        bookingParts.map((p) => ({ partId: p.partId, quantity: p.quantity }))
-      );
-    }
+  if (isScheduled && (!visitDate || !visitTime)) {
+    throw new AppError(400, 'Visit date and time are required for scheduled bookings');
   }
 
-  return prisma.serviceBooking.update({
-    where: { id },
-    data: {
-      status,
-      ...(confirmedTime !== undefined && { confirmedTime }),
-      ...(date !== undefined && { date: new Date(date) }),
-      ...(serviceId !== undefined && { serviceId }),
-    },
-    include: {
-      service: true,
-      parts: { include: { part: true } },
-      user: { select: { email: true, firstName: true, lastName: true } },
-      branch: { select: { name: true, location: true, phone: true } },
-    },
-  }).then(async (updated) => {
-    await maybeNotifyBookingVisitScheduled(booking, updated);
-    return updated;
-  });
+  return prisma.serviceBooking
+    .update({
+      where: { id },
+      data: {
+        status,
+        date: isScheduled && visitDate ? new Date(visitDate) : null,
+        confirmedTime: isScheduled && visitTime ? visitTime : null,
+        ...(serviceId !== undefined && { serviceId }),
+      },
+      include: {
+        service: true,
+        parts: { include: { part: true } },
+        user: { select: { email: true, firstName: true, lastName: true } },
+        branch: { select: { name: true, location: true, phone: true } },
+      },
+    })
+    .then(async (updated) => {
+      try {
+        await maybeNotifyBookingVisitScheduled(booking, updated);
+      } catch (err) {
+        console.error('[booking] Failed to send schedule notification:', err);
+      }
+      return updated;
+    });
 }
 
 function bookingDateKey(value: Date | null | undefined): string | null {
@@ -169,12 +161,12 @@ async function maybeNotifyBookingVisitScheduled(
     service: { name: string } | null;
   },
 ) {
-  if (updated.status !== BookingStatus.CONFIRMED || !updated.date || !updated.confirmedTime) {
+  if (updated.status !== BookingStatus.SCHEDULED || !updated.date || !updated.confirmedTime) {
     return;
   }
 
   const scheduleChanged =
-    previous.status !== BookingStatus.CONFIRMED ||
+    previous.status !== BookingStatus.SCHEDULED ||
     !previous.date ||
     !previous.confirmedTime ||
     bookingDateKey(previous.date) !== bookingDateKey(updated.date) ||
@@ -187,7 +179,7 @@ async function maybeNotifyBookingVisitScheduled(
 
   const customerName = updated.user
     ? `${updated.user.firstName} ${updated.user.lastName}`.trim()
-    : updated.customerName ?? 'Customer';
+    : (updated.customerName ?? 'Customer');
 
   await sendBookingConfirmationEmail({
     to: email,
@@ -211,7 +203,7 @@ export async function getTodayBookings(branchId: number) {
     where: {
       branchId,
       date: { gte: today, lt: tomorrow },
-      status: { not: BookingStatus.CANCELLED },
+      status: BookingStatus.SCHEDULED,
     },
     include: { service: true, user: { select: { firstName: true, lastName: true } } },
     orderBy: { time: 'asc' },

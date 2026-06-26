@@ -290,7 +290,7 @@ export function CustomerBookingsPage() {
       <PageHeader title="My Bookings" action={<Link to="/book-service"><Button variant="accent" size="sm">New Booking</Button></Link>} />
 
       <p className="mb-6 rounded-[var(--radius-card)] border border-border bg-surface-alt/50 px-4 py-3 text-sm text-text-muted">
-        When your branch confirms a visit date and time, we email you the appointment details and branch location.
+        When your branch sets a visit date and time, we email you the appointment details and branch location.
         Download your printable visit ticket here anytime using <strong className="text-brand">Download Ticket</strong>.
       </p>
 

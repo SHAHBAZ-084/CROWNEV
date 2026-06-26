@@ -52,9 +52,7 @@ enum PaymentStatus {
 
 enum BookingStatus {
   PENDING
-  CONFIRMED
-  DONE
-  CANCELLED
+  SCHEDULED
 }
 
 enum VoucherType {

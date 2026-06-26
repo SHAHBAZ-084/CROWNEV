@@ -83,6 +83,21 @@ branchesRouter.get(
 );
 
 branchesRouter.get(
+  '/:id/next-document-numbers',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  branchScope,
+  asyncHandler(async (req, res) => {
+    const id = parseInt(param(req.params.id), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== id) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const numbers = await branchesService.getNextDocumentNumbers(id);
+    res.json(numbers);
+  }),
+);
+
+branchesRouter.get(
   '/:id/dashboard',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   branchScope,

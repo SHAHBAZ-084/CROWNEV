@@ -30,12 +30,10 @@ import {
 type Row = Record<string, unknown>;
 
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'DELIVERED', 'CANCELLED'];
-const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'DONE', 'CANCELLED'];
+const BOOKING_STATUSES = ['PENDING', 'SCHEDULED'];
 const BOOKING_STATUS_ORDER: Record<string, number> = {
   PENDING: 0,
-  CONFIRMED: 1,
-  DONE: 2,
-  CANCELLED: 3,
+  SCHEDULED: 1,
 };
 function useBranchId() {
   const { user } = useAuth();
@@ -732,7 +730,6 @@ export function BranchBookingsPage() {
   const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [bookings, setBookings] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | null>(null);
-  const [statusValue, setStatusValue] = useState('PENDING');
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -774,21 +771,13 @@ export function BranchBookingsPage() {
     { message: (row) => `Delete booking for ${bookingRowCustomer(row)}?` },
   );
 
-  useEffect(() => {
-    if (edit) setStatusValue(String(edit.status ?? 'PENDING'));
-  }, [edit]);
-
   async function updateStatus(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!edit || !branchId) return;
     const fd = new FormData(e.currentTarget);
-    const status = String(fd.get('status'));
-    const confirmedTime = String(fd.get('confirmedTime') || '').trim() || undefined;
-    const date = String(fd.get('date') || '').trim() || undefined;
-    if (status === 'CONFIRMED' && (!date || !confirmedTime)) {
-      toast('Please set visit date and time before confirming', 'error');
-      return;
-    }
+    const confirmedTime = String(fd.get('confirmedTime') || '').trim();
+    const date = String(fd.get('date') || '').trim();
+    const status = date && confirmedTime ? 'SCHEDULED' : 'PENDING';
     setSaving(true);
     try {
       await branchApi.updateBookingStatus(Number(edit.id), {
@@ -797,7 +786,7 @@ export function BranchBookingsPage() {
         ...(confirmedTime && { confirmedTime }),
         ...(date && { date }),
       });
-      toast('Booking updated', 'success');
+      toast(status === 'SCHEDULED' ? 'Visit scheduled' : 'Booking set to pending', 'success');
       setEdit(null);
       reload();
     } catch (err) {
@@ -827,7 +816,7 @@ export function BranchBookingsPage() {
         >
           <option value="">All statuses</option>
           {BOOKING_STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{s === 'SCHEDULED' ? 'Scheduled' : 'Pending'}</option>
           ))}
         </Select>
       </div>
@@ -891,11 +880,8 @@ export function BranchBookingsPage() {
               />
             </div>
             <p className="text-xs text-text-muted -mt-2">
-              Set when the customer should come to the branch. Required when status is Confirmed.
+              Fill both visit date and time to mark the booking as <strong>Scheduled</strong>. Leave them empty to keep it <strong>Pending</strong>.
             </p>
-            <Select name="status" label="Status" value={statusValue} onChange={(e) => setStatusValue(e.target.value)}>
-              {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
             <FormActions onCancel={() => setEdit(null)} loading={saving} />
           </form>
         )}

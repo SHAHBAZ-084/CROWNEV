@@ -67,7 +67,16 @@ export default function ShopPage() {
 
     publicApi
       .shop(q)
-      .then((result) => setProducts(result.data))
+      .then((result) => {
+        const data =
+          type === ''
+            ? [...result.data].sort((a, b) => {
+                if (a.type === b.type) return 0;
+                return a.type === 'BIKE' ? -1 : 1;
+              })
+            : result.data;
+        setProducts(data);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [debouncedSearch, type, brandId, categoryId]);

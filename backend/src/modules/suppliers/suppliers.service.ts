@@ -12,7 +12,9 @@ import {
   createVoucherInTx,
   ensureInventoryAccount,
   ensureSupplierAccount,
+  formatPurchaseItemsDescription,
 } from '../accounting/accounting.service.js';
+import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
 
 export async function listBranchSuppliers(branchId: number, query?: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query ?? {});
@@ -39,7 +41,18 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
 
   const entries = await prisma.supplierLedger.findMany({
     where: { supplierId },
-    include: { purchase: true },
+    include: {
+      purchase: {
+        include: {
+          items: {
+            include: {
+              product: { select: { name: true } },
+              part: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
 
@@ -64,14 +77,20 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
     totalDebit += debit;
     totalCredit += credit;
     const purchaseRef = e.purchase?.documentRef?.trim() || null;
+    const purchaseItems = e.purchase?.items?.length
+      ? formatPurchaseItemsDescription(e.purchase.items)
+      : '';
+    const purchaseBase = `From ${supplier.name} to inventory`;
     rows.push({
       date: e.createdAt.toISOString(),
-      voucherNo: purchaseRef ? `PI-${purchaseRef}` : `SL-${e.id}`,
+      voucherNo: purchaseRef ?? String(e.id),
       ref: purchaseRef,
       type: e.type === SupplierLedgerType.CREDIT ? 'Purchase' : 'Payment',
       description:
         e.type === SupplierLedgerType.CREDIT
-          ? `From ${supplier.name} to inventory`
+          ? purchaseItems
+            ? `${purchaseBase} — ${purchaseItems}`
+            : purchaseBase
           : (e.notes ?? 'Payment'),
       debit,
       credit,
@@ -233,7 +252,7 @@ async function validatePurchaseItems(
 export async function createPurchaseInvoice(data: {
   branchId: number;
   supplierId: number;
-  reference: string;
+  reference?: string;
   notes?: string;
   createdById: string;
   items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
@@ -242,9 +261,6 @@ export async function createPurchaseInvoice(data: {
     where: { id: data.supplierId, branchId: data.branchId, isActive: true },
   });
   if (!supplier) throw new AppError(404, 'Supplier not found');
-
-  const reference = data.reference.trim();
-  if (!reference) throw new AppError(400, 'Reference is required');
 
   const productIds = data.items.map((i) => i.productId);
   if (new Set(productIds).size !== productIds.length) {
@@ -261,6 +277,9 @@ export async function createPurchaseInvoice(data: {
   }
 
   return prisma.$transaction(async (tx) => {
+    const reference =
+      data.reference?.trim() || (await allocatePurchaseInvoiceNumber(tx, data.branchId));
+
     const purchase = await tx.purchase.create({
       data: {
         branchId: data.branchId,
@@ -317,6 +336,13 @@ export async function createPurchaseInvoice(data: {
 
     const inventoryAccount = await ensureInventoryAccount(tx, data.branchId);
     const supplierAccount = await ensureSupplierAccount(tx, data.branchId, supplier);
+    const purchaseItems = formatPurchaseItemsDescription(
+      pricedItems.map((item) => ({
+        quantity: item.quantity,
+        product: item.product,
+      })),
+    );
+    const purchaseBase = `From ${supplier.name} to inventory`;
 
     const newBalance = Number(supplier.balance) + total;
     await tx.supplier.update({
@@ -330,7 +356,7 @@ export async function createPurchaseInvoice(data: {
         type: SupplierLedgerType.CREDIT,
         amount: total,
         balance: newBalance,
-        notes: `From ${supplier.name} to inventory`,
+        notes: purchaseItems ? `${purchaseBase} — ${purchaseItems}` : purchaseBase,
       },
     });
 
@@ -341,6 +367,7 @@ export async function createPurchaseInvoice(data: {
       creditAccountId: supplierAccount.id,
       amount: total,
       reference,
+      description: purchaseItems || undefined,
       createdById: data.createdById,
     });
 
@@ -435,7 +462,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     invoiceType: 'PURCHASE' as const,
     invoiceAvailable: true,
     currency: 'PKR' as const,
-    invoiceNumber: reference ? `PI-${reference}` : `PI-${purchase.id}`,
+    invoiceNumber: reference || String(purchase.id),
     reference,
     date: purchase.createdAt,
     branch: {

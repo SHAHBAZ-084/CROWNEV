@@ -173,6 +173,7 @@ export function DataTable<T extends Record<string, unknown>>({
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
     PENDING: 'warning',
+    SCHEDULED: 'success',
     CONFIRMED: 'success',
     DELIVERED: 'success',
     DONE: 'success',
@@ -181,6 +182,9 @@ export function StatusBadge({ status }: { status: string }) {
     APPROVED: 'success',
     REJECTED: 'danger',
   };
-  const labels: Record<string, string> = { DELIVERED: 'Completed' };
+  const labels: Record<string, string> = {
+    DELIVERED: 'Completed',
+    SCHEDULED: 'Scheduled',
+  };
   return <Badge variant={map[status] ?? 'default'}>{labels[status] ?? status}</Badge>;
 }

@@ -330,7 +330,6 @@ export const branchApi = {
     confirmedTime?: string;
     date?: string;
     serviceId?: number;
-    parts?: { partId: number; quantity: number }[];
   }) =>
     api<Booking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteBooking: (id: number, branchId: number) =>
@@ -400,11 +399,15 @@ export const branchApi = {
     unitPrice: number;
     brand?: { name: string } | null;
   }[]>(`/branches/${branchId}/sale-products`),
+  nextDocumentNumbers: (branchId: number) =>
+    api<{ sale: string; purchase: string; service: string }>(
+      `/branches/${branchId}/next-document-numbers`,
+    ),
   createSaleInvoice: (data: {
     branchId: number;
     customerId: number;
     items: { productId: string; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
-    reference: string;
+    reference?: string;
     notes?: string;
   }) => api<{ order: Order; voucher: unknown }>('/orders/sale-invoice', {
     method: 'POST',
@@ -508,7 +511,7 @@ export const branchApi = {
   createPurchaseInvoice: (data: {
     branchId: number;
     supplierId: number;
-    reference: string;
+    reference?: string;
     items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
     notes?: string;
   }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {
@@ -526,7 +529,7 @@ export const branchApi = {
   createServiceInvoice: (data: {
     branchId: number;
     customerId: number;
-    reference: string;
+    reference?: string;
     labourCost: number;
     items: { productId: string; quantity: number; unitPrice?: number }[];
     notes?: string;

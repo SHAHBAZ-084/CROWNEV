@@ -26,8 +26,9 @@ async function findOrCreateEquity(branchId: number) {
   }
 
   const maxCode = await prisma.account.findMany({ where: { branchId }, select: { code: true } });
-  let max = 1000;
+  let max = 0;
   for (const { code } of maxCode) {
+    if (!/^\d+$/.test(code)) continue;
     const n = parseInt(code, 10);
     if (!Number.isNaN(n) && n > max) max = n;
   }

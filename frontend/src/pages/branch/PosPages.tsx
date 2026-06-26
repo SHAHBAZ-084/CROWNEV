@@ -257,7 +257,7 @@ export function PosAccountsPage() {
               ),
             },
           ]}
-          data={categories}
+          data={manualAccountCategories}
           emptyMessage="No categories yet. Click + Category to add one"
         />
         {categoryDelete.modal}
@@ -660,7 +660,7 @@ export function PosSaleInvoicePage() {
   const [orders, setOrders] = useState<Row[]>([]);
   const [customerId, setCustomerId] = useState('');
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
-  const [reference, setReference] = useState('');
+  const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [customerLedger, setCustomerLedger] = useState<{
@@ -681,12 +681,20 @@ export function PosSaleInvoicePage() {
       .catch(console.error);
   }, [branchId]);
 
+  const reloadNextInvoiceNo = useCallback(() => {
+    if (!branchId) return;
+    branchApi.nextDocumentNumbers(branchId)
+      .then((n) => setNextInvoiceNo(n.sale))
+      .catch(console.error);
+  }, [branchId]);
+
   useEffect(() => {
     if (!branchId) return;
     branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     reloadOrders();
-  }, [branchId, reloadOrders]);
+    reloadNextInvoiceNo();
+  }, [branchId, reloadOrders, reloadNextInvoiceNo]);
 
   useEffect(() => {
     if (!branchId || !customerId) {
@@ -756,6 +764,8 @@ export function PosSaleInvoicePage() {
       });
       return;
     }
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
     const product = productById.get(productId);
     if (product?.type === 'BIKE') {
       updateLine(lineKey, { productId, unitPrice: product.unitPrice, quantity: 1, bikeChassisNumberId: undefined });
@@ -811,10 +821,6 @@ export function PosSaleInvoicePage() {
       toast('Select a customer', 'error');
       return;
     }
-    if (!reference.trim()) {
-      toast('Enter a reference number', 'error');
-      return;
-    }
     const items = lineDetails
       .filter((l) => l.product)
       .map((l) => ({
@@ -856,19 +862,19 @@ export function PosSaleInvoicePage() {
     }
     setSaving(true);
     try {
-      await branchApi.createSaleInvoice({
+      const result = await branchApi.createSaleInvoice({
         branchId,
         customerId: parseInt(customerId, 10),
-        reference: reference.trim(),
         items,
         notes: notes.trim() || undefined,
       });
-      toast(`Sale saved — ${reference.trim()}`, 'success');
+      const invoiceNo = String((result.order as { saleReference?: string }).saleReference ?? nextInvoiceNo);
+      toast(`Sale saved — invoice #${invoiceNo}`, 'success');
       setLines([newSaleLine()]);
-      setReference('');
       setNotes('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadOrders();
+      reloadNextInvoiceNo();
       branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to save sale', 'error');
@@ -909,11 +915,11 @@ export function PosSaleInvoicePage() {
             placeholder="Search customer…"
           />
           <Input
-            label="Reference #"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="e.g. SI-001"
-            required
+            label="Invoice #"
+            value={nextInvoiceNo}
+            readOnly
+            disabled
+            title="Auto-assigned on save"
           />
           <Input
             label="Notes (optional)"
@@ -1063,7 +1069,7 @@ export function PosSaleInvoicePage() {
         <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent sale invoices</h2>
         <DataTable
           columns={[
-            { key: 'saleReference', header: 'Reference', render: (r) => String(r.saleReference ?? '—') },
+            { key: 'saleReference', header: 'Invoice #', render: (r) => String(r.saleReference ?? '—') },
             {
               key: 'customer',
               header: 'Customer',
@@ -1108,7 +1114,7 @@ export function PosPurchaseInvoicePage() {
   const [purchases, setPurchases] = useState<Row[]>([]);
   const [supplierId, setSupplierId] = useState('');
   const [lines, setLines] = useState<PurchaseLine[]>([newPurchaseLine()]);
-  const [reference, setReference] = useState('');
+  const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [supplierLedger, setSupplierLedger] = useState<{
@@ -1128,12 +1134,20 @@ export function PosPurchaseInvoicePage() {
       .catch(console.error);
   }, [branchId]);
 
+  const reloadNextInvoiceNo = useCallback(() => {
+    if (!branchId) return;
+    branchApi.nextDocumentNumbers(branchId)
+      .then((n) => setNextInvoiceNo(n.purchase))
+      .catch(console.error);
+  }, [branchId]);
+
   useEffect(() => {
     if (!branchId) return;
     branchApi.branchSuppliers(branchId).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
     branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
     reloadPurchases();
-  }, [branchId, reloadPurchases]);
+    reloadNextInvoiceNo();
+  }, [branchId, reloadPurchases, reloadNextInvoiceNo]);
 
   useEffect(() => {
     if (!branchId || !supplierId) {
@@ -1186,6 +1200,8 @@ export function PosPurchaseInvoicePage() {
       updateLine(lineKey, { productId: '', unitCost: undefined, chassisNumbers: undefined });
       return;
     }
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
     const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
     if (alreadySelected) {
       toast('Product is already selected', 'error');
@@ -1245,10 +1261,6 @@ export function PosPurchaseInvoicePage() {
       toast('Select a supplier', 'error');
       return;
     }
-    if (!reference.trim()) {
-      toast('Enter a reference number', 'error');
-      return;
-    }
     for (const l of lineDetails) {
       if (!l.product) continue;
       if (l.product.type === 'BIKE') {
@@ -1304,19 +1316,19 @@ export function PosPurchaseInvoicePage() {
     }
     setSaving(true);
     try {
-      await branchApi.createPurchaseInvoice({
+      const result = await branchApi.createPurchaseInvoice({
         branchId,
         supplierId: parseInt(supplierId, 10),
-        reference: reference.trim(),
         items,
         notes: notes.trim() || undefined,
       });
-      toast(`Purchase saved — ${reference.trim()}`, 'success');
+      const invoiceNo = String((result.purchase as { documentRef?: string }).documentRef ?? nextInvoiceNo);
+      toast(`Purchase saved — invoice #${invoiceNo}`, 'success');
       setLines([newPurchaseLine()]);
-      setReference('');
       setNotes('');
       branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
       reloadPurchases();
+      reloadNextInvoiceNo();
       branchApi.supplierLedger(branchId, parseInt(supplierId, 10)).then(setSupplierLedger).catch(console.error);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to save purchase', 'error');
@@ -1357,11 +1369,11 @@ export function PosPurchaseInvoicePage() {
             placeholder="Search supplier…"
           />
           <Input
-            label="Reference #"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="e.g. PI-001"
-            required
+            label="Invoice #"
+            value={nextInvoiceNo}
+            readOnly
+            disabled
+            title="Auto-assigned on save"
           />
           <Input
             label="Notes (optional)"
@@ -1505,7 +1517,7 @@ export function PosPurchaseInvoicePage() {
         <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent purchase invoices</h2>
         <DataTable
           columns={[
-            { key: 'documentRef', header: 'Reference', render: (r) => String(r.documentRef ?? r.invoiceNumber ?? '—') },
+            { key: 'documentRef', header: 'Invoice #', render: (r) => String(r.documentRef ?? r.invoiceNumber ?? '—') },
             { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
             { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
             { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
@@ -1547,7 +1559,7 @@ export function PosServiceInvoicePage() {
   const [customerId, setCustomerId] = useState('');
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [labourCost, setLabourCost] = useState('');
-  const [reference, setReference] = useState('');
+  const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [customerLedger, setCustomerLedger] = useState<{
@@ -1567,12 +1579,20 @@ export function PosServiceInvoicePage() {
       .catch(console.error);
   }, [branchId]);
 
+  const reloadNextInvoiceNo = useCallback(() => {
+    if (!branchId) return;
+    branchApi.nextDocumentNumbers(branchId)
+      .then((n) => setNextInvoiceNo(n.service))
+      .catch(console.error);
+  }, [branchId]);
+
   useEffect(() => {
     if (!branchId) return;
     branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     reloadInvoices();
-  }, [branchId, reloadInvoices]);
+    reloadNextInvoiceNo();
+  }, [branchId, reloadInvoices, reloadNextInvoiceNo]);
 
   useEffect(() => {
     if (!branchId || !customerId) {
@@ -1640,6 +1660,8 @@ export function PosServiceInvoicePage() {
       updateLine(lineKey, { productId: '', unitPrice: undefined });
       return;
     }
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
     const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
     if (alreadySelected) {
       toast('Product is already selected', 'error');
@@ -1691,10 +1713,6 @@ export function PosServiceInvoicePage() {
       toast('Select a customer', 'error');
       return;
     }
-    if (!reference.trim()) {
-      toast('Enter a reference number', 'error');
-      return;
-    }
     if (labourAmount < 0) {
       toast('Labour cost cannot be negative', 'error');
       return;
@@ -1730,18 +1748,18 @@ export function PosServiceInvoicePage() {
       const result = await branchApi.createServiceInvoice({
         branchId,
         customerId: parseInt(customerId, 10),
-        reference: reference.trim(),
         labourCost: labourAmount,
         items,
         notes: notes.trim() || undefined,
       });
-      toast(`Service invoice saved — ${reference.trim()}`, 'success');
+      const invoiceNo = String((result.invoice as { reference?: string }).reference ?? nextInvoiceNo);
+      toast(`Service invoice saved — invoice #${invoiceNo}`, 'success');
       setLines([newSaleLine()]);
       setLabourCost('');
-      setReference('');
       setNotes('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadInvoices();
+      reloadNextInvoiceNo();
       branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
       const invoiceId = (result.invoice as { id: number }).id;
       if (invoiceId) openInvoice(invoiceId);
@@ -1769,11 +1787,11 @@ export function PosServiceInvoicePage() {
             placeholder="Search customer…"
           />
           <Input
-            label="Reference #"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="e.g. SVI-001"
-            required
+            label="Invoice #"
+            value={nextInvoiceNo}
+            readOnly
+            disabled
+            title="Auto-assigned on save"
           />
           <Input
             label="Notes (optional)"
@@ -1925,7 +1943,7 @@ export function PosServiceInvoicePage() {
         <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent service invoices</h2>
         <DataTable
           columns={[
-            { key: 'reference', header: 'Reference' },
+            { key: 'reference', header: 'Invoice #' },
             {
               key: 'customer',
               header: 'Customer',
@@ -2018,6 +2036,7 @@ export function PosAccountLedgerPage() {
   );
 
   function handleCategoryChange(id: string) {
+    if (id === categoryId) return;
     setCategoryId(id);
     setAccountId('');
     setLedger(null);
@@ -2043,7 +2062,7 @@ export function PosAccountLedgerPage() {
     }
   }
 
-  const rows = (ledger?.rows as LedgerRow[]) ?? [];
+  const rows = useMemo(() => (ledger?.rows as LedgerRow[]) ?? [], [ledger]);
   const {
     page: ledgerPage,
     setPage: setLedgerPage,
@@ -2093,6 +2112,7 @@ export function PosAccountLedgerPage() {
           label="Account"
           value={accountId}
           onChange={(id) => {
+            if (id === accountId) return;
             setAccountId(id);
             setLedger(null);
           }}
@@ -2152,7 +2172,7 @@ export function PosAccountLedgerPage() {
                 ) : (
                   paginatedLedgerRows.map((r, i) => (
                     <tr
-                      key={`${r.voucherNo}-${r.date}-${i}`}
+                      key={`${r.voucherNo}-${r.date}-${r.description}-${ledgerRangeStart + i}`}
                       className={`border-b border-border/40 ${r.isOpeningRow ? 'bg-surface-alt/20 font-medium' : ''}`}
                     >
                       <td className="px-3 py-2.5 whitespace-nowrap">{r.date ? formatDate(r.date) : ''}</td>
@@ -2226,11 +2246,14 @@ export function PosDetailTrialBalancePage() {
     }).catch(console.error);
   }, [branchId]);
 
-  const activeRows = rows.filter((r) => {
-    const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit);
-    const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit);
-    return d > 0 || c > 0;
-  });
+  const activeRows = useMemo(
+    () => rows.filter((r) => {
+      const d = Number(r.debit ?? splitTrialBalanceAmount(r.balance as number | string).debit);
+      const c = Number(r.credit ?? splitTrialBalanceAmount(r.balance as number | string).credit);
+      return d > 0 || c > 0;
+    }),
+    [rows],
+  );
 
   const {
     page: trialPage,

@@ -72,6 +72,47 @@ export async function listProducts(query: {
 }
 
 /** Public shop listing — minimal fields + one thumbnail per product. */
+function shopProductSelect(branchId?: number) {
+  return {
+    id: true,
+    name: true,
+    slug: true,
+    type: true,
+    price: true,
+    salePrice: true,
+    specs: true,
+    colorOptions: true,
+    brand: { select: { id: true, name: true, slug: true } },
+    category: { select: { id: true, name: true, slug: true } },
+    images: {
+      orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+      take: 1,
+      select: { id: true, url: true, isPrimary: true, sortOrder: true },
+    },
+    ...(branchId
+      ? {
+          branchProducts: {
+            where: { branchId, isListed: true },
+            select: { stock: true },
+            take: 1,
+          },
+        }
+      : {}),
+  };
+}
+
+function mapShopListItem<T extends { branchProducts?: { stock: number }[] }>(
+  product: T,
+  branchId?: number,
+) {
+  if (!branchId) return product;
+  const { branchProducts, ...rest } = product;
+  return {
+    ...rest,
+    stockAtBranch: branchProducts?.[0]?.stock ?? 0,
+  };
+}
+
 export async function listShopProducts(query: {
   page?: string;
   limit?: string;
@@ -83,53 +124,70 @@ export async function listShopProducts(query: {
 }) {
   const { page, limit, skip } = getPagination(query);
   const where = buildProductListWhere({ ...query, includeInactive: false });
+  const select = shopProductSelect(query.branchId);
+  const orderBy = { createdAt: 'desc' as const };
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        type: true,
-        price: true,
-        salePrice: true,
-        specs: true,
-        colorOptions: true,
-        brand: { select: { id: true, name: true, slug: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        images: {
-          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
-          take: 1,
-          select: { id: true, url: true, isPrimary: true, sortOrder: true },
-        },
-        ...(query.branchId
-          ? {
-              branchProducts: {
-                where: { branchId: query.branchId, isListed: true },
-                select: { stock: true },
-                take: 1,
-              },
-            }
-          : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.product.count({ where }),
+  if (query.type) {
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({ where, skip, take: limit, select, orderBy }),
+      prisma.product.count({ where }),
+    ]);
+    return paginatedResponse(
+      products.map((product) => mapShopListItem(product, query.branchId)),
+      total,
+      page,
+      limit,
+    );
+  }
+
+  const bikeWhere = { ...where, type: ProductType.BIKE };
+  const partWhere = { ...where, type: ProductType.PART };
+
+  const [bikeCount, partCount] = await Promise.all([
+    prisma.product.count({ where: bikeWhere }),
+    prisma.product.count({ where: partWhere }),
   ]);
+  const total = bikeCount + partCount;
 
-  const data = products.map((product) => {
-    if (!query.branchId) return product;
-    const { branchProducts, ...rest } = product;
-    return {
-      ...rest,
-      stockAtBranch: branchProducts?.[0]?.stock ?? 0,
-    };
-  });
+  type ShopListProduct = Awaited<
+    ReturnType<typeof prisma.product.findMany<{ select: typeof select }>>
+  >[number];
+  const rows: ShopListProduct[] = [];
+  let remaining = limit;
+  let offset = skip;
 
-  return paginatedResponse(data, total, page, limit);
+  if (offset < bikeCount && remaining > 0) {
+    const bikes = await prisma.product.findMany({
+      where: bikeWhere,
+      skip: offset,
+      take: Math.min(remaining, bikeCount - offset),
+      select,
+      orderBy,
+    });
+    rows.push(...bikes);
+    remaining -= bikes.length;
+    offset = 0;
+  } else {
+    offset -= bikeCount;
+  }
+
+  if (remaining > 0) {
+    const parts = await prisma.product.findMany({
+      where: partWhere,
+      skip: offset,
+      take: remaining,
+      select,
+      orderBy,
+    });
+    rows.push(...parts);
+  }
+
+  return paginatedResponse(
+    rows.map((product) => mapShopListItem(product, query.branchId)),
+    total,
+    page,
+    limit,
+  );
 }
 
 export async function getShopFilters() {
