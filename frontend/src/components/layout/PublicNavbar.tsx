@@ -170,7 +170,7 @@ export function PublicNavbar() {
       >
         <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center gap-3 px-4 lg:h-20 lg:gap-4 lg:px-8">
           <div className="shrink-0">
-            <Logo size="nav" linked className={transparentNav ? 'drop-shadow-md' : ''} />
+            <Logo size="nav" linked priority className={transparentNav ? 'drop-shadow-md' : ''} />
           </div>
 
           <nav

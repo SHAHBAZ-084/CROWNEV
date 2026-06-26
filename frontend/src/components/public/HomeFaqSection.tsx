@@ -128,11 +128,9 @@ export function HomeFaqSection() {
   return (
     <section
       id="faqs"
-      className="relative scroll-mt-28 overflow-hidden border-y border-border-light bg-elevated py-16 lg:py-24"
+      className="relative scroll-mt-28 overflow-hidden border-y border-border-light bg-elevated bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_5%)_0%,_transparent_55%)] py-16 lg:py-24"
       aria-labelledby="home-faq-heading"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_5%)_0%,_transparent_55%)]" />
-
       <div className="relative mx-auto max-w-3xl px-4 lg:max-w-4xl lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

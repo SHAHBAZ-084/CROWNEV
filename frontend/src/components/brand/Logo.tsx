@@ -10,6 +10,8 @@ type LogoProps = {
   to?: string;
   /** Center logo (sidebar / auth) */
   centered?: boolean;
+  /** Above-the-fold LCP candidate (navbar) */
+  priority?: boolean;
   className?: string;
 };
 
@@ -20,17 +22,25 @@ const sizeClass = {
   lg: 'h-20 w-auto max-w-[320px] lg:h-24 lg:max-w-[380px]',
 } as const;
 
-export function Logo({ size = 'sm', linked = false, to = '/', centered = false, className = '' }: LogoProps) {
+export function Logo({
+  size = 'sm',
+  linked = false,
+  to = '/',
+  centered = false,
+  priority = false,
+  className = '',
+}: LogoProps) {
   const img = (
-    <picture>
+    <picture className="block max-w-full">
       <source srcSet={SITE_LOGO.srcLarge} media="(min-width: 1024px)" type="image/webp" />
       <img
         src={SITE_LOGO.src}
         alt={SITE_LOGO.alt}
         width={SITE_LOGO.width}
         height={SITE_LOGO.height}
-        decoding="async"
-        className={`object-contain ${centered ? 'object-center' : 'object-left'} ${sizeClass[size]} ${className}`}
+        decoding={priority ? 'sync' : 'async'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        className={`block max-w-full object-contain ${centered ? 'object-center' : 'object-left'} ${sizeClass[size]} ${className}`}
       />
     </picture>
   );

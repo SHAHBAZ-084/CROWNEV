@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { defaultViewport, fadeUp, motionTransition } from '../../lib/publicMotion';
+import { defaultViewport, fadeIn, fadeUp, motionTransition } from '../../lib/publicMotion';
 
 type MotionSectionProps = {
   children: ReactNode;
@@ -19,13 +19,14 @@ export function MotionSection({
   immediate = false,
 }: MotionSectionProps) {
   const Comp = motion[as];
+  const variants = immediate ? fadeIn : fadeUp;
 
   return (
     <Comp
       initial="hidden"
       {...(immediate ? { animate: 'visible' } : { whileInView: 'visible' })}
       viewport={immediate ? undefined : defaultViewport}
-      variants={fadeUp}
+      variants={variants}
       transition={{ ...motionTransition, delay }}
       className={className}
     >

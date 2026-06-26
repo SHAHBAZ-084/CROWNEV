@@ -4,7 +4,7 @@ import type { Branch } from '../types';
 const BRANCH_COORDINATE_FALLBACKS: { match: RegExp; coords: [number, number] }[] = [
   {
     match: /hadi ev/i,
-    coords: [29.806322679116477, 72.86908609999999],
+    coords: [29.80616441707204, 72.86909682883606],
   },
   {
     match: /crown ev center|bahawalnagar|crown eve bahawalnagar/i,

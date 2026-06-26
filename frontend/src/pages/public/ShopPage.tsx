@@ -174,7 +174,7 @@ export default function ShopPage() {
           </p>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 min-h-[28rem] sm:min-h-[32rem]">
           {loading ? (
             <ProductGridSkeleton />
           ) : products.length === 0 ? (

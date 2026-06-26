@@ -64,10 +64,10 @@ function FooterLink({ to, label, hash }: { to: string; label: string; hash?: str
 function FooterCtaBanner() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       className="relative border-b border-border bg-gradient-to-r from-brand via-brand-light to-accent"
     >
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-10 lg:flex-row lg:px-8">
@@ -96,9 +96,7 @@ export function PublicFooter() {
   const isHome = useLocation().pathname === '/';
 
   return (
-    <footer className="relative overflow-hidden border-t border-border bg-surface-alt">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_6%)_0%,_transparent_50%)]" />
-
+    <footer className="relative overflow-hidden border-t border-border bg-surface-alt bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_6%)_0%,_transparent_50%)]">
       {isHome && <FooterCtaBanner />}
 
       <div className="relative mx-auto max-w-7xl px-4 pb-4 pt-14 lg:px-8 lg:pt-16 lg:pb-5">

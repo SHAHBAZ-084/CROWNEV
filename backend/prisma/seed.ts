@@ -257,6 +257,17 @@ async function listProductAtBranches(
   }
 }
 
+const HADI_EV_CENTER = {
+  name: 'Hadi Ev Center',
+  location: 'Bwn Road, Chishtian',
+  phone: '+92 300 1234567',
+  whatsapp: '+923001234567',
+  latitude: 29.80616441707204,
+  longitude: 72.86909682883606,
+  description:
+    'Hadi Ev Center on Bwn Road, Chishtian — sales, service, and genuine parts for Crown Ev electric bikes.',
+} as const;
+
 async function deactivateLegacySeedParts() {
   for (const slug of LEGACY_SEED_PART_SLUGS) {
     const product = await prisma.product.findUnique({
@@ -305,60 +316,46 @@ async function main() {
     },
   });
 
-  const branch1 = await prisma.branch.upsert({
+  const hadiBranch = await prisma.branch.upsert({
     where: { id: 1 },
     update: {
-      latitude: 29.995425472044637,
-      longitude: 73.2428932264022,
+      name: HADI_EV_CENTER.name,
+      location: HADI_EV_CENTER.location,
+      phone: HADI_EV_CENTER.phone,
+      whatsapp: HADI_EV_CENTER.whatsapp,
+      latitude: HADI_EV_CENTER.latitude,
+      longitude: HADI_EV_CENTER.longitude,
+      description: HADI_EV_CENTER.description,
     },
     create: {
-      name: 'Crown Ev Karachi',
-      location: 'Main Boulevard, Karachi',
-      phone: '+92 300 1234567',
-      whatsapp: '+92 300 1234567',
-      latitude: 29.995425472044637,
-      longitude: 73.2428932264022,
-      description:
-        'Our Karachi branch has been serving the Clifton and DHA community since 2022, offering full sales, service, and genuine parts support for every Crown Ev model.',
-    },
-  });
-
-  const branch2 = await prisma.branch.upsert({
-    where: { id: 2 },
-    update: {
-      latitude: 29.806322679116477,
-      longitude: 72.86908609999999,
-    },
-    create: {
-      name: 'Crown Ev Lahore',
-      location: 'MM Alam Road, Lahore',
-      phone: '+92 321 9876543',
-      whatsapp: '+92 321 9876543',
-      latitude: 29.806322679116477,
-      longitude: 72.86908609999999,
-      description:
-        'Located in the heart of Lahore, this branch provides test rides, financing guidance, and expert EV maintenance for riders across Punjab.',
+      name: HADI_EV_CENTER.name,
+      location: HADI_EV_CENTER.location,
+      phone: HADI_EV_CENTER.phone,
+      whatsapp: HADI_EV_CENTER.whatsapp,
+      latitude: HADI_EV_CENTER.latitude,
+      longitude: HADI_EV_CENTER.longitude,
+      description: HADI_EV_CENTER.description,
     },
   });
 
   const ownerPassword = await bcrypt.hash('Owner@123', 12);
   const owner = await prisma.user.upsert({
-    where: { email: 'owner.karachi@crown-eve.com' },
-    update: {},
+    where: { email: 'owner.hadi@crown-eve.com' },
+    update: { branchId: hadiBranch.id, city: 'Chishtian' },
     create: {
-      email: 'owner.karachi@crown-eve.com',
+      email: 'owner.hadi@crown-eve.com',
       passwordHash: ownerPassword,
       firstName: 'Ahmed',
       lastName: 'Khan',
       role: Role.BRANCH_OWNER,
-      branchId: branch1.id,
+      branchId: hadiBranch.id,
       isVerified: true,
-      city: 'Karachi',
+      city: 'Chishtian',
     },
   });
 
   await prisma.branch.update({
-    where: { id: branch1.id },
+    where: { id: hadiBranch.id },
     data: { ownerId: owner.id },
   });
 
@@ -392,7 +389,7 @@ async function main() {
 
   await deactivateLegacySeedParts();
 
-  const branches = [branch1, branch2];
+  const branches = [hadiBranch];
 
   for (const bike of BIKE_SEEDS) {
     const product = await prisma.product.upsert({
@@ -430,21 +427,21 @@ async function main() {
   }
 
   const existingAccCategory = await prisma.accountCategory.findFirst({
-    where: { branchId: branch1.id, name: 'Assets' },
+    where: { branchId: hadiBranch.id, name: 'Assets' },
   });
   const accCategory =
     existingAccCategory ??
     (await prisma.accountCategory.create({
-      data: { branchId: branch1.id, name: 'Assets' },
+      data: { branchId: hadiBranch.id, name: 'Assets' },
     }));
 
   const existingCash = await prisma.account.findFirst({
-    where: { branchId: branch1.id, code: '1' },
+    where: { branchId: hadiBranch.id, code: '1' },
   });
   if (!existingCash) {
     const cashAccount = await prisma.account.create({
       data: {
-        branchId: branch1.id,
+        branchId: hadiBranch.id,
         categoryId: accCategory.id,
         name: 'Cash in Hand',
         code: '1',
@@ -453,7 +450,7 @@ async function main() {
     });
 
     await prisma.ledger.create({
-      data: { branchId: branch1.id, accountId: cashAccount.id, balance: 0 },
+      data: { branchId: hadiBranch.id, accountId: cashAccount.id, balance: 0 },
     });
   }
 
@@ -484,9 +481,9 @@ async function main() {
   }
 
   console.log('Seed complete.');
-  console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at both branches). Legacy demo parts deactivated.`);
+  console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at Hadi Ev Center). Legacy demo parts deactivated.`);
   console.log('Admin: admin@crown-eve.com / Admin@123');
-  console.log('Branch Owner: owner.karachi@crown-eve.com / Owner@123');
+  console.log('Branch Owner: owner.hadi@crown-eve.com / Owner@123');
   console.log('Customer: customer@example.com / Customer@123');
 }
 

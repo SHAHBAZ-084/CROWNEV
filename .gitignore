@@ -7,6 +7,8 @@ uploads/
 .DS_Store
 Thumbs.db
 .cursor/
+
+# Design docs and personal files (keep out of repo)
 *.docx
 *.pdf
 ~$*
@@ -15,9 +17,9 @@ Thumbs.db
 *.jfif
 *.JFIF
 frontend/scripts/sources/
+lv_0_*.mp4
 
 # Local scratch / one-off debug scripts (not part of the app)
 CROWNEV_cursor_refactor.mdc
 backend/scripts/test-*-api.ts
 backend/scripts/test-accounts-customers.ts
-lv_0_*.mp4

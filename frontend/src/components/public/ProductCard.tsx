@@ -40,7 +40,10 @@ export function ProductCard({
               <img
                 src={image}
                 alt={product.name}
+                width={500}
+                height={400}
                 loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (
@@ -155,9 +158,7 @@ const features = [
 
 export function FeatureGrid() {
   return (
-    <section className="relative overflow-hidden bg-subtle py-12 lg:py-16">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgb(249_115_22_/_4%)_0%,_transparent_55%)]" />
-
+    <section className="relative overflow-hidden bg-subtle bg-[radial-gradient(ellipse_at_bottom_left,_rgb(249_115_22_/_4%)_0%,_transparent_55%)] py-12 lg:py-16">
       <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
