@@ -1,8 +1,14 @@
 /** Strips Cursor co-author trailer from commit messages. */
 import { readFileSync, writeFileSync } from 'fs';
 
+const CURSOR_COAUTHOR =
+  /^Co-authored-by:\s*Cursor\s*<cursoragent@cursor\.com>\s*(\r?\n|$)/gim;
+
 const strip = (msg) =>
-  msg.replace(/^Co-authored-by: Cursor <cursoragent@cursor.com>\r?\n/gm, '');
+  msg
+    .replace(CURSOR_COAUTHOR, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s+$/, '');
 
 const file = process.argv[2];
 if (file) {

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Strip Cursor co-author from the final commit message (after --trailer is applied).
+node "$(dirname "$0")/../scripts/strip-cursor-coauthor.mjs" "$1" 2>/dev/null || true
