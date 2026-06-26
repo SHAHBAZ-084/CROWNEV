@@ -77,12 +77,6 @@ export function ProductCard({
           </div>
 
           <div className={`flex min-h-[7.5rem] flex-1 flex-col ${isLarge ? 'p-5 lg:p-6' : 'p-5'}`}>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-              {product.brand && <span className="font-medium text-brand">{product.brand.name}</span>}
-              {product.brand && product.category && <span className="text-border-light">·</span>}
-              {product.category && <span>{product.category.name}</span>}
-            </div>
-
             <h3
               className={`mt-1 line-clamp-2 font-display font-semibold leading-snug text-ink group-hover:text-brand ${isLarge ? 'text-base lg:text-lg' : 'text-base'}`}
             >

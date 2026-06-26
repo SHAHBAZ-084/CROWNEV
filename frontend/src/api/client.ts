@@ -215,10 +215,11 @@ export const adminApi = {
       `/branches/${id}/clear-data`,
       { method: 'POST', body: JSON.stringify({ confirmName }) },
     ),
-  products: (params?: Record<string, string>) => {
+  products: (params?: Record<string, string>, init?: RequestInit) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';
-    return api<Paginated<Product>>(`/products${q}`);
+    return api<Paginated<Product>>(`/products${q}`, init);
   },
+  getProduct: (id: string) => api<Product>(`/products/${id}`),
   createProduct: (data: Record<string, unknown>) =>
     api<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
   updateProduct: (id: string, data: Record<string, unknown>) =>
@@ -379,6 +380,20 @@ export const branchApi = {
       isSelected: boolean;
     }[];
   }>(`/inventory/${branchId}/stock`),
+  searchBranchCatalog: (branchId: number, q: string, limit = 10) =>
+    api<
+      {
+        type: 'BIKE' | 'PART';
+        source: 'PRODUCT' | 'SERVICE_PART';
+        id: string | number;
+        name: string;
+        code: string;
+        quantity: number;
+        alertAt: number;
+        isLowStock: boolean;
+        isSelected: boolean;
+      }[]
+    >(`/inventory/${branchId}/catalog-search?q=${encodeURIComponent(q)}&limit=${limit}`),
   setStock: (branchId: number, partId: number, quantity: number) =>
     api<unknown>(`/inventory/${branchId}/${partId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
   removePartFromBranch: (branchId: number, partId: number) =>

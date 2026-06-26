@@ -68,7 +68,6 @@ export default function ProductDetailPage() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <div className="flex flex-wrap gap-2">
               <Badge variant="brand">{product.type}</Badge>
-              {product.brand && <Badge>{product.brand.name}</Badge>}
             </div>
 
             <h1 className="mt-4 font-display text-3xl font-bold text-ink lg:text-4xl">{product.name}</h1>

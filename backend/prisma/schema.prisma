@@ -319,6 +319,7 @@ model Product {
   bikeChassisNumbers BikeChassisNumber[]
 
   @@index([type])
+  @@index([type, createdAt(sort: Desc)])
   @@index([brandId])
   @@index([categoryId])
   @@index([isActive])

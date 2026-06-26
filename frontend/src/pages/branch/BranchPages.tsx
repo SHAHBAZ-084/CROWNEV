@@ -377,37 +377,41 @@ export function BranchInventoryPage() {
     reload();
   }, [reload]);
 
-  const selectedItems = useMemo(() => items.filter((r) => r.isSelected), [items]);
-
   const stockSummary = useMemo(
     () => ({
-      bikes: selectedItems.filter((r) => r.type === 'BIKE').length,
-      parts: selectedItems.filter((r) => r.type === 'PART').length,
-      units: selectedItems.reduce((sum, r) => sum + r.quantity, 0),
-      lowStockCount: selectedItems.filter((r) => r.isLowStock).length,
+      bikes: items.filter((r) => r.type === 'BIKE').length,
+      parts: items.filter((r) => r.type === 'PART').length,
+      units: items.reduce((sum, r) => sum + r.quantity, 0),
+      lowStockCount: items.filter((r) => r.isLowStock).length,
     }),
-    [selectedItems],
+    [items],
   );
 
-  const catalogMatches = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return [];
-    return items
-      .filter(
-        (r) =>
-          !r.isSelected &&
-          (r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)),
-      )
-      .slice(0, 10);
-  }, [items, debouncedSearch]);
+  const [catalogMatches, setCatalogMatches] = useState<StockRow[]>([]);
+  const [catalogSearching, setCatalogSearching] = useState(false);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const q = debouncedSearch.trim();
+    if (!q) {
+      setCatalogMatches([]);
+      return;
+    }
+    setCatalogSearching(true);
+    branchApi
+      .searchBranchCatalog(branchId, q, 10)
+      .then((rows) => setCatalogMatches(rows as StockRow[]))
+      .catch(console.error)
+      .finally(() => setCatalogSearching(false));
+  }, [branchId, debouncedSearch]);
 
   const displayed = useMemo(() => {
-    let rows = selectedItems;
+    let rows = items;
     if (filter === 'BIKE') rows = rows.filter((r) => r.type === 'BIKE');
     if (filter === 'PART') rows = rows.filter((r) => r.type === 'PART');
     if (filter === 'LOW') rows = rows.filter((r) => r.isLowStock);
     return rows;
-  }, [selectedItems, filter]);
+  }, [items, filter]);
 
   async function openChassisView(row: StockRow) {
     if (!branchId || row.type !== 'BIKE' || row.source !== 'PRODUCT') return;
@@ -520,7 +524,9 @@ export function BranchInventoryPage() {
               <p className="px-4 py-2 text-xs font-medium text-text-muted border-b border-border bg-surface-alt/40">
                 Catalog: click Select to add to your branch stock
               </p>
-              {catalogMatches.length === 0 ? (
+              {catalogSearching ? (
+                <p className="px-4 py-3 text-sm text-text-muted">Searching catalog…</p>
+              ) : catalogMatches.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-text-muted">No matching bikes or parts in the catalog</p>
               ) : (
                 <ul className="divide-y divide-border">

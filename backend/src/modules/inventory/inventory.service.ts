@@ -179,9 +179,13 @@ export type BranchStockItem = {
 };
 
 export async function getBranchStock(branchId: number) {
-  const [catalogProducts, inventories, serviceParts] = await Promise.all([
+  const [listedProducts, inventories] = await Promise.all([
     prisma.product.findMany({
-      where: { isActive: true, type: { in: ['BIKE', 'PART'] } },
+      where: {
+        isActive: true,
+        type: { in: ['BIKE', 'PART'] },
+        branchProducts: { some: { branchId, isListed: true } },
+      },
       include: { branchProducts: { where: { branchId } } },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
     }),
@@ -189,19 +193,15 @@ export async function getBranchStock(branchId: number) {
       where: { branchId },
       include: { part: true },
     }),
-    prisma.part.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
   ]);
 
-  const inventoryByPartId = new Map(inventories.map((i) => [i.partId, i]));
-
   const productItems: BranchStockItem[] = [];
-  for (const product of catalogProducts) {
+  for (const product of listedProducts) {
     const branchLink = product.branchProducts[0];
     let quantity = branchLink?.stock ?? 0;
     if (product.type === 'BIKE') {
       quantity = await countInStockChassis(branchId, product.id);
     }
-    const isSelected = branchLink?.isListed ?? false;
     const alertAt = product.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5;
     productItems.push({
       type: product.type,
@@ -211,44 +211,109 @@ export async function getBranchStock(branchId: number) {
       code: product.slug,
       quantity,
       alertAt,
-      isLowStock: isSelected && quantity <= alertAt,
-      isSelected,
+      isLowStock: quantity <= alertAt,
+      isSelected: true,
     });
   }
 
-  const servicePartItems: BranchStockItem[] = serviceParts.map((part) => {
-    const inventory = inventoryByPartId.get(part.id);
-    const quantity = inventory?.quantity ?? 0;
-    const isSelected = !!inventory;
-    return {
-      type: 'PART',
-      source: 'SERVICE_PART',
-      id: part.id,
-      name: part.name,
-      code: part.itemCode,
-      quantity,
-      alertAt: part.alertAt,
-      isLowStock: isSelected && quantity <= part.alertAt,
-      isSelected,
-    };
-  });
+  const servicePartItems: BranchStockItem[] = inventories
+    .filter((row) => row.part?.isActive)
+    .map((row) => {
+      const part = row.part!;
+      const quantity = row.quantity;
+      return {
+        type: 'PART' as const,
+        source: 'SERVICE_PART' as const,
+        id: part.id,
+        name: part.name,
+        code: part.itemCode,
+        quantity,
+        alertAt: part.alertAt,
+        isLowStock: quantity <= part.alertAt,
+        isSelected: true,
+      };
+    });
 
   const items = [...productItems, ...servicePartItems];
-  const lowStock = items.filter((i) => i.isSelected && i.isLowStock);
-  const selectedItems = items.filter((i) => i.isSelected);
+  const lowStock = items.filter((i) => i.isLowStock);
 
   return {
     summary: {
       totalBikes: productItems.filter((i) => i.type === 'BIKE').length,
-      totalParts: productItems.filter((i) => i.type === 'PART').length + servicePartItems.length,
-      bikesInStock: productItems.filter((i) => i.type === 'BIKE' && i.isSelected && i.quantity > 0).length,
-      partsInStock: selectedItems.filter((i) => i.type === 'PART' && i.quantity > 0).length,
+      totalParts:
+        productItems.filter((i) => i.type === 'PART').length + servicePartItems.length,
+      bikesInStock: productItems.filter((i) => i.type === 'BIKE' && i.quantity > 0).length,
+      partsInStock: items.filter((i) => i.type === 'PART' && i.quantity > 0).length,
       lowStockCount: lowStock.length,
-      totalUnits: selectedItems.reduce((sum, i) => sum + i.quantity, 0),
+      totalUnits: items.reduce((sum, i) => sum + i.quantity, 0),
     },
     items,
     lowStock,
   };
+}
+
+/** Search global catalog for products/parts not yet selected at this branch. */
+export async function searchBranchCatalog(branchId: number, search: string, limit = 10) {
+  const q = search.trim();
+  if (!q) return [] as BranchStockItem[];
+
+  const [products, serviceParts] = await Promise.all([
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        type: { in: ['BIKE', 'PART'] },
+        branchProducts: { none: { branchId, isListed: true } },
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { slug: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      take: limit,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, slug: true, type: true },
+    }),
+    prisma.part.findMany({
+      where: {
+        isActive: true,
+        inventory: { none: { branchId } },
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { itemCode: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      take: limit,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, itemCode: true, alertAt: true },
+    }),
+  ]);
+
+  const productRows: BranchStockItem[] = products.map((p) => ({
+    type: p.type,
+    source: 'PRODUCT',
+    id: p.id,
+    name: p.name,
+    code: p.slug,
+    quantity: 0,
+    alertAt: p.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5,
+    isLowStock: false,
+    isSelected: false,
+  }));
+
+  const serviceRows: BranchStockItem[] = serviceParts.map((part) => ({
+    type: 'PART',
+    source: 'SERVICE_PART',
+    id: part.id,
+    name: part.name,
+    code: part.itemCode,
+    quantity: 0,
+    alertAt: part.alertAt,
+    isLowStock: false,
+    isSelected: false,
+  }));
+
+  return [...productRows, ...serviceRows].slice(0, limit);
 }
 
 export async function listAdjustments(branchId: number, query: { page?: string; limit?: string }) {

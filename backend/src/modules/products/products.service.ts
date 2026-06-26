@@ -1,4 +1,4 @@
-import { ProductType } from '@prisma/client';
+import { Prisma, ProductType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
@@ -21,6 +21,7 @@ function buildProductListWhere(query: {
       OR: [
         { name: { contains: query.search, mode: 'insensitive' as const } },
         { description: { contains: query.search, mode: 'insensitive' as const } },
+        { slug: { contains: query.search, mode: 'insensitive' as const } },
       ],
     }),
     ...(query.branchId && {
@@ -43,19 +44,38 @@ export async function listProducts(query: {
   const { page, limit, skip } = getPagination(query);
   const where = buildProductListWhere(query);
 
+  const listSelect = {
+    id: true,
+    name: true,
+    slug: true,
+    type: true,
+    price: true,
+    salePrice: true,
+    specs: true,
+    isActive: true,
+    createdAt: true,
+    images: {
+      orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+      take: 1,
+      select: { id: true, url: true, isPrimary: true, sortOrder: true },
+    },
+    ...(query.branchId
+      ? {
+          branchProducts: {
+            where: { branchId: query.branchId, isListed: true },
+            select: { stock: true },
+            take: 1,
+          },
+        }
+      : {}),
+  } satisfies Prisma.ProductSelect;
+
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
       skip,
       take: limit,
-      include: {
-        brand: true,
-        category: true,
-        images: { orderBy: { sortOrder: 'asc' } },
-        branchProducts: query.branchId
-          ? { where: { branchId: query.branchId, isListed: true } }
-          : false,
-      },
+      select: listSelect,
       orderBy: { createdAt: 'desc' },
     }),
     prisma.product.count({ where }),
@@ -64,7 +84,7 @@ export async function listProducts(query: {
   const data = query.branchId
     ? products.map((product) => ({
         ...product,
-        stockAtBranch: product.branchProducts[0]?.stock ?? 0,
+        stockAtBranch: product.branchProducts?.[0]?.stock ?? 0,
       }))
     : products;
 
@@ -123,7 +143,18 @@ export async function listShopProducts(query: {
   branchId?: number;
 }) {
   const { page, limit, skip } = getPagination(query);
-  const where = buildProductListWhere({ ...query, includeInactive: false });
+  const listedAtBranch = {
+    branchProducts: {
+      some: {
+        isListed: true,
+        ...(query.branchId !== undefined && { branchId: query.branchId }),
+      },
+    },
+  };
+  const where = {
+    ...buildProductListWhere({ ...query, includeInactive: false }),
+    ...listedAtBranch,
+  };
   const select = shopProductSelect(query.branchId);
   const orderBy = { createdAt: 'desc' as const };
 

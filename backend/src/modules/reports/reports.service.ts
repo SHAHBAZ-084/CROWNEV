@@ -1,6 +1,5 @@
-import { OrderStatus, OrderType } from '@prisma/client';
+import { OrderStatus, OrderType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
-import { getLowStockAlerts } from '../inventory/inventory.service.js';
 import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -106,6 +105,18 @@ export async function getBranchSalesSummary(branchId: number, period: ReportPeri
   return getSalesSummary(period, branchId);
 }
 
+async function countLowStockAlerts(branchId?: number) {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS count
+    FROM "Inventory" i
+    INNER JOIN "Part" p ON i."partId" = p.id
+    WHERE p."isActive" = true
+      AND i.quantity <= p."alertAt"
+      ${branchId ? Prisma.sql`AND i."branchId" = ${branchId}` : Prisma.empty}
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function getAdminDashboard() {
   return withTimeout(
     (async () => {
@@ -113,7 +124,7 @@ export async function getAdminDashboard() {
         revenue,
         orderCount,
         branchCount,
-        lowStock,
+        lowStockAlerts,
         recentOrders,
         branchMeta,
         revenueByBranch,
@@ -124,13 +135,18 @@ export async function getAdminDashboard() {
         }),
         prisma.order.count(),
         prisma.branch.count({ where: { isActive: true } }),
-        getLowStockAlerts(),
+        countLowStockAlerts(),
         prisma.order.findMany({
           take: 10,
           orderBy: { createdAt: 'desc' },
-          include: {
+          select: {
+            id: true,
+            publicId: true,
+            saleReference: true,
+            type: true,
+            status: true,
+            total: true,
             branch: { select: { name: true } },
-            user: { select: { firstName: true, lastName: true } },
           },
         }),
         prisma.branch.findMany({
@@ -160,8 +176,7 @@ export async function getAdminDashboard() {
         totalRevenue: revenue._sum.total ?? 0,
         totalOrders: orderCount,
         totalBranches: branchCount,
-        lowStockAlerts: lowStock.length,
-        lowStock,
+        lowStockAlerts,
         recentOrders,
         branchComparison,
       };
@@ -175,25 +190,22 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
   const cappedDays = Math.min(Math.max(days, 1), 365);
   const since = new Date();
   since.setDate(since.getDate() - cappedDays);
+  since.setHours(0, 0, 0, 0);
 
-  const orders = await prisma.order.findMany({
-    where: {
-      ...(branchId && { branchId }),
-      status: 'CONFIRMED',
-      createdAt: { gte: since },
-    },
-    select: { total: true, createdAt: true },
-    orderBy: { createdAt: 'asc' },
-    take: EXPORT_MAX_ROWS,
-  });
+  const rows = await prisma.$queryRaw<{ day: Date; revenue: string }[]>`
+    SELECT DATE("createdAt") AS day, SUM(total)::text AS revenue
+    FROM "Order"
+    WHERE status = 'CONFIRMED'
+      AND "createdAt" >= ${since}
+      ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
+    GROUP BY DATE("createdAt")
+    ORDER BY day ASC
+  `;
 
-  const dailyMap = new Map<string, number>();
-  for (const order of orders) {
-    const key = order.createdAt.toISOString().split('T')[0];
-    dailyMap.set(key, (dailyMap.get(key) ?? 0) + Number(order.total));
-  }
-
-  return Array.from(dailyMap.entries()).map(([date, revenue]) => ({ date, revenue }));
+  return rows.map((row) => ({
+    date: row.day.toISOString().split('T')[0],
+    revenue: Number(row.revenue),
+  }));
 }
 
 type ExportPagination = { page?: string; limit?: string };

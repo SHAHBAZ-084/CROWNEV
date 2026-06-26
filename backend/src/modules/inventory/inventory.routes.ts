@@ -36,6 +36,19 @@ inventoryRouter.get(
 );
 
 inventoryRouter.get(
+  '/:branchId/catalog-search',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranchAccess(req, branchId);
+    const search = String(req.query.q ?? '');
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 10;
+    const rows = await inventoryService.searchBranchCatalog(branchId, search, limit);
+    res.json(rows);
+  })
+);
+
+inventoryRouter.get(
   '/:branchId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {

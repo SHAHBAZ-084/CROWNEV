@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 const prisma = new PrismaClient();
 const seedDir = path.dirname(fileURLToPath(import.meta.url));
 const SEED_BIKE_ASSETS = path.join(seedDir, 'seed-assets', 'bikes');
-const SEED_PART_ASSETS = path.join(seedDir, 'seed-assets', 'parts');
 const UPLOAD_PRODUCTS_DIR = path.resolve(process.cwd(), 'uploads', 'products');
 
 type BikeSeed = {
@@ -22,20 +21,16 @@ type BikeSeed = {
   images?: string[];
 };
 
-type PartSeed = {
-  slug: string;
-  name: string;
-  itemCode: string;
-  price: number;
-  salePrice?: number;
-  description: string;
-  costPrice: number;
-  alertAt?: number;
-  imageText: string;
-  imageColor?: string;
-  inventoryQty?: number;
-  images?: string[];
-};
+const LEGACY_SEED_PART_SLUGS = [
+  '60v-32ah-battery-pack',
+  'bldc-motor-1000w',
+  'lcd-display-panel',
+  'front-brake-pad-set',
+  'tubeless-tyre-16',
+  '60v-5a-fast-charger',
+  'headlight-assembly-led',
+  'rear-shock-absorber',
+] as const;
 
 const BIKE_SEEDS: BikeSeed[] = [
   {
@@ -202,111 +197,6 @@ const BIKE_SEEDS: BikeSeed[] = [
   },
 ];
 
-const PART_SEEDS: PartSeed[] = [
-  {
-    slug: '60v-32ah-battery-pack',
-    name: '60V 32Ah Battery Pack',
-    itemCode: 'CE-BAT-60V-32AH',
-    price: 52000,
-    salePrice: 49000,
-    description: 'Replacement lithium battery for Crown Ev 60V electric bikes.',
-    costPrice: 45000,
-    alertAt: 3,
-    imageText: '60V+32Ah+Battery',
-    inventoryQty: 12,
-    images: ['60v-32ah-battery-pack.webp', '60v-32ah-battery-pack-2.webp'],
-  },
-  {
-    slug: 'bldc-motor-1000w',
-    name: 'BLDC Motor 1000W',
-    itemCode: 'CE-MOT-1000W',
-    price: 28000,
-    description: 'High-torque brushless hub motor for Pro X1 and Trail Rider models.',
-    costPrice: 24000,
-    alertAt: 4,
-    imageText: '1000W+Motor',
-    imageColor: '334155',
-    inventoryQty: 8,
-  },
-  {
-    slug: 'lcd-display-panel',
-    name: 'LCD Display Panel',
-    itemCode: 'CE-DSP-LCD',
-    price: 8500,
-    salePrice: 7900,
-    description: 'Speed, battery, and trip LCD dashboard for Crown Ev handlebars.',
-    costPrice: 6200,
-    alertAt: 5,
-    imageText: 'LCD+Display',
-    imageColor: '0f172a',
-    inventoryQty: 15,
-  },
-  {
-    slug: 'front-brake-pad-set',
-    name: 'Front Brake Pad Set',
-    itemCode: 'CE-BRK-FRT',
-    price: 2200,
-    description: 'OEM-compatible front disc brake pads for Crown Ev city and lite models.',
-    costPrice: 1500,
-    alertAt: 8,
-    imageText: 'Brake+Pads',
-    imageColor: '7c2d12',
-    inventoryQty: 24,
-  },
-  {
-    slug: 'tubeless-tyre-16',
-    name: 'Tubeless Tyre 16"',
-    itemCode: 'CE-TYR-16',
-    price: 6500,
-    description: 'All-weather 16-inch tubeless tyre for Crown Ev commuter bikes.',
-    costPrice: 4800,
-    alertAt: 6,
-    imageText: 'Tyre+16in',
-    imageColor: '1c1917',
-    inventoryQty: 18,
-  },
-  {
-    slug: '60v-5a-fast-charger',
-    name: '60V 5A Fast Charger',
-    itemCode: 'CE-CHG-60V5A',
-    price: 9800,
-    salePrice: 9200,
-    description: 'Smart 60V fast charger with overcharge protection for Crown Ev batteries.',
-    costPrice: 7200,
-    alertAt: 4,
-    imageText: '60V+Charger',
-    imageColor: 'c2410c',
-    inventoryQty: 10,
-    images: ['60v-5a-fast-charger.webp', '60v-5a-fast-charger-2.webp', '60v-5a-fast-charger-3.webp'],
-  },
-  {
-    slug: 'headlight-assembly-led',
-    name: 'LED Headlight Assembly',
-    itemCode: 'CE-LGT-LED',
-    price: 4500,
-    description: 'Bright LED headlight unit with integrated DRL for night riding safety.',
-    costPrice: 3100,
-    alertAt: 6,
-    imageText: 'LED+Headlight',
-    imageColor: 'fef08a',
-    inventoryQty: 14,
-    images: ['headlight-assembly-led.webp', 'headlight-assembly-led-2.webp'],
-  },
-  {
-    slug: 'rear-shock-absorber',
-    name: 'Rear Shock Absorber',
-    itemCode: 'CE-SHK-RR',
-    price: 7200,
-    description: 'Replacement rear shock for Trail Rider and Delivery Max models.',
-    costPrice: 5400,
-    alertAt: 5,
-    imageText: 'Rear+Shock',
-    imageColor: '475569',
-    inventoryQty: 9,
-    images: ['rear-shock-absorber.webp', 'rear-shock-absorber-2.webp'],
-  },
-];
-
 async function copySeedImages(
   slug: string,
   assetDir: string,
@@ -367,45 +257,34 @@ async function listProductAtBranches(
   }
 }
 
-async function stockPartAtBranches(
-  partId: number,
-  branches: { id: number }[],
-  quantity: number,
-) {
-  for (const branch of branches) {
-    await prisma.inventory.upsert({
-      where: { branchId_partId: { branchId: branch.id, partId } },
-      update: { quantity },
-      create: { branchId: branch.id, partId, quantity },
+async function deactivateLegacySeedParts() {
+  for (const slug of LEGACY_SEED_PART_SLUGS) {
+    const product = await prisma.product.findUnique({
+      where: { slug },
+      include: { bikePartDetails: true },
     });
-  }
-}
+    if (!product) continue;
 
-async function upsertBikePartDetail(
-  productId: string,
-  partId: number,
-  compatibleBikeIds: string[],
-) {
-  const existing = await prisma.bikePartDetail.findFirst({ where: { productId } });
-  if (existing) {
-    await prisma.bikePartDetail.update({
-      where: { id: existing.id },
-      data: {
-        partId,
-        modelCompatibility: 'Crown Ev models',
-        compatibleBikeIds,
-      },
+    await prisma.branchProduct.updateMany({
+      where: { productId: product.id },
+      data: { isListed: false, stock: 0 },
     });
-    return;
+    await prisma.product.update({
+      where: { id: product.id },
+      data: { isActive: false },
+    });
+
+    for (const detail of product.bikePartDetails) {
+      await prisma.part.update({
+        where: { id: detail.partId },
+        data: { isActive: false },
+      });
+      await prisma.inventory.updateMany({
+        where: { partId: detail.partId },
+        data: { quantity: 0 },
+      });
+    }
   }
-  await prisma.bikePartDetail.create({
-    data: {
-      productId,
-      partId,
-      modelCompatibility: 'Crown Ev models',
-      compatibleBikeIds,
-    },
-  });
 }
 
 async function main() {
@@ -511,14 +390,9 @@ async function main() {
     create: { name: 'Electric Bikes', slug: 'electric-bikes' },
   });
 
-  await prisma.productCategory.upsert({
-    where: { slug: 'parts-accessories' },
-    update: {},
-    create: { name: 'Parts & Accessories', slug: 'parts-accessories' },
-  });
+  await deactivateLegacySeedParts();
 
   const branches = [branch1, branch2];
-  const bikeProducts: { id: string; slug: string }[] = [];
 
   for (const bike of BIKE_SEEDS) {
     const product = await prisma.product.upsert({
@@ -553,62 +427,6 @@ async function main() {
       bike.images ?? [`${bike.slug}.webp`],
     );
     await listProductAtBranches(product.id, branches, bike.branchStock ?? 5);
-    bikeProducts.push({ id: product.id, slug: bike.slug });
-  }
-
-  for (const partSeed of PART_SEEDS) {
-    const partProduct = await prisma.product.upsert({
-      where: { slug: partSeed.slug },
-      update: {
-        name: partSeed.name,
-        price: partSeed.price,
-        salePrice: partSeed.salePrice ?? null,
-        description: partSeed.description,
-        isActive: true,
-      },
-      create: {
-        name: partSeed.name,
-        slug: partSeed.slug,
-        type: ProductType.PART,
-        brandId: brand.id,
-        price: partSeed.price,
-        salePrice: partSeed.salePrice,
-        description: partSeed.description,
-      },
-    });
-
-    const part = await prisma.part.upsert({
-      where: { itemCode: partSeed.itemCode },
-      update: {
-        name: partSeed.name,
-        description: partSeed.description,
-        costPrice: partSeed.costPrice,
-        alertAt: partSeed.alertAt ?? 5,
-        isActive: true,
-      },
-      create: {
-        itemCode: partSeed.itemCode,
-        name: partSeed.name,
-        description: partSeed.description,
-        costPrice: partSeed.costPrice,
-        alertAt: partSeed.alertAt ?? 5,
-      },
-    });
-
-    await syncProductImages(
-      partProduct.id,
-      partSeed.slug,
-      SEED_PART_ASSETS,
-      partSeed.images ?? [`${partSeed.slug}.webp`],
-    );
-    await listProductAtBranches(partProduct.id, branches, partSeed.inventoryQty ?? 10);
-    await stockPartAtBranches(part.id, branches, partSeed.inventoryQty ?? 10);
-
-    await upsertBikePartDetail(
-      partProduct.id,
-      part.id,
-      bikeProducts.map((b) => b.id),
-    );
   }
 
   const existingAccCategory = await prisma.accountCategory.findFirst({
@@ -666,7 +484,7 @@ async function main() {
   }
 
   console.log('Seed complete.');
-  console.log(`Catalog: ${BIKE_SEEDS.length} bikes, ${PART_SEEDS.length} parts (listed at both branches).`);
+  console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at both branches). Legacy demo parts deactivated.`);
   console.log('Admin: admin@crown-eve.com / Admin@123');
   console.log('Branch Owner: owner.karachi@crown-eve.com / Owner@123');
   console.log('Customer: customer@example.com / Customer@123');

@@ -4,6 +4,7 @@ import { Building2, Receipt, ShoppingCart, Users } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
+import { TablePagination } from '../../components/ui/TablePagination';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -506,16 +507,47 @@ export function AdminProductsPage() {
   const productType = tab === 'bikes' ? 'BIKE' : 'PART';
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pageSize = tab === 'parts' ? 25 : 20;
 
-  const loadProducts = useCallback(
-    () =>
-      adminApi.products({
-        type: productType,
-        ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-      }),
-    [productType, debouncedSearch],
-  );
-  const { rows, reload } = useCrudList(loadProducts, [productType, debouncedSearch]);
+  useEffect(() => {
+    setPage(1);
+  }, [productType, debouncedSearch]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setLoading(true);
+    adminApi
+      .products(
+        {
+          type: productType,
+          page: String(page),
+          limit: String(pageSize),
+          ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+        },
+        { signal: ac.signal },
+      )
+      .then((result) => {
+        setRows(result.data as Row[]);
+        setTotalItems(result.pagination.total);
+        setTotalPages(result.pagination.totalPages);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error(err);
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
+      });
+    return () => ac.abort();
+  }, [productType, debouncedSearch, page, pageSize, refreshKey]);
+
+  const bumpCatalog = () => setRefreshKey((k) => k + 1);
 
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -527,7 +559,7 @@ export function AdminProductsPage() {
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
       toast('Removed from catalog', 'success');
-      reload();
+      bumpCatalog();
     },
     { message: (row) => `Delete "${String(row.name)}"? It will be removed from the shop and hidden from this list.` },
   );
@@ -561,11 +593,20 @@ export function AdminProductsPage() {
 
   function openEditModal(row: Row) {
     resetImageState();
-    const imgs = (row.images as ExistingImage[] | undefined) ?? [];
-    setExistingImages(imgs);
-    setPrimarySelection(primaryFromImages(imgs, []));
     setEdit(row);
     setModal('edit');
+    adminApi
+      .getProduct(String(row.id))
+      .then((full) => {
+        setEdit(full as Row);
+        const imgs = (full.images as ExistingImage[] | undefined) ?? [];
+        setExistingImages(imgs);
+        setPrimarySelection(primaryFromImages(imgs, []));
+      })
+      .catch((err) => {
+        toast(err instanceof Error ? err.message : 'Failed to load product', 'error');
+        closeModal();
+      });
   }
 
   async function removeExistingImage(imageId: number) {
@@ -660,7 +701,7 @@ export function AdminProductsPage() {
       }
       toast(modal === 'edit' ? 'Saved' : 'Created', 'success');
       closeModal();
-      reload();
+      bumpCatalog();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
     } finally {
@@ -702,7 +743,13 @@ export function AdminProductsPage() {
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
-        Showing <strong className="text-brand">{tabLabel}</strong>, same as the public shop filter (Bikes / Parts).
+        Showing <strong className="text-brand">{tabLabel}</strong>
+        {totalItems > 0 && (
+          <>
+            {' '}
+            — <strong>{totalItems.toLocaleString()}</strong> in catalog
+          </>
+        )}
       </p>
 
       <div className="mb-4 max-w-md">
@@ -723,12 +770,22 @@ export function AdminProductsPage() {
               const imgs = r.images as { url: string; isPrimary?: boolean }[] | undefined;
               const url = imgs?.find((i) => i.isPrimary)?.url ?? imgs?.[0]?.url;
               return url ? (
-                <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                <img src={url} alt="" loading="lazy" decoding="async" className="h-10 w-10 rounded-lg object-cover" />
               ) : (
                 <span className="text-xs text-text-muted">—</span>
               );
             },
           },
+          ...(tab === 'parts'
+            ? [{
+                key: 'itemCode',
+                header: 'Item Code',
+                render: (r: Row) => {
+                  const specs = r.specs as { item_code?: string } | undefined;
+                  return specs?.item_code ?? r.slug ?? '—';
+                },
+              }]
+            : []),
           { key: 'name', header: 'Name' },
           { key: 'price', header: 'Price', render: (r) => `PKR ${Number(r.price).toLocaleString()}` },
           {
@@ -749,7 +806,16 @@ export function AdminProductsPage() {
           },
         ]}
         data={rows}
-        emptyMessage={tab === 'bikes' ? 'No bikes in catalog yet' : 'No parts in catalog yet'}
+        paginate={false}
+        emptyMessage={loading ? 'Loading catalog…' : tab === 'bikes' ? 'No bikes in catalog yet' : 'No parts in catalog yet'}
+      />
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
+        rangeEnd={Math.min(page * pageSize, totalItems)}
+        onPageChange={setPage}
       />
       {del.modal}
       <Modal

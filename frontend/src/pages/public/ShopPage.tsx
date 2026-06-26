@@ -8,7 +8,6 @@ import { MotionSection } from '../../components/public/MotionSection';
 import { PageHero } from '../../components/public/PageHero';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { useAuth } from '../../contexts/AuthContext';
-import { Select } from '../../components/ui/Input';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -23,47 +22,24 @@ export default function ShopPage() {
   const isCustomerDashboard = user?.role === 'CUSTOMER';
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
-  const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(params.get('search') ?? '');
   const debouncedSearch = useDebounce(search);
 
   const type = params.get('type') ?? '';
-  const brandId = params.get('brandId') ?? '';
-  const categoryId = params.get('categoryId') ?? '';
 
   const activeFilters = useMemo(() => {
     const filters: { key: string; label: string }[] = [];
     if (type) filters.push({ key: 'type', label: type === 'BIKE' ? 'Bikes' : 'Parts' });
-    if (brandId) {
-      const brand = brands.find((b) => String(b.id) === brandId);
-      if (brand) filters.push({ key: 'brandId', label: brand.name });
-    }
-    if (categoryId) {
-      const cat = categories.find((c) => String(c.id) === categoryId);
-      if (cat) filters.push({ key: 'categoryId', label: cat.name });
-    }
     if (debouncedSearch) filters.push({ key: 'search', label: `"${debouncedSearch}"` });
     return filters;
-  }, [type, brandId, categoryId, debouncedSearch, brands, categories]);
-
-  useEffect(() => {
-    publicApi.shopFilters()
-      .then(({ brands: b, categories: c }) => {
-        setBrands(b);
-        setCategories(c);
-      })
-      .catch(console.error);
-  }, []);
+  }, [type, debouncedSearch]);
 
   useEffect(() => {
     setLoading(true);
     const q: Record<string, string> = {};
     if (debouncedSearch) q.search = debouncedSearch;
     if (type) q.type = type;
-    if (brandId) q.brandId = brandId;
-    if (categoryId) q.categoryId = categoryId;
 
     publicApi
       .shop(q)
@@ -79,7 +55,7 @@ export default function ShopPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [debouncedSearch, type, brandId, categoryId]);
+  }, [debouncedSearch, type]);
 
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -157,34 +133,6 @@ export default function ShopPage() {
                 );
               })}
             </div>
-
-            <Select
-              value={brandId}
-              onChange={(e) => setFilter('brandId', e.target.value)}
-              className="w-full sm:w-40"
-              aria-label="Filter by brand"
-            >
-              <option value="">All Brands</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={categoryId}
-              onChange={(e) => setFilter('categoryId', e.target.value)}
-              className="w-full sm:w-44"
-              aria-label="Filter by category"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
           </div>
 
           {activeFilters.length > 0 && (

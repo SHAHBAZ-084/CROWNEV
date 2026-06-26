@@ -11,11 +11,15 @@ import { orderListReference } from '../../lib/format';
 export default function AdminDashboard() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [revenue, setRevenue] = useState<{ date: string; revenue: number }[]>([]);
+  const [revenueLoading, setRevenueLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([adminApi.dashboard(), adminApi.revenue(30)])
-      .then(([d, r]) => { setData(d); setRevenue(r); })
-      .catch(console.error);
+    adminApi.dashboard().then(setData).catch(console.error);
+    adminApi
+      .revenue(30)
+      .then(setRevenue)
+      .catch(console.error)
+      .finally(() => setRevenueLoading(false));
   }, []);
 
   const recentOrders = (data?.recentOrders as Record<string, unknown>[]) ?? [];
@@ -39,6 +43,9 @@ export default function AdminDashboard() {
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
               <h3 className="mb-4 font-display font-semibold text-ink">Revenue Trend (30 days)</h3>
+              {revenueLoading ? (
+                <div className="flex h-[240px] items-center justify-center text-sm text-ink-muted">Loading chart…</div>
+              ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={revenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
@@ -48,6 +55,7 @@ export default function AdminDashboard() {
                   <Line type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
+              )}
             </div>
 
             <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
