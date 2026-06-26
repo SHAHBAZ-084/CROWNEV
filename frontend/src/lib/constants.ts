@@ -142,9 +142,10 @@ export const PAKISTAN_CITY_OPTIONS = PAKISTAN_CITIES.map((city) => ({
 }));
 
 export const ORDER_STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-800',
-  CONFIRMED: 'bg-neutral-100 text-neutral-800',
-  DELIVERED: 'bg-green-100 text-green-800',
+  AWAITING_BILTY_CHARGES: 'bg-amber-100 text-amber-800',
+  AWAITING_PAYMENT: 'bg-amber-100 text-amber-800',
+  PAYMENT_SUBMITTED: 'bg-blue-100 text-blue-800',
+  CONFIRMED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 };
 

@@ -12,7 +12,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { FormActions } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import { OrderStatusTimeline, isInvoiceAvailable, orderItemsSummary } from '../../lib/orderHelpers';
+import { OrderStatusTimeline, isInvoiceAvailable, isAwaitingPaymentVerification, needsCustomerPayment, orderItemsSummary, orderReference, PaymentStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatDate, formatTime } from '../../lib/format';
 import { downloadBookingReceipt } from '../../lib/receiptDownload';
 import { useToast } from '../../contexts/ToastContext';
@@ -76,7 +76,7 @@ export function CustomerDashboard() {
           <h2 className="mb-4 font-display font-semibold text-slate-900">Recent Orders ({orders.length})</h2>
           <DataTable
             columns={[
-              { key: 'trackingId', header: 'Tracking' },
+              { key: 'product', header: 'Product', render: (r) => orderItemsSummary(r as unknown as Order) || '—' },
               { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
               { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
             ]}
@@ -144,23 +144,72 @@ export function CustomerOrdersPage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [paymentTid, setPaymentTid] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
+
+  function reload() {
+    customerApi.orders().then((r) => setOrders(r.data)).catch(console.error);
+  }
 
   useEffect(() => {
-    customerApi.orders().then((r) => setOrders(r.data)).catch(console.error);
+    reload();
   }, []);
 
   async function viewOrder(id: number) {
     try {
       const order = await customerApi.order(id);
       setDetail(order);
+      setPaymentTid('');
+      setPaymentScreenshot('');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to load order', 'error');
     }
   }
 
+  async function handlePaymentScreenshot(file: File | null) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await customerApi.uploadPaymentScreenshot(file);
+      setPaymentScreenshot(url);
+      toast('Screenshot uploaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function submitPayment(e: FormEvent) {
+    e.preventDefault();
+    if (!detail) return;
+    if (!paymentTid.trim() || !paymentScreenshot) {
+      toast('TID and payment screenshot are required', 'error');
+      return;
+    }
+    setSubmittingPayment(true);
+    try {
+      const updated = await customerApi.submitOrderPayment(detail.id, {
+        paymentTransactionId: paymentTid.trim(),
+        bankTransferScreenshot: paymentScreenshot,
+      });
+      setDetail(updated);
+      reload();
+      toast('Payment submitted for verification', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to submit payment', 'error');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  }
+
   async function openInvoice(id: number) {
     if (!isInvoiceAvailable(orders.find((o) => o.id === id) ?? ({} as Order))) {
-      toast('Invoice available once order is delivered and payment verified', 'error');
+      toast('Invoice available once payment is verified and order is confirmed', 'error');
       return;
     }
     setInvoiceModal(id);
@@ -181,11 +230,11 @@ export function CustomerOrdersPage() {
       <PageHeader title="My Orders" action={<Link to="/shop"><Button variant="accent" size="sm">New Order</Button></Link>} />
       <DataTable
         columns={[
-          { key: 'trackingId', header: 'Tracking', render: (r) => <span className="font-mono text-xs">{String(r.trackingId)}</span> },
+          { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderReference(r as unknown as Order)}</span> },
           { key: 'items', header: 'Items', render: (r) => orderItemsSummary(r as unknown as Order) },
           { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name?: string })?.name ?? '' },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'paymentStatus', header: 'Payment', render: (r) => <StatusBadge status={String(r.paymentStatus)} /> },
+          { key: 'paymentStatus', header: 'Payment', render: (r) => <PaymentStatusBadge order={r as unknown as Order} /> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
           { key: 'createdAt', header: 'Date', render: (r) => formatDate(String(r.createdAt)) },
           {
@@ -201,7 +250,7 @@ export function CustomerOrdersPage() {
                     size="sm"
                     variant={canInvoice ? 'accent' : 'ghost'}
                     disabled={!canInvoice}
-                    title={canInvoice ? 'Download invoice' : 'Invoice pending verification/delivery'}
+                    title={canInvoice ? 'Download invoice' : 'Invoice pending confirmation'}
                     onClick={() => openInvoice(Number(r.id))}
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -214,20 +263,73 @@ export function CustomerOrdersPage() {
         data={orders as unknown as Record<string, unknown>[]}
       />
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${detail?.trackingId}`} size="lg">
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${detail ? orderReference(detail) : ''}`} size="lg">
         {detail && (
           <div className="space-y-5 text-sm text-slate-700">
-            <p className="font-mono text-lg font-bold text-slate-900">{detail.trackingId}</p>
-            <OrderStatusTimeline status={detail.status} />
-            {detail.biltyTrackingId && (
+            <p className="font-mono text-lg font-bold text-slate-900">{orderReference(detail)}</p>
+            <OrderStatusTimeline status={detail.status} shippingMethod={detail.shippingMethod} />
+
+            {detail.status === 'AWAITING_BILTY_CHARGES' && detail.shippingMethod === 'BILTY' && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Please wait while we calculate your bilty (shipping) charges. You will be notified here once charges are ready.
+              </div>
+            )}
+
+            {detail.biltyCharges != null && Number(detail.biltyCharges) > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase text-slate-500">Order total</p>
+                <p><span className="text-slate-500">Product price:</span> {formatPKR(Number(detail.subtotal ?? detail.total))}</p>
+                <p><span className="text-slate-500">Bilty charges:</span> {formatPKR(Number(detail.biltyCharges))}</p>
+                <p className="mt-2 font-semibold text-slate-900">Total: {formatPKR(Number(detail.total))}</p>
+              </div>
+            )}
+
+            {isAwaitingPaymentVerification(detail) && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Your payment has been submitted. A branch admin will verify it before your order is confirmed.
+              </div>
+            )}
+
+            {needsCustomerPayment(detail) && (
+              <form onSubmit={submitPayment} className="space-y-4 rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+                <p className="font-medium text-slate-900">
+                  Please make payment of {formatPKR(Number(detail.total))} and submit your TID.
+                </p>
+                <Input
+                  label="Transaction ID (TID)"
+                  value={paymentTid}
+                  onChange={(e) => setPaymentTid(e.target.value)}
+                  required
+                />
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-orange-500">
+                  Upload payment screenshot *
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => handlePaymentScreenshot(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {paymentScreenshot && (
+                  <img src={`${BASE}${paymentScreenshot}`} alt="Payment proof" className="max-h-36 rounded-lg border object-contain" />
+                )}
+                <Button type="submit" variant="accent" loading={submittingPayment} disabled={!paymentTid.trim() || !paymentScreenshot}>
+                  Submit Payment
+                </Button>
+              </form>
+            )}
+
+            {detail.biltyId && (
               <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-                <p className="text-xs font-semibold uppercase text-orange-600">Your bilty tracking</p>
-                <p className="mt-1 font-mono text-lg font-bold text-slate-900">{detail.biltyTrackingId}</p>
+                <p className="text-xs font-semibold uppercase text-orange-600">Your bilty ID</p>
+                <p className="mt-1 font-mono text-lg font-bold text-slate-900">{detail.biltyId}</p>
                 <p className="mt-1 text-xs text-slate-500">Use this number to track your shipment with the courier.</p>
               </div>
             )}
             <div className="grid gap-2 sm:grid-cols-2">
-              <p><span className="text-slate-500">Payment:</span> {detail.paymentMethod} ({detail.paymentStatus})</p>
+              <p><span className="text-slate-500">Shipping:</span> {detail.shippingMethod === 'BILTY' ? 'By Bilty' : detail.shippingMethod === 'SELF' ? 'Self pickup' : '—'}</p>
+              <p><span className="text-slate-500">Payment:</span> {detail.paymentMethod} <PaymentStatusBadge order={detail} /></p>
               {detail.paymentTransactionId && (
                 <p><span className="text-slate-500">TID:</span> <span className="font-mono">{detail.paymentTransactionId}</span></p>
               )}

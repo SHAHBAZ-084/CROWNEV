@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerApi } from '../../api/client';
+import { orderItemsSummary } from '../../lib/orderHelpers';
+import type { Order } from '../../types';
 
 export default function CustomerDashboard() {
   const { user } = useAuth();
@@ -25,10 +27,10 @@ export default function CustomerDashboard() {
           <h2 className="font-semibold">Recent Orders ({orders.length})</h2>
           <div className="mt-4 space-y-2">
             {orders.slice(0, 5).map((o) => {
-              const order = o as { id: number; trackingId: string; status: string; total: string };
+              const order = o as Order;
               return (
                 <div key={order.id} className="rounded-lg border bg-white p-3 text-sm">
-                  <span className="font-mono">{order.trackingId}</span> · {order.status} · PKR{' '}
+                  <span>{orderItemsSummary(order) || '—'}</span> · {order.status} · PKR{' '}
                   {Number(order.total).toLocaleString()}
                 </div>
               );

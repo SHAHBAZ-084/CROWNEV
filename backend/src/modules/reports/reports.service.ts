@@ -5,7 +5,7 @@ import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-const CONFIRMED_STATUSES: OrderStatus[] = [OrderStatus.CONFIRMED, OrderStatus.DELIVERED];
+const CONFIRMED_STATUSES: OrderStatus[] = [OrderStatus.CONFIRMED];
 
 export function getPeriodRange(period: ReportPeriod) {
   const now = new Date();
@@ -119,7 +119,7 @@ export async function getAdminDashboard() {
         revenueByBranch,
       ] = await Promise.all([
         prisma.order.aggregate({
-          where: { status: { in: ['CONFIRMED', 'DELIVERED'] } },
+          where: { status: 'CONFIRMED' },
           _sum: { total: true },
         }),
         prisma.order.count(),
@@ -140,7 +140,7 @@ export async function getAdminDashboard() {
         }),
         prisma.order.groupBy({
           by: ['branchId'],
-          where: { status: { in: ['CONFIRMED', 'DELIVERED'] } },
+          where: { status: 'CONFIRMED' },
           _sum: { total: true },
         }),
       ]);
@@ -179,7 +179,7 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
   const orders = await prisma.order.findMany({
     where: {
       ...(branchId && { branchId }),
-      status: { in: ['CONFIRMED', 'DELIVERED'] },
+      status: 'CONFIRMED',
       createdAt: { gte: since },
     },
     select: { total: true, createdAt: true },
@@ -243,8 +243,8 @@ export async function exportOrders(
 
   return orders.map((o) => ({
     id: o.id,
-    reference: o.saleReference ?? (o.type === OrderType.ONLINE ? o.trackingId : null),
-    trackingId: o.type === OrderType.ONLINE ? o.trackingId : null,
+    reference: o.saleReference ?? (o.type === OrderType.ONLINE ? String(o.id) : null),
+    orderId: o.type === OrderType.ONLINE ? o.id : null,
     branch: o.branch.name,
     customer: o.user
       ? `${o.user.firstName} ${o.user.lastName}`.trim()

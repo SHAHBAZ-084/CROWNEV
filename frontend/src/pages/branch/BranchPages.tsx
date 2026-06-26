@@ -11,7 +11,9 @@ import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import { formatPKR, formatLedgerBalance, formatDate, formatTime } from '../../lib/format';
+import type { Order } from '../../types';
+import { isAwaitingPaymentVerification, PaymentStatusBadge } from '../../lib/orderHelpers';
+import { formatPKR, formatLedgerBalance, formatDate, formatTime, orderListReference } from '../../lib/format';
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
@@ -29,7 +31,7 @@ import {
 
 type Row = Record<string, unknown>;
 
-const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'DELIVERED', 'CANCELLED'];
+const ORDER_STATUSES = ['AWAITING_BILTY_CHARGES', 'AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'CONFIRMED', 'CANCELLED'];
 const BOOKING_STATUSES = ['PENDING', 'SCHEDULED'];
 const BOOKING_STATUS_ORDER: Record<string, number> = {
   PENDING: 0,
@@ -115,11 +117,12 @@ export function BranchOrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
   const [paymentModal, setPaymentModal] = useState<Row | null>(null);
-  const [biltyModal, setBiltyModal] = useState<Row | null>(null);
+  const [biltyChargesModal, setBiltyChargesModal] = useState<Row | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<Row | null>(null);
   const [invoiceData, setInvoiceData] = useState<import('../../types').InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [biltyId, setBiltyId] = useState('');
+  const [biltyCharges, setBiltyCharges] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -133,11 +136,16 @@ export function BranchOrdersPage() {
 
   async function handleApprove(approved: boolean) {
     if (!paymentModal) return;
+    if (approved && paymentModal.shippingMethod === 'BILTY' && !biltyId.trim()) {
+      toast('Bilty ID is required for bilty shipping orders', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      await branchApi.approvePayment(Number(paymentModal.id), approved);
-      toast(approved ? 'Payment approved' : 'Payment rejected', approved ? 'success' : 'error');
+      await branchApi.approvePayment(Number(paymentModal.id), approved, approved ? biltyId.trim() : undefined);
+      toast(approved ? 'Payment verified — order confirmed' : 'Payment rejected', approved ? 'success' : 'error');
       setPaymentModal(null);
+      setBiltyId('');
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -146,15 +154,20 @@ export function BranchOrdersPage() {
     }
   }
 
-  async function handleBilty(e: FormEvent) {
+  async function handleBiltyCharges(e: FormEvent) {
     e.preventDefault();
-    if (!biltyModal || !biltyId.trim()) return;
+    if (!biltyChargesModal) return;
+    const amount = parseFloat(biltyCharges);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast('Enter a valid bilty charges amount', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      await branchApi.setBiltyTracking(Number(biltyModal.id), biltyId.trim());
-      toast('Bilty tracking set. Order marked delivered', 'success');
-      setBiltyModal(null);
-      setBiltyId('');
+      await branchApi.setBiltyCharges(Number(biltyChargesModal.id), amount);
+      toast('Bilty charges set — customer can now pay', 'success');
+      setBiltyChargesModal(null);
+      setBiltyCharges('');
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -181,7 +194,7 @@ export function BranchOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Branch Orders" subtitle="Online orders — verify payment and set bilty tracking" />
+      <PageHeader title="Branch Orders" subtitle="Online orders — set bilty charges, verify payment, assign bilty ID" />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
         <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
@@ -199,10 +212,11 @@ export function BranchOrdersPage() {
 
       <DataTable
         columns={[
-          { key: 'trackingId', header: 'Tracking', render: (r) => <span className="font-mono text-xs">{String(r.trackingId)}</span> },
+          { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
+          { key: 'shippingMethod', header: 'Shipping', render: (r) => (r.shippingMethod === 'BILTY' ? 'Bilty' : r.shippingMethod === 'SELF' ? 'Self' : '—') },
           { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'paymentStatus', header: 'Payment', render: (r) => <StatusBadge status={String(r.paymentStatus)} /> },
+          { key: 'paymentStatus', header: 'Payment', render: (r) => <PaymentStatusBadge order={r as unknown as Order} /> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
           {
             key: 'actions',
@@ -210,11 +224,11 @@ export function BranchOrdersPage() {
             render: (r) => (
               <div className="flex flex-wrap gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
-                {r.paymentMethod === 'BANK_TRANSFER' && r.paymentStatus === 'PENDING' && (
-                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => setPaymentModal(r)}>Verify</Button>
+                {r.status === 'AWAITING_BILTY_CHARGES' && (
+                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyChargesModal(r); setBiltyCharges(''); }}>Bilty charges</Button>
                 )}
-                {r.status === 'CONFIRMED' && (
-                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyModal(r); setBiltyId(''); }}>Bilty</Button>
+                {r.status === 'PAYMENT_SUBMITTED' && r.paymentStatus === 'PENDING' && (
+                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setPaymentModal(r); setBiltyId(''); }}>Verify</Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => openInvoice(r)}>Invoice</Button>
               </div>
@@ -225,23 +239,59 @@ export function BranchOrdersPage() {
         emptyMessage="No online orders yet"
       />
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${String(detail?.trackingId ?? '')}`} size="lg">
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${detail ? orderListReference(detail as { id: number; publicId?: string; saleReference?: string; type?: string }) : ''}`} size="lg">
         {detail && (
           <div className="space-y-3 text-sm text-slate-700">
             <p><span className="text-slate-500">Customer:</span> {orderRowCustomer(detail)}</p>
             <p><span className="text-slate-500">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '')}</p>
             <p><span className="text-slate-500">Address:</span> {String(detail.customerAddress ?? '')}</p>
+            <p><span className="text-slate-500">Shipping:</span> {String(detail.shippingMethod ?? '—')}</p>
             <p><span className="text-slate-500">Status:</span> <StatusBadge status={String(detail.status)} /></p>
-            <p><span className="text-slate-500">Payment:</span> {String(detail.paymentMethod)} <StatusBadge status={String(detail.paymentStatus)} /></p>
+            <p><span className="text-slate-500">Payment:</span> {String(detail.paymentMethod)} <PaymentStatusBadge order={detail as unknown as Order} /></p>
+            {isAwaitingPaymentVerification(detail as unknown as Order) && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Payment proof submitted — use Verify to approve or reject after checking TID and screenshot.
+              </div>
+            )}
+            <p><span className="text-slate-500">Subtotal:</span> {formatPKR(Number(detail.subtotal ?? detail.total))}</p>
+            {detail.biltyCharges != null && (
+              <p><span className="text-slate-500">Bilty charges:</span> {formatPKR(Number(detail.biltyCharges))}</p>
+            )}
             <p><span className="text-slate-500">Total:</span> {formatPKR(Number(detail.total))}</p>
-            {detail.biltyTrackingId ? (
-              <p><span className="text-slate-500">Bilty:</span> {String(detail.biltyTrackingId)}</p>
+            {detail.biltyId ? (
+              <p><span className="text-slate-500">Bilty ID:</span> {String(detail.biltyId)}</p>
             ) : null}
           </div>
         )}
       </Modal>
 
-      <Modal open={!!paymentModal} onClose={() => setPaymentModal(null)} title="Verify Payment" size="lg">
+      <Modal open={!!biltyChargesModal} onClose={() => setBiltyChargesModal(null)} title="Set Bilty Charges">
+        <form onSubmit={handleBiltyCharges} className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Enter shipping (bilty) charges. The customer will be prompted to pay product price + bilty charges.
+          </p>
+          <Input
+            label="Bilty charges (PKR)"
+            type="number"
+            min="0"
+            step="any"
+            value={biltyCharges}
+            onChange={(e) => setBiltyCharges(e.target.value)}
+            required
+          />
+          {biltyChargesModal && (
+            <p className="text-sm text-slate-600">
+              Total after charges:{' '}
+              <strong>
+                {formatPKR(Number(biltyChargesModal.subtotal ?? biltyChargesModal.total) + (parseFloat(biltyCharges) || 0))}
+              </strong>
+            </p>
+          )}
+          <FormActions onCancel={() => setBiltyChargesModal(null)} loading={saving} submitDisabled={!canUpdate} submitTitle={!canUpdate ? restrictedTitle : undefined} />
+        </form>
+      </Modal>
+
+      <Modal open={!!paymentModal} onClose={() => { setPaymentModal(null); setBiltyId(''); }} title="Verify Payment" size="lg">
         {paymentModal && (
           <div className="space-y-4 text-sm text-slate-700">
             <p>Customer: <strong className="text-slate-900">{orderRowCustomer(paymentModal)}</strong></p>
@@ -254,28 +304,21 @@ export function BranchOrdersPage() {
                 className="max-h-64 rounded-lg border border-slate-200 object-contain"
               />
             ) : null}
+            {paymentModal.shippingMethod === 'BILTY' && (
+              <Input
+                label="Bilty ID (required for bilty orders)"
+                value={biltyId}
+                onChange={(e) => setBiltyId(e.target.value)}
+                placeholder="e.g. TCS-12345678"
+                required
+              />
+            )}
             <div className="flex gap-2">
-              <Button variant="accent" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(true)}>Approve Payment</Button>
+              <Button variant="accent" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(true)}>Verify Payment</Button>
               <Button variant="danger" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(false)}>Reject</Button>
             </div>
           </div>
         )}
-      </Modal>
-
-      <Modal open={!!biltyModal} onClose={() => setBiltyModal(null)} title="Set Bilty Tracking ID">
-        <form onSubmit={handleBilty} className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Enter the bilty/courier tracking number (e.g. TCS, Leopard). Order will be marked as delivered.
-          </p>
-          <Input
-            label="Bilty Tracking ID"
-            value={biltyId}
-            onChange={(e) => setBiltyId(e.target.value)}
-            placeholder="e.g. TCS-12345678"
-            required
-          />
-          <FormActions onCancel={() => setBiltyModal(null)} loading={saving} submitDisabled={!canUpdate} submitTitle={!canUpdate ? restrictedTitle : undefined} />
-        </form>
       </Modal>
 
       <Modal open={!!invoiceModal} onClose={() => { setInvoiceModal(null); setInvoiceData(null); }} title="Sale Invoice" size="lg" tallContent>
@@ -316,15 +359,9 @@ export function BranchInventoryPage() {
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectingId, setSelectingId] = useState<string | null>(null);
-  const [chassisRows, setChassisRows] = useState<{
-    id: number;
-    chassisNumber: string;
-    status: 'IN_STOCK' | 'SOLD';
-    product: { name: string };
-    purchase: { documentRef: string | null; invoiceNumber: string | null };
-    saleOrder: { saleReference: string | null; trackingId: string | null } | null;
-    saleOrderItem?: { order: { saleReference: string | null; trackingId: string | null } } | null;
-  }[]>([]);
+  const [chassisModalItem, setChassisModalItem] = useState<StockRow | null>(null);
+  const [chassisList, setChassisList] = useState<{ id: number; chassisNumber: string }[]>([]);
+  const [chassisLoading, setChassisLoading] = useState(false);
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -337,7 +374,6 @@ export function BranchInventoryPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-    branchApi.listChassis(branchId).then(setChassisRows).catch(console.error);
   }, [branchId]);
 
   useEffect(() => {
@@ -379,6 +415,22 @@ export function BranchInventoryPage() {
   function openEdit(row: StockRow) {
     setEditItem(row);
     setQuantity(String(row.quantity));
+  }
+
+  async function openChassisView(row: StockRow) {
+    if (!branchId || row.type !== 'BIKE' || row.source !== 'PRODUCT') return;
+    setChassisModalItem(row);
+    setChassisList([]);
+    setChassisLoading(true);
+    try {
+      const list = await branchApi.availableChassis(branchId, String(row.id));
+      setChassisList(list);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load chassis numbers', 'error');
+      setChassisModalItem(null);
+    } finally {
+      setChassisLoading(false);
+    }
   }
 
   async function handleToggleSelect(row: StockRow) {
@@ -602,10 +654,15 @@ export function BranchInventoryPage() {
                 const row = r as unknown as StockRow;
                 const key = `${row.source}-${row.id}`;
                 return (
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex flex-wrap items-center justify-end gap-1">
                     <Button variant="secondary" size="sm" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => openEdit(row)}>
                       Update Stock
                     </Button>
+                    {row.type === 'BIKE' && row.source === 'PRODUCT' && (
+                      <Button variant="ghost" size="sm" onClick={() => openChassisView(row)}>
+                        View Chassis
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -626,53 +683,35 @@ export function BranchInventoryPage() {
         />
       )}
 
-      {chassisRows.length > 0 && (
-        <div className="mt-10">
-          <h2 className="mb-4 font-display text-lg font-semibold text-slate-900">Bike chassis numbers</h2>
-          <p className="mb-4 text-sm text-slate-500">
-            Each bike unit is tracked by a unique chassis number from purchase through sale.
+      <Modal
+        open={!!chassisModalItem}
+        onClose={() => { setChassisModalItem(null); setChassisList([]); }}
+        title={`Chassis numbers — ${chassisModalItem?.name ?? ''}`}
+      >
+        {chassisLoading ? (
+          <p className="py-6 text-center text-sm text-text-muted">Loading chassis numbers…</p>
+        ) : chassisList.length === 0 ? (
+          <p className="py-6 text-center text-sm text-text-muted">
+            No chassis numbers in stock for this model. Add units via a purchase invoice.
           </p>
-          <DataTable
-            columns={[
-              { key: 'model', header: 'Model', render: (r) => String((r as { product?: { name?: string } }).product?.name ?? '') },
-              { key: 'chassis', header: 'Chassis', render: (r) => <span className="font-mono text-sm">{String(r.chassisNumber)}</span> },
-              {
-                key: 'status',
-                header: 'Status',
-                render: (r) => (
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    r.status === 'IN_STOCK' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {String(r.status).replace('_', ' ')}
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-text-muted">
+              {chassisList.length} unit{chassisList.length === 1 ? '' : 's'} in stock
+            </p>
+            <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+              {chassisList.map((c) => (
+                <li key={c.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className="font-mono text-sm font-medium text-slate-900">{c.chassisNumber}</span>
+                  <span className="ml-auto inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    In stock
                   </span>
-                ),
-              },
-              {
-                key: 'purchase',
-                header: 'Purchase ref',
-                render: (r) => {
-                  const p = r.purchase as { documentRef?: string | null; invoiceNumber?: string | null };
-                  return p.documentRef ?? p.invoiceNumber ?? '—';
-                },
-              },
-              {
-                key: 'sale',
-                header: 'Sale ref',
-                render: (r) => {
-                  const s =
-                    (r.saleOrderItem as { order?: { saleReference?: string | null; trackingId?: string | null } } | null)
-                      ?.order ??
-                    (r.saleOrder as { saleReference?: string | null; trackingId?: string | null } | null);
-                  if (!s) return '—';
-                  return s.saleReference ?? s.trackingId ?? '—';
-                },
-              },
-            ]}
-            data={chassisRows as unknown as Row[]}
-            emptyMessage="No chassis numbers recorded yet"
-          />
-        </div>
-      )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={!!editItem}
@@ -1781,7 +1820,7 @@ export function BranchPaymentsPage() {
         <PageHeader title="Pending Payments" subtitle="Approve bank transfer orders" />
         <DataTable
           columns={[
-            { key: 'trackingId', header: 'Tracking' },
+            { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
             { key: 'paymentTransactionId', header: 'TID', render: (r) => String(r.paymentTransactionId ?? '') },
             { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
             {

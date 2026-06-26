@@ -73,8 +73,9 @@ export default function BranchDashboard() {
                       <span className="font-mono text-xs">
                         {orderListReference({
                           type: String(r.type),
+                          id: Number(r.id),
+                          publicId: r.publicId as string | null | undefined,
                           saleReference: r.saleReference as string | null | undefined,
-                          trackingId: r.trackingId as string | null | undefined,
                         })}
                       </span>
                     ),

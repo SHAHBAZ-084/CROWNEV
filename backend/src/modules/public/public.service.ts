@@ -42,7 +42,7 @@ export async function getLandingData() {
         where: { isActive: true, NOT: { name: { startsWith: 'Accounting Test' } } },
       }),
       prisma.product.count({ where: { isActive: true } }),
-      prisma.order.count({ where: { status: { in: ['CONFIRMED', 'DELIVERED'] } } }),
+      prisma.order.count({ where: { status: 'CONFIRMED' } }),
     ]),
   ]);
 

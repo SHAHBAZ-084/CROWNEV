@@ -7,11 +7,11 @@ import {
   PaymentStatus,
   Prisma,
   ProductType,
+  ShippingMethod,
   VoucherType,
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
-import { generateTrackingId } from '../../utils/crypto.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import {
   createVoucherInTx,
@@ -69,6 +69,8 @@ export async function listPendingBankTransfers(branchId?: number) {
   return prisma.order.findMany({
     where: {
       ...(branchId && { branchId }),
+      type: OrderType.ONLINE,
+      status: OrderStatus.PAYMENT_SUBMITTED,
       paymentMethod: PaymentMethod.BANK_TRANSFER,
       paymentStatus: PaymentStatus.PENDING,
     },
@@ -117,10 +119,11 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
   if (userId && order.userId !== userId) throw new AppError(403, 'Access denied');
 
   const invoiceAvailable =
-    order.status === OrderStatus.DELIVERED ||
-    (order.status === OrderStatus.CONFIRMED && order.paymentStatus === PaymentStatus.APPROVED) ||
-    order.paymentStatus === PaymentStatus.PAID ||
+    (order.status === OrderStatus.CONFIRMED &&
+      (order.paymentStatus === PaymentStatus.APPROVED || order.paymentStatus === PaymentStatus.PAID)) ||
     (order.type === OrderType.POS && order.invoiceGeneratedAt != null);
+
+  const biltyCharges = order.biltyCharges != null ? Number(order.biltyCharges) : null;
 
   return {
     invoiceType: 'SALE' as const,
@@ -128,11 +131,11 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     currency: 'PKR' as const,
     invoiceNumber: order.saleReference?.trim() || String(order.id),
     orderType: order.type,
-    trackingId: order.trackingId,
+    shippingMethod: order.shippingMethod,
     saleReference: order.saleReference,
-    biltyTrackingId: order.biltyTrackingId,
+    biltyId: order.biltyId,
+    biltyCharges,
     date: order.createdAt,
-    deliveredAt: order.updatedAt,
     branch: {
       name: order.branch.name,
       location: order.branch.location,
@@ -175,15 +178,19 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
   };
 }
 
-export async function trackOrder(trackingId: string) {
+export async function trackOrder(publicId: string) {
   const order = await prisma.order.findUnique({
-    where: { trackingId },
+    where: { publicId },
     select: {
-      trackingId: true,
+      publicId: true,
+      id: true,
       status: true,
       type: true,
+      shippingMethod: true,
+      subtotal: true,
+      biltyCharges: true,
       total: true,
-      biltyTrackingId: true,
+      biltyId: true,
       paymentMethod: true,
       paymentStatus: true,
       createdAt: true,
@@ -277,6 +284,7 @@ export async function validateAndPriceItems(
 export async function createOnlineOrder(data: {
   userId: string;
   branchId: number;
+  shippingMethod: ShippingMethod;
   paymentMethod: PaymentMethod;
   items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[];
   notes?: string;
@@ -288,22 +296,32 @@ export async function createOnlineOrder(data: {
 }) {
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
-  const trackingId = generateTrackingId();
+
+  const isSelfPickup = data.shippingMethod === ShippingMethod.SELF;
+
+  if (isSelfPickup) {
+    if (!data.paymentTransactionId?.trim()) {
+      throw new AppError(400, 'Transaction ID (TID) is required for self pickup orders');
+    }
+    if (!data.bankTransferScreenshot?.trim()) {
+      throw new AppError(400, 'Payment proof is required for self pickup orders');
+    }
+  }
 
   return prisma.order.create({
     data: {
       branchId: data.branchId,
       userId: data.userId,
       type: OrderType.ONLINE,
-      paymentMethod: data.paymentMethod,
-      paymentStatus:
-        data.paymentMethod === PaymentMethod.CASH ? PaymentStatus.PAID : PaymentStatus.PENDING,
+      shippingMethod: data.shippingMethod,
+      status: isSelfPickup ? OrderStatus.PAYMENT_SUBMITTED : OrderStatus.AWAITING_BILTY_CHARGES,
+      paymentMethod: PaymentMethod.BANK_TRANSFER,
+      paymentStatus: PaymentStatus.PENDING,
       subtotal,
       total: subtotal,
-      trackingId,
       notes: data.notes,
-      bankTransferScreenshot: data.bankTransferScreenshot,
-      paymentTransactionId: data.paymentTransactionId,
+      bankTransferScreenshot: isSelfPickup ? data.bankTransferScreenshot : undefined,
+      paymentTransactionId: isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
@@ -340,7 +358,7 @@ export async function createPosOrder(data: {
         branchId: data.branchId,
         customerId: data.customerId,
         type: OrderType.POS,
-        status: OrderStatus.DELIVERED,
+        status: OrderStatus.CONFIRMED,
         paymentMethod: data.paymentMethod,
         paymentStatus: isPaid ? PaymentStatus.PAID : PaymentStatus.PENDING,
         subtotal,
@@ -476,7 +494,7 @@ export async function createSaleInvoice(data: {
         branchId: data.branchId,
         customerId: data.customerId,
         type: OrderType.POS,
-        status: OrderStatus.DELIVERED,
+        status: OrderStatus.CONFIRMED,
         paymentMethod: PaymentMethod.CASH,
         paymentStatus: PaymentStatus.PENDING,
         subtotal,
@@ -667,7 +685,15 @@ export async function deductStockForOrder(
 export async function updateOrderStatus(id: number, status: OrderStatus, branchId?: number) {
   const order = await getOrder(id, branchId);
 
-  if (status === OrderStatus.CONFIRMED && order.status === OrderStatus.PENDING) {
+  if (order.type === OrderType.ONLINE && status === OrderStatus.CONFIRMED) {
+    throw new AppError(400, 'Online orders must be confirmed through payment verification');
+  }
+
+  if (
+    order.type !== OrderType.ONLINE &&
+    status === OrderStatus.CONFIRMED &&
+    order.status === OrderStatus.PAYMENT_SUBMITTED
+  ) {
     await confirmOrder(order);
   }
 
@@ -690,45 +716,147 @@ async function confirmOrder(order: {
   await deductStockForOrder(order.branchId, itemsWithDetails);
 }
 
-export async function approvePayment(id: number, approved: boolean, branchId?: number) {
+export async function setBiltyCharges(id: number, biltyCharges: number, branchId?: number) {
   const order = await getOrder(id, branchId);
-  if (order.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
-    throw new AppError(400, 'Order is not bank transfer');
+  if (order.type !== OrderType.ONLINE) throw new AppError(400, 'Bilty charges only apply to online orders');
+  if (order.shippingMethod !== ShippingMethod.BILTY) {
+    throw new AppError(400, 'Order is not shipped by bilty');
+  }
+  if (order.status !== OrderStatus.AWAITING_BILTY_CHARGES) {
+    throw new AppError(400, 'Order is not awaiting bilty charges');
+  }
+  if (!Number.isFinite(biltyCharges) || biltyCharges < 0) {
+    throw new AppError(400, 'Bilty charges must be zero or greater');
   }
 
-  const updated = await prisma.order.update({
-    where: { id },
-    data: {
-      paymentStatus: approved ? PaymentStatus.APPROVED : PaymentStatus.REJECTED,
-      status: approved ? OrderStatus.CONFIRMED : OrderStatus.PENDING,
-    },
-    include: { items: { include: { product: { include: { bikePartDetails: true } } } } },
-  });
-
-  if (approved && order.status === OrderStatus.PENDING) {
-    await confirmOrder(updated);
-  }
-
-  return updated;
-}
-
-export async function setBiltyTracking(id: number, biltyTrackingId: string, branchId?: number) {
-  const order = await getOrder(id, branchId);
-  if (order.status !== OrderStatus.CONFIRMED) {
-    throw new AppError(400, 'Can only set bilty tracking on confirmed orders');
-  }
-
-  const paymentOk =
-    order.paymentStatus === PaymentStatus.APPROVED ||
-    order.paymentStatus === PaymentStatus.PAID;
+  const subtotal = Number(order.subtotal);
+  const total = subtotal + biltyCharges;
 
   return prisma.order.update({
     where: { id },
     data: {
-      biltyTrackingId,
-      status: OrderStatus.DELIVERED,
-      invoiceGeneratedAt: paymentOk ? new Date() : undefined,
+      biltyCharges,
+      total,
+      status: OrderStatus.AWAITING_PAYMENT,
     },
+    include: {
+      items: { include: { product: true } },
+      user: true,
+      branch: true,
+    },
+  });
+}
+
+export async function submitOrderPayment(
+  id: number,
+  userId: string,
+  data: { paymentTransactionId: string; bankTransferScreenshot: string },
+) {
+  const order = await getOrder(id);
+  if (order.userId !== userId) throw new AppError(403, 'Access denied');
+
+  const canSubmit =
+    order.status === OrderStatus.AWAITING_PAYMENT ||
+    (order.shippingMethod === ShippingMethod.SELF &&
+      order.status === OrderStatus.PAYMENT_SUBMITTED &&
+      order.paymentStatus === PaymentStatus.REJECTED);
+
+  if (!canSubmit) {
+    throw new AppError(400, 'Order is not awaiting payment');
+  }
+  if (!data.paymentTransactionId?.trim()) {
+    throw new AppError(400, 'Transaction ID (TID) is required');
+  }
+  if (!data.bankTransferScreenshot?.trim()) {
+    throw new AppError(400, 'Payment proof is required');
+  }
+
+  return prisma.order.update({
+    where: { id },
+    data: {
+      paymentTransactionId: data.paymentTransactionId.trim(),
+      bankTransferScreenshot: data.bankTransferScreenshot.trim(),
+      paymentStatus: PaymentStatus.PENDING,
+      status: OrderStatus.PAYMENT_SUBMITTED,
+    },
+    include: { items: { include: { product: true } }, branch: true },
+  });
+}
+
+export async function approvePayment(
+  id: number,
+  approved: boolean,
+  branchId?: number,
+  biltyId?: string,
+) {
+  const order = await getOrder(id, branchId);
+  if (order.type !== OrderType.ONLINE) {
+    throw new AppError(400, 'Payment verification only applies to online orders');
+  }
+  if (order.status !== OrderStatus.PAYMENT_SUBMITTED) {
+    throw new AppError(400, 'Order is not awaiting payment verification');
+  }
+  if (order.paymentStatus !== PaymentStatus.PENDING) {
+    throw new AppError(400, 'Payment has already been processed');
+  }
+  if (!order.paymentTransactionId?.trim() || !order.bankTransferScreenshot?.trim()) {
+    throw new AppError(400, 'Customer payment details are missing');
+  }
+
+  if (approved && order.shippingMethod === ShippingMethod.BILTY && !biltyId?.trim()) {
+    throw new AppError(400, 'Bilty ID is required when verifying bilty shipping orders');
+  }
+
+  if (approved) {
+    const updated = await prisma.order.update({
+      where: { id },
+      data: {
+        paymentStatus: PaymentStatus.APPROVED,
+        status: OrderStatus.CONFIRMED,
+        biltyId: order.shippingMethod === ShippingMethod.BILTY ? biltyId!.trim() : null,
+        invoiceGeneratedAt: new Date(),
+      },
+      include: { items: { include: { product: { include: { bikePartDetails: true } } } } },
+    });
+    await confirmOrder(updated);
+    return updated;
+  }
+
+  const rejectData =
+    order.shippingMethod === ShippingMethod.SELF
+      ? {
+          paymentStatus: PaymentStatus.REJECTED,
+          status: OrderStatus.PAYMENT_SUBMITTED,
+          paymentTransactionId: null,
+          bankTransferScreenshot: null,
+        }
+      : {
+          paymentStatus: PaymentStatus.REJECTED,
+          status: OrderStatus.AWAITING_PAYMENT,
+          paymentTransactionId: null,
+          bankTransferScreenshot: null,
+        };
+
+  return prisma.order.update({
+    where: { id },
+    data: rejectData,
+    include: { items: { include: { product: true } }, user: true, branch: true },
+  });
+}
+
+/** @deprecated Use approvePayment with biltyId at verification time */
+export async function setBiltyTracking(id: number, biltyId: string, branchId?: number) {
+  const order = await getOrder(id, branchId);
+  if (order.status !== OrderStatus.CONFIRMED) {
+    throw new AppError(400, 'Can only set bilty ID on confirmed orders');
+  }
+  if (order.shippingMethod !== ShippingMethod.BILTY) {
+    throw new AppError(400, 'Order is not shipped by bilty');
+  }
+
+  return prisma.order.update({
+    where: { id },
+    data: { biltyId: biltyId.trim() },
     include: {
       items: { include: { product: true } },
       user: true,

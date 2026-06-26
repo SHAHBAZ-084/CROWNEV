@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { OrderStatus, OrderType, PaymentMethod, Role } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod, Role, ShippingMethod } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
@@ -21,9 +21,9 @@ const saleInvoiceItemSchema = orderItemSchema.extend({
 });
 
 ordersRouter.get(
-  '/track/:trackingId',
+  '/track/:publicId',
   asyncHandler(async (req, res) => {
-    const order = await ordersService.trackOrder(param(req.params.trackingId));
+    const order = await ordersService.trackOrder(param(req.params.publicId));
     res.json(order);
   })
 );
@@ -120,23 +120,52 @@ ordersRouter.post(
   validateBody(
     z.object({
       branchId: z.number().int(),
-      paymentMethod: z.nativeEnum(PaymentMethod),
+      shippingMethod: z.nativeEnum(ShippingMethod),
       items: z.array(orderItemSchema).min(1),
       notes: z.string().optional(),
-      bankTransferScreenshot: z.string().min(1),
-      paymentTransactionId: z.string().min(1),
+      bankTransferScreenshot: z.string().optional(),
+      paymentTransactionId: z.string().optional(),
       customerName: z.string().optional(),
       customerPhone: z.string().optional(),
       customerAddress: z.string().optional(),
-    })
+    }).superRefine((data, ctx) => {
+      if (data.shippingMethod === ShippingMethod.SELF) {
+        if (!data.paymentTransactionId?.trim()) {
+          ctx.addIssue({ code: 'custom', message: 'Transaction ID is required for self pickup', path: ['paymentTransactionId'] });
+        }
+        if (!data.bankTransferScreenshot?.trim()) {
+          ctx.addIssue({ code: 'custom', message: 'Payment proof is required for self pickup', path: ['bankTransferScreenshot'] });
+        }
+      }
+    }),
   ),
   asyncHandler(async (req, res) => {
     const order = await ordersService.createOnlineOrder({
       userId: req.user!.userId,
+      paymentMethod: PaymentMethod.BANK_TRANSFER,
       ...req.body,
     });
     res.status(201).json(order);
   })
+);
+
+ordersRouter.patch(
+  '/:id/submit-payment',
+  requireRoles(Role.CUSTOMER),
+  validateBody(
+    z.object({
+      paymentTransactionId: z.string().min(1),
+      bankTransferScreenshot: z.string().min(1),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const order = await ordersService.submitOrderPayment(
+      parseInt(param(req.params.id), 10),
+      req.user!.userId,
+      req.body,
+    );
+    res.json(order);
+  }),
 );
 
 ordersRouter.post(
@@ -212,10 +241,35 @@ ordersRouter.patch(
 );
 
 ordersRouter.patch(
-  '/:id/payment',
+  '/:id/bilty-charges',
   requireRoles(Role.BRANCH_OWNER),
   requireBranchUpdatePermission,
-  validateBody(z.object({ approved: z.boolean() })),
+  validateBody(z.object({ biltyCharges: z.number().min(0) })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
+    const order = await ordersService.setBiltyCharges(
+      parseInt(param(req.params.id), 10),
+      req.body.biltyCharges,
+      branchId,
+    );
+    res.json(order);
+  }),
+);
+
+ordersRouter.patch(
+  '/:id/verify-payment',
+  requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
+  validateBody(
+    z.object({
+      approved: z.boolean(),
+      biltyId: z.string().optional(),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
     if (!branchId) {
@@ -225,7 +279,30 @@ ordersRouter.patch(
     const order = await ordersService.approvePayment(
       parseInt(param(req.params.id), 10),
       req.body.approved,
-      branchId
+      branchId,
+      req.body.biltyId,
+    );
+    res.json(order);
+  }),
+);
+
+/** @deprecated Use PATCH /:id/verify-payment */
+ordersRouter.patch(
+  '/:id/payment',
+  requireRoles(Role.BRANCH_OWNER),
+  requireBranchUpdatePermission,
+  validateBody(z.object({ approved: z.boolean(), biltyId: z.string().optional() })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.branchId;
+    if (!branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
+    const order = await ordersService.approvePayment(
+      parseInt(param(req.params.id), 10),
+      req.body.approved,
+      branchId,
+      req.body.biltyId,
     );
     res.json(order);
   })
@@ -235,7 +312,7 @@ ordersRouter.patch(
   '/:id/bilty-tracking',
   requireRoles(Role.BRANCH_OWNER),
   requireBranchUpdatePermission,
-  validateBody(z.object({ biltyTrackingId: z.string().min(1) })),
+  validateBody(z.object({ biltyId: z.string().min(1) })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
     if (!branchId) {
@@ -244,7 +321,7 @@ ordersRouter.patch(
     }
     const order = await ordersService.setBiltyTracking(
       parseInt(param(req.params.id), 10),
-      req.body.biltyTrackingId,
+      req.body.biltyId,
       branchId,
     );
     res.json(order);

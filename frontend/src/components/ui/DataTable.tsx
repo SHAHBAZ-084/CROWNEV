@@ -172,6 +172,9 @@ export function DataTable<T extends Record<string, unknown>>({
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
+    AWAITING_BILTY_CHARGES: 'warning',
+    AWAITING_PAYMENT: 'warning',
+    PAYMENT_SUBMITTED: 'info',
     PENDING: 'warning',
     SCHEDULED: 'success',
     CONFIRMED: 'success',
@@ -183,8 +186,11 @@ export function StatusBadge({ status }: { status: string }) {
     REJECTED: 'danger',
   };
   const labels: Record<string, string> = {
+    AWAITING_BILTY_CHARGES: 'Awaiting bilty charges',
+    AWAITING_PAYMENT: 'Awaiting payment',
+    PAYMENT_SUBMITTED: 'Awaiting verification',
     DELIVERED: 'Completed',
     SCHEDULED: 'Scheduled',
   };
-  return <Badge variant={map[status] ?? 'default'}>{labels[status] ?? status}</Badge>;
+  return <Badge variant={map[status] ?? 'default'}>{labels[status] ?? status.replace(/_/g, ' ')}</Badge>;
 }

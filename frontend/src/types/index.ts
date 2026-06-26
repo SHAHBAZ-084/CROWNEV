@@ -62,16 +62,26 @@ export interface OrderItem {
   product?: { name: string; type: 'BIKE' | 'PART'; images?: { url: string }[] };
 }
 
+export type OrderStatus =
+  | 'AWAITING_BILTY_CHARGES'
+  | 'AWAITING_PAYMENT'
+  | 'PAYMENT_SUBMITTED'
+  | 'CONFIRMED'
+  | 'CANCELLED';
+
+export type ShippingMethod = 'BILTY' | 'SELF';
+
 export interface Order {
   id: number;
   publicId?: string;
-  trackingId?: string | null;
   saleReference?: string | null;
-  biltyTrackingId?: string;
+  biltyId?: string | null;
+  biltyCharges?: string | null;
+  shippingMethod?: ShippingMethod | null;
   branchId?: number;
   userId?: string;
   type: 'ONLINE' | 'POS';
-  status: 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
+  status: OrderStatus;
   paymentMethod: 'CASH' | 'BANK_TRANSFER';
   paymentStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
   bankTransferScreenshot?: string;
@@ -98,11 +108,11 @@ export interface InvoiceData {
   currency: 'PKR';
   invoiceNumber: string;
   orderType?: 'ONLINE' | 'POS';
-  trackingId?: string | null;
+  shippingMethod?: ShippingMethod | null;
   saleReference?: string | null;
-  biltyTrackingId?: string;
+  biltyId?: string | null;
+  biltyCharges?: number | null;
   date: string;
-  deliveredAt?: string;
   branch: { name: string; location: string; phone: string; whatsapp?: string | null };
   customer: { name: string; email?: string; phone?: string; address?: string };
   items: {
@@ -118,7 +128,7 @@ export interface InvoiceData {
   total: number;
   paymentMethod: 'CASH' | 'BANK_TRANSFER';
   paymentStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
-  status: 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
+  status: OrderStatus;
   notes?: string;
 }
 

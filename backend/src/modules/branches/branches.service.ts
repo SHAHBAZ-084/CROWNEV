@@ -190,13 +190,13 @@ export async function getBranchDashboard(branchId: number) {
 
   const [revenue, todayBookings, pendingOrders, lowStock, recentOrders] = await Promise.all([
     prisma.order.aggregate({
-      where: { branchId, status: { in: ['CONFIRMED', 'DELIVERED'] } },
+      where: { branchId, status: OrderStatus.CONFIRMED },
       _sum: { total: true },
     }),
     prisma.serviceBooking.count({
       where: { branchId, date: { gte: today, lt: tomorrow }, status: 'SCHEDULED' },
     }),
-    prisma.order.count({ where: { branchId, status: 'PENDING' } }),
+    prisma.order.count({ where: { branchId, status: OrderStatus.PAYMENT_SUBMITTED } }),
     prisma.inventory.count({
       where: {
         branchId,

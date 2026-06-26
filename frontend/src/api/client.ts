@@ -140,7 +140,7 @@ export const publicApi = {
   paymentChannels: (branchId: number) =>
     api<PaymentChannel[]>(`/branches/public/${branchId}/payment-channels`),
   services: (branchId: number) => api<{ id: number; name: string; basePrice: string; duration: number }[]>(`/services/public/${branchId}`),
-  trackOrder: (trackingId: string) => api<Order>(`/orders/track/${trackingId}`),
+  trackOrder: (publicId: string) => api<Order>(`/orders/track/${publicId}`),
   bookingTicket: (id: number, email: string) =>
     api<Record<string, unknown>>(
       `/bookings/public/${id}/ticket?email=${encodeURIComponent(email)}`,
@@ -162,7 +162,7 @@ export const customerApi = {
   },
   checkout: (data: {
     branchId: number;
-    paymentMethod: 'CASH' | 'BANK_TRANSFER';
+    shippingMethod: 'BILTY' | 'SELF';
     items: { productId: string; quantity: number; color?: string; chassisNumber?: string }[];
     notes?: string;
     bankTransferScreenshot?: string;
@@ -171,7 +171,9 @@ export const customerApi = {
     customerPhone?: string;
     customerAddress?: string;
   }) =>
-    api<Order>('/orders/online', { method: 'POST', body: JSON.stringify(data) }),
+    api<Order>('/orders/online', { method: 'POST', body: JSON.stringify({ ...data, paymentMethod: 'BANK_TRANSFER' }) }),
+  submitOrderPayment: (orderId: number, data: { paymentTransactionId: string; bankTransferScreenshot: string }) =>
+    api<Order>(`/orders/${orderId}/submit-payment`, { method: 'PATCH', body: JSON.stringify(data) }),
   bookings: () => api<Paginated<Booking>>('/bookings'),
   bookingReceipt: (id: number) => api<Record<string, unknown>>(`/bookings/${id}/receipt`),
   createBooking: (data: { branchId: number; notes?: string }) =>
@@ -461,12 +463,20 @@ export const branchApi = {
       body: JSON.stringify({ quantity }),
     }),
   pendingPayments: () => api<Order[]>('/orders/pending-payments'),
-  approvePayment: (id: number, approved: boolean) =>
-    api<Order>(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ approved }) }),
-  setBiltyTracking: (orderId: number, biltyTrackingId: string) =>
+  approvePayment: (id: number, approved: boolean, biltyId?: string) =>
+    api<Order>(`/orders/${id}/verify-payment`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approved, biltyId }),
+    }),
+  setBiltyCharges: (orderId: number, biltyCharges: number) =>
+    api<Order>(`/orders/${orderId}/bilty-charges`, {
+      method: 'PATCH',
+      body: JSON.stringify({ biltyCharges }),
+    }),
+  setBiltyTracking: (orderId: number, biltyId: string) =>
     api<Order>(`/orders/${orderId}/bilty-tracking`, {
       method: 'PATCH',
-      body: JSON.stringify({ biltyTrackingId }),
+      body: JSON.stringify({ biltyId }),
     }),
   orderInvoice: (id: number) => api<InvoiceData>(`/orders/${id}/invoice`),
   paymentChannels: (branchId: number) => api<PaymentChannel[]>(`/branches/${branchId}/payment-channels`),

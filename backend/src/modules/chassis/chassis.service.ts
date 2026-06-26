@@ -72,7 +72,7 @@ export async function listBranchChassis(
       saleOrderItem: {
         select: {
           id: true,
-          order: { select: { id: true, saleReference: true, trackingId: true, createdAt: true } },
+          order: { select: { id: true, saleReference: true, publicId: true, createdAt: true } },
         },
       },
     },

@@ -5,6 +5,19 @@ import { formatPKR, formatDate } from '../../lib/format';
 import { captureInvoiceElement, openPrintWindow, saveCanvasAsPdf } from '../../lib/invoiceCapture';
 import { Button } from '../ui/Button';
 import { Logo } from '../brand/Logo';
+import {
+  invoiceFieldLabel,
+  invoiceFieldValue,
+  invoiceLogoClass,
+  invoiceLogoSize,
+  invoiceMetaText,
+  invoicePrintArea,
+  invoiceSectionLabel,
+  invoiceSubtext,
+  invoiceTableCell,
+  invoiceTableHead,
+  invoiceTotalsLabel,
+} from './invoiceStyles';
 
 export function PurchaseInvoice({
   data,
@@ -65,49 +78,49 @@ export function PurchaseInvoice({
       <div
         id="purchase-invoice-print-area"
         ref={printRef}
-        className="print-area rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-700 shadow-sm"
+        className={invoicePrintArea}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
-          <div className="flex items-center gap-3">
-            <Logo size="sm" className="!h-10 !max-w-[140px]" />
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300 pb-6">
+          <div className="flex items-start gap-4">
+            <Logo size={invoiceLogoSize} className={invoiceLogoClass} />
             <div>
               <p className="font-semibold text-slate-900">{data.branch.name}</p>
-              <p className="text-xs text-slate-500">{data.branch.location}</p>
-              <p className="text-xs text-slate-500">Phone: {data.branch.phone}</p>
+              <p className={invoiceMetaText}>{data.branch.location}</p>
+              <p className={invoiceMetaText}>Phone: {data.branch.phone}</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-lg font-bold text-orange-500">PURCHASE INVOICE</p>
-            <p className="font-mono text-xs text-slate-500">{data.invoiceNumber}</p>
-            <p className="text-xs text-slate-500">{formatDate(data.date)}</p>
+            <p className={`font-mono ${invoiceMetaText}`}>{data.invoiceNumber}</p>
+            <p className={invoiceMetaText}>{formatDate(data.date)}</p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Purchased From</p>
+            <p className={invoiceSectionLabel}>Purchased From</p>
             <p className="font-medium text-slate-900">{data.supplier.name}</p>
             {data.supplier.contactPerson && (
-              <p className="text-slate-500">Contact: {data.supplier.contactPerson}</p>
+              <p className={invoiceFieldLabel}>Contact: {data.supplier.contactPerson}</p>
             )}
-            {data.supplier.phone && <p className="text-slate-500">{data.supplier.phone}</p>}
-            {data.supplier.email && <p className="text-slate-500">{data.supplier.email}</p>}
-            {data.supplier.address && <p className="text-slate-500">{data.supplier.address}</p>}
+            {data.supplier.phone && <p className={invoiceFieldLabel}>{data.supplier.phone}</p>}
+            {data.supplier.email && <p className={invoiceFieldLabel}>{data.supplier.email}</p>}
+            {data.supplier.address && <p className={invoiceFieldLabel}>{data.supplier.address}</p>}
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Invoice Info</p>
+            <p className={invoiceSectionLabel}>Invoice Info</p>
             {data.reference && (
-              <p><span className="text-slate-500">Reference:</span> <span className="font-mono">{data.reference}</span></p>
+              <p><span className={invoiceFieldLabel}>Reference:</span> <span className={`font-mono ${invoiceFieldValue}`}>{data.reference}</span></p>
             )}
             {data.notes && (
-              <p className="mt-1"><span className="text-slate-500">Notes:</span> {data.notes}</p>
+              <p className="mt-1"><span className={invoiceFieldLabel}>Notes:</span> <span className={invoiceFieldValue}>{data.notes}</span></p>
             )}
           </div>
         </div>
 
         <table className="mt-8 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b-2 border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr className={invoiceTableHead}>
               <th className="px-2 py-2">#</th>
               <th className="px-2 py-2">Product</th>
               <th className="px-2 py-2 text-right">Qty</th>
@@ -118,17 +131,17 @@ export function PurchaseInvoice({
           <tbody>
             {data.items.map((item, idx) => (
               <tr key={idx} className="border-b border-slate-200 align-top">
-                <td className="px-2 py-3">{idx + 1}</td>
+                <td className={`px-2 py-3 ${invoiceTableCell}`}>{idx + 1}</td>
                 <td className="px-2 py-3">
                   <p className="font-medium text-slate-900">{item.name}</p>
-                  <p className="text-xs text-slate-500">{item.type}</p>
+                  <p className={invoiceSubtext}>{item.type}</p>
                   {item.chassisNumber && (
-                    <p className="text-xs text-slate-500">Chassis: {item.chassisNumber}</p>
+                    <p className={invoiceSubtext}>Chassis: {item.chassisNumber}</p>
                   )}
                 </td>
-                <td className="px-2 py-3 text-right tabular-nums">{item.quantity}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{formatPKR(item.unitCost)}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{formatPKR(item.total)}</td>
+                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>
+                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.unitCost)}</td>
+                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -137,10 +150,10 @@ export function PurchaseInvoice({
         <div className="mt-4 flex justify-end">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="tabular-nums text-slate-900">{formatPKR(data.subtotal)}</span>
+              <span className={invoiceTotalsLabel}>Subtotal</span>
+              <span className={`tabular-nums ${invoiceFieldValue}`}>{formatPKR(data.subtotal)}</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
+            <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-slate-900">
               <span>Total</span>
               <span className="tabular-nums text-orange-500">{formatPKR(data.total)}</span>
             </div>

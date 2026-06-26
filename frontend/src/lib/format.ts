@@ -32,14 +32,17 @@ export function formatTime(value: string) {
   return `${h12}:${m ?? '00'} ${ampm}`;
 }
 
-/** POS sales use sale reference; online orders use public tracking ID. */
+/** POS sales use sale reference; online orders use order id / public id. */
 export function orderListReference(order: {
   type?: string;
+  id?: number;
+  publicId?: string | null;
   saleReference?: string | null;
-  trackingId?: string | null;
 }): string {
   if (order.type === 'POS') return order.saleReference?.trim() || '—';
-  return order.trackingId?.trim() || '—';
+  if (order.saleReference?.trim()) return order.saleReference.trim();
+  if (order.publicId) return `#${order.publicId.slice(0, 8).toUpperCase()}`;
+  return order.id != null ? `#${order.id}` : '—';
 }
 
 /** Running balance: positive = Dr, negative = Cr (never show negative Dr). */
