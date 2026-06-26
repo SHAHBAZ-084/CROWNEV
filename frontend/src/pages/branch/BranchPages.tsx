@@ -347,16 +347,13 @@ type StockFilter = 'ALL' | 'BIKE' | 'PART' | 'LOW';
 export function BranchInventoryPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canDelete, restrictedTitle } = useBranchPermission();
   const [items, setItems] = useState<StockRow[]>([]);
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [filter, setFilter] = useState<StockFilter>('ALL');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
-  const [editItem, setEditItem] = useState<StockRow | null>(null);
-  const [quantity, setQuantity] = useState('0');
-  const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [chassisModalItem, setChassisModalItem] = useState<StockRow | null>(null);
@@ -412,11 +409,6 @@ export function BranchInventoryPage() {
     return rows;
   }, [selectedItems, filter]);
 
-  function openEdit(row: StockRow) {
-    setEditItem(row);
-    setQuantity(String(row.quantity));
-  }
-
   async function openChassisView(row: StockRow) {
     if (!branchId || row.type !== 'BIKE' || row.source !== 'PRODUCT') return;
     setChassisModalItem(row);
@@ -464,10 +456,9 @@ export function BranchInventoryPage() {
       } else {
         await branchApi.setStock(branchId, Number(row.id), 0);
       }
-      toast(`"${row.name}" selected. Set the stock quantity`, 'success');
+      toast(`"${row.name}" added to your branch stock`, 'success');
       setSearch('');
       reload();
-      openEdit({ ...row, isSelected: true, quantity: 0 });
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to select', 'error');
     } finally {
@@ -475,41 +466,16 @@ export function BranchInventoryPage() {
     }
   }
 
-  async function handleSetStock(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!branchId || !editItem) return;
-    const qty = parseInt(quantity, 10);
-    if (!Number.isFinite(qty) || qty < 0) {
-      toast('Enter a valid quantity', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      if (editItem.source === 'PRODUCT') {
-        await branchApi.setBikeStock(branchId, String(editItem.id), qty);
-      } else {
-        await branchApi.setStock(branchId, Number(editItem.id), qty);
-      }
-      toast('Stock updated', 'success');
-      setEditItem(null);
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Stock"
-        subtitle="Select bikes and parts from the admin catalog for your branch, then manage quantities"
+        subtitle="View branch inventory — add items from the catalog; quantities update via purchase invoices"
       />
 
       <p className="rounded-[var(--radius-card)] border border-border bg-surface-alt/60 px-4 py-3 text-sm text-text-muted">
         Admin adds all bikes and parts to the catalog. You choose which ones your branch carries.
-        Search below, select an item, and set how many you have in stock.
+        Stock quantities are updated through POS supplier purchase invoices, not from this page.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -527,16 +493,12 @@ export function BranchInventoryPage() {
           </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {lowStock.slice(0, 12).map((item) => (
-              <button
+              <span
                 key={`${item.type}-${item.id}`}
-                type="button"
-                disabled={!canUpdate}
-                title={!canUpdate ? restrictedTitle : undefined}
-                onClick={() => openEdit(item)}
-                className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-900 hover:border-orange-400"
+                className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-900"
               >
                 {item.name} ({item.quantity}/{item.alertAt})
-              </button>
+              </span>
             ))}
             {lowStock.length > 12 && (
               <span className="self-center text-xs text-orange-700">+{lowStock.length - 12} more</span>
@@ -655,9 +617,6 @@ export function BranchInventoryPage() {
                 const key = `${row.source}-${row.id}`;
                 return (
                   <div className="flex flex-wrap items-center justify-end gap-1">
-                    <Button variant="secondary" size="sm" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => openEdit(row)}>
-                      Update Stock
-                    </Button>
                     {row.type === 'BIKE' && row.source === 'PRODUCT' && (
                       <Button variant="ghost" size="sm" onClick={() => openChassisView(row)}>
                         View Chassis
@@ -711,38 +670,6 @@ export function BranchInventoryPage() {
             </ul>
           </div>
         )}
-      </Modal>
-
-      <Modal
-        open={!!editItem}
-        onClose={() => setEditItem(null)}
-        title={`Update Stock: ${editItem?.name ?? ''}`}
-      >
-        <form onSubmit={handleSetStock} className="space-y-4">
-          <div className="rounded-xl border border-border/70 bg-surface-alt/50 px-4 py-3 text-sm">
-            <p>
-              <span className="text-text-muted">Type:</span>{' '}
-              <strong>{editItem?.type}</strong>
-            </p>
-            <p className="mt-1">
-              <span className="text-text-muted">Code:</span>{' '}
-              <strong className="font-mono">{editItem?.code}</strong>
-            </p>
-            <p className="mt-1">
-              <span className="text-text-muted">Current:</span>{' '}
-              <strong>{editItem?.quantity ?? 0}</strong>
-            </p>
-          </div>
-          <Input
-            label="New quantity"
-            type="number"
-            min={0}
-            required
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-          />
-          <FormActions onCancel={() => setEditItem(null)} loading={saving} />
-        </form>
       </Modal>
     </div>
   );
