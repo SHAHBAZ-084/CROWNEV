@@ -428,6 +428,63 @@ export function AdminBranchesPage() {
 
 type CatalogTab = 'bikes' | 'parts';
 
+function saleDiscountPercent(price: string, salePrice: string) {
+  const regular = Number(price);
+  const sale = salePrice.trim() === '' ? NaN : Number(salePrice);
+  if (!Number.isFinite(regular) || !Number.isFinite(sale) || regular <= 0 || sale >= regular) {
+    return null;
+  }
+  return Math.round(((regular - sale) / regular) * 100);
+}
+
+function CatalogSalePricing({
+  defaultPrice = '',
+  defaultSalePrice = '',
+}: {
+  defaultPrice?: string;
+  defaultSalePrice?: string;
+}) {
+  const [price, setPrice] = useState(defaultPrice);
+  const [salePrice, setSalePrice] = useState(defaultSalePrice);
+  const discount = saleDiscountPercent(price, salePrice);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          name="price"
+          label="Regular price (PKR)"
+          type="number"
+          step="0.01"
+          required
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+        <Input
+          name="salePrice"
+          label="Sale price (optional, PKR)"
+          type="number"
+          step="0.01"
+          value={salePrice}
+          onChange={(e) => setSalePrice(e.target.value)}
+        />
+      </div>
+      <p className="text-xs text-text-muted">
+        Set a sale price below the regular price to show the <strong>SALE</strong> badge and discount percentage on shop cards.
+      </p>
+      {discount != null && discount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-ink">
+          <Badge variant="warning">SALE</Badge>
+          <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold text-warning">
+            −{discount}%
+          </span>
+          <span className="text-text-muted">Shop preview for this item</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminProductsPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -580,14 +637,12 @@ export function AdminProductsPage() {
         const created = await adminApi.createProduct(body);
         productId = String(created.id);
       }
-      if (tab === 'bikes') {
-        const existingCount = modal === 'edit' ? existingImages.length : 0;
-        if (pendingImages.length) {
-          await attachImages(productId, pendingImages, existingCount, primarySelection);
-        }
-        if (primarySelection?.type === 'existing') {
-          await applyPrimarySelection(productId, primarySelection);
-        }
+      const existingCount = modal === 'edit' ? existingImages.length : 0;
+      if (pendingImages.length) {
+        await attachImages(productId, pendingImages, existingCount, primarySelection);
+      }
+      if (primarySelection?.type === 'existing') {
+        await applyPrimarySelection(productId, primarySelection);
       }
       toast(modal === 'edit' ? 'Saved' : 'Created', 'success');
       closeModal();
@@ -647,7 +702,7 @@ export function AdminProductsPage() {
 
       <DataTable
         columns={[
-          ...(tab === 'bikes' ? [{
+          {
             key: 'image',
             header: 'Image',
             render: (r: Row) => {
@@ -656,10 +711,10 @@ export function AdminProductsPage() {
               return url ? (
                 <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
               ) : (
-                <span className="text-xs text-text-muted"></span>
+                <span className="text-xs text-text-muted">—</span>
               );
             },
-          }] : []),
+          },
           { key: 'name', header: 'Name' },
           { key: 'price', header: 'Price', render: (r) => `PKR ${Number(r.price).toLocaleString()}` },
           {
@@ -691,21 +746,21 @@ export function AdminProductsPage() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col">
           <div className="space-y-4">
-            {tab === 'bikes' && (
-              <ProductImageUpload
-                pending={pendingImages}
-                existing={existingImages}
-                primary={primarySelection}
-                onPendingChange={setPendingImages}
-                onPrimaryChange={setPrimarySelection}
-                onRemoveExisting={modal === 'edit' ? removeExistingImage : undefined}
-              />
-            )}
+            <ProductImageUpload
+              label={tab === 'bikes' ? 'Bike Images' : 'Part Images'}
+              pending={pendingImages}
+              existing={existingImages}
+              primary={primarySelection}
+              onPendingChange={setPendingImages}
+              onPrimaryChange={setPrimarySelection}
+              onRemoveExisting={modal === 'edit' ? removeExistingImage : undefined}
+            />
             <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input name="price" label="Price (PKR)" type="number" step="0.01" required defaultValue={String(edit?.price ?? '')} />
-              <Input name="salePrice" label="Sale Price (optional)" type="number" step="0.01" defaultValue={String(edit?.salePrice ?? '')} />
-            </div>
+            <CatalogSalePricing
+              key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}`}
+              defaultPrice={String(edit?.price ?? '')}
+              defaultSalePrice={String(edit?.salePrice ?? '')}
+            />
             <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
             {tab === 'parts' && (
               <PartDetailFields detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']} />

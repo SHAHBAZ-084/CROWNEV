@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -114,9 +114,12 @@ export default function ProductDetailPage() {
               />
             </div>
 
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button variant="accent" size="lg" onClick={handleAddToCart}>
                 <ShoppingCart className="h-5 w-5" /> Add to Cart
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/shop')}>
+                <ArrowLeft className="h-4 w-4" /> Back to Shop
               </Button>
             </div>
           </motion.div>

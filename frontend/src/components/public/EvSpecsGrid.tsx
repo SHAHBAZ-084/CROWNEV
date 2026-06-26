@@ -4,14 +4,14 @@ import { groupedSpecEntries, orderedSpecEntries, type SpecGroup } from '../../li
 function SpecGroupGrid({ group }: { group: SpecGroup }) {
   return (
     <div>
-      <div className="border-b border-border-light bg-subtle/80 px-4 py-2.5 sm:px-6">
+      <div className="border-b border-border-light bg-subtle/80 px-4 py-2 sm:px-6">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand">{group.title}</h3>
       </div>
-      <dl className="grid grid-cols-1 gap-px bg-border-light sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {group.entries.map(({ key, label, value }) => (
-          <div key={key} className="flex min-h-[4.5rem] flex-col justify-center bg-elevated px-4 py-3.5 sm:px-5 sm:py-4">
+          <div key={key} className="flex flex-col justify-center bg-elevated px-4 py-2 sm:px-5 sm:py-2.5">
             <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">{label}</dt>
-            <dd className="mt-1.5 font-display text-sm font-semibold leading-snug text-ink">{value}</dd>
+            <dd className="mt-0.5 font-display text-sm font-semibold leading-snug text-ink">{value}</dd>
           </div>
         ))}
       </dl>

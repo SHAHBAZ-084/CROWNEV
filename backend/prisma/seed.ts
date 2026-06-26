@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 const prisma = new PrismaClient();
 const seedDir = path.dirname(fileURLToPath(import.meta.url));
 const SEED_BIKE_ASSETS = path.join(seedDir, 'seed-assets', 'bikes');
+const SEED_PART_ASSETS = path.join(seedDir, 'seed-assets', 'parts');
 const UPLOAD_PRODUCTS_DIR = path.resolve(process.cwd(), 'uploads', 'products');
 
 type BikeSeed = {
@@ -18,6 +19,7 @@ type BikeSeed = {
   specs: Record<string, string>;
   colorOptions: string[];
   branchStock?: number;
+  images?: string[];
 };
 
 type PartSeed = {
@@ -32,6 +34,7 @@ type PartSeed = {
   imageText: string;
   imageColor?: string;
   inventoryQty?: number;
+  images?: string[];
 };
 
 const BIKE_SEEDS: BikeSeed[] = [
@@ -66,6 +69,7 @@ const BIKE_SEEDS: BikeSeed[] = [
     },
     colorOptions: ['Matte Black', 'Pearl White', 'Electric Blue'],
     branchStock: 6,
+    images: ['crown-eve-pro-x1.webp', 'crown-eve-pro-x1-2.webp', 'crown-eve-pro-x1-3.webp'],
   },
   {
     slug: 'crown-eve-city-cruiser',
@@ -98,6 +102,7 @@ const BIKE_SEEDS: BikeSeed[] = [
     },
     colorOptions: ['Graphite Grey', 'Forest Green'],
     branchStock: 8,
+    images: ['crown-eve-city-cruiser.webp', 'crown-eve-city-cruiser-2.webp'],
   },
   {
     slug: 'crown-eve-delivery-max',
@@ -129,6 +134,7 @@ const BIKE_SEEDS: BikeSeed[] = [
     },
     colorOptions: ['Matte Black', 'Safety Yellow'],
     branchStock: 4,
+    images: ['crown-eve-delivery-max.webp', 'crown-eve-delivery-max-2.webp'],
   },
   {
     slug: 'crown-eve-lite-s2',
@@ -161,6 +167,7 @@ const BIKE_SEEDS: BikeSeed[] = [
     },
     colorOptions: ['Sky Blue', 'Silver', 'White'],
     branchStock: 10,
+    images: ['crown-eve-lite-s2.webp', 'crown-eve-lite-s2-2.webp'],
   },
   {
     slug: 'crown-eve-trail-rider',
@@ -207,6 +214,7 @@ const PART_SEEDS: PartSeed[] = [
     alertAt: 3,
     imageText: '60V+32Ah+Battery',
     inventoryQty: 12,
+    images: ['60v-32ah-battery-pack.webp', '60v-32ah-battery-pack-2.webp'],
   },
   {
     slug: 'bldc-motor-1000w',
@@ -269,6 +277,7 @@ const PART_SEEDS: PartSeed[] = [
     imageText: '60V+Charger',
     imageColor: 'c2410c',
     inventoryQty: 10,
+    images: ['60v-5a-fast-charger.webp', '60v-5a-fast-charger-2.webp', '60v-5a-fast-charger-3.webp'],
   },
   {
     slug: 'headlight-assembly-led',
@@ -281,6 +290,7 @@ const PART_SEEDS: PartSeed[] = [
     imageText: 'LED+Headlight',
     imageColor: 'fef08a',
     inventoryQty: 14,
+    images: ['headlight-assembly-led.webp', 'headlight-assembly-led-2.webp'],
   },
   {
     slug: 'rear-shock-absorber',
@@ -293,39 +303,54 @@ const PART_SEEDS: PartSeed[] = [
     imageText: 'Rear+Shock',
     imageColor: '475569',
     inventoryQty: 9,
+    images: ['rear-shock-absorber.webp', 'rear-shock-absorber-2.webp'],
   },
 ];
 
-function productImageUrl(text: string, color = 'B34700') {
-  return `https://placehold.co/800x600/${color}/FFFFFF?text=${text}`;
-}
-
-async function ensureBikeSeedImage(slug: string) {
-  const filename = `seed-${slug}.webp`;
-  const dest = path.join(UPLOAD_PRODUCTS_DIR, filename);
-  const assetWebp = path.join(SEED_BIKE_ASSETS, `${slug}.webp`);
-
+async function copySeedImages(
+  slug: string,
+  assetDir: string,
+  files: string[],
+) {
   await fs.promises.mkdir(UPLOAD_PRODUCTS_DIR, { recursive: true });
+  const images: { url: string; isPrimary: boolean; sortOrder: number }[] = [];
 
-  if (!fs.existsSync(assetWebp)) {
-    throw new Error(`Missing seed bike image: ${assetWebp}`);
+  for (let i = 0; i < files.length; i++) {
+    const assetPath = path.join(assetDir, files[i]);
+    if (!fs.existsSync(assetPath)) {
+      throw new Error(`Missing seed image: ${assetPath}`);
+    }
+    const uploadName = i === 0 ? `seed-${slug}.webp` : `seed-${slug}-${i + 1}.webp`;
+    const dest = path.join(UPLOAD_PRODUCTS_DIR, uploadName);
+    await fs.promises.copyFile(assetPath, dest);
+    images.push({
+      url: `/uploads/products/${uploadName}`,
+      isPrimary: i === 0,
+      sortOrder: i,
+    });
   }
 
-  await fs.promises.copyFile(assetWebp, dest);
-  return `/uploads/products/${filename}`;
+  return images;
 }
 
-async function upsertPrimaryImage(productId: string, url: string) {
-  const existing = await prisma.productImage.findFirst({
-    where: { productId, isPrimary: true },
-  });
-  if (existing) {
-    await prisma.productImage.update({ where: { id: existing.id }, data: { url } });
-    return;
+async function syncProductImages(
+  productId: string,
+  slug: string,
+  assetDir: string,
+  files: string[],
+) {
+  const images = await copySeedImages(slug, assetDir, files);
+  await prisma.productImage.deleteMany({ where: { productId } });
+  for (const img of images) {
+    await prisma.productImage.create({
+      data: {
+        productId,
+        url: img.url,
+        isPrimary: img.isPrimary,
+        sortOrder: img.sortOrder,
+      },
+    });
   }
-  await prisma.productImage.create({
-    data: { productId, url, isPrimary: true, sortOrder: 0 },
-  });
 }
 
 async function listProductAtBranches(
@@ -521,7 +546,12 @@ async function main() {
       },
     });
 
-    await upsertPrimaryImage(product.id, await ensureBikeSeedImage(bike.slug));
+    await syncProductImages(
+      product.id,
+      bike.slug,
+      SEED_BIKE_ASSETS,
+      bike.images ?? [`${bike.slug}.webp`],
+    );
     await listProductAtBranches(product.id, branches, bike.branchStock ?? 5);
     bikeProducts.push({ id: product.id, slug: bike.slug });
   }
@@ -565,9 +595,11 @@ async function main() {
       },
     });
 
-    await upsertPrimaryImage(
+    await syncProductImages(
       partProduct.id,
-      productImageUrl(partSeed.imageText, partSeed.imageColor),
+      partSeed.slug,
+      SEED_PART_ASSETS,
+      partSeed.images ?? [`${partSeed.slug}.webp`],
     );
     await listProductAtBranches(partProduct.id, branches, partSeed.inventoryQty ?? 10);
     await stockPartAtBranches(part.id, branches, partSeed.inventoryQty ?? 10);

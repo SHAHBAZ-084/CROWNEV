@@ -40,6 +40,7 @@ export function ProductImageUpload({
   onPrimaryChange,
   onRemoveExisting,
   max = 8,
+  label = 'Product Images',
 }: {
   pending: PendingImage[];
   existing?: ExistingImage[];
@@ -48,6 +49,7 @@ export function ProductImageUpload({
   onPrimaryChange: (selection: PrimarySelection | null) => void;
   onRemoveExisting?: (id: number) => void;
   max?: number;
+  label?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const total = existing.length + pending.length;
@@ -84,7 +86,7 @@ export function ProductImageUpload({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <label className="block text-sm font-medium text-text">Bike Images</label>
+        <label className="block text-sm font-medium text-text">{label}</label>
         <span className="text-xs text-text-muted">{total}/{max} images</span>
       </div>
       <p className="text-xs text-text-muted">Click the star on any image to set it as the primary shop thumbnail.</p>
