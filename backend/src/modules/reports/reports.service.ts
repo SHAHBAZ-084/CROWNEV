@@ -198,6 +198,9 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
 
 type ExportPagination = { page?: string; limit?: string };
 
+/** Oldest transaction first (ID 1 → latest) for PDF/CSV exports */
+const EXPORT_CHRONOLOGICAL = [{ id: 'asc' as const }];
+
 function exportPagination(query?: ExportPagination) {
   const page = Math.max(1, parseInt(query?.page ?? '1', 10) || 1);
   const limit = Math.min(
@@ -236,7 +239,7 @@ export async function exportOrders(
       user: { select: { firstName: true, lastName: true, email: true } },
       customer: { select: { name: true, type: true } },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: EXPORT_CHRONOLOGICAL,
     take,
     skip,
   });
@@ -283,7 +286,7 @@ export async function exportBookings(
       branch: { select: { name: true } },
       user: { select: { firstName: true, lastName: true } },
     },
-    orderBy: { date: 'desc' },
+    orderBy: EXPORT_CHRONOLOGICAL,
     take,
     skip,
   });

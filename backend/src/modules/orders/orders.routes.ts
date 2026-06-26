@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { OrderStatus, OrderType, PaymentMethod, Role, ShippingMethod } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod, PaymentStatus, Role, ShippingMethod } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
@@ -78,7 +78,7 @@ ordersRouter.get(
       status: req.query.status as OrderStatus | undefined,
       type: req.query.type as OrderType | undefined,
       userId,
-      paymentStatus: req.query.paymentStatus as import('@prisma/client').PaymentStatus | undefined,
+      paymentStatus: req.query.paymentStatus as PaymentStatus | undefined,
       paymentMethod: req.query.paymentMethod as PaymentMethod | undefined,
     });
     res.json(result);

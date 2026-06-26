@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { InactivityWatcher } from './components/InactivityWatcher';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
@@ -121,6 +122,7 @@ export default function App() {
         <CartProvider>
           <ToastProvider>
             <BrowserRouter>
+              <InactivityWatcher />
               <Routes>
               <Route path="/" element={<PublicWrap><LandingPage /></PublicWrap>} />
               <Route path="/shop" element={<CustomerOrPublicWrap><ShopPage /></CustomerOrPublicWrap>} />
