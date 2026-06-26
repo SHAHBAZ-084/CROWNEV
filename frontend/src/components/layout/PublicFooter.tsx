@@ -119,6 +119,7 @@ export function PublicFooter() {
           <div className="lg:col-span-2 lg:col-start-6">
             <FooterColumnHeading>Quick Links</FooterColumnHeading>
             <ul className="mt-4 space-y-3">
+              <FooterLink to="/" label="Home" />
               <FooterLink to="/about" label="About Us" />
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />

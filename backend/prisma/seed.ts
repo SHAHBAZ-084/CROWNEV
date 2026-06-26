@@ -429,16 +429,16 @@ async function main() {
   const branch1 = await prisma.branch.upsert({
     where: { id: 1 },
     update: {
-      latitude: 29.995378379735364,
-      longitude: 73.24281476617726,
+      latitude: 29.995425472044637,
+      longitude: 73.2428932264022,
     },
     create: {
       name: 'Crown Ev Karachi',
       location: 'Main Boulevard, Karachi',
       phone: '+92 300 1234567',
       whatsapp: '+92 300 1234567',
-      latitude: 29.995378379735364,
-      longitude: 73.24281476617726,
+      latitude: 29.995425472044637,
+      longitude: 73.2428932264022,
       description:
         'Our Karachi branch has been serving the Clifton and DHA community since 2022, offering full sales, service, and genuine parts support for every Crown Ev model.',
     },
@@ -447,16 +447,16 @@ async function main() {
   const branch2 = await prisma.branch.upsert({
     where: { id: 2 },
     update: {
-      latitude: 29.806459600175703,
-      longitude: 72.86913501963214,
+      latitude: 29.806322679116477,
+      longitude: 72.86908609999999,
     },
     create: {
       name: 'Crown Ev Lahore',
       location: 'MM Alam Road, Lahore',
       phone: '+92 321 9876543',
       whatsapp: '+92 321 9876543',
-      latitude: 29.806459600175703,
-      longitude: 72.86913501963214,
+      latitude: 29.806322679116477,
+      longitude: 72.86908609999999,
       description:
         'Located in the heart of Lahore, this branch provides test rides, financing guidance, and expert EV maintenance for riders across Punjab.',
     },

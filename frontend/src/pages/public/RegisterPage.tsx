@@ -5,13 +5,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authApi, setToken } from '../../api/client';
 import { getLoginUrl, resolvePostAuthRedirect } from '../../lib/authRedirect';
 import { PAKISTAN_CITY_OPTIONS } from '../../lib/constants';
+import { AuthFormDivider, GoogleSignInButton } from '../../components/auth/GoogleSignInButton';
 import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 
 export default function RegisterPage() {
-  const { setUser } = useAuth();
+  const { setUser, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
@@ -21,6 +22,20 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [city, setCity] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogleCredential(idToken: string) {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle(idToken);
+      navigate(resolvePostAuthRedirect(redirectTo, user.role), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   function checkPassword(pw: string) {
     let s = 0;
@@ -87,8 +102,16 @@ export default function RegisterPage() {
         ) : (
           <>
             <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Create Account</h1>
-            <form onSubmit={handleRegister} className="mt-8 space-y-4">
-              {error && <p className="text-sm text-warning">{error}</p>}
+            <div className="mt-8">
+              {error && <p className="mb-4 text-sm text-warning">{error}</p>}
+              <GoogleSignInButton
+                onCredential={handleGoogleCredential}
+                onConfigError={setError}
+                loading={googleLoading}
+              />
+              <AuthFormDivider />
+            </div>
+            <form onSubmit={handleRegister} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input name="firstName" placeholder="First name" required />
                 <Input name="lastName" placeholder="Last name" required />

@@ -97,9 +97,9 @@ export function AboutPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="flex overflow-hidden rounded-xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] sm:flex-row"
+                className="flex flex-col overflow-hidden rounded-xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] sm:flex-row"
               >
-                <div className="h-40 w-full shrink-0 overflow-hidden bg-subtle sm:h-44 sm:w-36 md:w-40">
+                <div className="h-48 w-full shrink-0 overflow-hidden bg-subtle sm:h-44 sm:w-36 md:w-40">
                   <img
                     src={f.image}
                     alt={f.name}

@@ -378,7 +378,7 @@ export function CustomerProfilePage() {
         phone: String(fd.get('phone') || '') || undefined,
         city: String(fd.get('city') || '') || undefined,
       });
-      setUser({ ...user!, ...updated });
+      setUser(updated);
       toast('Profile updated', 'success');
       setEditing(false);
     } catch (err) {

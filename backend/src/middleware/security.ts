@@ -1,6 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
 
 const MAX_INPUT_STRING_LENGTH = 500;
+/** Google ID tokens are JWTs — much longer than normal form fields. */
+const FIELD_STRING_LIMITS: Record<string, number> = {
+  idToken: 8192,
+};
 const POLLUTED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /** Strip prototype-pollution and `$`-operator keys from parsed JSON bodies/queries. */
@@ -22,9 +26,14 @@ function stripPollutedKeys(value: unknown): void {
   }
 }
 
+function maxStringLengthForPath(path: string): number {
+  const fieldName = path.split('.').pop()?.replace(/\[\d+\]$/, '') ?? '';
+  return FIELD_STRING_LIMITS[fieldName] ?? MAX_INPUT_STRING_LENGTH;
+}
+
 function findOversizedString(value: unknown, path: string): string | null {
   if (typeof value === 'string') {
-    return value.length > MAX_INPUT_STRING_LENGTH ? path : null;
+    return value.length > maxStringLengthForPath(path) ? path : null;
   }
   if (!value || typeof value !== 'object') return null;
 

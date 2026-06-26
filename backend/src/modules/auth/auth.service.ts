@@ -22,6 +22,8 @@ function authUserPayload(user: {
   role: Role;
   firstName: string;
   lastName: string;
+  phone?: string | null;
+  city?: string | null;
   branchId: number | null;
   branchPermission?: BranchPermission;
 }) {
@@ -31,6 +33,8 @@ function authUserPayload(user: {
     role: user.role,
     firstName: user.firstName,
     lastName: user.lastName,
+    phone: user.phone ?? null,
+    city: user.city ?? null,
     branchId: user.branchId,
     ...(user.role === Role.BRANCH_OWNER && {
       branchPermission: user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE,

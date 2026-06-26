@@ -73,6 +73,21 @@ function parseCoord(value: FormDataEntryValue | null): number | null | undefined
   return n;
 }
 
+/** On edit, empty coord fields should leave existing values unchanged (omit from PATCH). */
+function coordFields(
+  fd: FormData,
+  mode: 'create' | 'edit',
+): { latitude?: number | null; longitude?: number | null } {
+  const latRaw = String(fd.get('latitude') ?? '').trim();
+  const lngRaw = String(fd.get('longitude') ?? '').trim();
+  const lat = latRaw ? parseCoord(latRaw) : mode === 'edit' ? undefined : null;
+  const lng = lngRaw ? parseCoord(lngRaw) : mode === 'edit' ? undefined : null;
+  const out: { latitude?: number | null; longitude?: number | null } = {};
+  if (lat !== undefined) out.latitude = lat;
+  if (lng !== undefined) out.longitude = lng;
+  return out;
+}
+
 function useCrudList(loader: () => Promise<unknown>, deps: readonly unknown[] = []) {
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
@@ -250,8 +265,7 @@ export function AdminBranchesPage() {
       phone: String(fd.get('phone')),
       whatsapp: String(fd.get('whatsapp') || '') || undefined,
       description: String(fd.get('description') || '') || undefined,
-      ...(parseCoord(fd.get('latitude')) !== undefined && { latitude: parseCoord(fd.get('latitude')) }),
-      ...(parseCoord(fd.get('longitude')) !== undefined && { longitude: parseCoord(fd.get('longitude')) }),
+      ...coordFields(fd, modal === 'edit' ? 'edit' : 'create'),
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
     };
     setSaving(true);
@@ -358,7 +372,7 @@ export function AdminBranchesPage() {
               label="Latitude"
               type="number"
               step="any"
-              placeholder="29.995378"
+              placeholder="29.995425"
               defaultValue={edit?.latitude != null ? String(edit.latitude) : ''}
             />
             <Input
@@ -366,7 +380,7 @@ export function AdminBranchesPage() {
               label="Longitude"
               type="number"
               step="any"
-              placeholder="73.242815"
+              placeholder="73.242893"
               defaultValue={edit?.longitude != null ? String(edit.longitude) : ''}
             />
           </div>

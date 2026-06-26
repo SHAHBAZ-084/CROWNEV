@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Branch } from '../../types';
-import { resolveBranchCoords } from '../../lib/branchMapCoords';
+import { buildBranchMapPoints } from '../../lib/branchMapCoords';
 
 type BranchLocationsMapProps = {
   branches: Branch[];
@@ -57,13 +57,7 @@ export function BranchLocationsMap({ branches, selectedId, onSelect }: BranchLoc
 
   onSelectRef.current = onSelect;
 
-  const mappable = useMemo(
-    () =>
-      branches
-        .map((branch) => ({ branch, coords: resolveBranchCoords(branch) }))
-        .filter((entry): entry is { branch: Branch; coords: [number, number] } => entry.coords !== null),
-    [branches],
-  );
+  const mappable = useMemo(() => buildBranchMapPoints(branches), [branches]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -117,9 +111,9 @@ export function BranchLocationsMap({ branches, selectedId, onSelect }: BranchLoc
 
     const bounds = L.latLngBounds([]);
 
-    mappable.forEach(({ branch, coords }) => {
+    mappable.forEach(({ branch, coords, markerCoords }) => {
       const active = selectedId === branch.id;
-      const marker = L.marker(coords, {
+      const marker = L.marker(markerCoords, {
         icon: pinIcon(active),
         title: branch.name,
         zIndexOffset: active ? 1000 : 0,
@@ -128,13 +122,14 @@ export function BranchLocationsMap({ branches, selectedId, onSelect }: BranchLoc
         .on('click', () => onSelectRef.current(branch.id));
 
       layer.addLayer(marker);
+      bounds.extend(markerCoords);
       bounds.extend(coords);
     });
 
     requestAnimationFrame(() => {
       map.invalidateSize();
       if (mappable.length === 1) {
-        map.setView(mappable[0].coords, window.innerWidth < 640 ? 12 : 13);
+        map.setView(mappable[0].markerCoords, window.innerWidth < 640 ? 12 : 13);
       } else {
         map.fitBounds(bounds, { padding: mapPadding(), maxZoom: mapMaxZoom() });
       }

@@ -3,12 +3,13 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { getRegisterUrl, resolvePostAuthRedirect } from '../../lib/authRedirect';
+import { AuthFormDivider, GoogleSignInButton } from '../../components/auth/GoogleSignInButton';
 import { Logo } from '../../components/brand/Logo';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
@@ -16,6 +17,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogleCredential(idToken: string) {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const user = await loginWithGoogle(idToken);
+      navigate(resolvePostAuthRedirect(redirectTo, user.role), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -44,8 +59,18 @@ export default function LoginPage() {
         <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Welcome Back</h1>
         <p className="mt-1 text-sm text-ink-muted">Sign in to your Crown Ev account</p>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-warning">{error}</p>}
+        <div className="mt-8">
+          {error && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-warning">{error}</p>}
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            onConfigError={setError}
+            loading={googleLoading}
+            disabled={loading}
+          />
+          <AuthFormDivider />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Email"
             type="email"
