@@ -37,6 +37,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const run = async () => {
     const res = await fetchWithRetry(`${BASE}${path}`, { ...options, headers });
     if (!res.ok) {
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new Error(
+          'Server unavailable (502). Start the backend API on port 3001 and ensure PostgreSQL is running.',
+        );
+      }
       const err = await res.json().catch(() => ({ error: res.statusText }));
       const message = err.error ?? err.message ?? 'Request failed';
       if (Array.isArray(err.details)) {

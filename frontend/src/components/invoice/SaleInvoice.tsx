@@ -1,20 +1,10 @@
 import { useRef, useState } from 'react';
-import { Check, Download, Printer } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import type { InvoiceData } from '../../types';
 import { formatPKR, formatDate } from '../../lib/format';
 import { captureInvoiceElement, openPrintWindow, saveCanvasAsPdf } from '../../lib/invoiceCapture';
 import { Button } from '../ui/Button';
 import { Logo } from '../brand/Logo';
-
-function paymentLabel(method: InvoiceData['paymentMethod'], status: InvoiceData['paymentStatus']) {
-  if (method === 'CASH') return 'Paid in Cash';
-  if (status === 'APPROVED' || status === 'PAID') return 'Paid via Bank Transfer, verified';
-  return 'Bank Transfer, pending verification';
-}
-
-function showPaidStamp(data: InvoiceData) {
-  return data.paymentStatus === 'PAID' || data.paymentStatus === 'APPROVED';
-}
 
 export function SaleInvoice({
   data,
@@ -103,20 +93,12 @@ export function SaleInvoice({
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Order Info</p>
-            {data.orderType === 'POS' ? (
-              data.saleReference && (
-                <p><span className="text-slate-500">Reference:</span> <span className="font-mono">{data.saleReference}</span></p>
-              )
-            ) : (
-              data.trackingId && (
-                <p><span className="text-slate-500">Tracking:</span> <span className="font-mono">{data.trackingId}</span></p>
-              )
-            )}
+            <p>
+              <span className="text-slate-500">Reference:</span>{' '}
+              <span className="font-mono">{data.saleReference?.trim() || data.invoiceNumber}</span>
+            </p>
             <p><span className="text-slate-500">Payment:</span> {data.paymentMethod.replace('_', ' ')}</p>
             <p><span className="text-slate-500">Status:</span> {data.status}</p>
-            {data.biltyTrackingId && (
-              <p><span className="text-slate-500">Bilty:</span> {data.biltyTrackingId}</p>
-            )}
           </div>
         </div>
 
@@ -161,17 +143,6 @@ export function SaleInvoice({
             </div>
           </div>
         </div>
-
-        {showPaidStamp(data) && (
-          <div className="mx-auto mt-8 max-w-md rounded-xl border-2 border-success bg-success/5 p-4 text-center">
-            <div className="flex items-center justify-center gap-2 text-success">
-              <Check className="h-5 w-5" />
-              <span className="text-lg font-bold">AMOUNT PAID</span>
-            </div>
-            <p className="mt-1 text-xl font-bold tabular-nums">{formatPKR(data.total)}</p>
-            <p className="text-sm text-slate-500">{paymentLabel(data.paymentMethod, data.paymentStatus)}</p>
-          </div>
-        )}
 
       </div>
     </div>
