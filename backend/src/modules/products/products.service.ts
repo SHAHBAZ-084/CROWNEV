@@ -96,6 +96,8 @@ export async function listShopProducts(query: {
         type: true,
         price: true,
         salePrice: true,
+        specs: true,
+        colorOptions: true,
         brand: { select: { id: true, name: true, slug: true } },
         category: { select: { id: true, name: true, slug: true } },
         images: {

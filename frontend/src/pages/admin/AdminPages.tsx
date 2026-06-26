@@ -229,20 +229,15 @@ export function AdminBranchesPage() {
   }, [modal, edit]);
   const del = useDeleteConfirm<Row>(
     async (item) => {
-      const result = await adminApi.deleteBranch(Number(item.id));
-      toast(
-        result.deactivated
-          ? 'Branch deactivated (orders/history kept on file)'
-          : 'Branch deleted',
-        'success'
-      );
+      await adminApi.deleteBranch(Number(item.id));
+      toast('Branch deleted permanently', 'success');
       setModal(null);
       setEdit(null);
       reload();
     },
     {
       message: (item) =>
-        `Delete branch "${String(item.name)}"? Branches with orders or history will be deactivated instead of permanently removed.`,
+        `Permanently delete branch "${String(item.name)}"? Clear branch data first if it still has sales, customers, or vouchers. This cannot be undone.`,
     }
   );
 

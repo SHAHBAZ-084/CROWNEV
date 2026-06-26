@@ -191,7 +191,7 @@ export const adminApi = {
   updateBranch: (id: number, data: Record<string, unknown>) =>
     api<unknown>(`/branches/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteBranch: (id: number) =>
-    api<{ deactivated: boolean }>(`/branches/${id}`, { method: 'DELETE' }),
+    api<{ deleted: boolean }>(`/branches/${id}`, { method: 'DELETE' }),
   branchClearPreview: (id: number) =>
     api<{
       branchId: number;

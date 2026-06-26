@@ -8,7 +8,7 @@ import { PageHero } from '../../components/public/PageHero';
 import { Select } from '../../components/ui/Input';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { formatPKR } from '../../lib/format';
-import { getSpecDefault, type EvSpecKey } from '../../lib/evSpecs';
+import { getSpecDefault, normalizeProductSpecs, type EvSpecKey } from '../../lib/evSpecs';
 import { resolveUploadUrl } from '../../lib/media';
 import { ctaArrowClass } from '../../lib/publicMotion';
 
@@ -22,7 +22,7 @@ type ComparisonRowDef = {
 };
 
 function productSpecs(product: Product) {
-  return (product.specs as Record<string, string> | null) ?? {};
+  return normalizeProductSpecs(product.specs as Record<string, unknown> | null);
 }
 
 function pickSpec(product: Product, ...keys: EvSpecKey[]): string | null {

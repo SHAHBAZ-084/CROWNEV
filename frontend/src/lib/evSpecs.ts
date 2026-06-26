@@ -85,3 +85,137 @@ export function orderedSpecEntries(
 
   return [...known, ...legacy];
 }
+
+/** Map legacy seed/admin spec keys to structured EV keys for compare & display. */
+export function normalizeProductSpecs(
+  specs: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (!specs) return {};
+
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(specs)) {
+    const text = formatSpecValue(value);
+    if (text) normalized[key] = text;
+  }
+
+  const num = (text?: string) => {
+    if (!text) return undefined;
+    const match = text.match(/[\d.]+/);
+    return match?.[0];
+  };
+
+  if (!normalized.speed_max_kmh && normalized.speed) {
+    const n = num(normalized.speed);
+    if (n) normalized.speed_max_kmh = n;
+  }
+  if (!normalized.range_eco_max_km && normalized.range) {
+    const n = num(normalized.range);
+    if (n) normalized.range_eco_max_km = n;
+  }
+  if (!normalized.motor_watt_max && normalized.motor) {
+    const n = num(normalized.motor);
+    if (n) normalized.motor_watt_max = n;
+  }
+  if (!normalized.motor_type && normalized.motor) {
+    normalized.motor_type = normalized.motor.replace(/[\d.]+\s*W?\s*/i, '').trim() || normalized.motor;
+  }
+  if (!normalized.battery_capacity_ah && normalized.battery) {
+    const ah = normalized.battery.match(/(\d+(?:\.\d+)?)\s*Ah/i);
+    if (ah) normalized.battery_capacity_ah = `${ah[1]}Ah`;
+  }
+  if (!normalized.battery_voltage && normalized.battery) {
+    const volts = normalized.battery.match(/(\d+(?:\.\d+)?)\s*V/i);
+    if (volts) normalized.battery_voltage = `${volts[1]}V`;
+  }
+  if (!normalized.battery_type && normalized.battery && /lithium/i.test(normalized.battery)) {
+    normalized.battery_type = 'Lithium-ion';
+  }
+  if (!normalized.charging_time_max_hrs && normalized.chargingTime) {
+    const n = num(normalized.chargingTime);
+    if (n) normalized.charging_time_max_hrs = n;
+  }
+  if (!normalized.net_weight_kg && normalized.weight) {
+    const n = num(normalized.weight);
+    if (n) normalized.net_weight_kg = n;
+  }
+  if (!normalized.braking_system && normalized.brakes) {
+    normalized.braking_system = normalized.brakes;
+  }
+  if (!normalized.frame_material && normalized.bodyType) {
+    normalized.frame_material = normalized.bodyType;
+  }
+  if (!normalized.wheel_size && normalized.tyreType) {
+    normalized.wheel_size = normalized.tyreType;
+  }
+
+  return normalized;
+}
+
+export const EV_SPEC_GROUPS = [
+  {
+    title: 'Motor & Speed',
+    keys: [
+      'motor_type',
+      'motor_watt_min',
+      'motor_watt_max',
+      'speed_min_kmh',
+      'speed_max_kmh',
+      'speed_modes',
+    ],
+  },
+  {
+    title: 'Battery & Range',
+    keys: [
+      'battery_voltage',
+      'battery_capacity_ah',
+      'battery_type',
+      'range_eco_min_km',
+      'range_eco_max_km',
+    ],
+  },
+  {
+    title: 'Charging',
+    keys: ['charger', 'charging_time_min_hrs', 'charging_time_max_hrs'],
+  },
+  {
+    title: 'Build & Safety',
+    keys: [
+      'net_weight_kg',
+      'loading_capacity_kg',
+      'braking_system',
+      'frame_material',
+      'wheel_size',
+      'security',
+      'warranty',
+    ],
+  },
+] as const;
+
+export type GroupedSpecEntry = { key: string; label: string; value: string };
+
+export type SpecGroup = { title: string; entries: GroupedSpecEntry[] };
+
+export function groupedSpecEntries(
+  specs: Record<string, unknown> | null | undefined,
+): SpecGroup[] {
+  const all = orderedSpecEntries(specs);
+  if (!all.length) return [];
+
+  const byKey = new Map(all.map((entry) => [entry.key, entry]));
+  const groupedKeys = new Set<string>();
+
+  const groups: SpecGroup[] = EV_SPEC_GROUPS.map(({ title, keys }) => {
+    const entries = keys
+      .map((key) => byKey.get(key))
+      .filter((entry): entry is GroupedSpecEntry => Boolean(entry));
+    entries.forEach((entry) => groupedKeys.add(entry.key));
+    return { title, entries };
+  }).filter((group) => group.entries.length > 0);
+
+  const other = all.filter((entry) => !groupedKeys.has(entry.key));
+  if (other.length > 0) {
+    groups.push({ title: 'Additional Details', entries: other });
+  }
+
+  return groups;
+}
