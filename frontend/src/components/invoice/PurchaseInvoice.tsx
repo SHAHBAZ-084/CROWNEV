@@ -65,49 +65,49 @@ export function PurchaseInvoice({
       <div
         id="purchase-invoice-print-area"
         ref={printRef}
-        className="print-area rounded-xl border border-border bg-white p-8 text-sm text-text shadow-sm"
+        className="print-area rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-700 shadow-sm"
       >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
           <div className="flex items-center gap-3">
             <Logo size="sm" className="!h-10 !max-w-[140px]" />
             <div>
-              <p className="font-semibold text-brand">{data.branch.name}</p>
-              <p className="text-xs text-text-muted">{data.branch.location}</p>
-              <p className="text-xs text-text-muted">Phone: {data.branch.phone}</p>
+              <p className="font-semibold text-slate-900">{data.branch.name}</p>
+              <p className="text-xs text-slate-500">{data.branch.location}</p>
+              <p className="text-xs text-slate-500">Phone: {data.branch.phone}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-accent">PURCHASE INVOICE</p>
-            <p className="font-mono text-xs text-text-muted">{data.invoiceNumber}</p>
-            <p className="text-xs text-text-muted">{formatDate(data.date)}</p>
+            <p className="text-lg font-bold text-orange-500">PURCHASE INVOICE</p>
+            <p className="font-mono text-xs text-slate-500">{data.invoiceNumber}</p>
+            <p className="text-xs text-slate-500">{formatDate(data.date)}</p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Purchased From</p>
-            <p className="font-medium">{data.supplier.name}</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Purchased From</p>
+            <p className="font-medium text-slate-900">{data.supplier.name}</p>
             {data.supplier.contactPerson && (
-              <p className="text-text-muted">Contact: {data.supplier.contactPerson}</p>
+              <p className="text-slate-500">Contact: {data.supplier.contactPerson}</p>
             )}
-            {data.supplier.phone && <p className="text-text-muted">{data.supplier.phone}</p>}
-            {data.supplier.email && <p className="text-text-muted">{data.supplier.email}</p>}
-            {data.supplier.address && <p className="text-text-muted">{data.supplier.address}</p>}
+            {data.supplier.phone && <p className="text-slate-500">{data.supplier.phone}</p>}
+            {data.supplier.email && <p className="text-slate-500">{data.supplier.email}</p>}
+            {data.supplier.address && <p className="text-slate-500">{data.supplier.address}</p>}
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Invoice Info</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Invoice Info</p>
             {data.reference && (
-              <p><span className="text-text-muted">Reference:</span> <span className="font-mono">{data.reference}</span></p>
+              <p><span className="text-slate-500">Reference:</span> <span className="font-mono">{data.reference}</span></p>
             )}
             {data.notes && (
-              <p className="mt-1"><span className="text-text-muted">Notes:</span> {data.notes}</p>
+              <p className="mt-1"><span className="text-slate-500">Notes:</span> {data.notes}</p>
             )}
           </div>
         </div>
 
         <table className="mt-8 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b-2 border-border bg-surface-alt/50 text-left text-xs uppercase text-text-muted">
+            <tr className="border-b-2 border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
               <th className="px-2 py-2">#</th>
               <th className="px-2 py-2">Product</th>
               <th className="px-2 py-2 text-right">Qty</th>
@@ -117,13 +117,13 @@ export function PurchaseInvoice({
           </thead>
           <tbody>
             {data.items.map((item, idx) => (
-              <tr key={idx} className="border-b border-border/40 align-top">
+              <tr key={idx} className="border-b border-slate-200 align-top">
                 <td className="px-2 py-3">{idx + 1}</td>
                 <td className="px-2 py-3">
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-xs text-text-muted">{item.type}</p>
+                  <p className="font-medium text-slate-900">{item.name}</p>
+                  <p className="text-xs text-slate-500">{item.type}</p>
                   {item.chassisNumber && (
-                    <p className="text-xs text-text-muted">Chassis: {item.chassisNumber}</p>
+                    <p className="text-xs text-slate-500">Chassis: {item.chassisNumber}</p>
                   )}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums">{item.quantity}</td>
@@ -137,19 +137,16 @@ export function PurchaseInvoice({
         <div className="mt-4 flex justify-end">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-text-muted">Subtotal</span>
-              <span className="tabular-nums">{formatPKR(data.subtotal)}</span>
+              <span className="text-slate-500">Subtotal</span>
+              <span className="tabular-nums text-slate-900">{formatPKR(data.subtotal)}</span>
             </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
+            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
               <span>Total</span>
-              <span className="tabular-nums text-brand">{formatPKR(data.total)}</span>
+              <span className="tabular-nums text-orange-500">{formatPKR(data.total)}</span>
             </div>
           </div>
         </div>
 
-        <p className="mt-8 border-t border-border pt-4 text-center text-xs text-text-muted">
-          This document is proof of purchase. Generated by Crown EV Management System.
-        </p>
       </div>
     </div>
   );

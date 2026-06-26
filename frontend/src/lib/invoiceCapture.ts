@@ -28,7 +28,7 @@ function copyThemeVars(target: HTMLElement) {
     if (value) target.style.setProperty(`--${name}`, value);
   }
   target.style.fontFamily = root.fontFamily;
-  target.style.color = root.getPropertyValue('--color-text').trim() || '#1a1a1a';
+  target.style.color = '#334155';
   target.style.background = '#ffffff';
 }
 
@@ -90,27 +90,82 @@ async function waitForImages(root: HTMLElement) {
   );
 }
 
-function prepareCloneForCapture(source: HTMLElement, clone: HTMLElement) {
-  const fullHeight = Math.max(source.scrollHeight, source.offsetHeight);
-
+function prepareCloneForCapture(clone: HTMLElement) {
   clone.style.boxShadow = 'none';
   clone.style.width = `${CAPTURE_WIDTH}px`;
   clone.style.maxWidth = `${CAPTURE_WIDTH}px`;
   clone.style.maxHeight = 'none';
   clone.style.height = 'auto';
+  clone.style.minHeight = '0';
   clone.style.overflow = 'visible';
   clone.style.position = 'relative';
-  clone.style.minHeight = `${fullHeight}px`;
+  clone.style.margin = '0';
 
   prepareImagesForCapture(clone);
+}
+
+/** Crop empty margins from html2canvas output so PDF pages match content size. */
+function trimCanvasWhitespace(canvas: HTMLCanvasElement, paddingPx = 8): HTMLCanvasElement {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  const { width, height } = canvas;
+  const { data } = ctx.getImageData(0, 0, width, height);
+
+  let top = height;
+  let left = width;
+  let right = 0;
+  let bottom = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const alpha = data[i + 3];
+      if (alpha < 8) continue;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (r > 250 && g > 250 && b > 250) continue;
+
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+
+  if (right <= left || bottom <= top) return canvas;
+
+  left = Math.max(0, left - paddingPx);
+  top = Math.max(0, top - paddingPx);
+  right = Math.min(width - 1, right + paddingPx);
+  bottom = Math.min(height - 1, bottom + paddingPx);
+
+  const cropped = document.createElement('canvas');
+  cropped.width = right - left + 1;
+  cropped.height = bottom - top + 1;
+  cropped.getContext('2d')!.drawImage(
+    canvas,
+    left,
+    top,
+    cropped.width,
+    cropped.height,
+    0,
+    0,
+    cropped.width,
+    cropped.height,
+  );
+  return cropped;
 }
 
 export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCanvasElement> {
   const host = document.createElement('div');
   host.style.cssText = [
     'position:fixed',
-    'left:-10000px',
+    'left:0',
     'top:0',
+    'opacity:0',
+    'pointer-events:none',
     `width:${CAPTURE_WIDTH}px`,
     'background:#fff',
     'z-index:-1',
@@ -119,7 +174,7 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
   copyThemeVars(host);
 
   const clone = source.cloneNode(true) as HTMLElement;
-  prepareCloneForCapture(source, clone);
+  prepareCloneForCapture(clone);
   host.appendChild(clone);
   document.body.appendChild(host);
 
@@ -127,26 +182,19 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
     await waitForImages(clone);
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
-    const captureHeight = Math.max(
-      source.scrollHeight,
-      clone.scrollHeight,
-      clone.offsetHeight,
-      100,
-    );
-
-    return await html2canvas(clone, {
+    const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
-      width: CAPTURE_WIDTH,
-      height: captureHeight,
-      windowWidth: CAPTURE_WIDTH,
-      windowHeight: captureHeight,
-      scrollX: 0,
-      scrollY: 0,
       logging: false,
     });
+
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Failed to capture invoice content');
+    }
+
+    return trimCanvasWhitespace(canvas);
   } finally {
     host.remove();
   }
@@ -163,9 +211,10 @@ export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
 <html><head><title>${title}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: auto; margin: 0; }
   body { display: flex; justify-content: center; padding: 16px; }
   img { width: 100%; max-width: 800px; height: auto; }
-  @media print { body { padding: 0; } img { max-width: 100%; } }
+  @media print { body { padding: 0; } img { max-width: 100%; width: 100%; height: auto; } }
 </style></head>
 <body><img src="${dataUrl}" alt="Invoice" /></body></html>`);
   win.document.close();
@@ -177,27 +226,17 @@ export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
   setTimeout(triggerPrint, 400);
 }
 
-/** Split a tall canvas across multiple A4 pages instead of clipping to one page. */
+/** Export invoice canvas as a single PDF page exactly matching captured content size. */
 export async function saveCanvasAsPdf(canvas: HTMLCanvasElement, filename: string) {
   const { default: jsPDF } = await import('jspdf');
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const imgData = canvas.toDataURL('image/png');
-  const imgHeightMm = (canvas.height * pageW) / canvas.width;
-
-  let heightLeft = imgHeightMm;
-  let position = 0;
-
-  pdf.addImage(imgData, 'PNG', 0, position, pageW, imgHeightMm);
-  heightLeft -= pageH;
-
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeightMm;
-    pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, position, pageW, imgHeightMm);
-    heightLeft -= pageH;
+  if (!canvas.width || !canvas.height) {
+    throw new Error('Invoice capture is empty');
   }
-
+  const pageW = 210;
+  const pageH = (canvas.height * pageW) / canvas.width;
+  const imgData = canvas.toDataURL('image/png');
+  const orientation = pageH >= pageW ? 'p' : 'l';
+  const pdf = new jsPDF(orientation, 'mm', [pageW, pageH]);
+  pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
   pdf.save(filename);
 }
