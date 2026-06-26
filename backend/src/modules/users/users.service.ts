@@ -20,6 +20,7 @@ export async function listUsers(query: { page?: string; limit?: string; role?: R
         { email: { contains: query.search, mode: 'insensitive' as const } },
         { firstName: { contains: query.search, mode: 'insensitive' as const } },
         { lastName: { contains: query.search, mode: 'insensitive' as const } },
+        { phone: { contains: query.search, mode: 'insensitive' as const } },
       ],
     }),
   };

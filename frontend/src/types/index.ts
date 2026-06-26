@@ -38,6 +38,8 @@ export interface Branch {
   whatsapp?: string | null;
   description?: string | null;
   imageUrl?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface PaymentChannel {

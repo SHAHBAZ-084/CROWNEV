@@ -23,7 +23,7 @@ authRouter.post(
       password: passwordSchema,
       firstName: z.string().min(1),
       lastName: z.string().min(1),
-      phone: z.string().optional(),
+      phone: z.string().min(1),
       city: z.string().optional(),
     })
   ),

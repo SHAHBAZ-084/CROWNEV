@@ -8,7 +8,7 @@ type Task<T> = {
   reject: (reason: unknown) => void;
 };
 
-const MAX_CONCURRENT = 4;
+const MAX_CONCURRENT = 8;
 
 let active = 0;
 const pending: Task<unknown>[] = [];

@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import hpp from 'hpp';
@@ -30,6 +31,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
 
+  app.use(compression());
   app.use(helmet());
   app.use(hpp());
   app.use(requestTimeoutMiddleware);

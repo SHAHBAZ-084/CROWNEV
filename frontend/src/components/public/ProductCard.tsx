@@ -34,7 +34,7 @@ export function ProductCard({
         className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-colors duration-200 hover:border-accent/30 group-hover:shadow-lg"
       >
           <div
-            className={`relative overflow-hidden bg-subtle ${isLarge ? 'aspect-[4/3] lg:aspect-[5/4]' : 'aspect-[4/3]'}`}
+            className={`relative overflow-hidden bg-subtle ${isLarge ? 'aspect-[5/4] lg:aspect-[6/5]' : 'aspect-[5/4]'}`}
           >
             {image ? (
               <img
@@ -76,7 +76,7 @@ export function ProductCard({
             </div>
           </div>
 
-          <div className={`flex flex-1 flex-col ${isLarge ? 'p-4 lg:p-5' : 'p-4'}`}>
+          <div className={`flex min-h-[7.5rem] flex-1 flex-col ${isLarge ? 'p-5 lg:p-6' : 'p-5'}`}>
             <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
               {product.brand && <span className="font-medium text-brand">{product.brand.name}</span>}
               {product.brand && product.category && <span className="text-border-light">·</span>}
@@ -89,7 +89,7 @@ export function ProductCard({
               {product.name}
             </h3>
 
-            <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+            <div className="mt-auto flex items-end justify-between gap-2 pt-4">
               <div className="min-w-0">
                 <span
                   className={`block font-display font-bold tabular-nums text-brand ${isLarge ? 'text-lg lg:text-xl' : 'text-lg'}`}

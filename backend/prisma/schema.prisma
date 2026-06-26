@@ -193,6 +193,8 @@ model Branch {
   whatsapp  String?
   description String?  @db.Text
   imageUrl  String?
+  latitude  Float?
+  longitude Float?
   isActive  Boolean  @default(true)
   ownerId   String?  @unique
   createdAt DateTime @default(now())

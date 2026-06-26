@@ -81,7 +81,7 @@ export const authApi = {
     password: string;
     firstName: string;
     lastName: string;
-    phone?: string;
+    phone: string;
     city?: string;
   }) =>
     api<{ message: string }>('/auth/register', {
@@ -119,6 +119,10 @@ export const publicApi = {
     const q = params ? `?${new URLSearchParams(params)}` : '';
     return api<Paginated<Product>>(`/products/shop${q}`);
   },
+  shopFilters: () =>
+    api<{ brands: { id: number; name: string; slug: string }[]; categories: { id: number; name: string; slug: string; children?: unknown[] }[] }>(
+      '/products/shop-filters',
+    ),
   product: (id: string) => api<Product>(`/products/shop/${id}`),
   categories: () => api<{ id: number; name: string; slug: string; children?: unknown[] }[]>('/products/categories'),
   brands: () => api<{ id: number; name: string; slug: string }[]>('/products/brands'),

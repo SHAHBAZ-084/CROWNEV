@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Phone } from 'lucide-react';
 import { getBranchCardImage } from '../../lib/placeholders';
+import { resolveBranchCoords } from '../../lib/branchMapCoords';
 import { resolveUploadUrl } from '../../lib/media';
 import type { Branch } from '../../types';
 
@@ -10,14 +11,20 @@ type BranchCardProps = {
   index?: number;
   variant?: 'featured' | 'compact';
   showDescription?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 };
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/\s/g, '')}`;
 }
 
-function mapsUrl(location: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+function mapsUrl(branch: Branch) {
+  const coords = resolveBranchCoords(branch);
+  if (coords) {
+    return `https://www.google.com/maps?q=${coords[0]},${coords[1]}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.location)}`;
 }
 
 function InfoRow({
@@ -49,6 +56,7 @@ function InfoRow({
       <a
         href={href}
         className={className}
+        onClick={(e) => e.stopPropagation()}
         {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       >
         {content}
@@ -64,6 +72,8 @@ export function BranchCard({
   index = 0,
   variant = 'featured',
   showDescription = true,
+  selected = false,
+  onSelect,
 }: BranchCardProps) {
   const isCompact = variant === 'compact';
   const imageSrc = resolveUploadUrl(branch.imageUrl) ?? getBranchCardImage(branch);
@@ -75,11 +85,28 @@ export function BranchCard({
       viewport={{ once: true, margin: '-40px' }}
       transition={{ delay: index * 0.07, duration: 0.42, ease: 'easeOut' }}
       whileHover={{ y: -3, transition: { duration: 0.2 } }}
-      className="group flex overflow-hidden rounded-xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-[box-shadow,border-color] hover:border-accent/30 hover:shadow-[var(--shadow-elevated-hover)]"
+      onClick={onSelect}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-elevated shadow-[var(--shadow-elevated)] transition-[box-shadow,border-color,ring-color] hover:border-accent/30 hover:shadow-[var(--shadow-elevated-hover)] sm:flex-row ${
+        selected ? 'border-accent ring-2 ring-accent/25' : 'border-border-light'
+      }`}
     >
       <div
         className={`relative shrink-0 overflow-hidden bg-subtle ${
-          isCompact ? 'w-[34%] sm:w-[38%]' : 'w-[36%] sm:w-[40%]'
+          isCompact
+            ? 'aspect-[16/10] w-full sm:aspect-auto sm:w-[38%]'
+            : 'aspect-[16/10] w-full sm:aspect-auto sm:w-[40%]'
         }`}
       >
         <motion.img
@@ -88,7 +115,9 @@ export function BranchCard({
           loading="lazy"
           decoding="async"
           className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
-            isCompact ? 'min-h-[6.75rem] max-h-[7.75rem] sm:min-h-[7.25rem] sm:max-h-[8.25rem]' : 'min-h-[7.5rem] max-h-[8.5rem] sm:min-h-[8rem] sm:max-h-[9.25rem]'
+            isCompact
+              ? 'sm:min-h-[7.25rem] sm:max-h-[8.25rem]'
+              : 'sm:min-h-[8rem] sm:max-h-[9.25rem]'
           }`}
         />
         <div
@@ -99,19 +128,19 @@ export function BranchCard({
 
       <div
         className={`flex min-w-0 flex-1 flex-col justify-center ${
-          isCompact ? 'px-3.5 py-3 sm:px-4 sm:py-3.5' : 'px-4 py-3.5 sm:px-5 sm:py-4'
+          isCompact ? 'px-4 py-3.5 sm:px-4 sm:py-3.5' : 'px-4 py-4 sm:px-5 sm:py-4'
         }`}
       >
         <h3
           className={`font-display font-bold leading-tight text-ink ${
-            isCompact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+            isCompact ? 'text-base sm:text-base' : 'text-lg sm:text-lg'
           }`}
         >
           {branch.name}
         </h3>
 
         <div className={`flex flex-col gap-1.5 ${isCompact ? 'mt-2' : 'mt-2.5'}`}>
-          <InfoRow icon={MapPin} label="Location" href={mapsUrl(branch.location)} external>
+          <InfoRow icon={MapPin} label="Location" href={mapsUrl(branch)} external>
             {branch.location}
           </InfoRow>
           <InfoRow icon={Phone} label="Contact" href={telHref(branch.phone)}>

@@ -20,6 +20,8 @@ export async function getLandingData() {
         whatsapp: true,
         description: true,
         imageUrl: true,
+        latitude: true,
+        longitude: true,
       },
       orderBy: { name: 'asc' },
     }),

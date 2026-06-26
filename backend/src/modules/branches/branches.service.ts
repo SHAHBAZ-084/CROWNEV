@@ -38,6 +38,8 @@ export async function createBranch(data: {
   whatsapp?: string;
   description?: string;
   imageUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }) {
   const branch = await prisma.branch.create({ data });
   await bootstrapBranchChartOfAccounts(branch.id);
@@ -53,6 +55,8 @@ export async function updateBranch(
     whatsapp: string;
     description: string;
     imageUrl: string | null;
+    latitude: number | null;
+    longitude: number | null;
     isActive: boolean;
   }>
 ) {

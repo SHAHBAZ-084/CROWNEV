@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { WhatsAppFloat } from '../public/WhatsAppFloat';
 import { scrollToHash } from '../../lib/scrollToHash';
 import { PublicFooter, ScrollToTop } from './PublicFooter';
 import { PublicNavbar } from './PublicNavbar';
 
 export { PublicNavbar, PublicFooter, ScrollToTop };
+
+const LazyWhatsAppFloat = lazy(() =>
+  import('../public/WhatsAppFloat').then((m) => ({ default: m.WhatsAppFloat })),
+);
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -21,7 +24,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       <PublicNavbar />
       <main className={`flex-1 ${isHome ? 'pt-0' : 'pt-[4.75rem] lg:pt-24'}`}>{children}</main>
       <PublicFooter />
-      <WhatsAppFloat />
+      <Suspense fallback={null}>
+        <LazyWhatsAppFloat />
+      </Suspense>
       <ScrollToTop />
     </div>
   );

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { ProductGridSkeleton } from '../ui/Skeleton';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
@@ -8,17 +8,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const isInitialLoad = location.key === 'default';
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={isInitialLoad ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={location.pathname}
+      initial={isInitialLoad ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
   );
 }
 

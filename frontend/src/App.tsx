@@ -6,11 +6,32 @@ import { ToastProvider } from './contexts/ToastContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
-import { DashboardLayout } from './components/layout/DashboardLayout';
-import { BranchWorkspaceLayout } from './components/layout/BranchWorkspaceLayout';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
 import { ProtectedRoute, GuestRoute } from './components/ProtectedRoute';
 import { ProductGridSkeleton } from './components/ui/Skeleton';
+
+const DashboardLayout = lazy(() =>
+  import('./components/layout/DashboardLayout').then((m) => ({ default: m.DashboardLayout })),
+);
+const BranchWorkspaceLayout = lazy(() =>
+  import('./components/layout/BranchWorkspaceLayout').then((m) => ({ default: m.BranchWorkspaceLayout })),
+);
+
+function LazyDashboardLayout({ role }: { role: 'ADMIN' | 'BRANCH_OWNER' | 'CUSTOMER' }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface p-8"><ProductGridSkeleton count={4} /></div>}>
+      <DashboardLayout role={role} />
+    </Suspense>
+  );
+}
+
+function LazyBranchWorkspaceLayout() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface p-8"><ProductGridSkeleton count={4} /></div>}>
+      <BranchWorkspaceLayout />
+    </Suspense>
+  );
+}
 
 const lazyNamed = (loader: () => Promise<Record<string, unknown>>, name: string) =>
   lazy(() => loader().then((m) => ({ default: m[name] as React.ComponentType })));
@@ -122,7 +143,7 @@ export default function App() {
               </Route>
 
               <Route element={<ProtectedRoute roles={['ADMIN']} />}>
-                <Route element={<DashboardLayout role="ADMIN" />}>
+                <Route element={<LazyDashboardLayout role="ADMIN" />}>
                   <Route path="/admin" element={<DashWrap><AdminDashboard /></DashWrap>} />
                   <Route path="/admin/branches" element={<DashWrap><AdminBranches /></DashWrap>} />
                   <Route path="/admin/products" element={<DashWrap><AdminProducts /></DashWrap>} />
@@ -136,7 +157,7 @@ export default function App() {
               </Route>
 
               <Route element={<ProtectedRoute roles={['BRANCH_OWNER']} />}>
-                <Route element={<DashboardLayout role="BRANCH_OWNER" />}>
+                <Route element={<LazyDashboardLayout role="BRANCH_OWNER" />}>
                   <Route path="/branch" element={<DashWrap><BranchDashboard /></DashWrap>} />
                   <Route path="/branch/orders" element={<DashWrap><BranchOrders /></DashWrap>} />
                   <Route path="/branch/inventory" element={<DashWrap><BranchInventory /></DashWrap>} />
@@ -148,7 +169,7 @@ export default function App() {
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
                   <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
                 </Route>
-                <Route element={<BranchWorkspaceLayout />}>
+                <Route element={<LazyBranchWorkspaceLayout />}>
                   <Route path="/branch/workspace" element={<Navigate to="/branch/workspace/pos" replace />} />
                   <Route path="/branch/workspace/pos" element={<DashWrap><BranchPOS /></DashWrap>} />
                   <Route path="/branch/workspace/vouchers/receipt" element={<DashWrap><PosReceiptVoucher /></DashWrap>} />
@@ -178,7 +199,7 @@ export default function App() {
               </Route>
 
               <Route element={<ProtectedRoute roles={['CUSTOMER']} />}>
-                <Route element={<DashboardLayout role="CUSTOMER" />}>
+                <Route element={<LazyDashboardLayout role="CUSTOMER" />}>
                   <Route path="/customer" element={<DashWrap><CustomerDashboard /></DashWrap>} />
                   <Route path="/customer/orders" element={<DashWrap><CustomerOrders /></DashWrap>} />
                   <Route path="/customer/bookings" element={<DashWrap><CustomerBookings /></DashWrap>} />

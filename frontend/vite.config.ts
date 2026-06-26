@@ -14,7 +14,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return;
+          if (!id.includes('node_modules')) {
+            if (id.includes('/pages/admin/')) return 'page-admin';
+            if (id.includes('/pages/branch/')) return 'page-branch';
+            if (id.includes('/pages/customer/')) return 'page-customer';
+            return;
+          }
           if (id.includes('xlsx')) return 'vendor-xlsx';
           if (id.includes('jspdf') || id.includes('html2canvas')) return 'vendor-pdf';
           if (id.includes('framer-motion')) return 'vendor-motion';

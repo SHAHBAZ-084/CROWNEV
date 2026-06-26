@@ -80,7 +80,7 @@ export async function register(data: {
   password: string;
   firstName: string;
   lastName: string;
-  phone?: string;
+  phone: string;
   city?: string;
 }) {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });

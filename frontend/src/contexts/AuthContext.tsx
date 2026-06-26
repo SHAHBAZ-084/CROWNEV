@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { authApi, setToken } from '../api/client';
+import { readCachedUser, writeCachedUser } from '../lib/authCache';
 import type { User } from '../types';
 
 interface AuthContextValue {
@@ -21,8 +22,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUserState] = useState<User | null>(() => readCachedUser());
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token') && !readCachedUser());
+
+  const setUser = useCallback((next: User | null) => {
+    writeCachedUser(next);
+    setUserState(next);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -38,23 +44,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [setUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { token, user: u } = await authApi.login(email, password);
     setToken(token);
     setUser(u);
     return u;
-  }, []);
+  }, [setUser]);
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
-  }, []);
+  }, [setUser]);
 
   const value = useMemo(
     () => ({ user, loading, login, logout, setUser }),
-    [user, loading, login, logout]
+    [user, loading, login, logout, setUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

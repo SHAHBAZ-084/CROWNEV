@@ -4,19 +4,15 @@ import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { slugify } from '../../utils/crypto.js';
 
-export async function listProducts(query: {
-  page?: string;
-  limit?: string;
+function buildProductListWhere(query: {
   type?: ProductType;
   brandId?: number;
   categoryId?: number;
   search?: string;
-  activeOnly?: boolean;
   includeInactive?: boolean;
   branchId?: number;
 }) {
-  const { page, limit, skip } = getPagination(query);
-  const where = {
+  return {
     ...(query.type && { type: query.type }),
     ...(query.brandId && { brandId: query.brandId }),
     ...(query.categoryId && { categoryId: query.categoryId }),
@@ -31,6 +27,21 @@ export async function listProducts(query: {
       branchProducts: { some: { branchId: query.branchId, isListed: true } },
     }),
   };
+}
+
+export async function listProducts(query: {
+  page?: string;
+  limit?: string;
+  type?: ProductType;
+  brandId?: number;
+  categoryId?: number;
+  search?: string;
+  activeOnly?: boolean;
+  includeInactive?: boolean;
+  branchId?: number;
+}) {
+  const { page, limit, skip } = getPagination(query);
+  const where = buildProductListWhere(query);
 
   const [products, total] = await Promise.all([
     prisma.product.findMany({
@@ -58,6 +69,73 @@ export async function listProducts(query: {
     : products;
 
   return paginatedResponse(data, total, page, limit);
+}
+
+/** Public shop listing — minimal fields + one thumbnail per product. */
+export async function listShopProducts(query: {
+  page?: string;
+  limit?: string;
+  type?: ProductType;
+  brandId?: number;
+  categoryId?: number;
+  search?: string;
+  branchId?: number;
+}) {
+  const { page, limit, skip } = getPagination(query);
+  const where = buildProductListWhere({ ...query, includeInactive: false });
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+        price: true,
+        salePrice: true,
+        brand: { select: { id: true, name: true, slug: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        images: {
+          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+          take: 1,
+          select: { id: true, url: true, isPrimary: true, sortOrder: true },
+        },
+        ...(query.branchId
+          ? {
+              branchProducts: {
+                where: { branchId: query.branchId, isListed: true },
+                select: { stock: true },
+                take: 1,
+              },
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  const data = products.map((product) => {
+    if (!query.branchId) return product;
+    const { branchProducts, ...rest } = product;
+    return {
+      ...rest,
+      stockAtBranch: branchProducts?.[0]?.stock ?? 0,
+    };
+  });
+
+  return paginatedResponse(data, total, page, limit);
+}
+
+export async function getShopFilters() {
+  const [brands, categories] = await Promise.all([
+    listBrands(),
+    listCategories(),
+  ]);
+  return { brands, categories };
 }
 
 export async function getProduct(id: string) {

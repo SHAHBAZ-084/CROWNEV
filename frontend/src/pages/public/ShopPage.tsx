@@ -49,8 +49,8 @@ export default function ShopPage() {
   }, [type, brandId, categoryId, debouncedSearch, brands, categories]);
 
   useEffect(() => {
-    Promise.all([publicApi.brands(), publicApi.categories()])
-      .then(([b, c]) => {
+    publicApi.shopFilters()
+      .then(({ brands: b, categories: c }) => {
         setBrands(b);
         setCategories(c);
       })
@@ -67,7 +67,7 @@ export default function ShopPage() {
 
     publicApi
       .shop(q)
-      .then((r) => setProducts(r.data))
+      .then((result) => setProducts(result.data))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [debouncedSearch, type, brandId, categoryId]);
@@ -108,7 +108,7 @@ export default function ShopPage() {
         />
       )}
 
-      <MotionSection as="div" className={`mx-auto max-w-7xl ${isCustomerDashboard ? '' : 'px-4 py-6 lg:px-8 lg:py-8'}`}>
+      <MotionSection as="div" immediate className={`mx-auto max-w-7xl ${isCustomerDashboard ? '' : 'px-4 py-6 lg:px-8 lg:py-8'}`}>
         <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-4 shadow-[var(--shadow-elevated)] lg:p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-ink">
             <SlidersHorizontal className="h-4 w-4 text-accent" />
@@ -242,7 +242,7 @@ export default function ShopPage() {
               <h2 className="sr-only">Product catalog</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((p, i) => (
-                  <ProductCard key={p.id} product={p} index={i} />
+                  <ProductCard key={p.id} product={p} index={i} animate={false} />
                 ))}
               </div>
             </>

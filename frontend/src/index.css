@@ -1,10 +1,7 @@
 @import "tailwindcss";
 @import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
-@import "@fontsource/inter/700.css";
 @import "@fontsource/sora/600.css";
-@import "@fontsource/sora/700.css";
 
 @theme {
   --color-brand: #f97316;
@@ -27,6 +24,7 @@
   /* Text on light backgrounds */
   --color-ink: #0a0a0a;
   --color-ink-muted: #737373;
+  --color-placeholder: #94a3b8;
   --color-border: #2e2e2e;
   --color-border-light: #e5e5e5;
   --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
@@ -53,6 +51,22 @@ body {
   background: var(--color-surface);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
+}
+
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
+}
+
+select option {
+  color: var(--color-ink);
 }
 
 button,
@@ -132,4 +146,93 @@ button:focus-visible,
 
 .dashboard-sidebar-nav::-webkit-scrollbar-thumb:hover {
   background: rgb(0 0 0 / 22%);
+}
+
+.branch-map-shell .leaflet-container {
+  background: #c8dce8;
+  font-family: var(--font-body);
+}
+
+.branch-map-shell .leaflet-tile-pane img {
+  filter: saturate(1.18) contrast(1.06) brightness(0.96);
+}
+
+.branch-map-shell .leaflet-control-attribution {
+  display: none !important;
+}
+
+.branch-map-shell .leaflet-control-zoom {
+  border: none !important;
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.branch-map-shell .leaflet-control-zoom a {
+  color: var(--color-ink) !important;
+  background: var(--color-elevated) !important;
+  border-bottom: 1px solid var(--color-border-light) !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+}
+
+@media (min-width: 640px) {
+  .branch-map-shell .leaflet-control-zoom a {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    font-size: 16px !important;
+  }
+}
+
+.branch-map-shell .leaflet-control-zoom a:hover {
+  background: var(--color-subtle) !important;
+  color: var(--color-brand) !important;
+}
+
+.branch-map-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.branch-map-pin {
+  display: flex;
+  justify-content: center;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 22%));
+  transition: transform 0.2s ease;
+}
+
+.branch-map-pin--active {
+  transform: translateY(-4px) scale(1.08);
+  filter: drop-shadow(0 8px 16px rgb(249 115 22 / 35%));
+}
+
+.branch-map-shell .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: var(--shadow-elevated);
+  max-width: min(240px, calc(100vw - 3rem));
+}
+
+.branch-map-shell .leaflet-popup-content {
+  margin: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+
+@media (min-width: 640px) {
+  .branch-map-shell .leaflet-popup-content-wrapper {
+    max-width: 280px;
+  }
+
+  .branch-map-shell .leaflet-popup-content {
+    margin: 10px 14px;
+    font-size: 13px;
+  }
+}
+
+.branch-map-shell .leaflet-popup-tip {
+  background: var(--color-elevated);
 }

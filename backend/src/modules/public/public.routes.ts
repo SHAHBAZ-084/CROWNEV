@@ -3,12 +3,14 @@ import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { cachePublicJson } from '../../middleware/cacheControl.js';
 import * as publicService from './public.service.js';
 
 export const publicRouter = Router();
 
 publicRouter.get(
   '/landing',
+  cachePublicJson(120),
   asyncHandler(async (_req, res) => {
     const data = await publicService.getLandingData();
     res.json(data);

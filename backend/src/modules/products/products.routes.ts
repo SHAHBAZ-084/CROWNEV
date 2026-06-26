@@ -3,6 +3,7 @@ import { ProductType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, optionalAuth, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
+import { cachePublicJson } from '../../middleware/cacheControl.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import {
   productImagePublicUrl,
@@ -32,19 +33,28 @@ const productUpdateSchema = productCreateSchema.partial().extend({
 
 productsRouter.get(
   '/shop',
+  cachePublicJson(60),
   optionalAuth,
   asyncHandler(async (req, res) => {
-    const result = await productsService.listProducts({
+    const result = await productsService.listShopProducts({
       page: req.query.page as string,
       limit: req.query.limit as string,
       type: req.query.type as ProductType | undefined,
       brandId: req.query.brandId ? parseInt(req.query.brandId as string, 10) : undefined,
       categoryId: req.query.categoryId ? parseInt(req.query.categoryId as string, 10) : undefined,
       search: req.query.search as string,
-      activeOnly: true,
       branchId: req.query.branchId ? parseInt(req.query.branchId as string, 10) : undefined,
     });
     res.json(result);
+  })
+);
+
+productsRouter.get(
+  '/shop-filters',
+  cachePublicJson(300),
+  asyncHandler(async (_req, res) => {
+    const filters = await productsService.getShopFilters();
+    res.json(filters);
   })
 );
 
@@ -58,6 +68,7 @@ productsRouter.get(
 
 productsRouter.get(
   '/categories',
+  cachePublicJson(300),
   asyncHandler(async (_req, res) => {
     const categories = await productsService.listCategories();
     res.json(categories);
@@ -66,6 +77,7 @@ productsRouter.get(
 
 productsRouter.get(
   '/brands',
+  cachePublicJson(300),
   asyncHandler(async (_req, res) => {
     const brands = await productsService.listBrands();
     res.json(brands);

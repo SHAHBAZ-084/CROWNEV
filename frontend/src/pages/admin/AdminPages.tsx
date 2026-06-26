@@ -65,6 +65,14 @@ function parseOptionalFormPrice(value: FormDataEntryValue | null, label: string)
   return n;
 }
 
+function parseCoord(value: FormDataEntryValue | null): number | null | undefined {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return n;
+}
+
 function useCrudList(loader: () => Promise<unknown>, deps: readonly unknown[] = []) {
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
@@ -247,6 +255,8 @@ export function AdminBranchesPage() {
       phone: String(fd.get('phone')),
       whatsapp: String(fd.get('whatsapp') || '') || undefined,
       description: String(fd.get('description') || '') || undefined,
+      ...(parseCoord(fd.get('latitude')) !== undefined && { latitude: parseCoord(fd.get('latitude')) }),
+      ...(parseCoord(fd.get('longitude')) !== undefined && { longitude: parseCoord(fd.get('longitude')) }),
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
     };
     setSaving(true);
@@ -269,6 +279,8 @@ export function AdminBranchesPage() {
           whatsapp?: string;
           description?: string;
           imageUrl?: string;
+          latitude?: number | null;
+          longitude?: number | null;
         });
       }
       toast(modal === 'edit' ? 'Branch updated' : 'Branch created', 'success');
@@ -345,6 +357,24 @@ export function AdminBranchesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
           <Input name="location" label="Location" required defaultValue={String(edit?.location ?? '')} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              name="latitude"
+              label="Latitude"
+              type="number"
+              step="any"
+              placeholder="29.995378"
+              defaultValue={edit?.latitude != null ? String(edit.latitude) : ''}
+            />
+            <Input
+              name="longitude"
+              label="Longitude"
+              type="number"
+              step="any"
+              placeholder="73.242815"
+              defaultValue={edit?.longitude != null ? String(edit.longitude) : ''}
+            />
+          </div>
           <Input name="phone" label="Phone" required defaultValue={String(edit?.phone ?? '')} />
           <Input name="whatsapp" label="WhatsApp" defaultValue={String(edit?.whatsapp ?? '')} />
           <BranchPhotoField
@@ -790,7 +820,7 @@ export function AdminUsersPage() {
       <div className="mb-4 max-w-md">
         <Input
           label="Search users"
-          placeholder="Search by name or email…"
+          placeholder="Search by name, email, or phone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -799,6 +829,7 @@ export function AdminUsersPage() {
         columns={[
           { key: 'email', header: 'Email' },
           { key: 'firstName', header: 'Name', render: (r) => `${r.firstName} ${r.lastName}` },
+          { key: 'phone', header: 'Phone', render: (r) => (r.phone ? String(r.phone) : '—') },
           { key: 'role', header: 'Role' },
           {
             key: 'branchPermission',
