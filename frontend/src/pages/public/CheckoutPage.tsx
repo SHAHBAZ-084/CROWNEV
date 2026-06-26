@@ -17,7 +17,7 @@ const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
 const orderCard =
   'rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-[var(--shadow-elevated)]';
 
-const STEP_LABELS = ['Order', 'Details', 'Delivery', 'Finish'] as const;
+const STEP_LABELS = ['Order', 'Details', 'Delivery', 'Finish', 'Confirm'] as const;
 
 function PaymentAccounts({ channels, amount }: { channels: PaymentChannel[]; amount: number }) {
   if (channels.length === 0) {
@@ -46,7 +46,9 @@ function PaymentAccounts({ channels, amount }: { channels: PaymentChannel[]; amo
 }
 
 function CheckoutStepper({ step, isSelfPickup }: { step: number; isSelfPickup: boolean }) {
-  const labels = isSelfPickup ? STEP_LABELS : STEP_LABELS.slice(0, 3).concat(['Confirm']);
+  const labels: readonly string[] = isSelfPickup
+    ? STEP_LABELS.slice(0, 4)
+    : [...STEP_LABELS.slice(0, 3), 'Confirm'];
 
   return (
     <nav aria-label="Checkout progress" className="mb-8">

@@ -15,7 +15,7 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 function sanitizeFilename(name: string) {
-  return name.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').slice(0, 80);
+  return name.replace(/[^\w-]+/g, '_').replace(/_+/g, '_').slice(0, 80);
 }
 
 export async function exportToExcel<T>(
@@ -25,7 +25,7 @@ export async function exportToExcel<T>(
   rows: T[],
   meta?: { title?: string; subtitle?: string },
 ) {
-  const XLSX = await import('xlsx');
+  const ExcelJS = await import('exceljs');
   const headerRow = columns.map((c) => c.header);
   const dataRows = rows.map((row) => columns.map((c) => c.value(row)));
   const sheetRows: (string | number)[][] = [];
@@ -35,10 +35,12 @@ export async function exportToExcel<T>(
   if (meta?.title || meta?.subtitle) sheetRows.push([]);
   sheetRows.push(headerRow, ...dataRows);
 
-  const ws = XLSX.utils.aoa_to_sheet(sheetRows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
-  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName.slice(0, 31));
+  for (const row of sheetRows) {
+    ws.addRow(row);
+  }
+  const buffer = await wb.xlsx.writeBuffer();
   downloadBlob(
     new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
     `${sanitizeFilename(filename)}.xlsx`,

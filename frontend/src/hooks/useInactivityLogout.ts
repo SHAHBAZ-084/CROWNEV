@@ -21,7 +21,7 @@ export function useInactivityLogout({
   checkIntervalMs = INACTIVITY_CHECK_INTERVAL_MS,
   activityDebounceMs = INACTIVITY_ACTIVITY_DEBOUNCE_MS,
 }: UseInactivityLogoutOptions) {
-  const lastActivityRef = useRef(Date.now());
+  const lastActivityRef = useRef(0);
   const lastRecordedRef = useRef(0);
   const expiredRef = useRef(false);
   const onExpireRef = useRef(onExpire);

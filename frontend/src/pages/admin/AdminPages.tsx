@@ -179,7 +179,7 @@ function ClearBranchDataModal({
         ['Product listings', preview.counts.branchProducts],
         ['Service bookings', preview.counts.bookings],
         ['Accounts', preview.counts.accounts],
-      ].filter(([, n]) => n > 0)
+      ].filter(([, n]) => Number(n) > 0)
     : [];
 
   return (
@@ -533,7 +533,7 @@ export function AdminProductsPage() {
         { signal: ac.signal },
       )
       .then((result) => {
-        setRows(result.data as Row[]);
+        setRows(result.data as unknown as Row[]);
         setTotalItems(result.pagination.total);
         setTotalPages(result.pagination.totalPages);
       })
@@ -598,7 +598,7 @@ export function AdminProductsPage() {
     adminApi
       .getProduct(String(row.id))
       .then((full) => {
-        setEdit(full as Row);
+        setEdit(full as unknown as Row);
         const imgs = (full.images as ExistingImage[] | undefined) ?? [];
         setExistingImages(imgs);
         setPrimarySelection(primaryFromImages(imgs, []));
@@ -782,7 +782,7 @@ export function AdminProductsPage() {
                 header: 'Item Code',
                 render: (r: Row) => {
                   const specs = r.specs as { item_code?: string } | undefined;
-                  return specs?.item_code ?? r.slug ?? '—';
+                  return specs?.item_code ?? String(r.slug ?? '—');
                 },
               }]
             : []),
@@ -1080,7 +1080,7 @@ export function AdminOrdersPage() {
     adminApi
       .orders(params)
       .then((result) => {
-        setRows(result.data as Row[]);
+        setRows(result.data as unknown as Row[]);
         setTotalOrders(result.pagination.total);
       })
       .catch((err) => {

@@ -24,6 +24,10 @@ export const EV_SPEC_FIELDS = [
 
 export type EvSpecKey = (typeof EV_SPEC_FIELDS)[number]['key'];
 
+export function isEvSpecRequired(field: (typeof EV_SPEC_FIELDS)[number]): boolean {
+  return 'required' in field && field.required === true;
+}
+
 export function parseEvSpecsFromForm(fd: FormData): Record<string, string> | undefined {
   const specs: Record<string, string> = {};
   for (const { key } of EV_SPEC_FIELDS) {
@@ -34,8 +38,9 @@ export function parseEvSpecsFromForm(fd: FormData): Record<string, string> | und
 }
 
 export function validateEvSpecsFromForm(fd: FormData): string | null {
-  for (const { key, label, required } of EV_SPEC_FIELDS) {
-    if (!required) continue;
+  for (const field of EV_SPEC_FIELDS) {
+    if (!isEvSpecRequired(field)) continue;
+    const { key, label } = field;
     const value = String(fd.get(`spec_${key}`) ?? '').trim();
     if (!value) return `${label} is required for bikes`;
   }

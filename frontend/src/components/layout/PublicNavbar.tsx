@@ -75,12 +75,10 @@ function NavbarCartButton({
 
 function NavbarAuthActions({
   variant,
-  transparentNav,
   user,
   onLogout,
 }: {
   variant: 'desktop' | 'mobile';
-  transparentNav: boolean;
   user: User | null;
   onLogout: () => void;
 }) {
@@ -197,7 +195,6 @@ export function PublicNavbar() {
 
             <NavbarAuthActions
               variant="desktop"
-              transparentNav={transparentNav}
               user={user}
               onLogout={logout}
             />
@@ -234,7 +231,6 @@ export function PublicNavbar() {
             ))}
             <NavbarAuthActions
               variant="mobile"
-              transparentNav={false}
               user={user}
               onLogout={logout}
             />

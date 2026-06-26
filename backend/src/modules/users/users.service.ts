@@ -8,12 +8,6 @@ export async function listUsers(query: { page?: string; limit?: string; role?: R
   const where = {
     isVerified: true,
     isActive: true,
-    NOT: {
-      OR: [
-        { email: { endsWith: '@test.local' } },
-        { email: { startsWith: 'vitest.online.', endsWith: '@crown-eve.com' } },
-      ],
-    },
     ...(query.role && { role: query.role }),
     ...(query.search && {
       OR: [

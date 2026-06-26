@@ -9,7 +9,7 @@ import {
 import { authApi, setToken } from '../api/client';
 import { readCachedUser, writeCachedUser } from '../lib/authCache';
 import type { User } from '../types';
-import { AuthContext, type AuthContextValue } from './auth-context';
+import { AuthContext } from './auth-context';
 
 export type { AuthContextValue } from './auth-context';
 

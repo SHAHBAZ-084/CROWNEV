@@ -268,6 +268,51 @@ const HADI_EV_CENTER = {
     'Hadi Ev Center on Bwn Road, Chishtian — sales, service, and genuine parts for Crown Ev electric bikes.',
 } as const;
 
+/** Remove accounts and OTP rows created during automated testing. */
+async function purgeTestData() {
+  const testUserWhere = {
+    OR: [
+      { email: 'customer@example.com' },
+      { email: { endsWith: '@test.local' } },
+      { email: { contains: 'vitest.online.' } },
+      { email: { endsWith: '@test.com' } },
+    ],
+  };
+
+  const testUsers = await prisma.user.findMany({
+    where: testUserWhere,
+    select: { id: true, email: true },
+  });
+
+  const testEmails = [
+    ...new Set([
+      ...testUsers.map((u) => u.email),
+      'customer@example.com',
+      'newuser@test.com',
+    ]),
+  ];
+
+  await prisma.otpVerification.deleteMany({
+    where: {
+      OR: [
+        { email: { in: testEmails } },
+        { email: { endsWith: '@test.local' } },
+        { email: { contains: 'vitest.online.' } },
+        { email: { endsWith: '@test.com' } },
+      ],
+    },
+  });
+
+  if (testUsers.length > 0) {
+    const userIds = testUsers.map((u) => u.id);
+    await prisma.order.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.serviceBooking.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.customer.deleteMany({ where: { userId: { in: userIds } } });
+    const removed = await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    console.log(`Purged ${removed.count} test user(s).`);
+  }
+}
+
 async function deactivateLegacySeedParts() {
   for (const slug of LEGACY_SEED_PART_SLUGS) {
     const product = await prisma.product.findUnique({
@@ -300,6 +345,8 @@ async function deactivateLegacySeedParts() {
 
 async function main() {
   console.log('Seeding Crown Ev database...');
+
+  await purgeTestData();
 
   const adminPassword = await bcrypt.hash('Admin@123', 12);
   const admin = await prisma.user.upsert({
@@ -357,22 +404,6 @@ async function main() {
   await prisma.branch.update({
     where: { id: hadiBranch.id },
     data: { ownerId: owner.id },
-  });
-
-  const customerPassword = await bcrypt.hash('Customer@123', 12);
-  await prisma.user.upsert({
-    where: { email: 'customer@example.com' },
-    update: {},
-    create: {
-      email: 'customer@example.com',
-      passwordHash: customerPassword,
-      firstName: 'Ali',
-      lastName: 'Hassan',
-      role: Role.CUSTOMER,
-      isVerified: true,
-      city: 'Islamabad',
-      phone: '+92-333-1112233',
-    },
   });
 
   const brand = await prisma.brand.upsert({
@@ -484,7 +515,6 @@ async function main() {
   console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at Hadi Ev Center). Legacy demo parts deactivated.`);
   console.log('Admin: admin@crown-eve.com / Admin@123');
   console.log('Branch Owner: owner.hadi@crown-eve.com / Owner@123');
-  console.log('Customer: customer@example.com / Customer@123');
 }
 
 main()

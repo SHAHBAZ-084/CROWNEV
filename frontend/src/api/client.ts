@@ -283,7 +283,7 @@ export const adminApi = {
     const params = new URLSearchParams({ period });
     if (branchId) params.set('branchId', branchId);
     return api<{
-      period: string;
+      period: 'daily' | 'weekly' | 'monthly' | 'yearly';
       label: string;
       from: string;
       to: string;
@@ -626,7 +626,7 @@ export const branchApi = {
   parts: () => adminApi.parts(),
   salesSummary: (period: 'daily' | 'weekly' | 'monthly' | 'yearly') =>
     api<{
-      period: string;
+      period: 'daily' | 'weekly' | 'monthly' | 'yearly';
       label: string;
       from: string;
       to: string;

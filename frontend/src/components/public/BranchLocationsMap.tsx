@@ -64,7 +64,6 @@ export function BranchLocationsMap({ branches, selectedId, onSelect }: BranchLoc
 
     const map = L.map(containerRef.current, {
       scrollWheelZoom: false,
-      tap: true,
       zoomControl: false,
       attributionControl: false,
     });

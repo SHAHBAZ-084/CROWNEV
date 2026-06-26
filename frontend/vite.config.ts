@@ -22,7 +22,7 @@ export default defineConfig({
             if (id.includes('/pages/customer/')) return 'page-customer';
             return;
           }
-          if (id.includes('xlsx')) return 'vendor-xlsx';
+          if (id.includes('exceljs')) return 'vendor-excel';
           if (id.includes('jspdf') || id.includes('html2canvas')) return 'vendor-pdf';
           if (id.includes('framer-motion')) return 'vendor-motion';
           if (id.includes('recharts')) return 'vendor-charts';

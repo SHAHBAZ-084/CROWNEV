@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // React 19 compiler rules flag common data-fetch patterns across pages; keep hooks/exhaustive-deps.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
+      // Context modules legitimately co-export hooks + providers.
+      'react-refresh/only-export-components': 'off',
+    },
   },
 ])

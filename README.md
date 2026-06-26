@@ -117,7 +117,6 @@ Options: `--skip-images`, `--limit N`. Parts are added to the admin catalog only
 |------|-------|----------|
 | Admin | `admin@crown-eve.com` | `Admin@123` |
 | Branch owner (Hadi Ev Center) | `owner.hadi@crown-eve.com` | `Owner@123` |
-| Customer | `customer@example.com` | `Customer@123` |
 
 The seed creates **one branch** — **Hadi Ev Center** (Bwn Road, Chishtian). Additional branches should be added via the admin dashboard, not the seed script.
 

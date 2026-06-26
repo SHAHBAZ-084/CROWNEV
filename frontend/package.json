@@ -18,6 +18,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/sora": "^5.2.8",
     "@tailwindcss/vite": "^4.3.1",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.40.0",
     "html2canvas-pro": "^2.1.0",
     "jspdf": "^4.2.1",
@@ -28,8 +29,7 @@
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.18.0",
     "recharts": "^3.8.1",
-    "tailwindcss": "^4.3.1",
-    "xlsx": "^0.18.5"
+    "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

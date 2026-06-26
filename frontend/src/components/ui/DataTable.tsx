@@ -12,7 +12,11 @@ export interface Column<T> {
   hideOnMobile?: boolean;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+function readCell<T extends object>(row: T, key: string): unknown {
+  return (row as Record<string, unknown>)[key];
+}
+
+export function DataTable<T extends object>({
   columns,
   data,
   keyField = 'id' as keyof T,
@@ -87,7 +91,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 {columns.map((col) => {
                   const cell = col.render
                     ? col.render(row, { rowIndex: i, serial })
-                    : String(row[col.key] ?? '');
+                    : String(readCell(row, col.key) ?? '');
                   return (
                     <td
                       key={col.key}
@@ -128,7 +132,7 @@ export function DataTable<T extends Record<string, unknown>>({
             {dataCols
               .filter((col) => !col.hideOnMobile || col.header)
               .map((col) => {
-                const value = col.render ? col.render(row) : String(row[col.key] ?? '');
+                const value = col.render ? col.render(row) : String(readCell(row, col.key) ?? '');
                 if (!col.header && col.key === 'actions') return null;
                 return (
                   <div key={col.key} className="flex items-start justify-between gap-3 text-sm">

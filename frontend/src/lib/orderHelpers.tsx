@@ -30,7 +30,7 @@ export function OrderStatusTimeline({ status, shippingMethod }: { status: string
       ? { PAYMENT_SUBMITTED: 'Awaiting verification', CONFIRMED: 'Confirmed' }
       : STEP_LABELS;
 
-  const currentIdx = cancelled ? -1 : steps.indexOf(status as (typeof steps)[number]);
+  const currentIdx = cancelled ? -1 : (steps as readonly string[]).indexOf(status);
 
   return (
     <div className="flex items-center gap-2">
