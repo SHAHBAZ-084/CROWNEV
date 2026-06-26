@@ -1,5 +1,4 @@
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -10,17 +9,9 @@ import {
 import { authApi, setToken } from '../api/client';
 import { readCachedUser, writeCachedUser } from '../lib/authCache';
 import type { User } from '../types';
+import { AuthContext, type AuthContextValue } from './auth-context';
 
-interface AuthContextValue {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  loginWithGoogle: (idToken: string) => Promise<User>;
-  logout: () => void;
-  setUser: (user: User | null) => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+export type { AuthContextValue } from './auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(() => readCachedUser());

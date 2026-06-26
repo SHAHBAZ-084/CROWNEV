@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       // Tailwind v4 uses oklab/oklch; stock html2canvas cannot parse them.
       html2canvas: 'html2canvas-pro',
@@ -15,6 +16,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) {
+            if (id.includes('/contexts/')) return 'shared-context';
             if (id.includes('/pages/admin/')) return 'page-admin';
             if (id.includes('/pages/branch/')) return 'page-branch';
             if (id.includes('/pages/customer/')) return 'page-customer';
