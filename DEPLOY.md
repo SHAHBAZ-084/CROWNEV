@@ -152,6 +152,29 @@ sudo -u crownev bash -lc 'cd /var/www/crownev/backend && npm run db:seed-parts'
 
 ## Troubleshooting
 
+### `ERR_CONNECTION_TIMED_OUT` (browser shows IP, site never loads)
+
+**This is not an app code bug** — nothing is answering on port 80/443 from the internet.
+
+| Cause | Fix |
+|-------|-----|
+| Deploy never finished | Run `setup-vps.sh` then `deploy-app.sh` on the VPS |
+| **Hostinger cloud firewall** | hPanel → VPS → **Firewall** → allow inbound **TCP 22, 80, 443** |
+| SSH wrong port | Use port **22**: `ssh root@62.72.58.96` (not 443 or 1022) |
+| VPS stopped | Start the VPS in hPanel |
+| Nginx not running | `systemctl start nginx && systemctl status nginx` |
+
+**Run on the VPS** (use hPanel **Browser terminal** if SSH from PC fails):
+
+```bash
+bash /var/www/crownev/deploy/diagnose.sh
+cat /tmp/crownev-diagnose.txt
+```
+
+Paste that file here for help — it includes PM2 logs, nginx, and health checks.
+
+### Other issues
+
 | Issue | Fix |
 |-------|-----|
 | `502 Bad Gateway` | `pm2 logs crownev-api` — check `.env` and Postgres |
