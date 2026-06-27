@@ -1,0 +1,20 @@
+# Copy to /var/www/crownev/backend/.env and fill secrets before deploy-app.sh
+DATABASE_URL="postgresql://crownev:YOUR_DB_PASSWORD@localhost:5432/crown_eve?schema=public"
+JWT_SECRET="generate-with-openssl-rand-base64-48"
+JWT_EXPIRES_IN="7d"
+OTP_EXPIRY_MINUTES=10
+PORT=3001
+NODE_ENV=production
+ALLOWED_ORIGINS=https://crownevcenter.com,https://www.crownevcenter.com
+APP_URL=https://crownevcenter.com
+
+SMTP_HOST="smtp.resend.com"
+SMTP_PORT=465
+SMTP_USER="resend"
+SMTP_PASS="re_YOUR_RESEND_API_KEY"
+EMAIL_FROM="contact@crownevcenter.com"
+CONTACT_INBOX_EMAIL="contact@crownevcenter.com"
+
+GOOGLE_CLIENT_ID=""
+UPLOAD_DIR="./uploads"
+MAX_FILE_SIZE_MB=5

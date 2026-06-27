@@ -1,0 +1,4 @@
+# Optional — Vite reads .env.production at build time
+# Copy to /var/www/crownev/frontend/.env.production
+VITE_API_URL=/api
+VITE_GOOGLE_CLIENT_ID=

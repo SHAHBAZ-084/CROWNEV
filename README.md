@@ -204,6 +204,20 @@ Configure `VITE_GOOGLE_CLIENT_ID` and add your site origin in Google Cloud Conso
 **Shop shows no parts**  
 Parts appear on the shop only after a branch lists them from the admin catalog (`Branch → Inventory → Select from catalog`).
 
+## Production deploy (Hostinger KVM VPS)
+
+See **[DEPLOY.md](./DEPLOY.md)** for full Ubuntu + Nginx + PM2 + PostgreSQL setup.
+
+Quick start on the VPS (as root):
+
+```bash
+git clone https://github.com/SHAHBAZ-084/CROWNEV.git /var/www/crownev
+bash /var/www/crownev/deploy/setup-vps.sh crownevcenter.com
+# edit /var/www/crownev/backend/.env, then:
+bash /var/www/crownev/deploy/deploy-app.sh
+certbot --nginx -d crownevcenter.com -d www.crownevcenter.com
+```
+
 ## License
 
 Private — Crown EV Center / Hadi EV Center.
