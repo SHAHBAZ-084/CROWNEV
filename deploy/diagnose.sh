@@ -27,7 +27,7 @@ REPORT="/tmp/crownev-diagnose.txt"
   sudo -u crownev pm2 status 2>/dev/null || pm2 status 2>/dev/null || echo "pm2 not running / no processes"
   echo ""
   echo "--- PM2 logs (last 40 lines) ---"
-  sudo -u crownev pm2 logs crownev-api --lines 40 --nostream 2>/dev/null || pm2 logs crownev-api --lines 40 --nostream 2>/dev/null || true
+  sudo -u crownev pm2 logs crownev-backend --lines 40 --nostream 2>/dev/null || pm2 logs crownev-backend --lines 40 --nostream 2>/dev/null || true
   echo ""
   echo "--- Local health ---"
   curl -fsS -m 5 http://127.0.0.1:3001/health 2>&1 || echo "API not responding on :3001"

@@ -2,7 +2,7 @@
 module.exports = {
   apps: [
     {
-      name: 'crownev-api',
+      name: 'crownev-backend',
       cwd: '/var/www/crownev/backend',
       script: 'dist/index.js',
       instances: 1,

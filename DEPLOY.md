@@ -177,7 +177,7 @@ Paste that file here for help — it includes PM2 logs, nginx, and health checks
 
 | Issue | Fix |
 |-------|-----|
-| `502 Bad Gateway` | `pm2 logs crownev-api` — check `.env` and Postgres |
+| `502 Bad Gateway` | `pm2 logs crownev-backend` — check `.env` and Postgres |
 | CORS errors | `ALLOWED_ORIGINS` must match exact site URL (https) |
 | Email OTP fails | Verify domain in Resend; set `EMAIL_FROM` |
 | Uploads 404 | Ensure `backend/uploads` exists and PM2 cwd is `backend/` |
@@ -186,6 +186,6 @@ Paste that file here for help — it includes PM2 logs, nginx, and health checks
 Logs:
 
 ```bash
-pm2 logs crownev-api
+pm2 logs crownev-backend
 tail -f /var/log/nginx/error.log
 ```
