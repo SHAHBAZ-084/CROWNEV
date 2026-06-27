@@ -64,9 +64,20 @@ if [[ ! -d "${APP_DIR}/.git" ]]; then
   sudo -u "${APP_USER}" git clone "${REPO}" "${APP_DIR}"
 fi
 
-# Firewall
+# Placeholder frontend so nginx can start before first deploy build
+mkdir -p "${APP_DIR}/frontend/dist"
+if [[ ! -f "${APP_DIR}/frontend/dist/index.html" ]]; then
+  echo '<!DOCTYPE html><html><body><h1>CROWNEV</h1><p>Deploy in progress. Run: bash /var/www/crownev/deploy/deploy-app.sh</p></body></html>' \
+    > "${APP_DIR}/frontend/dist/index.html"
+  chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}/frontend/dist"
+fi
+
+# Firewall — Hostinger also has a cloud firewall in hPanel; open 22, 80, 443 there too
 ufw allow OpenSSH
+ufw allow 22/tcp
 ufw allow 'Nginx Full'
+ufw allow 80/tcp
+ufw allow 443/tcp
 ufw --force enable
 
 # Nginx site
