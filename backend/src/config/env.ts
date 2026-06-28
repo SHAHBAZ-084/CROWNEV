@@ -27,6 +27,12 @@ export const env = {
     pass: process.env.SMTP_PASS ?? '',
     from: process.env.EMAIL_FROM ?? 'onboarding@resend.dev',
   },
+  /** Service booking confirmations — sent from info@ (same Hostinger password as contact@ by default). */
+  bookingSmtp: {
+    user: process.env.BOOKING_SMTP_USER ?? process.env.INFO_EMAIL ?? 'info@crownevcenter.com',
+    from: process.env.BOOKING_EMAIL_FROM ?? process.env.INFO_EMAIL ?? 'info@crownevcenter.com',
+    pass: process.env.BOOKING_SMTP_PASS ?? process.env.SMTP_PASS ?? '',
+  },
   contactInboxEmail: process.env.CONTACT_INBOX_EMAIL ?? 'contact@crownevcenter.com',
   /** Dev-only: receives contact inquiries when Resend sandbox blocks the real inbox. */
   contactDevInboxEmail: process.env.CONTACT_DEV_INBOX_EMAIL ?? '',

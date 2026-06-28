@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { AppError } from './helpers.js';
 
 let transporter: nodemailer.Transporter | null = null;
+const transporterByUser = new Map<string, nodemailer.Transporter>();
 
 const PLACEHOLDER_KEYS = new Set(['', 'your-api-key', 're_YOUR_API_KEY', 're_your_api_key']);
 
@@ -11,23 +12,51 @@ export function isSmtpConfigured(): boolean {
   return Boolean(host && pass && !PLACEHOLDER_KEYS.has(pass.trim()));
 }
 
+function createSmtpTransport(user: string, pass: string) {
+  const { host, port } = env.smtp;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587,
+    auth: { user: user || 'resend', pass },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+  });
+}
+
+/** Default mailbox (contact@) for OTP and contact form. */
 function getTransporter() {
   if (!isSmtpConfigured()) return null;
 
   if (!transporter) {
-    const { host, port, user, pass } = env.smtp;
-    transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      requireTLS: port === 587,
-      auth: { user: user || 'resend', pass },
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
-    });
+    transporter = createSmtpTransport(env.smtp.user, env.smtp.pass);
   }
   return transporter;
+}
+
+/** Optional second mailbox (info@) for booking confirmations. */
+function getTransporterFor(user: string, pass: string) {
+  if (!isSmtpConfigured()) return null;
+
+  const mailboxPass = pass.trim();
+  if (!mailboxPass || PLACEHOLDER_KEYS.has(mailboxPass)) return null;
+
+  let transport = transporterByUser.get(user);
+  if (!transport) {
+    transport = createSmtpTransport(user, mailboxPass);
+    transporterByUser.set(user, transport);
+  }
+  return transport;
+}
+
+function getBookingTransporter() {
+  const { user, pass } = env.bookingSmtp;
+  if (user === env.smtp.user && pass === env.smtp.pass) {
+    return getTransporter();
+  }
+  return getTransporterFor(user, pass);
 }
 
 function resendSandboxHint(message: string): string | null {
@@ -134,7 +163,8 @@ export type BookingConfirmationEmail = {
 
 /** Sends visit confirmation — failures are logged only (booking update must not fail). */
 export async function sendBookingConfirmationEmail(data: BookingConfirmationEmail) {
-  const transport = getTransporter();
+  const transport = getBookingTransporter();
+  const bookingFrom = formatFrom('Crown Ev', env.bookingSmtp.from);
   const visitDateLabel = formatEmailDate(data.visitDate);
   const visitTimeLabel = formatEmailTime(data.visitTime);
   const ticketUrl = `${data.dashboardUrl}/service-ticket/${data.bookingId}?email=${encodeURIComponent(data.to)}`;
@@ -196,7 +226,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
 
   try {
     const info = await transport.sendMail({
-      from: formatFrom('Crown Ev'),
+      from: bookingFrom,
       to: data.to,
       subject: `Crown Ev — Visit confirmed on ${visitDateLabel} at ${visitTimeLabel}`,
       html,

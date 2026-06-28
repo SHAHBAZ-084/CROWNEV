@@ -16,6 +16,8 @@ SMTP_USER="contact@crownevcenter.com"
 SMTP_PASS="YOUR_MAILBOX_PASSWORD"
 EMAIL_FROM="contact@crownevcenter.com"
 CONTACT_INBOX_EMAIL="contact@crownevcenter.com"
+BOOKING_SMTP_USER="info@crownevcenter.com"
+BOOKING_EMAIL_FROM="info@crownevcenter.com"
 
 # Alternative: Resend (requires crownevcenter.com verified at https://resend.com/domains)
 # SMTP_HOST="smtp.resend.com"

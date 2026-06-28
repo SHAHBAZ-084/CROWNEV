@@ -39,12 +39,15 @@ set_env() {
 
 set_env SMTP_HOST "smtp.hostinger.com"
 set_env SMTP_PORT "465"
-set_env SMTP_USER "$MAILBOX"
+set_env SMTP_USER "contact@crownevcenter.com"
 set_env SMTP_PASS "$PASS"
-set_env EMAIL_FROM "$MAILBOX"
-set_env CONTACT_INBOX_EMAIL "$MAILBOX"
+set_env EMAIL_FROM "contact@crownevcenter.com"
+set_env CONTACT_INBOX_EMAIL "contact@crownevcenter.com"
+set_env BOOKING_SMTP_USER "info@crownevcenter.com"
+set_env BOOKING_EMAIL_FROM "info@crownevcenter.com"
+set_env BOOKING_SMTP_PASS "$PASS"
 
-echo "Updated $ENV_FILE for Hostinger SMTP (${MAILBOX})."
+echo "Updated $ENV_FILE for Hostinger SMTP (contact@ + info@ booking)."
 echo "Testing delivery..."
 
 cd "${APP_DIR}/backend"
@@ -56,4 +59,4 @@ npm run email:test -- "$MAILBOX" || {
 }
 
 pm2 restart crownev-backend --update-env
-echo "Done — crownev-backend restarted. Contact form + OTP should work now."
+echo "Done — crownev-backend restarted. OTP/contact use contact@; bookings use info@."
