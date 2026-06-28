@@ -22,7 +22,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-surface">
       <PublicNavbar />
-      <main className={`flex-1 ${isHome ? 'pt-0' : 'pt-14 lg:pt-20'}`}>{children}</main>
+      <main className={`flex-1 ${isHome ? 'pt-0' : 'pt-20 lg:pt-24'}`}>{children}</main>
       <PublicFooter />
       <Suspense fallback={null}>
         <LazyWhatsAppFloat />

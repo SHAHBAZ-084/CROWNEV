@@ -16,7 +16,7 @@ type LogoProps = {
 };
 
 const sizeClass = {
-  nav: 'h-10 w-auto max-w-[160px] sm:h-12 sm:max-w-[220px] lg:h-[4.5rem] lg:max-w-[400px]',
+  nav: 'h-20 w-auto max-w-[320px] lg:h-24 lg:max-w-[380px]',
   sm: 'h-14 w-auto max-w-[220px] sm:h-16 sm:max-w-[260px] lg:h-[4.5rem] lg:max-w-[300px]',
   md: 'h-[5.5rem] w-auto max-w-[300px] lg:h-[7rem] lg:max-w-[340px]',
   lg: 'h-20 w-auto max-w-[320px] lg:h-24 lg:max-w-[380px]',
