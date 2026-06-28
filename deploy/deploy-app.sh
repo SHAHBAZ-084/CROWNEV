@@ -60,7 +60,7 @@ if [[ "${RUN_PARTS_SEED}" == "1" ]]; then
 fi
 
 echo "==> Frontend install & build"
-run_as_app "cd frontend && NODE_ENV=development npm ci && npm run build"
+run_as_app "cd frontend && rm -rf dist && NODE_ENV=development npm ci && npm run build"
 
 echo "==> Frontend dist permissions (nginx runs as www-data)"
 chmod -R a+rX "${APP_DIR}/frontend/dist"

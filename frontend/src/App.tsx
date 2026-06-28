@@ -11,6 +11,9 @@ import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
 import { ProtectedRoute, GuestRoute } from './components/ProtectedRoute';
 import { ProductGridSkeleton } from './components/ui/Skeleton';
+import LoginPage from './pages/public/LoginPage';
+import RegisterPage from './pages/public/RegisterPage';
+import ForgotPasswordPage from './pages/public/ForgotPasswordPage';
 
 const lazy = lazyRetry;
 
@@ -38,15 +41,20 @@ function LazyBranchWorkspaceLayout() {
 }
 
 const lazyNamed = (loader: () => Promise<Record<string, unknown>>, name: string) =>
-  lazy(() => loader().then((m) => ({ default: m[name] as React.ComponentType })));
+  lazy(() =>
+    loader().then((m) => {
+      const component = m[name];
+      if (!component) {
+        throw new Error(`Missing export "${name}" — stale deploy`);
+      }
+      return { default: component as React.ComponentType };
+    }),
+  );
 
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const ShopPage = lazy(() => import('./pages/public/ShopPage'));
 const ModelComparisonPage = lazy(() => import('./pages/public/ModelComparisonPage'));
 const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage'));
-const LoginPage = lazy(() => import('./pages/public/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/public/RegisterPage'));
-const ForgotPasswordPage = lazy(() => import('./pages/public/ForgotPasswordPage'));
 const TrackOrderPage = lazy(() => import('./pages/public/TrackOrderPage'));
 const ServiceTicketPage = lazy(() => import('./pages/public/ServiceTicketPage'));
 const ContactPage = lazy(() => import('./pages/public/ContactPage'));

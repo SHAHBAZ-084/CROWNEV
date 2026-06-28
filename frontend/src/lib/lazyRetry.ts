@@ -7,7 +7,9 @@ function isChunkLoadError(err: unknown): boolean {
   return (
     /Failed to fetch dynamically imported module/i.test(msg) ||
     /Importing a module script failed/i.test(msg) ||
-    /Loading chunk .* failed/i.test(msg)
+    /Loading chunk .* failed/i.test(msg) ||
+    /reading 'default'/i.test(msg) ||
+    /Cannot read properties of undefined \(reading 'default'\)/i.test(msg)
   );
 }
 
@@ -28,7 +30,11 @@ export function lazyRetry<T extends ComponentType<any>>(
 ): LazyExoticComponent<T> {
   return reactLazy(async () => {
     try {
-      return await factory();
+      const mod = await factory();
+      if (!mod?.default) {
+        reloadForStaleChunk();
+      }
+      return mod;
     } catch (err) {
       if (isChunkLoadError(err)) {
         reloadForStaleChunk();
