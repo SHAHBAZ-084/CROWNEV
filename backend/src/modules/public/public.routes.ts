@@ -19,6 +19,7 @@ publicRouter.get(
 
 publicRouter.get(
   '/pages',
+  cachePublicJson(600),
   asyncHandler(async (_req, res) => {
     const pages = await publicService.listContentPages();
     res.json(pages);

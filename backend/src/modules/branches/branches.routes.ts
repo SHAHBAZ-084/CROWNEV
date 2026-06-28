@@ -3,6 +3,7 @@ import { PaymentChannelType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
+import { cachePublicJson } from '../../middleware/cacheControl.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import { branchImagePublicUrl, saveBranchImageAsWebp } from '../../utils/imageProcessing.js';
 import * as branchesService from './branches.service.js';
@@ -12,6 +13,7 @@ export const branchesRouter = Router();
 
 branchesRouter.get(
   '/public',
+  cachePublicJson(300),
   asyncHandler(async (_req, res) => {
     const branches = await branchesService.listBranches(true);
     res.json(branches);

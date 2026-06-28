@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # CROWNEV — build & restart (run as root or crownev user with sudo for pm2 startup)
+# Env: RUN_DB_SEED=1|0 (default 1), RUN_PARTS_SEED=1|0 (default 0 — slow, run manually once)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/crownev}"
 APP_USER="${APP_USER:-crownev}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
+RUN_DB_SEED="${RUN_DB_SEED:-1}"
+RUN_PARTS_SEED="${RUN_PARTS_SEED:-0}"
 
 run_as_app() {
   if [[ "$(id -un)" == "${APP_USER}" ]]; then
@@ -13,8 +17,10 @@ run_as_app() {
   fi
 }
 
-echo "==> Pull latest code"
-run_as_app "git pull --ff-only origin main"
+echo "==> CROWNEV deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+echo "==> Pull latest code (${DEPLOY_BRANCH})"
+run_as_app "git fetch origin ${DEPLOY_BRANCH} && git reset --hard origin/${DEPLOY_BRANCH}"
 
 echo "==> Backend install & build"
 run_as_app "cd backend && npm ci && npx prisma generate && npm run build"
@@ -27,8 +33,17 @@ fi
 echo "==> Database migrations"
 run_as_app "cd backend && npx prisma migrate deploy"
 
-echo "==> Seed (idempotent — safe to re-run)"
-run_as_app "cd backend && npm run db:seed"
+if [[ "${RUN_DB_SEED}" == "1" ]]; then
+  echo "==> Seed (idempotent)"
+  run_as_app "cd backend && npm run db:seed"
+else
+  echo "==> Skipping db:seed (RUN_DB_SEED=0)"
+fi
+
+if [[ "${RUN_PARTS_SEED}" == "1" ]]; then
+  echo "==> Parts catalog seed (~1300 items, may take a few minutes)"
+  run_as_app "cd backend && npm run db:seed-parts"
+fi
 
 echo "==> Frontend install & build"
 run_as_app "cd frontend && npm ci && npm run build"

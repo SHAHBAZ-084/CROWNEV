@@ -12,25 +12,31 @@ echo "==> CROWNEV SSL fix for ${DOMAIN}"
 echo "--- Step 1: What is listening on 443? ---"
 ss -tlnp | grep ':443 ' || echo "(nothing on 443 yet)"
 
-echo "--- Step 2: Remove SSH from port 443 (common Hostinger misconfig) ---"
-mkdir -p /etc/ssh/sshd_config.d
-# Drop Hostinger/custom multi-port lines that steal 443 from HTTPS
+echo "--- Step 2: Remove SSH from port 443 (Hostinger uses lowercase 'port 443') ---"
+mkdir -p /etc/ssh/sshd_config.d /etc/systemd/system/ssh.socket.d
 for f in /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf; do
   [[ -f "$f" ]] || continue
-  if grep -qE '^Port\s+(443|1022)' "$f" 2>/dev/null; then
+  if grep -qiE '^port\s+(443|1022)' "$f" 2>/dev/null; then
     cp -a "$f" "${f}.bak.$(date +%s)"
-    sed -i '/^Port 443/d;/^Port 1022/d' "$f" || true
+    sed -i '/^[Pp]ort 443/d;/^[Pp]ort 1022/d' "$f" || true
     echo "Patched: $f"
   fi
 done
-# Ensure SSH only on 22
-if ! grep -rq '^Port 22' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null; then
-  echo 'Port 22' > /etc/ssh/sshd_config.d/99-crownev-ssh.conf
-fi
-grep -r '^Port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || true
+echo 'Port 22' > /etc/ssh/sshd_config.d/99-crownev-ssh.conf
+# Prevent ssh.socket generator from re-adding extra ports
+cat > /etc/systemd/system/ssh.socket.d/99-crownev.conf << 'EOF'
+[Socket]
+ListenStream=
+ListenStream=0.0.0.0:22
+ListenStream=[::]:22
+EOF
+grep -riE '^port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || true
 sshd -t
-systemctl restart sshd
-echo "sshd restarted (SSH should stay on port 22 only)"
+systemctl daemon-reload
+systemctl restart ssh.socket ssh
+sleep 2
+ss -tlnp | grep -E ':443 |:22 ' || true
+echo "sshd should be on 22 only; 443 must be free for nginx"
 
 echo "--- Step 3: Ensure nginx site exists with domain ---"
 if [[ ! -f "$NGINX_SITE" ]]; then

@@ -129,6 +129,70 @@ bash /var/www/crownev/deploy/deploy-app.sh
 
 ---
 
+## Auto-deploy on `git push` (GitHub Actions)
+
+Every push to **`main`** can deploy automatically to **https://crownevcenter.com**.
+
+### One-time setup (about 5 minutes)
+
+**1. Generate a deploy SSH key on your PC** (do not use your personal SSH key):
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-crownev" -f ~/.ssh/crownev_deploy -N ""
+```
+
+**2. Add the public key to the VPS** (SSH as root):
+
+```bash
+ssh root@62.72.58.96
+bash /var/www/crownev/deploy/setup-cicd.sh "$(cat ~/.ssh/crownev_deploy.pub)"
+```
+
+Or copy the `.pub` file to the server and run `bash setup-cicd.sh /root/crownev-github-actions.pub`.
+
+**3. Add GitHub repository secrets**
+
+Open **https://github.com/SHAHBAZ-084/CROWNEV/settings/secrets/actions** and create:
+
+| Secret | Value |
+|--------|--------|
+| `VPS_HOST` | `62.72.58.96` |
+| `VPS_USER` | `root` |
+| `VPS_SSH_KEY` | Entire contents of `~/.ssh/crownev_deploy` (private key) |
+| `VPS_PORT` | `22` (optional) |
+
+**4. Push the workflow file**
+
+Commit and push `.github/workflows/deploy-production.yml` to `main`. The first deploy runs automatically.
+
+### What the workflow does
+
+1. SSH into the VPS as `root`
+2. Runs `deploy/deploy-app.sh` which:
+   - `git fetch` + `reset --hard origin/main`
+   - `npm ci`, build backend + frontend
+   - Prisma migrations + idempotent seed
+   - PM2 restart + nginx reload
+
+Parts catalog (`db:seed-parts`) is **not** run on every push (too slow). Run once manually on the server if needed.
+
+### Manual deploy trigger
+
+GitHub → **Actions** → **Deploy Production** → **Run workflow**.
+
+### Private repo
+
+If the repo is private, on the VPS as user `crownev`:
+
+```bash
+# Add a read-only deploy key in GitHub → Settings → Deploy keys, then:
+sudo -u crownev ssh-keygen -t ed25519 -f /home/crownev/.ssh/github_deploy -N ""
+cat /home/crownev/.ssh/github_deploy.pub   # add to GitHub Deploy keys
+sudo -u crownev git -C /var/www/crownev remote set-url origin git@github.com:SHAHBAZ-084/CROWNEV.git
+```
+
+---
+
 ## Demo logins (after seed)
 
 | Role | Email | Password |

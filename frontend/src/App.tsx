@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyRetry } from './lib/lazyRetry';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
@@ -10,6 +11,8 @@ import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
 import { ProtectedRoute, GuestRoute } from './components/ProtectedRoute';
 import { ProductGridSkeleton } from './components/ui/Skeleton';
+
+const lazy = lazyRetry;
 
 const DashboardLayout = lazy(() =>
   import('./components/layout/DashboardLayout').then((m) => ({ default: m.DashboardLayout })),
