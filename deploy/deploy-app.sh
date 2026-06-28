@@ -9,9 +9,13 @@ DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 RUN_DB_SEED="${RUN_DB_SEED:-1}"
 RUN_PARTS_SEED="${RUN_PARTS_SEED:-0}"
 
+if ! id -u "${APP_USER}" >/dev/null 2>&1; then
+  APP_USER="root"
+fi
+
 run_as_app() {
   if [[ "$(id -un)" == "${APP_USER}" ]]; then
-    bash -lc "$*"
+    bash -lc "cd ${APP_DIR} && $*"
   else
     sudo -u "${APP_USER}" bash -lc "cd ${APP_DIR} && $*"
   fi
