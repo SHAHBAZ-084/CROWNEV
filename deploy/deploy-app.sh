@@ -60,7 +60,7 @@ if [[ "${RUN_PARTS_SEED}" == "1" ]]; then
 fi
 
 echo "==> Frontend install & build"
-run_as_app "cd frontend && npm ci && npm run build"
+run_as_app "cd frontend && npm ci --include=dev && npm run build"
 
 echo "==> PM2 restart"
 cd "${APP_DIR}/backend"
