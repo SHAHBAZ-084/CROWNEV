@@ -1,0 +1,41 @@
+# Optional: deploy immediately over SSH from GitHub (manual only).
+# Use when Hostinger allows GitHub runner IPs on port 22. Push deploys use poll-deploy instead.
+name: Deploy Production (Manual SSH)
+
+on:
+  workflow_dispatch:
+
+env:
+  VPS_HOST: 62.72.58.96
+  VPS_USER: root
+  VPS_PORT: "22"
+
+jobs:
+  deploy:
+    name: SSH deploy to crownevcenter.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check deploy key secret
+        run: |
+          if [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "::error::Missing GitHub secret VPS_SSH_KEY."
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ env.VPS_PORT }}
+          timeout: 45s
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export RUN_PARTS_SEED=0
+            export RUN_DB_SEED=0
+            bash /var/www/crownev/deploy/deploy-app.sh
