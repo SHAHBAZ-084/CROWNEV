@@ -55,8 +55,11 @@ export function GoogleSignInButton({
 }: GoogleSignInButtonProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const callbackRef = useRef(onCredential);
+  const configErrorRef = useRef(onConfigError);
   callbackRef.current = onCredential;
+  configErrorRef.current = onConfigError;
   const [gsiReady, setGsiReady] = useState(false);
+  const [gsiError, setGsiError] = useState(false);
   const configured = isGoogleSignInEnabled();
 
   useEffect(() => {
@@ -67,6 +70,8 @@ export function GoogleSignInButton({
     ensureGoogleScript()
       .then(() => {
         if (cancelled || !hostRef.current || !window.google?.accounts?.id) return;
+
+        hostRef.current.replaceChildren();
 
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -85,9 +90,14 @@ export function GoogleSignInButton({
         });
 
         setGsiReady(true);
+        setGsiError(false);
       })
       .catch(() => {
-        if (!cancelled) setGsiReady(false);
+        if (!cancelled) {
+          setGsiReady(false);
+          setGsiError(true);
+          configErrorRef.current?.('Could not load Google Sign-In. Check your connection or ad blocker.');
+        }
       });
 
     return () => {
@@ -95,35 +105,44 @@ export function GoogleSignInButton({
     };
   }, [configured]);
 
-  function handleClick() {
-    if (disabled || loading) return;
-    if (!configured) {
-      onConfigError?.(CONFIG_MESSAGE);
-      return;
-    }
-    if (!gsiReady) return;
-    const btn = hostRef.current?.querySelector('[role="button"]') as HTMLElement | null;
-    btn?.click();
+  function handleUnconfiguredClick() {
+    onConfigError?.(CONFIG_MESSAGE);
   }
 
-  const blocked = disabled || loading || (configured && !gsiReady);
+  const blocked = disabled || loading;
+  const overlayActive = configured && gsiReady && !blocked;
+
+  const label = loading
+    ? 'Signing in…'
+    : configured && !gsiReady && !gsiError
+      ? 'Loading Google…'
+      : 'Continue with Google';
 
   return (
     <div className="relative h-11 w-full">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={blocked}
-        className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-border-light bg-white text-sm font-medium text-ink shadow-sm transition hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
+      <div
+        className={`flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-border-light bg-white text-sm font-medium text-ink shadow-sm transition ${
+          blocked ? 'opacity-60' : ''
+        }`}
+        aria-hidden
       >
         <GoogleIcon />
-        <span>{loading ? 'Signing in…' : 'Continue with Google'}</span>
-      </button>
-      {configured && (
+        <span>{label}</span>
+      </div>
+      {configured ? (
         <div
           ref={hostRef}
-          className="pointer-events-none absolute inset-0 z-10 opacity-0"
-          aria-hidden
+          className={`absolute inset-0 z-10 overflow-hidden rounded-xl ${
+            overlayActive ? 'cursor-pointer opacity-[0.011]' : 'pointer-events-none opacity-0'
+          } [&>div]:!h-full [&>div]:!w-full [&_iframe]:!h-11 [&_iframe]:!w-full`}
+          aria-label="Continue with Google"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={handleUnconfiguredClick}
+          className="absolute inset-0 z-10 w-full rounded-xl"
+          aria-label="Continue with Google"
         />
       )}
     </div>
