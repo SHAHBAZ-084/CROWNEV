@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2, DollarSign, Package, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { adminApi } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { StatCard } from '../../components/ui/StatCard';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
@@ -9,18 +10,30 @@ import { TableSkeleton } from '../../components/ui/Skeleton';
 import { orderListReference } from '../../lib/format';
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [revenue, setRevenue] = useState<{ date: string; revenue: number }[]>([]);
   const [revenueLoading, setRevenueLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    adminApi.dashboard().then(setData).catch(console.error);
+    if (!user || user.role !== 'ADMIN') return;
+
+    setLoadError('');
+    setRevenueLoading(true);
+    adminApi.dashboard().then(setData).catch((err) => {
+      console.error(err);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    });
     adminApi
       .revenue(30)
       .then(setRevenue)
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load revenue');
+      })
       .finally(() => setRevenueLoading(false));
-  }, []);
+  }, [user]);
 
   const recentOrders = (data?.recentOrders as Record<string, unknown>[]) ?? [];
   const branchComparison = (data?.branchComparison as { name: string; revenue: number; orderCount: number }[]) ?? [];
@@ -28,6 +41,10 @@ export default function AdminDashboard() {
   return (
     <div>
       <PageHeader title="Admin Dashboard" subtitle="Global overview across all branches" />
+
+      {loadError && (
+        <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-warning">{loadError}</p>
+      )}
 
       {!data ? (
         <TableSkeleton />

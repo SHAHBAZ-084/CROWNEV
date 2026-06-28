@@ -15,7 +15,7 @@ export type { AuthContextValue } from './auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(() => readCachedUser());
-  const [loading, setLoading] = useState(() => !!localStorage.getItem('token') && !readCachedUser());
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token'));
 
   const setUser = useCallback((next: User | null) => {
     writeCachedUser(next);

@@ -6,9 +6,8 @@ import type { Role } from '../types';
 export function ProtectedRoute({ roles }: { roles?: Role[] }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
 
-  if (loading && token && !user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent" />
