@@ -16,6 +16,15 @@ async function main() {
     console.log(`Request timeout: ${env.requestTimeoutMs}ms | DB tx timeout: ${env.dbTransactionTimeoutMs}ms`);
     if (isSmtpConfigured()) {
       console.log(`Email: SMTP via ${env.smtp.host} (from ${env.smtp.from})`);
+      if (
+        env.smtp.host.includes('resend.com') &&
+        env.smtp.from.includes('crownevcenter.com')
+      ) {
+        console.warn(
+          'Email: Resend requires crownevcenter.com to be verified at resend.com/domains, ' +
+            'or switch to Hostinger SMTP (deploy/configure-hostinger-email.sh).',
+        );
+      }
     } else {
       console.log('Email: DEV mode — OTPs print to this terminal only (set SMTP_* in .env)');
     }

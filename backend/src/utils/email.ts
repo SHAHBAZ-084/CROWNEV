@@ -260,8 +260,11 @@ export type ContactFormEmail = {
   branchName?: string | null;
 };
 
-/** Notifies business inbox + sends confirmation copy to the sender's email. */
-export async function sendContactFormEmails(data: ContactFormEmail) {
+/** Notifies business inbox + sends confirmation copy to the sender's email. Returns delivery status. */
+export async function sendContactFormEmails(data: ContactFormEmail): Promise<{
+  inboxSent: boolean;
+  confirmationSent: boolean;
+}> {
   const safeName = escHtml(data.name);
   const safeEmail = escHtml(data.email);
   const safePhone = data.phone ? escHtml(data.phone) : '';
@@ -329,7 +332,7 @@ export async function sendContactFormEmails(data: ContactFormEmail) {
     );
   }
 
-  await deliverMail(
+  const confirmationSent = await deliverMail(
     data.email,
     'Crown Ev — We received your message',
     `
@@ -360,4 +363,13 @@ export async function sendContactFormEmails(data: ContactFormEmail) {
     ].join('\n'),
     'Contact confirmation (sender)',
   );
+
+  if (env.nodeEnv === 'production' && !inboxSent && !confirmationSent) {
+    console.error(
+      `[SMTP] Contact #${data.messageId} saved to DB but NO emails delivered. ` +
+        `Check SMTP settings (Hostinger or verified Resend domain). Inbox: ${env.contactInboxEmail}`,
+    );
+  }
+
+  return { inboxSent, confirmationSent };
 }

@@ -243,7 +243,7 @@ Paste that file here for help — it includes PM2 logs, nginx, and health checks
 |-------|-----|
 | `502 Bad Gateway` | `pm2 logs crownev-backend` — check `.env` and Postgres |
 | CORS errors | `ALLOWED_ORIGINS` must match exact site URL (https) |
-| Email OTP fails | Verify domain in Resend; set `EMAIL_FROM` |
+| Email OTP / contact form fails | See **Email (SMTP)** below — Resend domain must be verified **or** use Hostinger mailbox SMTP |
 | Uploads 404 | Ensure `backend/uploads` exists and PM2 cwd is `backend/` |
 | DB connection | `sudo -u postgres psql -c '\l'` — check `crown_eve` exists |
 
@@ -253,3 +253,40 @@ Logs:
 pm2 logs crownev-backend
 tail -f /var/log/nginx/error.log
 ```
+
+### Email (SMTP) — contact form, OTP, confirmations
+
+**Symptom:** Contact form shows “Message Received” but nothing in `contact@crownevcenter.com`; OTP never arrives.
+
+**Cause (current production):** Backend uses **Resend** with `EMAIL_FROM=contact@crownevcenter.com`, but **crownevcenter.com is not verified** in Resend. PM2 logs show:
+
+`550 The crownevcenter.com domain is not verified`
+
+**Fix A — Hostinger mailbox SMTP (recommended)** — you already have `contact@crownevcenter.com` in Hostinger Mail:
+
+1. hPanel → **Emails** → `contact@crownevcenter.com` → note the mailbox password (or reset it).
+2. On the VPS:
+
+```bash
+bash /var/www/crownev/deploy/configure-hostinger-email.sh 'YOUR_MAILBOX_PASSWORD'
+```
+
+3. Test: `cd /var/www/crownev/backend && npm run email:test -- contact@crownevcenter.com`
+
+**Fix B — Resend with verified domain**
+
+1. Add **crownevcenter.com** at [resend.com/domains](https://resend.com/domains).
+2. Add the DNS records (TXT/MX) in Hostinger → **DNS** for `crownevcenter.com`.
+3. Wait until Resend shows **Verified**, then set in `backend/.env`:
+
+```env
+SMTP_HOST="smtp.resend.com"
+SMTP_USER="resend"
+SMTP_PASS="re_..."
+EMAIL_FROM="contact@crownevcenter.com"
+CONTACT_INBOX_EMAIL="contact@crownevcenter.com"
+```
+
+4. `pm2 restart crownev-backend --update-env`
+
+**Note:** Resend sandbox (`onboarding@resend.dev`) only delivers to the Resend account owner email until a domain is verified — not suitable for customer OTP or contact confirmations.

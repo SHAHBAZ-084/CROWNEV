@@ -22,6 +22,8 @@ export async function submitContact(data: {
     phone: data.phone ?? null,
     message: data.message,
     branchName: message.branch?.name ?? null,
+  }).catch((err) => {
+    console.error('[SMTP] Contact email task failed:', err instanceof Error ? err.message : err);
   });
 
   return message;

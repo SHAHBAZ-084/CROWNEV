@@ -8,12 +8,22 @@ NODE_ENV=production
 ALLOWED_ORIGINS=https://crownevcenter.com,https://www.crownevcenter.com
 APP_URL=https://crownevcenter.com
 
-SMTP_HOST="smtp.resend.com"
+# Email — Hostinger mailbox SMTP (recommended when using Hostinger Mail for contact@)
+# hPanel → Emails → contact@crownevcenter.com → Configuration → SMTP settings
+SMTP_HOST="smtp.hostinger.com"
 SMTP_PORT=465
-SMTP_USER="resend"
-SMTP_PASS="re_YOUR_RESEND_API_KEY"
+SMTP_USER="contact@crownevcenter.com"
+SMTP_PASS="YOUR_MAILBOX_PASSWORD"
 EMAIL_FROM="contact@crownevcenter.com"
 CONTACT_INBOX_EMAIL="contact@crownevcenter.com"
+
+# Alternative: Resend (requires crownevcenter.com verified at https://resend.com/domains)
+# SMTP_HOST="smtp.resend.com"
+# SMTP_PORT=465
+# SMTP_USER="resend"
+# SMTP_PASS="re_YOUR_RESEND_API_KEY"
+# EMAIL_FROM="contact@crownevcenter.com"
+# CONTACT_INBOX_EMAIL="contact@crownevcenter.com"
 
 GOOGLE_CLIENT_ID=""
 UPLOAD_DIR="./uploads"
