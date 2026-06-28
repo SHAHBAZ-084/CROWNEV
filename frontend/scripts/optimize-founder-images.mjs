@@ -13,12 +13,12 @@ const FOUNDER_HEIGHT = 480;
 /** Place source photos in frontend/scripts/sources/ before running. */
 const FOUNDER_IMAGES = [
   {
-    input: join(sourcesDir, 'about-founder-ahmed.jpg'),
-    output: 'about-founder-ahmed.webp',
+    input: join(sourcesDir, 'about-founder-mohsin.jpg'),
+    output: 'about-founder-mohsin.webp',
   },
   {
-    input: join(sourcesDir, 'about-founder-bilal.jpg'),
-    output: 'about-founder-bilal.webp',
+    input: join(sourcesDir, 'about-founder-sufi.jpg'),
+    output: 'about-founder-sufi.webp',
   },
 ];
 

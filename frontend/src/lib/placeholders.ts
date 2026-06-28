@@ -7,7 +7,7 @@ export const FOUNDERS = [
     vision:
       'Electric mobility should not be a luxury in Pakistan — it should be reliable, affordable, and available in every major city.',
     bio: 'Mohsin founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
-    image: '/images/about-founder-ahmed.webp',
+    image: '/images/about-founder-mohsin.webp',
   },
   {
     name: 'Sufi Muhammad Saleemullah',
@@ -15,7 +15,7 @@ export const FOUNDERS = [
     vision:
       'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Ev promise on the ground.',
     bio: 'Sufi builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
-    image: '/images/about-founder-bilal.webp',
+    image: '/images/about-founder-sufi.webp',
   },
 ] as const;
 
