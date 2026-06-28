@@ -37,6 +37,7 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ env.VPS_PORT }}
+          timeout: 60s
           command_timeout: 30m
           script_stop: true
           script: |
@@ -44,3 +45,10 @@ jobs:
             export RUN_PARTS_SEED=0
             export RUN_DB_SEED=1
             bash /var/www/crownev/deploy/deploy-app.sh
+
+      - name: SSH deploy failed — see DEPLOY.md
+        if: failure()
+        run: |
+          echo "::warning::GitHub Actions could not SSH to the VPS (dial tcp timeout)."
+          echo "Fix: Hostinger hPanel → VPS → Firewall → allow inbound TCP 22 from anywhere."
+          echo "Backup: poll-deploy cron on the VPS still deploys within ~3 minutes after push."

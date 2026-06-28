@@ -176,6 +176,29 @@ Commit and push `.github/workflows/deploy-production.yml` to `main`. The first d
 
 Parts catalog (`db:seed-parts`) is **not** run on every push (too slow). Run once manually on the server if needed.
 
+### GitHub Actions error: `dial tcp 62.72.58.96:22: i/o timeout`
+
+SSH from your PC works, but **GitHub’s servers cannot reach port 22** — usually the **Hostinger cloud firewall** (separate from UFW on the VPS).
+
+**Fix (recommended):**
+
+1. **Hostinger hPanel** → your VPS → **Security** / **Firewall**
+2. Add inbound rule: **TCP 22** from **Anywhere** (or `0.0.0.0/0`)
+3. Ensure SSH is **enabled** in VPS settings
+4. Re-run the failed workflow in GitHub → **Actions** → **Re-run jobs**
+
+**Backup — poll deploy (no GitHub SSH needed):**
+
+On the VPS, install a cron job that pulls `main` every 3 minutes:
+
+```bash
+chmod +x /var/www/crownev/deploy/poll-deploy.sh
+(crontab -l 2>/dev/null; echo '*/3 * * * * /var/www/crownev/deploy/poll-deploy.sh >> /var/log/crownev-poll-deploy.log 2>&1') | crontab -
+```
+
+After a push to `main`, the site updates within ~3 minutes even if GitHub Actions SSH fails.
+
+
 ### Manual deploy trigger
 
 GitHub → **Actions** → **Deploy Production** → **Run workflow**.
