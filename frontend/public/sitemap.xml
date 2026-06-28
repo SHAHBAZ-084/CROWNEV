@@ -1,42 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://crowneve.pk/</loc>
+    <loc>https://crownevcenter.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/shop</loc>
+    <loc>https://crownevcenter.com/shop</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/book-service</loc>
+    <loc>https://crownevcenter.com/compare</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://crownevcenter.com/book-service</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/track</loc>
+    <loc>https://crownevcenter.com/track</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/about</loc>
+    <loc>https://crownevcenter.com/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/contact</loc>
+    <loc>https://crownevcenter.com/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/privacy</loc>
+    <loc>https://crownevcenter.com/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://crowneve.pk/terms</loc>
+    <loc>https://crownevcenter.com/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

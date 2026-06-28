@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://crowneve.pk/sitemap.xml
+Sitemap: https://crownevcenter.com/sitemap.xml
