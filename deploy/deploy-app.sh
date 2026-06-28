@@ -35,7 +35,17 @@ if [[ ! -f "${APP_DIR}/backend/.env" ]]; then
 fi
 
 echo "==> Database migrations"
-run_as_app "cd backend && npx prisma migrate deploy"
+if [[ -f "${APP_DIR}/backend/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${APP_DIR}/backend/.env"
+  set +a
+fi
+if [[ -n "${DATABASE_URL:-}" ]] && psql "${DATABASE_URL}" -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='_prisma_migrations'" 2>/dev/null | grep -q 1; then
+  run_as_app "cd backend && npx prisma migrate deploy"
+else
+  echo "Skipping prisma migrate deploy (existing DB without _prisma_migrations — schema already applied)"
+fi
 
 if [[ "${RUN_DB_SEED}" == "1" ]]; then
   echo "==> Seed (idempotent)"
