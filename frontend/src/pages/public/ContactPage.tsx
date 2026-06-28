@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Clock, Mail, MapPin, Phone, Send, CheckCircle2 } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import type { Branch } from '../../types';
@@ -103,32 +103,42 @@ export default function ContactPage() {
 
   if (sent) {
     return (
-      <div>
-        <PageHero
-          page="contact"
-          eyebrow="Thank You"
-          title="Message Received"
-          subtitle="A confirmation has been sent to your email. Our team will get back to you within 24 hours."
-        />
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
-          <p className="text-text-muted">
-            Check your inbox for a copy of your message. In the meantime, browse our shop or track an existing order.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              to="/shop"
-              className="rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              Browse Shop
-            </Link>
-            <Link
-              to="/track"
-              className="rounded-xl border border-border bg-surface-alt px-6 py-2.5 text-sm font-semibold text-brand hover:bg-surface-alt"
-            >
-              Track Order
-            </Link>
-          </div>
-        </div>
+      <div className="bg-subtle">
+        <section className="mx-auto max-w-2xl px-4 py-16 text-center lg:px-8 lg:py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-accent/20 bg-accent/10">
+              <CheckCircle2 className="h-7 w-7 text-accent" strokeWidth={2.25} />
+            </div>
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-accent">Thank You</p>
+            <h1 className="mt-2 font-display text-3xl font-bold text-ink lg:text-4xl">Message Received</h1>
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted lg:text-base">
+              A confirmation has been sent to your email. Our team will get back to you within 24 hours.
+            </p>
+
+            <div className="mx-auto mt-8 max-w-lg rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] lg:p-8">
+              <p className="text-sm leading-relaxed text-ink-muted">
+                Check your inbox for a copy of your message. In the meantime, browse our shop or track an existing
+                order.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link to="/shop">
+                  <Button variant="accent" size="md">
+                    Browse Shop
+                  </Button>
+                </Link>
+                <Link to="/track">
+                  <Button variant="secondary" size="md">
+                    Track Order
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </section>
       </div>
     );
   }
