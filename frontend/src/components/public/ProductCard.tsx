@@ -1,9 +1,13 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Battery, Gauge, Shield, Zap } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Product } from '../../types';
+import { publicApi } from '../../api/client';
 import { ctaArrowClass, defaultViewport } from '../../lib/publicMotion';
 import { formatPKR } from '../../lib/format';
+import { getFeatureIcon } from '../../lib/featureIcons';
+import { DEFAULT_FEATURE_SECTION, normalizeFeatureSection, type FeatureSection } from '../../lib/placeholders';
 import { Badge } from '../ui/Badge';
 import { SectionHeadingIcon } from './SectionHeadingIcon';
 
@@ -125,38 +129,13 @@ export function ProductCard({
   );
 }
 
-const features = [
-  {
-    icon: Zap,
-    title: 'Powerful Motor',
-    desc: 'High-torque BLDC motors for smooth acceleration on Pakistani roads.',
-    stat: '1000W',
-    statLabel: 'BLDC motor',
-  },
-  {
-    icon: Battery,
-    title: 'Long Range Battery',
-    desc: 'Lithium-ion packs built for daily commutes and weekend rides.',
-    stat: '80 km',
-    statLabel: 'per charge',
-  },
-  {
-    icon: Gauge,
-    title: 'Smart Dashboard',
-    desc: 'Digital display with speed, battery level, and ride mode indicators.',
-    stat: 'Live',
-    statLabel: 'telemetry',
-  },
-  {
-    icon: Shield,
-    title: 'CBS Braking',
-    desc: 'Combined braking system for safer stops in all weather conditions.',
-    stat: 'All-weather',
-    statLabel: 'safety',
-  },
-];
-
 export function FeatureGrid() {
+  const [section, setSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
+
+  useEffect(() => {
+    publicApi.features().then((data) => setSection(normalizeFeatureSection(data))).catch(console.error);
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-subtle bg-[radial-gradient(ellipse_at_bottom_left,_rgb(249_115_22_/_4%)_0%,_transparent_55%)] py-12 lg:py-16">
       <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
@@ -167,20 +146,22 @@ export function FeatureGrid() {
           className="mx-auto mb-10 max-w-2xl text-center"
         >
           <span className="inline-flex items-center rounded-full border border-border-light bg-subtle px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand">
-            Why Crown Ev
+            {section.eyebrow}
           </span>
           <h2 className="mt-4 font-display text-2xl font-bold text-ink sm:text-3xl lg:text-4xl">
-            Built for Pakistan
+            {section.title}
           </h2>
           <p className="mt-4 text-base leading-relaxed text-ink-muted">
-            Engineered for local roads, climate, and daily commuting needs: premium EV performance you can rely on every day.
+            {section.subtitle}
           </p>
         </motion.div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((f, i) => (
+          {section.features.map((f, i) => {
+            const Icon = getFeatureIcon(f.icon);
+            return (
             <motion.div
-              key={f.title}
+              key={`${f.title}-${i}`}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={defaultViewport}
@@ -192,7 +173,7 @@ export function FeatureGrid() {
 
               <div className="flex items-start justify-between gap-3">
                 <SectionHeadingIcon className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-elevated ring-1 ring-border-light transition-transform group-hover:scale-105">
-                  <f.icon className="h-7 w-7 text-accent" />
+                  <Icon className="h-7 w-7 text-accent" />
                 </SectionHeadingIcon>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold tabular-nums text-brand">{f.stat}</p>
@@ -203,7 +184,8 @@ export function FeatureGrid() {
               <h3 className="mt-5 font-display text-lg font-semibold text-ink">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.desc}</p>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

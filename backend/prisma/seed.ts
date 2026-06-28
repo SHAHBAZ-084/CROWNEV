@@ -504,6 +504,79 @@ async function main() {
     });
   }
 
+  const foundersContent = JSON.stringify({
+    eyebrow: 'Our founders',
+    title: "Driving Pakistan's electric future",
+    subtitle: "The team behind Crown Ev's mission to bring premium electric mobility nationwide.",
+    founders: [
+      {
+        name: 'Mohsin Ashraf Ch',
+        title: 'Founder',
+        vision:
+          'Electric mobility should not be a luxury in Pakistan. It should be reliable, affordable, and available in every major city.',
+        bio: 'Mohsin established Crown Ev as a trusted dealer of Crown electric bikes in Pakistan. He leads sourcing, branch expansion, and the long term vision for accessible clean transport, from the online shop to every showroom floor.',
+        image: '/images/about-founder-mohsin.webp',
+      },
+      {
+        name: 'Sufi Muhammad Saleemullah',
+        title: 'Co-Founder',
+        vision:
+          'Every rider deserves honest service, genuine parts, and a branch they can trust. That is the Crown Ev promise on the ground.',
+        bio: 'He provides leadership and management support across the Crown Ev network, guiding branch teams, strengthening customer standards, and helping the brand grow with the same trust and quality riders expect from Crown electric mobility.',
+        image: '/images/about-founder-sufi.webp',
+      },
+    ],
+  });
+
+  await prisma.contentPage.upsert({
+    where: { slug: 'about-founders' },
+    update: {},
+    create: { slug: 'about-founders', title: 'About Founders', content: foundersContent },
+  });
+
+  const featuresContent = JSON.stringify({
+    eyebrow: 'Why Crown Ev',
+    title: 'Built for Pakistan',
+    subtitle:
+      'Engineered for local roads, climate, and daily commuting needs: premium EV performance you can rely on every day.',
+    features: [
+      {
+        icon: 'zap',
+        title: 'Powerful Motor',
+        desc: 'High-torque BLDC motors for smooth acceleration on Pakistani roads.',
+        stat: '1000W',
+        statLabel: 'BLDC motor',
+      },
+      {
+        icon: 'battery',
+        title: 'Long Range Battery',
+        desc: 'Lithium-ion packs built for daily commutes and weekend rides.',
+        stat: '80 km',
+        statLabel: 'per charge',
+      },
+      {
+        icon: 'gauge',
+        title: 'Smart Dashboard',
+        desc: 'Digital display with speed, battery level, and ride mode indicators.',
+        stat: 'Live',
+        statLabel: 'telemetry',
+      },
+      {
+        icon: 'shield',
+        title: 'CBS Braking',
+        desc: 'Combined braking system for safer stops in all weather conditions.',
+        stat: 'All-weather',
+        statLabel: 'safety',
+      },
+    ],
+  });
+
+  await prisma.contentPage.upsert({
+    where: { slug: 'home-features' },
+    update: {},
+    create: { slug: 'home-features', title: 'Home Feature Cards', content: featuresContent },
+  });
+
   console.log('Seed complete.');
   console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at Hadi Ev Center). Legacy demo parts deactivated.`);
   console.log('Admin: admin@crown-eve.com / Admin@123');

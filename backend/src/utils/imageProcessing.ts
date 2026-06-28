@@ -6,12 +6,14 @@ import { env } from '../config/env.js';
 
 const productsDir = path.resolve(env.uploadDir, 'products');
 const branchesDir = path.resolve(env.uploadDir, 'branches');
+const foundersDir = path.resolve(env.uploadDir, 'founders');
 
 /** Async directory bootstrap — avoids blocking sync I/O on the event loop at import time. */
 export async function ensureUploadDirectories() {
   await Promise.all([
     fs.promises.mkdir(productsDir, { recursive: true }),
     fs.promises.mkdir(branchesDir, { recursive: true }),
+    fs.promises.mkdir(foundersDir, { recursive: true }),
   ]);
 }
 
@@ -23,6 +25,10 @@ export function productImagePublicUrl(filename: string) {
 
 export function branchImagePublicUrl(filename: string) {
   return `/uploads/branches/${filename}`;
+}
+
+export function founderImagePublicUrl(filename: string) {
+  return `/uploads/founders/${filename}`;
 }
 
 /** Convert any supported raster image buffer to WebP and save under uploads/products. */
@@ -46,6 +52,20 @@ export async function saveBranchImageAsWebp(input: Buffer): Promise<string> {
   await sharp(input)
     .rotate()
     .resize(960, 640, { fit: 'cover', withoutEnlargement: true })
+    .webp({ quality: WEBP_QUALITY, effort: 4 })
+    .toFile(filepath);
+
+  return filename;
+}
+
+/** Founder portrait — portrait crop for About page cards. */
+export async function saveFounderImageAsWebp(input: Buffer): Promise<string> {
+  const filename = `${uuidv4()}.webp`;
+  const filepath = path.join(foundersDir, filename);
+
+  await sharp(input)
+    .rotate()
+    .resize(800, 1000, { fit: 'cover', withoutEnlargement: true })
     .webp({ quality: WEBP_QUALITY, effort: 4 })
     .toFile(filepath);
 

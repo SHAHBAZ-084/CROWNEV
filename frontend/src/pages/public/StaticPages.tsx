@@ -6,7 +6,8 @@ import { LegalPageLayout } from '../../components/public/LegalPageLayout';
 import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
 import { PageHero } from '../../components/public/PageHero';
 import { BranchCardsSection } from '../../components/public/BranchCard';
-import { COMPANY_STORY, FOUNDERS } from '../../lib/placeholders';
+import { COMPANY_STORY, DEFAULT_FOUNDERS_SECTION, type FoundersSection } from '../../lib/placeholders';
+import { resolveUploadUrl } from '../../lib/media';
 import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
 import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
 import { TERMS_SECTIONS } from '../../lib/termsContent';
@@ -14,9 +15,11 @@ import type { Branch } from '../../types';
 
 export function AboutPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [foundersSection, setFoundersSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
 
   useEffect(() => {
     publicApi.branches().then(setBranches).catch(console.error);
+    publicApi.founders().then(setFoundersSection).catch(console.error);
   }, []);
 
   return (
@@ -80,19 +83,19 @@ export function AboutPage() {
             viewport={{ once: true }}
             className="mx-auto mb-8 max-w-xl text-center lg:mb-10"
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Our founders</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{foundersSection.eyebrow}</p>
             <h2 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-              Driving Pakistan&apos;s electric future
+              {foundersSection.title}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-              The team behind Crown Ev&apos;s mission to bring premium electric mobility nationwide.
+              {foundersSection.subtitle}
             </p>
           </motion.div>
 
           <div className="mx-auto flex max-w-4xl flex-col gap-6 lg:gap-8">
-            {FOUNDERS.map((f, i) => (
+            {foundersSection.founders.map((f, i) => (
               <motion.article
-                key={f.name}
+                key={`${f.name}-${i}`}
                 initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -102,7 +105,7 @@ export function AboutPage() {
                 <div className="relative w-full shrink-0 bg-subtle sm:w-52 md:w-60 lg:w-64">
                   <div className="aspect-[4/5] sm:absolute sm:inset-0 sm:aspect-auto">
                     <img
-                      src={f.image}
+                      src={resolveUploadUrl(f.image) ?? f.image}
                       alt={f.name}
                       loading="lazy"
                       decoding="async"

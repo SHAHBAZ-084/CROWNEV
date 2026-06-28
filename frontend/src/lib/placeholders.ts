@@ -1,23 +1,129 @@
 /** Founder headshots — WebP in public/images/. Replace sources in scripts/sources/ and run npm run optimize:founder-images */
 
-export const FOUNDERS = [
-  {
-    name: 'Mohsin Ashraf Ch',
-    title: 'Founder',
-    vision:
-      'Electric mobility should not be a luxury in Pakistan. It should be reliable, affordable, and available in every major city.',
-    bio: 'Mohsin established Crown Ev as a trusted dealer of Crown electric bikes in Pakistan. He leads sourcing, branch expansion, and the long term vision for accessible clean transport, from the online shop to every showroom floor.',
-    image: '/images/about-founder-mohsin.webp',
-  },
-  {
-    name: 'Sufi Muhammad Saleemullah',
-    title: 'Co-Founder',
-    vision:
-      'Every rider deserves honest service, genuine parts, and a branch they can trust. That is the Crown Ev promise on the ground.',
-    bio: 'He provides leadership and management support across the Crown Ev network, guiding branch teams, strengthening customer standards, and helping the brand grow with the same trust and quality riders expect from Crown electric mobility.',
-    image: '/images/about-founder-sufi.webp',
-  },
-] as const;
+export type FounderProfile = {
+  name: string;
+  title: string;
+  vision: string;
+  bio: string;
+  image: string;
+};
+
+export type FoundersSection = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  founders: FounderProfile[];
+};
+
+export const DEFAULT_FOUNDERS_SECTION: FoundersSection = {
+  eyebrow: 'Our founders',
+  title: "Driving Pakistan's electric future",
+  subtitle: "The team behind Crown Ev's mission to bring premium electric mobility nationwide.",
+  founders: [
+    {
+      name: 'Mohsin Ashraf Ch',
+      title: 'Founder',
+      vision:
+        'Electric mobility should not be a luxury in Pakistan. It should be reliable, affordable, and available in every major city.',
+      bio: 'Mohsin established Crown Ev as a trusted dealer of Crown electric bikes in Pakistan. He leads sourcing, branch expansion, and the long term vision for accessible clean transport, from the online shop to every showroom floor.',
+      image: '/images/about-founder-mohsin.webp',
+    },
+    {
+      name: 'Sufi Muhammad Saleemullah',
+      title: 'Co-Founder',
+      vision:
+        'Every rider deserves honest service, genuine parts, and a branch they can trust. That is the Crown Ev promise on the ground.',
+      bio: 'He provides leadership and management support across the Crown Ev network, guiding branch teams, strengthening customer standards, and helping the brand grow with the same trust and quality riders expect from Crown electric mobility.',
+      image: '/images/about-founder-sufi.webp',
+    },
+  ],
+};
+
+/** @deprecated Use DEFAULT_FOUNDERS_SECTION.founders or API data */
+export const FOUNDERS = DEFAULT_FOUNDERS_SECTION.founders;
+
+export const FEATURE_ICON_IDS = ['zap', 'battery', 'gauge', 'shield'] as const;
+export type FeatureIconId = (typeof FEATURE_ICON_IDS)[number];
+
+export const FEATURE_ICON_OPTIONS: { id: FeatureIconId; label: string }[] = [
+  { id: 'zap', label: 'Lightning — motor / power' },
+  { id: 'battery', label: 'Battery — range / charging' },
+  { id: 'gauge', label: 'Gauge — dashboard / telemetry' },
+  { id: 'shield', label: 'Shield — safety / braking' },
+];
+
+export type FeatureCard = {
+  icon: FeatureIconId;
+  title: string;
+  desc: string;
+  stat: string;
+  statLabel: string;
+};
+
+export type FeatureSection = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  features: FeatureCard[];
+};
+
+function parseFeatureIconId(icon: string): FeatureIconId {
+  return (FEATURE_ICON_IDS as readonly string[]).includes(icon) ? (icon as FeatureIconId) : 'zap';
+}
+
+export function normalizeFeatureSection(section: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  features: { icon: string; title: string; desc: string; stat: string; statLabel: string }[];
+}): FeatureSection {
+  return {
+    eyebrow: section.eyebrow,
+    title: section.title,
+    subtitle: section.subtitle,
+    features: section.features.map((feature) => ({
+      ...feature,
+      icon: parseFeatureIconId(feature.icon),
+    })),
+  };
+}
+
+export const DEFAULT_FEATURE_SECTION: FeatureSection = {
+  eyebrow: 'Why Crown Ev',
+  title: 'Built for Pakistan',
+  subtitle:
+    'Engineered for local roads, climate, and daily commuting needs: premium EV performance you can rely on every day.',
+  features: [
+    {
+      icon: 'zap',
+      title: 'Powerful Motor',
+      desc: 'High-torque BLDC motors for smooth acceleration on Pakistani roads.',
+      stat: '1000W',
+      statLabel: 'BLDC motor',
+    },
+    {
+      icon: 'battery',
+      title: 'Long Range Battery',
+      desc: 'Lithium-ion packs built for daily commutes and weekend rides.',
+      stat: '80 km',
+      statLabel: 'per charge',
+    },
+    {
+      icon: 'gauge',
+      title: 'Smart Dashboard',
+      desc: 'Digital display with speed, battery level, and ride mode indicators.',
+      stat: 'Live',
+      statLabel: 'telemetry',
+    },
+    {
+      icon: 'shield',
+      title: 'CBS Braking',
+      desc: 'Combined braking system for safer stops in all weather conditions.',
+      stat: 'All-weather',
+      statLabel: 'safety',
+    },
+  ],
+};
 
 export const COMPANY_STORY = `Crown Ev was founded on a simple belief: Pakistan deserves premium electric mobility without compromise. As a trusted dealer of Crown electric bikes, we bring quality models to riders through a growing network of branches, backed by local sales and service expertise you can rely on.
 

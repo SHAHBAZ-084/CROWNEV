@@ -7,6 +7,8 @@ type BranchPhotoFieldProps = {
   onChange: (url: string | null) => void;
   pendingFile: File | null;
   onPendingFileChange: (file: File | null) => void;
+  label?: string;
+  hint?: string;
 };
 
 export function BranchPhotoField({
@@ -14,6 +16,8 @@ export function BranchPhotoField({
   onChange,
   pendingFile,
   onPendingFileChange,
+  label = 'Branch photo',
+  hint = 'Shown on branch cards across the website. JPEG, PNG, or WebP. Max 10 MB.',
 }: BranchPhotoFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -45,10 +49,8 @@ export function BranchPhotoField({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-brand">Branch photo</p>
-      <p className="mb-3 text-xs text-text-muted">
-        Shown on branch cards across the website. JPEG, PNG, or WebP. Max 10 MB.
-      </p>
+      <p className="mb-2 text-sm font-medium text-brand">{label}</p>
+      <p className="mb-3 text-xs text-text-muted">{hint}</p>
 
       {displaySrc ? (
         <div className="relative inline-block overflow-hidden rounded-xl border border-border bg-surface-alt">

@@ -75,6 +75,7 @@ const AdminBookings = lazyNamed(() => import('./pages/admin/AdminPages'), 'Admin
 const AdminUsers = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminUsersPage');
 const AdminReports = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminReportsPage');
 const AdminTestimonials = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminTestimonialsPage');
+const AdminCustomization = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminCustomizationPage');
 
 const BranchDashboard = lazy(() => import('./pages/branch/BranchDashboard'));
 const BranchPOS = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPOSPage');
@@ -165,6 +166,7 @@ export default function App() {
                   <Route path="/admin/bookings" element={<DashWrap><AdminBookings /></DashWrap>} />
                   <Route path="/admin/users" element={<DashWrap><AdminUsers /></DashWrap>} />
                   <Route path="/admin/testimonials" element={<DashWrap><AdminTestimonials /></DashWrap>} />
+                  <Route path="/admin/customization" element={<DashWrap><AdminCustomization /></DashWrap>} />
                   <Route path="/admin/reports" element={<DashWrap><AdminReports /></DashWrap>} />
                 </Route>
               </Route>

@@ -31,6 +31,7 @@ import {
 } from '../../lib/reportExport';
 import { formatDate, formatPKR } from '../../lib/format';
 import { resolveUploadUrl } from '../../lib/media';
+import { DEFAULT_FOUNDERS_SECTION, DEFAULT_FEATURE_SECTION, FEATURE_ICON_OPTIONS, normalizeFeatureSection, type FeatureCard, type FeatureIconId, type FeatureSection, type FounderProfile, type FoundersSection } from '../../lib/placeholders';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -1393,6 +1394,352 @@ export function AdminTestimonialsPage() {
           <FormActions onCancel={() => setModal(null)} loading={saving} />
         </form>
       </Modal>
+    </div>
+  );
+}
+
+// ─── Customization ───────────────────────────────────────────────────────────
+
+function emptyFounder(): FounderProfile {
+  return { name: '', title: '', vision: '', bio: '', image: '' };
+}
+
+function FounderEditor({
+  label,
+  founder,
+  pendingPhoto,
+  onFounderChange,
+  onPendingPhotoChange,
+}: {
+  label: string;
+  founder: FounderProfile;
+  pendingPhoto: File | null;
+  onFounderChange: (next: FounderProfile) => void;
+  onPendingPhotoChange: (file: File | null) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+      <h3 className="mb-4 font-display text-lg font-bold text-ink">{label}</h3>
+      <div className="space-y-4">
+        <Input
+          label="Name"
+          value={founder.name}
+          onChange={(e) => onFounderChange({ ...founder, name: e.target.value })}
+          required
+        />
+        <Input
+          label="Role label"
+          value={founder.title}
+          onChange={(e) => onFounderChange({ ...founder, title: e.target.value })}
+          placeholder="Founder or Co-Founder"
+          required
+        />
+        <Textarea
+          label="Quote"
+          rows={3}
+          value={founder.vision}
+          onChange={(e) => onFounderChange({ ...founder, vision: e.target.value })}
+          required
+        />
+        <Textarea
+          label="Biography"
+          rows={4}
+          value={founder.bio}
+          onChange={(e) => onFounderChange({ ...founder, bio: e.target.value })}
+          required
+        />
+        <BranchPhotoField
+          label="Portrait photo"
+          hint="Shown on the About page founder card. JPEG, PNG, or WebP. Max 10 MB."
+          value={founder.image || null}
+          onChange={(url) => onFounderChange({ ...founder, image: url ?? '' })}
+          pendingFile={pendingPhoto}
+          onPendingFileChange={onPendingPhotoChange}
+        />
+      </div>
+    </div>
+  );
+}
+
+function emptyFeature(): FeatureCard {
+  return { icon: 'zap', title: '', desc: '', stat: '', statLabel: '' };
+}
+
+function FeatureCardEditor({
+  label,
+  feature,
+  onChange,
+}: {
+  label: string;
+  feature: FeatureCard;
+  onChange: (next: FeatureCard) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+      <h3 className="mb-4 font-display text-lg font-bold text-ink">{label}</h3>
+      <div className="space-y-4">
+        <Select
+          label="Icon"
+          value={feature.icon}
+          onChange={(e) => onChange({ ...feature, icon: e.target.value as FeatureIconId })}
+        >
+          {FEATURE_ICON_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>{option.label}</option>
+          ))}
+        </Select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Stat value"
+            value={feature.stat}
+            onChange={(e) => onChange({ ...feature, stat: e.target.value })}
+            placeholder="1000W"
+            required
+          />
+          <Input
+            label="Stat label"
+            value={feature.statLabel}
+            onChange={(e) => onChange({ ...feature, statLabel: e.target.value })}
+            placeholder="BLDC motor"
+            required
+          />
+        </div>
+        <Input
+          label="Title"
+          value={feature.title}
+          onChange={(e) => onChange({ ...feature, title: e.target.value })}
+          required
+        />
+        <Textarea
+          label="Description"
+          rows={3}
+          value={feature.desc}
+          onChange={(e) => onChange({ ...feature, desc: e.target.value })}
+          required
+        />
+      </div>
+    </div>
+  );
+}
+
+export function AdminCustomizationPage() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [savingFounders, setSavingFounders] = useState(false);
+  const [savingFeatures, setSavingFeatures] = useState(false);
+  const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
+  const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
+  const [pendingPhotos, setPendingPhotos] = useState<(File | null)[]>([null, null]);
+
+  useEffect(() => {
+    Promise.all([adminApi.foundersSection(), adminApi.featuresSection()])
+      .then(([foundersData, featuresData]) => {
+        const founders = [...foundersData.founders];
+        while (founders.length < 2) founders.push(emptyFounder());
+        setSection({ ...foundersData, founders: founders.slice(0, 2) });
+
+        const features = [...featuresData.features];
+        while (features.length < 4) features.push(emptyFeature());
+        setFeatureSection(normalizeFeatureSection({ ...featuresData, features: features.slice(0, 4) }));
+      })
+      .catch(() => toast('Could not load customization settings', 'error'))
+      .finally(() => setLoading(false));
+  }, [toast]);
+
+  function updateFounder(index: number, next: FounderProfile) {
+    setSection((prev) => ({
+      ...prev,
+      founders: prev.founders.map((f, i) => (i === index ? next : f)),
+    }));
+  }
+
+  function setPendingPhoto(index: number, file: File | null) {
+    setPendingPhotos((prev) => prev.map((f, i) => (i === index ? file : f)));
+  }
+
+  function updateFeature(index: number, next: FeatureCard) {
+    setFeatureSection((prev) => ({
+      ...prev,
+      features: prev.features.map((f, i) => (i === index ? next : f)),
+    }));
+  }
+
+  async function handleSaveFounders(e: FormEvent) {
+    e.preventDefault();
+    setSavingFounders(true);
+    try {
+      const founders = [...section.founders];
+      while (founders.length < 2) founders.push(emptyFounder());
+
+      const updatedFounders = await Promise.all(
+        founders.slice(0, 2).map(async (founder, index) => {
+          const pending = pendingPhotos[index];
+          if (pending) {
+            const { url } = await adminApi.uploadFounderImage(pending);
+            return { ...founder, image: url };
+          }
+          return founder;
+        }),
+      );
+
+      const payload = { ...section, founders: updatedFounders };
+      const saved = await adminApi.updateFoundersSection(payload);
+      setSection(saved);
+      setPendingPhotos([null, null]);
+      toast('About page founders updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingFounders(false);
+    }
+  }
+
+  async function handleSaveFeatures(e: FormEvent) {
+    e.preventDefault();
+    setSavingFeatures(true);
+    try {
+      const features = [...featureSection.features];
+      while (features.length < 4) features.push(emptyFeature());
+      const payload = { ...featureSection, features: features.slice(0, 4) };
+      const saved = await adminApi.updateFeaturesSection(payload);
+      setFeatureSection(normalizeFeatureSection(saved));
+      toast('Homepage feature cards updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingFeatures(false);
+    }
+  }
+
+  const founders = section.founders.length >= 2
+    ? section.founders.slice(0, 2)
+    : [...section.founders, ...Array.from({ length: Math.max(0, 2 - section.founders.length) }, emptyFounder)];
+
+  const features = featureSection.features.length >= 4
+    ? featureSection.features.slice(0, 4)
+    : [...featureSection.features, ...Array.from({ length: Math.max(0, 4 - featureSection.features.length) }, emptyFeature)];
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Customization" subtitle="Edit public website content" />
+        <p className="text-sm text-text-muted">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Customization"
+        subtitle="Edit public website content for the About page and homepage"
+      />
+
+      <form onSubmit={handleSaveFounders} className="space-y-8">
+        <h2 className="font-display text-xl font-bold text-ink">About page — founders</h2>
+        <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+          <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="Eyebrow"
+              value={section.eyebrow}
+              onChange={(e) => setSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+              required
+            />
+            <Input
+              label="Title"
+              value={section.title}
+              onChange={(e) => setSection((prev) => ({ ...prev, title: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="mt-4">
+            <Textarea
+              label="Subtitle"
+              rows={2}
+              value={section.subtitle}
+              onChange={(e) => setSection((prev) => ({ ...prev, subtitle: e.target.value }))}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <FounderEditor
+            label="Founder"
+            founder={founders[0]}
+            pendingPhoto={pendingPhotos[0]}
+            onFounderChange={(next) => updateFounder(0, next)}
+            onPendingPhotoChange={(file) => setPendingPhoto(0, file)}
+          />
+          <FounderEditor
+            label="Co-Founder"
+            founder={founders[1]}
+            pendingPhoto={pendingPhotos[1]}
+            onFounderChange={(next) => updateFounder(1, next)}
+            onPendingPhotoChange={(file) => setPendingPhoto(1, file)}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="accent" loading={savingFounders}>
+            Save founders
+          </Button>
+          <p className="text-xs text-text-muted">
+            Changes appear on the public About page after saving.
+          </p>
+        </div>
+      </form>
+
+      <form onSubmit={handleSaveFeatures} className="mt-12 space-y-8 border-t border-border-light pt-12">
+        <h2 className="font-display text-xl font-bold text-ink">Homepage — feature stats</h2>
+
+        <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+          <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Input
+              label="Eyebrow"
+              value={featureSection.eyebrow}
+              onChange={(e) => setFeatureSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+              required
+            />
+            <Input
+              label="Title"
+              value={featureSection.title}
+              onChange={(e) => setFeatureSection((prev) => ({ ...prev, title: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="mt-4">
+            <Textarea
+              label="Subtitle"
+              rows={2}
+              value={featureSection.subtitle}
+              onChange={(e) => setFeatureSection((prev) => ({ ...prev, subtitle: e.target.value }))}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          {features.map((feature, index) => (
+            <FeatureCardEditor
+              key={`feature-${index}`}
+              label={`Feature card ${index + 1}`}
+              feature={feature}
+              onChange={(next) => updateFeature(index, next)}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="accent" loading={savingFeatures}>
+            Save feature cards
+          </Button>
+          <p className="text-xs text-text-muted">
+            Changes appear on the homepage &ldquo;Built for Pakistan&rdquo; section after saving.
+          </p>
+        </div>
+      </form>
     </div>
   );
 }

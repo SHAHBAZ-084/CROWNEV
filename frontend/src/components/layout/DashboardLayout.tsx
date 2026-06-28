@@ -2,7 +2,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
   LayoutDashboard, Building2, Package, ShoppingCart, Users, BarChart3,
-  Calendar, CreditCard, MessageSquare, Truck, Boxes, Store, Wrench,
+  Calendar, CreditCard, MessageSquare, Truck, Boxes, Store, Wrench, SlidersHorizontal,
 } from 'lucide-react';
 import { DashboardSidebar, type SidebarNavItem } from './DashboardSidebar';
 import { DashboardShell } from './DashboardShell';
@@ -19,6 +19,7 @@ const adminNav: SidebarNavItem[] = [
   { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
+  { to: '/admin/customization', label: 'Customization', icon: SlidersHorizontal },
   { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
 ];
 

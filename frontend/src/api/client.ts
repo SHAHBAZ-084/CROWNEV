@@ -180,6 +180,20 @@ export const publicApi = {
     api<{ message: string }>('/contact', { method: 'POST', body: JSON.stringify(data) }),
   page: (slug: string) => api<{ title: string; content: string }>(`/public/pages/${slug}`),
   testimonials: () => api<{ customerName: string; content: string; rating: number }[]>('/testimonials'),
+  founders: () =>
+    api<{
+      eyebrow: string;
+      title: string;
+      subtitle: string;
+      founders: { name: string; title: string; vision: string; bio: string; image: string }[];
+    }>('/public/founders'),
+  features: () =>
+    api<{
+      eyebrow: string;
+      title: string;
+      subtitle: string;
+      features: { icon: string; title: string; desc: string; stat: string; statLabel: string }[];
+    }>('/public/features'),
 };
 
 export const customerApi = {
@@ -348,6 +362,27 @@ export const adminApi = {
     api<unknown>(`/testimonials/${id}/approve`, { method: 'PATCH' }),
   rejectTestimonial: (id: number) =>
     api<unknown>(`/testimonials/${id}/reject`, { method: 'PATCH' }),
+  foundersSection: () => publicApi.founders(),
+  updateFoundersSection: (data: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    founders: { name: string; title: string; vision: string; bio: string; image: string }[];
+  }) =>
+    api<typeof data>('/public/customization/founders', { method: 'PUT', body: JSON.stringify(data) }),
+  uploadFounderImage: (file: File) => {
+    const form = new FormData();
+    form.append('image', file);
+    return apiUpload<{ url: string }>('/public/upload-founder-image', form);
+  },
+  featuresSection: () => publicApi.features(),
+  updateFeaturesSection: (data: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    features: { icon: string; title: string; desc: string; stat: string; statLabel: string }[];
+  }) =>
+    api<typeof data>('/public/customization/features', { method: 'PUT', body: JSON.stringify(data) }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
 };

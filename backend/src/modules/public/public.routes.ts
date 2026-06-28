@@ -4,9 +4,43 @@ import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
 import { cachePublicJson } from '../../middleware/cacheControl.js';
+import { productImageUpload } from '../../middleware/upload.js';
+import { founderImagePublicUrl, saveFounderImageAsWebp } from '../../utils/imageProcessing.js';
 import * as publicService from './public.service.js';
 
 export const publicRouter = Router();
+
+const founderProfileSchema = z.object({
+  name: z.string().min(1),
+  title: z.string().min(1),
+  vision: z.string().min(1),
+  bio: z.string().min(1),
+  image: z.string().min(1),
+});
+
+const foundersSectionSchema = z.object({
+  eyebrow: z.string().min(1),
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  founders: z.array(founderProfileSchema).min(1).max(4),
+});
+
+const featureIconSchema = z.enum(['zap', 'battery', 'gauge', 'shield']);
+
+const featureCardSchema = z.object({
+  icon: featureIconSchema,
+  title: z.string().min(1),
+  desc: z.string().min(1),
+  stat: z.string().min(1),
+  statLabel: z.string().min(1),
+});
+
+const featureSectionSchema = z.object({
+  eyebrow: z.string().min(1),
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  features: z.array(featureCardSchema).min(1).max(6),
+});
 
 publicRouter.get(
   '/landing',
@@ -35,6 +69,61 @@ publicRouter.get(
       return;
     }
     res.json(page);
+  })
+);
+
+publicRouter.get(
+  '/founders',
+  cachePublicJson(120),
+  asyncHandler(async (_req, res) => {
+    const section = await publicService.getFoundersSection();
+    res.json(section);
+  })
+);
+
+publicRouter.put(
+  '/customization/founders',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(foundersSectionSchema),
+  asyncHandler(async (req, res) => {
+    const section = await publicService.upsertFoundersSection(req.body);
+    res.json(section);
+  })
+);
+
+publicRouter.get(
+  '/features',
+  cachePublicJson(120),
+  asyncHandler(async (_req, res) => {
+    const section = await publicService.getFeatureSection();
+    res.json(section);
+  })
+);
+
+publicRouter.put(
+  '/customization/features',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(featureSectionSchema),
+  asyncHandler(async (req, res) => {
+    const section = await publicService.upsertFeatureSection(req.body);
+    res.json(section);
+  })
+);
+
+publicRouter.post(
+  '/upload-founder-image',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  productImageUpload.single('image'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: 'No image uploaded' });
+      return;
+    }
+    const filename = await saveFounderImageAsWebp(req.file.buffer);
+    res.json({ url: founderImagePublicUrl(filename) });
   })
 );
 
