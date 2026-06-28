@@ -38,6 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, [setUser]);
 
+  useEffect(() => {
+    function onUnauthorized() {
+      setToken(null);
+      setUser(null);
+      const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+      window.location.replace(`/login?redirect=${redirect}`);
+    }
+    window.addEventListener('crownev:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('crownev:unauthorized', onUnauthorized);
+  }, [setUser]);
+
   const login = useCallback(async (email: string, password: string) => {
     const { token, user: u } = await authApi.login(email, password);
     setToken(token);

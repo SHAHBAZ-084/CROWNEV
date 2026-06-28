@@ -16,6 +16,26 @@ import { fetchWithRetry } from '../lib/queryRetry';
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api';
 
+/** Paths where 401 is expected (login flows) — do not force logout. */
+const AUTH_401_SKIP = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/google',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-otp',
+  '/auth/me',
+];
+
+function shouldForceLogoutOn401(path: string, hadToken: boolean) {
+  if (!hadToken) return false;
+  return !AUTH_401_SKIP.some((prefix) => path.startsWith(prefix));
+}
+
+function notifyUnauthorized() {
+  window.dispatchEvent(new CustomEvent('crownev:unauthorized'));
+}
+
 function getToken(): string | null {
   return localStorage.getItem('token');
 }
@@ -37,6 +57,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const run = async () => {
     const res = await fetchWithRetry(`${BASE}${path}`, { ...options, headers });
     if (!res.ok) {
+      if (res.status === 401 && shouldForceLogoutOn401(path, !!token)) {
+        notifyUnauthorized();
+      }
       if (res.status === 502 || res.status === 503 || res.status === 504) {
         throw new Error(
           'Server unavailable (502). Start the backend API on port 3001 and ensure PostgreSQL is running.',
@@ -69,6 +92,9 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
 
   const res = await fetchWithRetry(`${BASE}${path}`, { method: 'POST', body: formData, headers }, { enabled: false });
   if (!res.ok) {
+    if (res.status === 401 && shouldForceLogoutOn401(path, !!token)) {
+      notifyUnauthorized();
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? 'Upload failed');
   }
