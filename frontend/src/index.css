@@ -51,6 +51,7 @@ body {
   background: var(--color-surface);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 input::placeholder,

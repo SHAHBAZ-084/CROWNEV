@@ -51,7 +51,7 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md rounded-2xl border border-border-light bg-elevated p-8 shadow-[var(--shadow-elevated)]"
+        className="w-full max-w-md rounded-2xl border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] sm:p-8"
       >
         <div className="flex justify-center">
           <Logo size="lg" />

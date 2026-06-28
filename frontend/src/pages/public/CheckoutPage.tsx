@@ -64,7 +64,7 @@ function CheckoutStepper({ step, isSelfPickup }: { step: number; isSelfPickup: b
                   <div className={`h-0.5 flex-1 ${done ? 'bg-orange-500' : 'bg-slate-200'}`} />
                 )}
                 <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-sm ${
                     done ? 'bg-orange-500 text-white' : active ? 'bg-orange-500 text-white ring-4 ring-orange-500/20' : 'bg-slate-200 text-slate-500'
                   }`}
                 >

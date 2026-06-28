@@ -24,12 +24,11 @@ const CONTACT_CARDS = [
     value: FOOTER_CONTACT.email,
     href: `mailto:${FOOTER_CONTACT.email}`,
   },
-  ...OFFICIAL_PHONES.map((phone, index) => ({
+  {
     icon: Phone,
-    label: `Official No. ${index + 1}`,
-    value: phone,
-    href: toTelHref(phone),
-  })),
+    label: 'Call Us',
+    phones: OFFICIAL_PHONES,
+  },
   {
     icon: Clock,
     label: 'Business Hours',
@@ -42,11 +41,13 @@ function ContactInfoCard({
   icon: Icon,
   label,
   value,
+  phones,
   href,
 }: {
   icon: typeof MapPin;
   label: string;
-  value: string;
+  value?: string;
+  phones?: readonly string[];
   href?: string;
 }) {
   const content = (
@@ -56,7 +57,22 @@ function ContactInfoCard({
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-ink">{label}</p>
-        <p className="mt-1 text-sm leading-relaxed text-ink-muted">{value}</p>
+        {phones ? (
+          <ul className="mt-1 space-y-1">
+            {phones.map((phone) => (
+              <li key={phone}>
+                <a
+                  href={toTelHref(phone)}
+                  className="text-sm leading-relaxed text-ink-muted transition-colors hover:text-brand"
+                >
+                  {phone}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm leading-relaxed text-ink-muted">{value}</p>
+        )}
       </div>
     </div>
   );
@@ -124,14 +140,14 @@ export default function ContactPage() {
                 Check your inbox for a copy of your message. In the meantime, browse our shop or track an existing
                 order.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                <Link to="/shop">
-                  <Button variant="accent" size="md">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+                <Link to="/shop" className="w-full sm:w-auto">
+                  <Button variant="accent" size="md" className="w-full sm:w-auto">
                     Browse Shop
                   </Button>
                 </Link>
-                <Link to="/track">
-                  <Button variant="secondary" size="md">
+                <Link to="/track" className="w-full sm:w-auto">
+                  <Button variant="secondary" size="md" className="w-full sm:w-auto">
                     Track Order
                   </Button>
                 </Link>

@@ -35,7 +35,7 @@ export function WhatsAppFloat() {
         animate={{ opacity: 1, x: 0 }}
         onClick={restoreWidget}
         aria-label="Show WhatsApp chat"
-        className="fixed bottom-24 right-0 z-50 flex items-center gap-1.5 rounded-l-full border border-border border-r-0 bg-surface-alt py-2 pl-3 pr-2 text-xs font-semibold text-[#25D366] shadow-[var(--shadow-card)] hover:bg-surface-alt"
+        className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] right-0 z-50 flex items-center gap-1.5 rounded-l-full border border-border border-r-0 bg-surface-alt py-2 pl-3 pr-2 text-xs font-semibold text-[#25D366] shadow-[var(--shadow-card)] hover:bg-surface-alt"
       >
         <WhatsAppIcon className="h-4 w-4" />
         Chat
@@ -44,7 +44,7 @@ export function WhatsAppFloat() {
   }
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 sm:right-5">
+    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-50 flex flex-col items-end gap-3 sm:bottom-20 sm:right-5">
       <AnimatePresence>
         {open && (
           <motion.div

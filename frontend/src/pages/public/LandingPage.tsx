@@ -45,7 +45,7 @@ export default function LandingPage() {
           </MotionItem>
           <HeroHeadline
             text="Ride the Future with Crown Ev"
-            className="mt-4 font-display text-4xl font-bold leading-tight text-white drop-shadow-md lg:text-6xl"
+            className="mt-4 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl lg:text-6xl"
           />
           <MotionItem>
             <p className="mt-6 text-lg leading-relaxed text-white/90 drop-shadow-sm">
@@ -53,7 +53,7 @@ export default function LandingPage() {
             </p>
           </MotionItem>
           <MotionItem>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               <HeroCta>
                 <Link to="/shop">
                   <Button variant="accent" size="lg" className="group">
@@ -79,14 +79,14 @@ export default function LandingPage() {
 
       <FeatureGrid />
 
-      <MotionSection className="bg-subtle py-20 lg:py-28">
+      <MotionSection className="bg-subtle py-12 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="flex items-end justify-between mb-12">
+          <div className="mb-8 flex flex-col gap-3 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="font-display text-3xl font-bold text-ink">Featured Models</h2>
+              <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Featured Models</h2>
               <p className="mt-2 text-ink-muted">Explore our latest electric bikes</p>
             </div>
-            <Link to="/shop" className="group hidden sm:inline-flex sm:items-center sm:gap-1 sm:text-sm sm:font-medium sm:text-brand sm:hover:text-brand-light sm:hover:underline">
+            <Link to="/shop" className="group inline-flex items-center gap-1 text-sm font-medium text-brand hover:text-brand-light hover:underline">
               View all
               <ArrowRight className={`h-3.5 w-3.5 ${ctaArrowClass}`} aria-hidden />
             </Link>

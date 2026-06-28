@@ -31,6 +31,9 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
 
+  // Behind nginx — required for rate limiting and client IP via X-Forwarded-For
+  app.set('trust proxy', 1);
+
   app.use(compression());
   app.use(helmet());
   app.use(hpp());

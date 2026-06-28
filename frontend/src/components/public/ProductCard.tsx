@@ -73,7 +73,7 @@ export function ProductCard({
               </div>
             )}
 
-            <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-2 bg-gradient-to-t from-brand/90 to-brand/70 py-3 text-sm font-semibold text-white transition-transform duration-300 group-hover:translate-y-0">
+            <div className="absolute inset-x-0 bottom-0 flex translate-y-0 items-center justify-center gap-2 bg-gradient-to-t from-brand/90 to-brand/70 py-2.5 text-sm font-semibold text-white sm:translate-y-full sm:py-3 sm:transition-transform sm:duration-300 sm:group-hover:translate-y-0">
               View Details
               <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} />
             </div>
@@ -169,7 +169,7 @@ export function FeatureGrid() {
           <span className="inline-flex items-center rounded-full border border-border-light bg-subtle px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand">
             Why Crown Ev
           </span>
-          <h2 className="mt-4 font-display text-3xl font-bold text-ink lg:text-4xl">
+          <h2 className="mt-4 font-display text-2xl font-bold text-ink sm:text-3xl lg:text-4xl">
             Built for Pakistan
           </h2>
           <p className="mt-4 text-base leading-relaxed text-ink-muted">

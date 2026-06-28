@@ -166,8 +166,8 @@ export function PublicNavbar() {
             : 'border-b border-border/80 bg-surface-alt/95 shadow-sm backdrop-blur-md'
         }`}
       >
-        <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center gap-3 px-4 lg:h-20 lg:gap-4 lg:px-8">
-          <div className="shrink-0">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3 lg:h-20 lg:gap-4 lg:px-8">
+          <div className="min-w-0 shrink sm:shrink-0">
             <Logo size="nav" linked priority className={transparentNav ? 'drop-shadow-md' : ''} />
           </div>
 

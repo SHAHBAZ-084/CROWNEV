@@ -62,6 +62,11 @@ fi
 echo "==> Frontend install & build"
 run_as_app "cd frontend && NODE_ENV=development npm ci && npm run build"
 
+echo "==> Frontend dist permissions (nginx runs as www-data)"
+chmod -R a+rX "${APP_DIR}/frontend/dist"
+find "${APP_DIR}/frontend/dist" -type d -exec chmod 755 {} + 2>/dev/null || true
+chown -R root:www-data "${APP_DIR}/frontend/dist" 2>/dev/null || chown -R "${APP_USER}:www-data" "${APP_DIR}/frontend/dist" 2>/dev/null || true
+
 echo "==> PM2 restart"
 cd "${APP_DIR}/backend"
 if [[ "$(id -un)" == "${APP_USER}" ]]; then

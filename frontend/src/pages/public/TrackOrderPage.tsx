@@ -49,15 +49,18 @@ export default function TrackOrderPage() {
         title="Track Order"
         subtitle="Enter your order reference (from My Orders)"
       >
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
           <Input
             placeholder="Order reference / public ID"
             value={publicId}
             onChange={(e) => setPublicId(e.target.value)}
             required
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
-          <Button type="submit" variant="accent" loading={loading}><Search className="h-4 w-4" /></Button>
+          <Button type="submit" variant="accent" loading={loading} className="w-full sm:w-auto sm:shrink-0">
+            <Search className="h-4 w-4 sm:mr-0" />
+            <span className="sm:sr-only">Search</span>
+          </Button>
         </form>
         {error && <p className="mt-4 text-sm text-warning">{error}</p>}
         <p className="mt-3 text-sm text-slate-500">
@@ -72,8 +75,8 @@ export default function TrackOrderPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-6 rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-[var(--shadow-elevated)]"
           >
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-sm text-orange-500">{orderReference(order)}</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-mono text-sm text-orange-500 break-all">{orderReference(order)}</p>
               <StatusBadge status={order.status} />
             </div>
 

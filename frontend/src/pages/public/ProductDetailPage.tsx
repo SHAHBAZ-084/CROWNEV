@@ -59,8 +59,8 @@ export default function ProductDetailPage() {
 
   return (
     <div className="bg-subtle">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:py-12 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-x-12">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:px-8">
+        <div className="grid gap-8 sm:gap-10 lg:grid-cols-2 lg:items-start lg:gap-x-12">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
             <ProductImageGallery images={product.images} alt={product.name} />
           </motion.div>
@@ -70,8 +70,8 @@ export default function ProductDetailPage() {
               <Badge variant="brand">{product.type}</Badge>
             </div>
 
-            <h1 className="mt-4 font-display text-3xl font-bold text-ink lg:text-4xl">{product.name}</h1>
-            <p className="mt-4 font-display text-3xl font-bold tabular-nums text-brand">{formatPKR(price)}</p>
+            <h1 className="mt-4 font-display text-2xl font-bold text-ink sm:text-3xl lg:text-4xl">{product.name}</h1>
+            <p className="mt-4 font-display text-2xl font-bold tabular-nums text-brand sm:text-3xl">{formatPKR(price)}</p>
 
             {product.description && (
               <p className="mt-4 max-w-xl leading-relaxed text-ink-muted">{product.description}</p>

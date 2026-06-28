@@ -103,7 +103,7 @@ export function HomeHeroVideo({ children }: { children: ReactNode }) {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden min-h-[min(78vh,680px)] pt-28 pb-20 sm:min-h-[min(88vh,820px)] sm:pb-24 lg:pt-36 lg:pb-32"
+      className="relative overflow-hidden min-h-[min(72vh,640px)] pt-24 pb-16 sm:min-h-[min(88vh,820px)] sm:pt-28 sm:pb-24 lg:pt-36 lg:pb-32"
     >
       <div className="absolute inset-0" aria-hidden>
         <picture className="absolute inset-0">

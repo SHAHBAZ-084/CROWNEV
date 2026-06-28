@@ -75,14 +75,14 @@ function FooterCtaBanner() {
           <p className="font-display text-xl font-bold text-white lg:text-2xl">Ready to ride electric?</p>
           <p className="mt-1 text-sm text-white/85">Browse bikes, book a service, or visit your nearest branch.</p>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link to="/shop">
-            <Button variant="secondary" size="sm" className="border-white bg-white font-semibold text-brand hover:bg-white/90 hover:text-brand">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+          <Link to="/shop" className="w-full sm:w-auto">
+            <Button variant="secondary" size="sm" className="w-full border-white bg-white font-semibold text-brand hover:bg-white/90 hover:text-brand sm:w-auto">
               <ShoppingCart className="h-4 w-4" /> Shop Now
             </Button>
           </Link>
-          <Link to="/book-service">
-            <Button variant="ghost" size="sm" className="border border-white/40 text-white hover:bg-white/10">
+          <Link to="/book-service" className="w-full sm:w-auto">
+            <Button variant="ghost" size="sm" className="w-full border border-white/40 text-white hover:bg-white/10 sm:w-auto">
               <Calendar className="h-4 w-4" /> Book Service
             </Button>
           </Link>
@@ -172,7 +172,7 @@ export function PublicFooter() {
           </div>
         </div>
 
-        <p className="mt-8 border-t border-border pt-3 text-center text-[11px] text-white/90">
+        <p className="mt-8 border-t border-border pt-3 text-center text-xs text-white/90">
           © {new Date().getFullYear()} All rights reserved @ Crown Ev Center
         </p>
       </div>
@@ -193,7 +193,7 @@ export function ScrollToTop() {
       exit={{ opacity: 0, scale: 0.85 }}
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Scroll to top"
-      className="fixed bottom-5 left-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-alt text-accent shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white sm:bottom-5 sm:left-auto sm:right-5"
+      className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-5 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-alt text-accent shadow-[var(--shadow-card)] transition-colors hover:border-accent hover:bg-accent hover:text-white sm:bottom-5 sm:left-auto sm:right-5 sm:z-50"
     >
       <ChevronUp className="h-5 w-5" />
     </motion.button>

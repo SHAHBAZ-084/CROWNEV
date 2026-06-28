@@ -8,11 +8,14 @@ type PageBackground =
       src: string;
       srcMobile?: string;
       overlay?: string;
+      mobilePosition?: string;
     };
 
 const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
-  trackOrder:
-    'https://images.unsplash.com/photo-1571068316344-75bc76f77861?auto=format&fit=crop&w=960&q=60',
+  trackOrder: {
+    src: '/images/shop-hero.webp',
+    overlay: 'from-black/55 via-black/25 to-subtle/98',
+  },
   bookService: {
     src: '/images/book-service-hero.webp',
     srcMobile: '/images/book-service-hero-sm.webp',
@@ -24,9 +27,13 @@ const PAGE_BACKGROUNDS: Record<string, PageBackground> = {
   },
   shop: {
     src: '/images/shop-hero.webp',
+    overlay: 'from-black/55 via-black/20 to-subtle/98',
+    mobilePosition: 'center 35%',
   },
   compare: {
     src: '/images/shop-hero.webp',
+    overlay: 'from-black/55 via-black/20 to-subtle/98',
+    mobilePosition: 'center 35%',
   },
   contact: {
     src: '/images/contact-hero.webp',
@@ -46,12 +53,13 @@ const HERO_PAD = 'py-14 lg:py-16';
 function resolveBackground(page: PageHeroPage) {
   const bg = PAGE_BACKGROUNDS[page];
   if (typeof bg === 'string') {
-    return { src: bg, srcMobile: bg, overlay: DEFAULT_OVERLAY };
+    return { src: bg, srcMobile: bg, overlay: DEFAULT_OVERLAY, mobilePosition: 'center' as const };
   }
   return {
     src: bg.src,
     srcMobile: bg.srcMobile ?? bg.src,
     overlay: bg.overlay ?? DEFAULT_OVERLAY,
+    mobilePosition: bg.mobilePosition ?? 'center',
   };
 }
 
@@ -71,7 +79,7 @@ export function PageHero({
   children?: ReactNode;
 }) {
   const isCenter = align === 'center';
-  const { src, srcMobile, overlay } = resolveBackground(page);
+  const { src, srcMobile, overlay, mobilePosition } = resolveBackground(page);
   const minH = children ? HERO_MIN_H_WITH_CHILDREN : HERO_MIN_H;
 
   return (
@@ -82,8 +90,8 @@ export function PageHero({
         aria-hidden
       />
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat md:hidden"
-        style={{ backgroundImage: `url(${srcMobile})` }}
+        className="absolute inset-0 bg-cover bg-no-repeat md:hidden"
+        style={{ backgroundImage: `url(${srcMobile})`, backgroundPosition: mobilePosition }}
         aria-hidden
       />
       <div className={`absolute inset-0 bg-gradient-to-b ${overlay}`} aria-hidden />
@@ -109,7 +117,7 @@ export function PageHero({
           <motion.h1
             variants={fadeUp}
             transition={motionTransition}
-            className="mt-2 font-display text-3xl font-bold text-white drop-shadow-md lg:text-4xl"
+            className="mt-2 font-display text-2xl font-bold text-white drop-shadow-md sm:text-3xl lg:text-4xl"
           >
             {title}
           </motion.h1>
@@ -131,7 +139,7 @@ export function PageHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...motionTransition, delay: 0.25 }}
           >
-            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-6 shadow-[var(--shadow-elevated)] backdrop-blur-sm">
+            <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-4 shadow-[var(--shadow-elevated)] backdrop-blur-sm sm:p-6">
               {children}
             </div>
           </motion.div>

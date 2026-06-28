@@ -282,11 +282,16 @@ export async function googleAuth(idToken: string) {
     throw new AppError(503, 'Google sign-in is not configured');
   }
 
-  const ticket = await oauthClient.verifyIdToken({
-    idToken,
-    audience: env.googleClientId,
-  });
-  const payload = ticket.getPayload();
+  let payload;
+  try {
+    const ticket = await oauthClient.verifyIdToken({
+      idToken,
+      audience: env.googleClientId,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    throw new AppError(401, 'Invalid Google token');
+  }
   if (!payload?.sub || !payload?.email) {
     throw new AppError(401, 'Invalid Google token');
   }

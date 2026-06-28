@@ -295,7 +295,7 @@ export function SavingsCalculator() {
               <h3 className="font-display text-sm font-bold">Savings Calculator</h3>
             </div>
 
-            <div className="grid gap-4 p-4 sm:grid-cols-2">
+            <div className="grid gap-4 p-4 md:grid-cols-2">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Petrol Bike</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
@@ -306,7 +306,7 @@ export function SavingsCalculator() {
                 </div>
               </div>
 
-              <div className="sm:border-l sm:border-border-light sm:pl-4">
+              <div className="md:border-l md:border-border-light md:pl-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-brand">Electric Bike</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-brand">
                   {formatPKR(results.electricMonthlyTotal)}/mo

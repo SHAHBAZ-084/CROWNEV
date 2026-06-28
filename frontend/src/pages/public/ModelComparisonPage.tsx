@@ -408,7 +408,7 @@ export default function ModelComparisonPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:gap-6">
                 <BikePicker
                   label="Model A"
                   bikes={bikes}
@@ -425,7 +425,7 @@ export default function ModelComparisonPage() {
                 />
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-6 lg:mt-10">
+              <div className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:mt-8 sm:gap-6 lg:mt-10">
                 <BikePreview product={leftBike} slotLabel="Model A" />
                 <BikePreview product={rightBike} slotLabel="Model B" />
               </div>
