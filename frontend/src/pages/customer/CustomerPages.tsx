@@ -60,8 +60,8 @@ export function CustomerDashboard() {
       {scheduledBookings.length > 0 && (
         <div className="mb-6 rounded-[var(--radius-card)] border border-accent/25 bg-gradient-to-r from-accent/10 to-brand/5 px-4 py-4 sm:px-5">
           <p className="text-sm text-text">
-            <strong className="text-brand">Visit confirmed</strong>
-            {' — '}
+            <strong className="text-brand">Visit confirmed.</strong>
+            {' '}
             We emailed your appointment time and branch details. Download your visit ticket below or from{' '}
             <Link to="/customer/bookings" className="font-medium text-orange-500 hover:text-orange-600 hover:underline">
               My Bookings

@@ -28,7 +28,7 @@ contactRouter.post(
   ),
   asyncHandler(async (req, res) => {
     const message = await contactService.submitContact(req.body);
-    res.status(201).json({ message: 'Thank you — we will get back to you soon.', id: message.id });
+    res.status(201).json({ message: 'Thank you. We will get back to you soon.', id: message.id });
   })
 );
 

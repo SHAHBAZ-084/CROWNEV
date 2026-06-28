@@ -226,8 +226,8 @@ export default function CheckoutPage() {
       clearCart();
       toast(
         isSelfPickup
-          ? 'Order placed — payment submitted for verification'
-          : 'Order placed — we will notify you when bilty charges are ready',
+          ? 'Order placed. Payment submitted for verification'
+          : 'Order placed. We will notify you when bilty charges are ready',
         'success',
       );
       navigate('/customer/orders');

@@ -47,7 +47,7 @@ export function BranchPhotoField({
     <div>
       <p className="mb-2 text-sm font-medium text-brand">Branch photo</p>
       <p className="mb-3 text-xs text-text-muted">
-        Shown on branch cards across the website. JPEG, PNG, or WebP — max 10 MB.
+        Shown on branch cards across the website. JPEG, PNG, or WebP. Max 10 MB.
       </p>
 
       {displaySrc ? (

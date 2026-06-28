@@ -869,7 +869,7 @@ export function PosSaleInvoicePage() {
         notes: notes.trim() || undefined,
       });
       const invoiceNo = String((result.order as { saleReference?: string }).saleReference ?? nextInvoiceNo);
-      toast(`Sale saved — invoice #${invoiceNo}`, 'success');
+      toast(`Sale saved. Invoice #${invoiceNo}`, 'success');
       setLines([newSaleLine()]);
       setNotes('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
@@ -902,7 +902,7 @@ export function PosSaleInvoicePage() {
     <div className="space-y-8">
       <PageHeader
         title="Sale Invoice"
-        subtitle="Create a sale — customer debited, sale revenue credited, stock updated"
+        subtitle="Create a sale. Customer debited, sale revenue credited, stock updated"
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
@@ -1022,7 +1022,7 @@ export function PosSaleInvoicePage() {
               Customer ledger
               {customerLedger?.customer && (
                 <span className="ml-2 font-normal text-text-muted">
-                  {customerLedger.customer.code} — {customerLedger.customer.name}
+                  {customerLedger.customer.code} · {customerLedger.customer.name}
                 </span>
               )}
             </h2>
@@ -1323,7 +1323,7 @@ export function PosPurchaseInvoicePage() {
         notes: notes.trim() || undefined,
       });
       const invoiceNo = String((result.purchase as { documentRef?: string }).documentRef ?? nextInvoiceNo);
-      toast(`Purchase saved — invoice #${invoiceNo}`, 'success');
+      toast(`Purchase saved. Invoice #${invoiceNo}`, 'success');
       setLines([newPurchaseLine()]);
       setNotes('');
       branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
@@ -1356,7 +1356,7 @@ export function PosPurchaseInvoicePage() {
     <div className="space-y-8">
       <PageHeader
         title="Purchase Invoice"
-        subtitle="Create a purchase — inventory debited, supplier credited, stock increased"
+        subtitle="Create a purchase. Inventory debited, supplier credited, stock increased"
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
@@ -1470,7 +1470,7 @@ export function PosPurchaseInvoicePage() {
               Supplier ledger
               {supplierLedger?.supplier && (
                 <span className="ml-2 font-normal text-text-muted">
-                  {supplierLedger.supplier.code} — {supplierLedger.supplier.name}
+                  {supplierLedger.supplier.code} · {supplierLedger.supplier.name}
                 </span>
               )}
             </h2>
@@ -1753,7 +1753,7 @@ export function PosServiceInvoicePage() {
         notes: notes.trim() || undefined,
       });
       const invoiceNo = String((result.invoice as { reference?: string }).reference ?? nextInvoiceNo);
-      toast(`Service invoice saved — invoice #${invoiceNo}`, 'success');
+      toast(`Service invoice saved. Invoice #${invoiceNo}`, 'success');
       setLines([newSaleLine()]);
       setLabourCost('');
       setNotes('');
@@ -1774,7 +1774,7 @@ export function PosServiceInvoicePage() {
     <div className="space-y-8">
       <PageHeader
         title="Service Invoice"
-        subtitle="Bill for service work — customer debited, service revenue credited, parts stock updated"
+        subtitle="Bill for service work. Customer debited, service revenue credited, parts stock updated"
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
@@ -1896,7 +1896,7 @@ export function PosServiceInvoicePage() {
               Customer ledger
               {customerLedger?.customer && (
                 <span className="ml-2 font-normal text-text-muted">
-                  {customerLedger.customer.code} — {customerLedger.customer.name}
+                  {customerLedger.customer.code} · {customerLedger.customer.name}
                 </span>
               )}
             </h2>

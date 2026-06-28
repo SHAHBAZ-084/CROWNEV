@@ -68,7 +68,7 @@ export default function ServiceTicketPage() {
         page="contact"
         eyebrow="Service Visit"
         title="Download Visit Ticket"
-        subtitle="No login required — confirm your email to open your printable ticket."
+        subtitle="No login required. Confirm your email to open your printable ticket."
       />
 
       <MotionSection as="div" className="mx-auto max-w-lg px-4 pb-16 pt-4">

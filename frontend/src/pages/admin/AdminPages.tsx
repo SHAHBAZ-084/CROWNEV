@@ -747,7 +747,7 @@ export function AdminProductsPage() {
         {totalItems > 0 && (
           <>
             {' '}
-            — <strong>{totalItems.toLocaleString()}</strong> in catalog
+            ({' '}<strong>{totalItems.toLocaleString()}</strong> in catalog)
           </>
         )}
       </p>

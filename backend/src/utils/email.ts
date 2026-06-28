@@ -96,7 +96,7 @@ export async function sendOtpEmail(email: string, otp: string, purpose: string) 
     const info = await transport.sendMail({
       from: formatFrom('OTP'),
       to: email,
-      subject: `Crown Ev — ${purpose} OTP`,
+      subject: `Crown Ev ${purpose} OTP`,
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
           <h2 style="color:#B34700">Crown Ev Bikes</h2>
@@ -105,7 +105,7 @@ export async function sendOtpEmail(email: string, otp: string, purpose: string) 
           <p style="color:#666">This code expires in ${env.otpExpiryMinutes} minutes. Do not share it.</p>
         </div>
       `,
-      text: `Crown Ev — Your ${purpose} OTP is ${otp}. Expires in ${env.otpExpiryMinutes} minutes.`,
+      text: `Crown Ev: Your ${purpose} OTP is ${otp}. Expires in ${env.otpExpiryMinutes} minutes.`,
     });
 
     if (env.nodeEnv !== 'production') {
@@ -173,7 +173,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
 
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-      <h2 style="color:#B34700;margin:0 0 8px">Crown Ev — Visit Confirmed</h2>
+      <h2 style="color:#B34700;margin:0 0 8px">Crown Ev Visit Confirmed</h2>
       <p>Hi ${data.customerName},</p>
       <p>Your service appointment has been scheduled. Please visit the branch at the time below.</p>
       <div style="background:#FFF7F0;border:1px solid #F0C9A8;border-radius:12px;padding:20px;margin:20px 0">
@@ -228,7 +228,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
     const info = await transport.sendMail({
       from: bookingFrom,
       to: data.to,
-      subject: `Crown Ev — Visit confirmed on ${visitDateLabel} at ${visitTimeLabel}`,
+      subject: `Crown Ev visit confirmed on ${visitDateLabel} at ${visitTimeLabel}`,
       html,
       text,
     });
@@ -318,7 +318,7 @@ export async function sendContactFormEmails(data: ContactFormEmail): Promise<{
     ? `<p style="margin:0 0 8px"><strong>Branch:</strong> ${escHtml(data.branchName)}</p>`
     : '';
 
-  const inboxSubject = `Crown Ev — New contact message from ${data.name}`;
+  const inboxSubject = `Crown Ev new contact message from ${data.name}`;
   const inboxHtml = `
       <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
         <h2 style="color:#B34700;margin:0 0 12px">New Contact Form Message</h2>
@@ -379,7 +379,7 @@ export async function sendContactFormEmails(data: ContactFormEmail): Promise<{
 
   const confirmationSent = await deliverMail(
     data.email,
-    'Crown Ev — We received your message',
+    'Crown Ev: We received your message',
     `
       <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
         <h2 style="color:#B34700;margin:0 0 8px">Thank You for Contacting Crown Ev</h2>

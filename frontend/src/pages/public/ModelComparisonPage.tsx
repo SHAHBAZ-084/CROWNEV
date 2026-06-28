@@ -390,7 +390,7 @@ export default function ModelComparisonPage() {
         page="compare"
         eyebrow="Electric bikes"
         title="Model Comparison"
-        subtitle="Compare electric bikes by range, performance and features — find the one that fits your lifestyle best."
+        subtitle="Compare electric bikes by range, performance and features. Find the one that fits your lifestyle best."
       />
 
       <MotionSection className="bg-subtle py-8 sm:py-12 lg:py-16">

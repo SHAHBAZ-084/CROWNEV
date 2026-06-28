@@ -143,7 +143,7 @@ export function BranchOrdersPage() {
     setSaving(true);
     try {
       await branchApi.approvePayment(Number(paymentModal.id), approved, approved ? biltyId.trim() : undefined);
-      toast(approved ? 'Payment verified — order confirmed' : 'Payment rejected', approved ? 'success' : 'error');
+      toast(approved ? 'Payment verified. Order confirmed' : 'Payment rejected', approved ? 'success' : 'error');
       setPaymentModal(null);
       setBiltyId('');
       reload();
@@ -165,7 +165,7 @@ export function BranchOrdersPage() {
     setSaving(true);
     try {
       await branchApi.setBiltyCharges(Number(biltyChargesModal.id), amount);
-      toast('Bilty charges set — customer can now pay', 'success');
+      toast('Bilty charges set. Customer can now pay', 'success');
       setBiltyChargesModal(null);
       setBiltyCharges('');
       reload();
@@ -194,7 +194,7 @@ export function BranchOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Branch Orders" subtitle="Online orders — set bilty charges, verify payment, assign bilty ID" />
+      <PageHeader title="Branch Orders" subtitle="Online orders. Set bilty charges, verify payment, and assign bilty ID" />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
         <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
@@ -250,7 +250,7 @@ export function BranchOrdersPage() {
             <p><span className="text-slate-500">Payment:</span> {String(detail.paymentMethod)} <PaymentStatusBadge order={detail as unknown as Order} /></p>
             {isAwaitingPaymentVerification(detail as unknown as Order) && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Payment proof submitted — use Verify to approve or reject after checking TID and screenshot.
+                Payment proof submitted. Use Verify to approve or reject after checking TID and screenshot.
               </div>
             )}
             <p><span className="text-slate-500">Subtotal:</span> {formatPKR(Number(detail.subtotal ?? detail.total))}</p>
@@ -474,7 +474,7 @@ export function BranchInventoryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Stock"
-        subtitle="View branch inventory — add items from the catalog; quantities update via purchase invoices"
+        subtitle="View branch inventory. Add items from the catalog; quantities update via purchase invoices"
       />
 
       <p className="rounded-[var(--radius-card)] border border-border bg-surface-alt/60 px-4 py-3 text-sm text-text-muted">
@@ -651,7 +651,7 @@ export function BranchInventoryPage() {
       <Modal
         open={!!chassisModalItem}
         onClose={() => { setChassisModalItem(null); setChassisList([]); }}
-        title={`Chassis numbers — ${chassisModalItem?.name ?? ''}`}
+        title={`Chassis numbers for ${chassisModalItem?.name ?? ''}`}
       >
         {chassisLoading ? (
           <p className="py-6 text-center text-sm text-text-muted">Loading chassis numbers…</p>
