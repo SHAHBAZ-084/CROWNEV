@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator } from 'lucide-react';
+import { publicApi } from '../../api/client';
+import type { Product } from '../../types';
 import { fadeUp, defaultViewport, motionTransition, staggerContainer } from '../../lib/publicMotion';
 import { formatPKR } from '../../lib/format';
+import { deriveKmPerElectricityUnit } from '../../lib/evSpecs';
 import { SectionHeadingIcon } from './SectionHeadingIcon';
 
 // ─── Tunable constants (no backend) ───────────────────────────────────────────
@@ -25,13 +28,6 @@ const DAILY_DISTANCE_MAX = 100;
 const DAILY_DISTANCE_DEFAULT = 30;
 
 const MODEL_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026] as const;
-
-const ELECTRIC_BIKE_MODELS = [
-  { id: 'pro-x1', label: 'Crown Ev Pro X1', kmPerUnit: 45 },
-  { id: 'city-s', label: 'Crown Ev City S', kmPerUnit: 50 },
-  { id: 'urban-lite', label: 'Crown Ev Urban Lite', kmPerUnit: 55 },
-  { id: 'delivery-max', label: 'Crown Ev Delivery Max', kmPerUnit: 40 },
-] as const;
 
 const PETROL_BIKE_MODELS = [
   { id: '70cc', label: '70cc Petrol Bike', kmPerLiter: 50 },
@@ -124,15 +120,39 @@ function Field({
   );
 }
 
+function electricBikeOptions(products: Product[]) {
+  return products.map((p) => ({
+    id: p.id,
+    label: p.name,
+    kmPerUnit: deriveKmPerElectricityUnit(p.specs as Record<string, unknown> | null),
+  }));
+}
+
 export function SavingsCalculator() {
-  const [electricModelId, setElectricModelId] = useState<string>(ELECTRIC_BIKE_MODELS[0].id);
+  const [bikes, setBikes] = useState<Product[]>([]);
+  const [bikesLoading, setBikesLoading] = useState(true);
+  const [electricModelId, setElectricModelId] = useState('');
   const [petrolModelId, setPetrolModelId] = useState<string>(PETROL_BIKE_MODELS[1].id);
   const [petrolPrice, setPetrolPrice] = useState(PETROL_PRICE_DEFAULT);
   const [modelYear, setModelYear] = useState<number>(2024);
   const [dailyDistance, setDailyDistance] = useState(DAILY_DISTANCE_DEFAULT);
 
+  useEffect(() => {
+    publicApi
+      .shop({ type: 'BIKE', limit: '100' })
+      .then((res) => {
+        setBikes(res.data);
+        if (res.data.length > 0) setElectricModelId(res.data[0].id);
+      })
+      .catch(console.error)
+      .finally(() => setBikesLoading(false));
+  }, []);
+
+  const electricBikes = useMemo(() => electricBikeOptions(bikes), [bikes]);
+
   const results = useMemo(() => {
-    const electricBike = ELECTRIC_BIKE_MODELS.find((m) => m.id === electricModelId) ?? ELECTRIC_BIKE_MODELS[0];
+    const electricBike =
+      electricBikes.find((m) => m.id === electricModelId) ?? electricBikes[0] ?? { kmPerUnit: 45 };
     const petrolBike = PETROL_BIKE_MODELS.find((m) => m.id === petrolModelId) ?? PETROL_BIKE_MODELS[1];
     const price = clampPetrolPrice(petrolPrice);
 
@@ -165,7 +185,11 @@ export function SavingsCalculator() {
         { name: 'Savings', value: fuelSavings, color: ELECTRIC_CHART_COLORS[2] },
       ] as ChartRow[],
     };
-  }, [electricModelId, petrolModelId, petrolPrice, modelYear, dailyDistance]);
+  }, [electricModelId, petrolModelId, petrolPrice, modelYear, dailyDistance, electricBikes]);
+
+  if (!bikesLoading && electricBikes.length === 0) {
+    return null;
+  }
 
   return (
     <motion.section
@@ -197,10 +221,15 @@ export function SavingsCalculator() {
                   value={electricModelId}
                   onChange={(e) => setElectricModelId(e.target.value)}
                   className={inputClass}
+                  disabled={bikesLoading || electricBikes.length === 0}
                 >
-                  {ELECTRIC_BIKE_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{m.label}</option>
-                  ))}
+                  {bikesLoading ? (
+                    <option value="">Loading models…</option>
+                  ) : (
+                    electricBikes.map((m) => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))
+                  )}
                 </select>
               </Field>
 

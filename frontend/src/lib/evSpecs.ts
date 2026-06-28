@@ -200,6 +200,34 @@ export type GroupedSpecEntry = { key: string; label: string; value: string };
 
 export type SpecGroup = { title: string; entries: GroupedSpecEntry[] };
 
+/** km per kWh (electricity unit) for savings calculator — from range and battery specs. */
+export function deriveKmPerElectricityUnit(
+  specs: Record<string, unknown> | null | undefined,
+  fallback = 45,
+): number {
+  const normalized = normalizeProductSpecs(specs);
+
+  const parseNum = (key: EvSpecKey): number | null => {
+    const value = getSpecDefault(normalized, key);
+    if (!value) return null;
+    const n = parseFloat(value.replace(/[^\d.]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const rangeMax = parseNum('range_eco_max_km');
+  const rangeMin = parseNum('range_eco_min_km');
+  const range = rangeMax ?? rangeMin;
+  const voltage = parseNum('battery_voltage');
+  const ah = parseNum('battery_capacity_ah');
+
+  if (range && voltage && ah) {
+    const kwh = (voltage * ah) / 1000;
+    if (kwh > 0) return range / kwh;
+  }
+
+  return fallback;
+}
+
 export function groupedSpecEntries(
   specs: Record<string, unknown> | null | undefined,
 ): SpecGroup[] {

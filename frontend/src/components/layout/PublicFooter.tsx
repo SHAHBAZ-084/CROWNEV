@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Calendar, ChevronUp, Mail, MapPin, Phone, ShoppingCart } from 'lucide-react';
 import { Logo } from '../brand/Logo';
-import { FacebookIcon, InstagramIcon, TikTokIcon, YoutubeIcon } from '../icons/BrandIcons';
+import { FacebookIcon, InstagramIcon, TikTokIcon } from '../icons/BrandIcons';
 import { ctaArrowClass } from '../../lib/publicMotion';
 import { FOOTER_CONTACT, toTelHref } from '../../lib/placeholders';
 import { useScrollPast } from '../../hooks/useScrollPast';
@@ -107,10 +107,9 @@ export function PublicFooter() {
               Pakistan&apos;s premium electric mobility platform. Ride the future, branch by branch.
             </p>
             <div className="mt-5 flex gap-2.5">
-              <SocialIcon href="https://facebook.com" label="Facebook" icon={FacebookIcon} />
-              <SocialIcon href="https://instagram.com" label="Instagram" icon={InstagramIcon} />
-              <SocialIcon href="https://youtube.com" label="YouTube" icon={YoutubeIcon} />
-              <SocialIcon href="https://tiktok.com" label="TikTok" icon={TikTokIcon} />
+              <SocialIcon href="https://web.facebook.com/hadievcenter/" label="Facebook" icon={FacebookIcon} />
+              <SocialIcon href="https://www.instagram.com/hadievcenter/" label="Instagram" icon={InstagramIcon} />
+              <SocialIcon href="https://www.tiktok.com/@crownevcenter/" label="TikTok" icon={TikTokIcon} />
             </div>
           </div>
 
