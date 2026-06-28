@@ -2,19 +2,19 @@
 
 export const FOUNDERS = [
   {
-    name: 'Ahmed Raza',
-    title: 'Founder & CEO',
+    name: 'Mohsin Ashraf Ch',
+    title: 'Founder',
     vision:
       'Electric mobility should not be a luxury in Pakistan — it should be reliable, affordable, and available in every major city.',
-    bio: 'Ahmed founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
+    bio: 'Mohsin founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
     image: '/images/about-founder-ahmed.webp',
   },
   {
-    name: 'Bilal Khan',
-    title: 'Co-Founder & COO',
+    name: 'Sufi Muhammad Saleemullah',
+    title: 'Co-Founder',
     vision:
       'Every rider deserves honest service, genuine parts, and a branch they can trust — that is the Crown Ev promise on the ground.',
-    bio: 'Bilal builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
+    bio: 'Sufi builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
     image: '/images/about-founder-bilal.webp',
   },
 ] as const;

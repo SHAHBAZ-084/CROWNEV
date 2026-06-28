@@ -89,7 +89,7 @@ export function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="mx-auto flex max-w-4xl flex-col gap-4 sm:gap-5">
+          <div className="mx-auto flex max-w-4xl flex-col gap-6 lg:gap-8">
             {FOUNDERS.map((f, i) => (
               <motion.article
                 key={f.name}
@@ -97,26 +97,36 @@ export function AboutPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="flex flex-col overflow-hidden rounded-xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] sm:flex-row"
+                className="flex flex-col overflow-hidden rounded-2xl border border-border-light bg-elevated shadow-[var(--shadow-elevated)] transition-shadow hover:shadow-[var(--shadow-elevated-hover)] sm:min-h-[22rem] sm:flex-row lg:min-h-[24rem]"
               >
-                <div className="h-48 w-full shrink-0 overflow-hidden bg-subtle sm:h-44 sm:w-36 md:w-40">
-                  <img
-                    src={f.image}
-                    alt={f.name}
-                    loading="lazy"
-                    decoding="async"
-                    width={400}
-                    height={480}
-                    className="h-full w-full object-cover object-top"
-                  />
+                <div className="relative w-full shrink-0 bg-subtle sm:w-52 md:w-60 lg:w-64">
+                  <div className="aspect-[4/5] sm:absolute sm:inset-0 sm:aspect-auto">
+                    <img
+                      src={f.image}
+                      alt={f.name}
+                      loading="lazy"
+                      decoding="async"
+                      width={400}
+                      height={480}
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </div>
                 </div>
-                <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
-                  <h3 className="font-display text-lg font-bold text-ink">{f.name}</h3>
-                  <p className="mt-0.5 text-sm font-semibold text-accent">{f.title}</p>
-                  <blockquote className="mt-3 border-l-2 border-accent/35 pl-3 text-sm italic leading-snug text-ink/80">
-                    &ldquo;{f.vision}&rdquo;
+                <div className="flex min-w-0 flex-1 flex-col justify-center px-6 py-8 sm:px-8 sm:py-10 lg:px-10">
+                  <span className="inline-flex w-fit rounded-full bg-accent/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+                    {f.title}
+                  </span>
+                  <h3 className="mt-4 font-display text-2xl font-bold leading-tight text-ink sm:text-3xl lg:text-[2rem]">
+                    {f.name}
+                  </h3>
+                  <div className="mt-3 h-1 w-14 rounded-full bg-accent" aria-hidden />
+                  <blockquote className="relative mt-6 text-base italic leading-relaxed text-ink/80 sm:text-lg">
+                    <span className="pointer-events-none absolute -left-1 -top-3 font-display text-4xl leading-none text-accent/20" aria-hidden>
+                      &ldquo;
+                    </span>
+                    {f.vision}
                   </blockquote>
-                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-muted">{f.bio}</p>
+                  <p className="mt-5 text-sm leading-relaxed text-ink-muted sm:text-base">{f.bio}</p>
                 </div>
               </motion.article>
             ))}
