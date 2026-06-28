@@ -365,15 +365,8 @@ async function main() {
 
   const hadiBranch = await prisma.branch.upsert({
     where: { id: 1 },
-    update: {
-      name: HADI_EV_CENTER.name,
-      location: HADI_EV_CENTER.location,
-      phone: HADI_EV_CENTER.phone,
-      whatsapp: HADI_EV_CENTER.whatsapp,
-      latitude: HADI_EV_CENTER.latitude,
-      longitude: HADI_EV_CENTER.longitude,
-      description: HADI_EV_CENTER.description,
-    },
+    // Do not overwrite admin-edited branch copy on re-seed (name, description, photo, etc.)
+    update: {},
     create: {
       name: HADI_EV_CENTER.name,
       location: HADI_EV_CENTER.location,

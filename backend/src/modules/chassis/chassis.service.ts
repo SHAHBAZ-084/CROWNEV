@@ -141,7 +141,7 @@ export async function markChassisSoldInTx(
     },
   });
   if (!chassis) {
-    throw new AppError(409, 'Selected chassis is not available for sale');
+    throw new AppError(409, 'Selected chassis number is not available for sale');
   }
 
   const updated = await tx.bikeChassisNumber.updateMany({
@@ -157,7 +157,7 @@ export async function markChassisSoldInTx(
   });
 
   if (updated.count !== 1) {
-    throw new AppError(409, 'Selected chassis is not available for sale');
+    throw new AppError(409, 'Selected chassis number is not available for sale');
   }
 
   return chassis;

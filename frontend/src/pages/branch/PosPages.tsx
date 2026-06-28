@@ -857,7 +857,7 @@ export function PosSaleInvoicePage() {
     }
     const chassisIds = lineDetails.map((l) => l.bikeChassisNumberId).filter(Boolean);
     if (new Set(chassisIds).size !== chassisIds.length) {
-      toast('Duplicate chassis selection', 'error');
+      toast('Duplicate chassis number selection', 'error');
       return;
     }
     setSaving(true);
@@ -998,8 +998,8 @@ export function PosSaleInvoicePage() {
                   }))}
                   placeholder={
                     (chassisOptions[line.key]?.length ?? 0) === 0
-                      ? 'No chassis in stock for this model'
-                      : 'Search chassis…'
+                      ? 'No chassis numbers in stock for this model'
+                      : 'Search chassis number…'
                   }
                 />
               )}
@@ -1285,7 +1285,7 @@ export function PosPurchaseInvoicePage() {
       try {
         await branchApi.validateChassisNumbers(branchId, allChassis);
       } catch (err) {
-        toast(err instanceof Error ? err.message : 'Chassis validation failed', 'error');
+        toast(err instanceof Error ? err.message : 'Chassis number validation failed', 'error');
         return;
       }
     }
@@ -1442,7 +1442,7 @@ export function PosPurchaseInvoicePage() {
                   {resizeChassisNumbers(line.chassisNumbers, line.qty).map((num, idx) => (
                     <Input
                       key={`${line.key}-chassis-${idx}`}
-                      label={`Chassis #${idx + 1}`}
+                      label={`Chassis number ${idx + 1}`}
                       value={num}
                       required
                       placeholder="Unique chassis number"

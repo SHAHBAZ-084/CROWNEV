@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, KeyRound, Mail, MapPin, Pencil, Phone, Shield, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FileText, KeyRound, Mail, MapPin, Pencil, Phone, Shield, Trash2, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerApi } from '../../api/client';
 import type { Booking, InvoiceData, Order } from '../../types';
@@ -349,7 +349,7 @@ export function CustomerOrdersPage() {
                     <li key={i} className="flex justify-between border-b border-slate-200 py-2">
                       <span>
                         {item.product?.name ?? 'Product'} ×{item.quantity}
-                        {item.chassisNumber && <span className="block text-xs text-slate-500">Chassis: {item.chassisNumber}</span>}
+                        {item.chassisNumber && <span className="block text-xs text-slate-500">Chassis number: {item.chassisNumber}</span>}
                       </span>
                       <span className="tabular-nums text-slate-900">{formatPKR(Number(item.total))}</span>
                     </li>
@@ -462,12 +462,15 @@ function ProfileField({
 }
 
 export function CustomerProfilePage() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -480,7 +483,7 @@ export function CustomerProfilePage() {
         phone: String(fd.get('phone') || '') || undefined,
         city: String(fd.get('city') || '') || undefined,
       });
-      setUser(updated);
+      setUser({ ...user!, ...updated });
       toast('Profile updated', 'success');
       setEditing(false);
     } catch (err) {
@@ -516,6 +519,27 @@ export function CustomerProfilePage() {
       toast(err instanceof Error ? err.message : 'Failed to update password', 'error');
     } finally {
       setChangingPassword(false);
+    }
+  }
+
+  async function handleDeleteAccount(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setDeletingAccount(true);
+    try {
+      if (user?.hasPassword !== false) {
+        await customerApi.deleteAccount({ currentPassword: String(fd.get('currentPassword')) });
+      } else {
+        await customerApi.deleteAccount({ confirmEmail: String(fd.get('confirmEmail')) });
+      }
+      toast('Your account has been deleted', 'success');
+      setDeleteOpen(false);
+      logout();
+      navigate('/', { replace: true });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to delete account', 'error');
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -579,10 +603,12 @@ export function CustomerProfilePage() {
               </div>
 
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                <Button variant="secondary" size="sm" onClick={() => setPasswordOpen(true)}>
-                  <KeyRound className="h-4 w-4" />
-                  Change Password
-                </Button>
+                {user?.hasPassword !== false && (
+                  <Button variant="secondary" size="sm" onClick={() => setPasswordOpen(true)}>
+                    <KeyRound className="h-4 w-4" />
+                    Change Password
+                  </Button>
+                )}
                 <Button variant="accent" size="sm" onClick={() => setEditing(true)}>
                   <Pencil className="h-4 w-4" />
                   Edit Profile
@@ -626,23 +652,47 @@ export function CustomerProfilePage() {
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-xl border border-dashed border-accent/30 bg-gradient-to-br from-accent/5 to-transparent p-5">
+                {user?.hasPassword !== false && (
+                  <div className="rounded-xl border border-dashed border-accent/30 bg-gradient-to-br from-accent/5 to-transparent p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                        <KeyRound className="h-5 w-5 text-accent" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-text">Password</p>
+                        <p className="mt-1 text-sm text-text-muted">
+                          Use a strong password and update it regularly.
+                        </p>
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          className="mt-4"
+                          onClick={() => setPasswordOpen(true)}
+                        >
+                          Change Password
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-xl border border-dashed border-red-200 bg-red-50/40 p-5">
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                      <KeyRound className="h-5 w-5 text-accent" />
+                      <Trash2 className="h-5 w-5 text-red-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-text">Password</p>
+                      <p className="font-medium text-text">Delete account</p>
                       <p className="mt-1 text-sm text-text-muted">
-                        Use a strong password and update it regularly.
+                        Permanently deactivate your Crown Ev account. You will not be able to sign in again.
                       </p>
                       <Button
-                        variant="accent"
+                        variant="danger"
                         size="sm"
                         className="mt-4"
-                        onClick={() => setPasswordOpen(true)}
+                        onClick={() => setDeleteOpen(true)}
                       >
-                        Change Password
+                        Delete Account
                       </Button>
                     </div>
                   </div>
@@ -685,6 +735,41 @@ export function CustomerProfilePage() {
             </Link>
           </p>
           <FormActions onCancel={() => setPasswordOpen(false)} loading={changingPassword} />
+        </form>
+      </Modal>
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete Account">
+        <form onSubmit={handleDeleteAccount} className="space-y-4">
+          <p className="text-sm leading-relaxed text-text-muted">
+            This will deactivate your account immediately. You will be signed out and will not be able to log in again.
+            Your order history is kept for branch records.
+          </p>
+          {user?.hasPassword === false ? (
+            <Input
+              name="confirmEmail"
+              label="Confirm your email address"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder={user?.email ?? ''}
+            />
+          ) : (
+            <Input
+              name="currentPassword"
+              label="Current Password"
+              type="password"
+              required
+              autoComplete="current-password"
+            />
+          )}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" loading={deletingAccount}>
+              Delete Account
+            </Button>
+          </div>
         </form>
       </Modal>
     </div>

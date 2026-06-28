@@ -429,7 +429,7 @@ export async function createSaleInvoice(data: {
 
   const chassisIds = data.items.map((i) => i.bikeChassisNumberId).filter(Boolean) as number[];
   if (new Set(chassisIds).size !== chassisIds.length) {
-    throw new AppError(400, 'Duplicate chassis selection');
+    throw new AppError(400, 'Duplicate chassis number selection');
   }
 
   const partProductIds = new Set<string>();
@@ -458,7 +458,7 @@ export async function createSaleInvoice(data: {
 
     if (priced.product.type === ProductType.BIKE) {
       if (input.quantity !== 1) {
-        throw new AppError(400, 'Bike sales must have quantity 1 — select one chassis per line');
+        throw new AppError(400, 'Bike sales must have quantity 1 — select one chassis number per line');
       }
       if (!input.bikeChassisNumberId) {
         throw new AppError(400, `Select a chassis number for "${priced.product.name}"`);

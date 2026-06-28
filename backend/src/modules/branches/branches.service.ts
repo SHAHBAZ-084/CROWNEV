@@ -54,7 +54,7 @@ export async function updateBranch(
     location: string;
     phone: string;
     whatsapp: string;
-    description: string;
+    description: string | null;
     imageUrl: string | null;
     latitude: number | null;
     longitude: number | null;
@@ -67,7 +67,19 @@ export async function updateBranch(
       await deleteBranchImageFile(existing.imageUrl);
     }
   }
-  return prisma.branch.update({ where: { id }, data });
+
+  const updateData: Prisma.BranchUpdateInput = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.location !== undefined) updateData.location = data.location;
+  if (data.phone !== undefined) updateData.phone = data.phone;
+  if (data.whatsapp !== undefined) updateData.whatsapp = data.whatsapp;
+  if ('description' in data) updateData.description = data.description;
+  if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+  if (data.latitude !== undefined) updateData.latitude = data.latitude;
+  if (data.longitude !== undefined) updateData.longitude = data.longitude;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+  return prisma.branch.update({ where: { id }, data: updateData });
 }
 
 const UNCLEARED_OPERATIONAL_KEYS = [

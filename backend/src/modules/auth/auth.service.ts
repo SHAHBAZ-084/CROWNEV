@@ -356,9 +356,10 @@ const userSelect = {
 export async function getMe(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: userSelect,
+    select: { ...userSelect, passwordHash: true },
   });
-  return authUserPayload(user);
+  const { passwordHash, ...rest } = user;
+  return { ...authUserPayload(rest), hasPassword: !!passwordHash };
 }
 
 export async function updateProfile(
@@ -368,9 +369,10 @@ export async function updateProfile(
   const user = await prisma.user.update({
     where: { id: userId },
     data,
-    select: userSelect,
+    select: { ...userSelect, passwordHash: true },
   });
-  return authUserPayload(user);
+  const { passwordHash, ...rest } = user;
+  return { ...authUserPayload(rest), hasPassword: !!passwordHash };
 }
 
 export async function changePassword(
@@ -393,6 +395,32 @@ export async function changePassword(
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   return { message: 'Password updated successfully' };
+}
+
+export async function deleteMyAccount(
+  userId: string,
+  data: { currentPassword?: string; confirmEmail?: string },
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, 'User not found');
+  if (user.role !== Role.CUSTOMER) {
+    throw new AppError(403, 'Only customer accounts can be deleted from profile');
+  }
+  if (!user.isActive) throw new AppError(400, 'Account already deactivated');
+
+  if (user.passwordHash) {
+    if (!data.currentPassword) throw new AppError(400, 'Current password is required');
+    const valid = await comparePassword(data.currentPassword, user.passwordHash);
+    if (!valid) throw new AppError(401, 'Current password is incorrect');
+  } else {
+    const confirmed = data.confirmEmail?.trim().toLowerCase();
+    if (!confirmed || confirmed !== user.email.toLowerCase()) {
+      throw new AppError(400, 'Enter your email address to confirm account deletion');
+    }
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { isActive: false } });
+  return { message: 'Account deleted successfully' };
 }
 
 /** Remove customer accounts that were created before email verification was enforced. */

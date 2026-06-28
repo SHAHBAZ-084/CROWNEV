@@ -138,3 +138,19 @@ authRouter.post(
     res.json(result);
   })
 );
+
+authRouter.post(
+  '/delete-account',
+  authenticate,
+  authLimiter,
+  validateBody(
+    z.object({
+      currentPassword: z.string().optional(),
+      confirmEmail: z.string().email().optional(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const result = await authService.deleteMyAccount(req.user!.userId, req.body);
+    res.json(result);
+  }),
+);

@@ -6,7 +6,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/crownev}"
 APP_USER="${APP_USER:-crownev}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
-RUN_DB_SEED="${RUN_DB_SEED:-1}"
+RUN_DB_SEED="${RUN_DB_SEED:-0}"
 RUN_PARTS_SEED="${RUN_PARTS_SEED:-0}"
 
 if ! id -u "${APP_USER}" >/dev/null 2>&1; then

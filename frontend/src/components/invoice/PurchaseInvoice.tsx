@@ -136,7 +136,7 @@ export function PurchaseInvoice({
                   <p className="font-medium text-slate-900">{item.name}</p>
                   <p className={invoiceSubtext}>{item.type}</p>
                   {item.chassisNumber && (
-                    <p className={invoiceSubtext}>Chassis: {item.chassisNumber}</p>
+                    <p className={invoiceSubtext}>Chassis number: {item.chassisNumber}</p>
                   )}
                 </td>
                 <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>

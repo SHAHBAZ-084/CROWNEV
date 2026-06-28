@@ -119,7 +119,7 @@ function FaqItem({
 }
 
 export function HomeFaqSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   function toggle(index: number) {
     setOpenIndex((prev) => (prev === index ? null : index));

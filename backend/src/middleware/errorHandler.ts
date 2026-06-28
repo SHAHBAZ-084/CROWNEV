@@ -21,7 +21,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
         return;
       }
       if (fields.some((field) => String(field).includes('saleOrderItemId'))) {
-        res.status(409).json({ error: 'This chassis is already linked to a sale line' });
+        res.status(409).json({ error: 'This chassis number is already linked to a sale line' });
         return;
       }
       res.status(409).json({

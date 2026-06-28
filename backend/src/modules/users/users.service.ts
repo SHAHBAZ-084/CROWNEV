@@ -163,6 +163,10 @@ export async function deleteUser(id: string) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new AppError(404, 'User not found');
   if (!user.isActive) throw new AppError(400, 'User already deactivated');
+  if (user.role === Role.ADMIN) throw new AppError(403, 'System admin accounts cannot be deleted');
+  if (user.role !== Role.BRANCH_OWNER && user.role !== Role.CUSTOMER) {
+    throw new AppError(403, 'This account type cannot be deleted');
+  }
 
   return prisma.$transaction(async (tx) => {
     if (user.role === Role.BRANCH_OWNER) {

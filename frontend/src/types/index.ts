@@ -12,6 +12,7 @@ export interface User {
   city?: string | null;
   branchId?: number | null;
   branchPermission?: BranchPermission;
+  hasPassword?: boolean;
 }
 
 export interface Product {

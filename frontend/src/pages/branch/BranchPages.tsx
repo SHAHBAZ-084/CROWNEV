@@ -625,7 +625,7 @@ export function BranchInventoryPage() {
                   <div className="flex flex-wrap items-center justify-end gap-1">
                     {row.type === 'BIKE' && row.source === 'PRODUCT' && (
                       <Button variant="ghost" size="sm" onClick={() => openChassisView(row)}>
-                        View Chassis
+                        View chassis numbers
                       </Button>
                     )}
                     <Button

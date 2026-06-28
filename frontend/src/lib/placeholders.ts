@@ -14,7 +14,7 @@ export const FOUNDERS = [
     title: 'Co-Founder',
     vision:
       'Every rider deserves honest service, genuine parts, and a branch they can trust. That is the Crown Ev promise on the ground.',
-    bio: 'Sufi runs day to day operations across the Crown Ev branch network. He oversees service bookings, genuine parts and inventory, branch sales, and the standards that keep every showroom delivering the same quality customers expect online and in person.',
+    bio: 'He provides leadership and management support across the Crown Ev network, guiding branch teams, strengthening customer standards, and helping the brand grow with the same trust and quality riders expect from Crown electric mobility.',
     image: '/images/about-founder-sufi.webp',
   },
 ] as const;

@@ -98,7 +98,8 @@ function useCrudList(loader: () => Promise<unknown>, deps: readonly unknown[] = 
 
   const reload = useCallback(() => {
     setLoading(true);
-    loaderRef.current()
+    return loaderRef
+      .current()
       .then((r) => {
         const list = Array.isArray(r) ? r : (r as { data: unknown[] }).data;
         setRows(list as Row[]);
@@ -260,12 +261,13 @@ export function AdminBranchesPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const description = String(fd.get('description') ?? '').trim();
     const body: Record<string, unknown> = {
       name: String(fd.get('name')),
       location: String(fd.get('location')),
       phone: String(fd.get('phone')),
-      whatsapp: String(fd.get('whatsapp') || '') || undefined,
-      description: String(fd.get('description') || '') || undefined,
+      whatsapp: String(fd.get('whatsapp') || '').trim() || undefined,
+      ...(modal === 'edit' ? { description: description || null } : description ? { description } : {}),
       ...coordFields(fd, modal === 'edit' ? 'edit' : 'create'),
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
     };
@@ -293,9 +295,9 @@ export function AdminBranchesPage() {
           longitude?: number | null;
         });
       }
+      await reload();
       toast(modal === 'edit' ? 'Branch updated' : 'Branch created', 'success');
       setModal(null);
-      reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
     } finally {
@@ -335,6 +337,20 @@ export function AdminBranchesPage() {
           { key: 'name', header: 'Name' },
           { key: 'location', header: 'Location' },
           { key: 'phone', header: 'Phone' },
+          {
+            key: 'description',
+            header: 'About description',
+            render: (r) => {
+              const text = String(r.description ?? '').trim();
+              return text ? (
+                <span className="line-clamp-2 max-w-xs text-xs text-text-muted" title={text}>
+                  {text}
+                </span>
+              ) : (
+                <span className="text-xs text-text-muted">—</span>
+              );
+            },
+          },
           { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
           { key: 'actions', header: 'Actions', className: 'whitespace-nowrap w-40', render: (r) => (
             <RowActions
@@ -364,7 +380,7 @@ export function AdminBranchesPage() {
         onCleared={reload}
       />
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'edit' ? 'Edit Branch' : 'New Branch'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}`} onSubmit={handleSubmit} className="space-y-4">
           <Input name="name" label="Name" required defaultValue={String(edit?.name ?? '')} />
           <Input name="location" label="Location" required defaultValue={String(edit?.location ?? '')} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -888,11 +904,22 @@ export function AdminUsersPage() {
   const [edit, setEdit] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [branches, setBranches] = useState<Row[]>([]);
-  const del = useDeleteConfirm<Row>(async (item) => {
-    await adminApi.deleteUser(String(item.id));
-    toast('User deleted', 'success');
-    reload();
-  });
+  const del = useDeleteConfirm<Row>(
+    async (item) => {
+      await adminApi.deleteUser(String(item.id));
+      toast('User deactivated', 'success');
+      reload();
+    },
+    {
+      message: (item) => {
+        const name = `${String(item.firstName ?? '')} ${String(item.lastName ?? '')}`.trim() || String(item.email);
+        if (item.role === 'CUSTOMER') {
+          return `Deactivate customer account for ${name}? They will no longer be able to sign in. Order history is kept for records.`;
+        }
+        return `Deactivate branch owner account for ${name}? They will lose branch dashboard access.`;
+      },
+    },
+  );
 
   useEffect(() => {
     if (!modal) return;
@@ -938,13 +965,14 @@ export function AdminUsersPage() {
   }
 
   const editingAdmin = modal === 'edit' && edit?.role === 'ADMIN';
-  const canManage = (role: unknown) => role === 'BRANCH_OWNER';
+  const canEdit = (role: unknown) => role === 'BRANCH_OWNER';
+  const canDelete = (role: unknown) => role === 'BRANCH_OWNER' || role === 'CUSTOMER';
 
   return (
     <div>
       <PageHeader
         title="Users"
-        subtitle="Create and manage branch owner accounts"
+        subtitle="Manage branch owner and customer accounts"
         action={<Button variant="accent" onClick={() => { setEdit(null); setModal('create'); }}>Add Branch Owner</Button>}
       />
       <div className="mb-4 max-w-md">
@@ -969,8 +997,8 @@ export function AdminUsersPage() {
           { key: 'isVerified', header: 'Verified', render: (r) => r.isVerified ? 'Yes' : 'No' },
           { key: 'actions', header: '', render: (r) => (
             <RowActions
-              onEdit={canManage(r.role) ? () => { setEdit(r); setModal('edit'); } : undefined}
-              onDelete={canManage(r.role) ? () => del.setTarget(r) : undefined}
+              onEdit={canEdit(r.role) ? () => { setEdit(r); setModal('edit'); } : undefined}
+              onDelete={canDelete(r.role) ? () => del.setTarget(r) : undefined}
             />
           ) },
         ]}

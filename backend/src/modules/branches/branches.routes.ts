@@ -13,7 +13,7 @@ export const branchesRouter = Router();
 
 branchesRouter.get(
   '/public',
-  cachePublicJson(300),
+  cachePublicJson(30),
   asyncHandler(async (_req, res) => {
     const branches = await branchesService.listBranches(true);
     res.json(branches);
@@ -123,7 +123,7 @@ branchesRouter.post(
       location: z.string().min(1),
       phone: z.string().min(1),
       whatsapp: z.string().optional(),
-      description: z.string().optional(),
+      description: z.string().nullable().optional(),
       imageUrl: z
         .union([z.string().startsWith('/uploads/branches/'), z.string().url()])
         .optional(),
@@ -146,7 +146,7 @@ branchesRouter.patch(
       location: z.string().optional(),
       phone: z.string().optional(),
       whatsapp: z.string().optional(),
-      description: z.string().optional(),
+      description: z.string().nullable().optional(),
       imageUrl: z
         .union([z.string().startsWith('/uploads/branches/'), z.string().url()])
         .nullable()

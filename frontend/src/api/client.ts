@@ -147,6 +147,11 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
+  deleteAccount: (data: { currentPassword?: string; confirmEmail?: string }) =>
+    api<{ message: string }>('/auth/delete-account', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const publicApi = {
@@ -208,6 +213,8 @@ export const customerApi = {
     authApi.updateProfile(data),
   changePassword: (currentPassword: string, newPassword: string) =>
     authApi.changePassword(currentPassword, newPassword),
+  deleteAccount: (data: { currentPassword?: string; confirmEmail?: string }) =>
+    authApi.deleteAccount(data),
 };
 
 export const adminApi = {
