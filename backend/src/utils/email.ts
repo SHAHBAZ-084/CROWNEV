@@ -36,6 +36,20 @@ function resendSandboxHint(message: string): string | null {
   return `Resend test mode only sends OTP emails to ${match[1]}. Register with that address, or verify your domain at resend.com/domains for production.`;
 }
 
+function parseFromAddress(raw: string): { name?: string; address: string } {
+  const angle = raw.match(/^(.+?)\s*<([^>]+)>$/);
+  if (angle) {
+    return { name: angle[1].replace(/^"|"$/g, '').trim(), address: angle[2].trim() };
+  }
+  return { address: raw.replace(/^"|"$/g, '').trim() };
+}
+
+/** Inbox shows display name (e.g. OTP, Contact) instead of the mailbox local-part. */
+function formatFrom(displayName: string, fromOverride?: string): string {
+  const { address } = parseFromAddress(fromOverride ?? env.smtp.from);
+  return `"${displayName}" <${address}>`;
+}
+
 function logDevOtp(email: string, otp: string, purpose: string, smtpNote?: string) {
   if (env.nodeEnv === 'production') return;
   console.log(`[DEV] OTP for ${email} (${purpose}): ${otp}`);
@@ -51,7 +65,7 @@ export async function sendOtpEmail(email: string, otp: string, purpose: string) 
 
   try {
     const info = await transport.sendMail({
-      from: env.smtp.from,
+      from: formatFrom('OTP'),
       to: email,
       subject: `Crown Ev — ${purpose} OTP`,
       html: `
@@ -182,7 +196,7 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
 
   try {
     const info = await transport.sendMail({
-      from: env.smtp.from,
+      from: formatFrom('Crown Ev'),
       to: data.to,
       subject: `Crown Ev — Visit confirmed on ${visitDateLabel} at ${visitTimeLabel}`,
       html,
@@ -216,6 +230,7 @@ async function deliverMail(
   text: string,
   devLogLabel: string,
   replyTo?: string,
+  fromName = 'Contact',
 ): Promise<boolean> {
   const transport = getTransporter();
   if (!transport) {
@@ -226,7 +241,7 @@ async function deliverMail(
 
   try {
     const info = await transport.sendMail({
-      from: env.smtp.from,
+      from: formatFrom(fromName),
       to,
       subject,
       html,
