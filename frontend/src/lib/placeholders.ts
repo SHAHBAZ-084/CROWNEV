@@ -104,6 +104,19 @@ export const SITE_LOGO = {
   height: 267,
 } as const;
 
+/** Link previews (WhatsApp, Facebook, iMessage). Regenerate image: npm run generate:og-image */
+export const SITE_META = {
+  siteName: 'Crown Ev Center',
+  title: 'Crown Ev Center | Electric Bikes Pakistan',
+  description:
+    'Pakistan\'s trusted Crown electric bike dealer. Shop EV bikes and genuine parts online, book service at your branch, and visit showrooms in Chishtian & Bahawalnagar.',
+  url: 'https://crownevcenter.com/',
+  shareImage: '/images/og-share.jpg',
+  shareImageWidth: 1200,
+  shareImageHeight: 630,
+  locale: 'en_PK',
+} as const;
+
 /** Find a Branch section. dotted Pakistan map background */
 export const BRANCH_SECTION = {
   mapBackground: '/images/pakistan-map-orange.png',

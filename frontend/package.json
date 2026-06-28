@@ -12,7 +12,9 @@
     "optimize:about-video": "node scripts/optimize-about-video.mjs",
     "optimize:hero-images": "node scripts/optimize-hero-images.mjs",
     "optimize:founder-images": "node scripts/optimize-founder-images.mjs",
-    "optimize:home-hero-video": "node scripts/optimize-home-hero-video.mjs"
+    "optimize:home-hero-video": "node scripts/optimize-home-hero-video.mjs",
+    "generate:favicon": "node scripts/generate-favicon.mjs",
+    "generate:og-image": "node scripts/generate-og-image.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
