@@ -30,14 +30,61 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy over SSH
+      - name: Deploy over SSH (attempt 1/3)
+        id: deploy1
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ env.VPS_PORT }}
-          timeout: 60s
+          timeout: 120s
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export RUN_PARTS_SEED=0
+            export RUN_DB_SEED=1
+            bash /var/www/crownev/deploy/deploy-app.sh
+
+      - name: Wait before SSH retry
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy over SSH (attempt 2/3)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ env.VPS_PORT }}
+          timeout: 120s
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export RUN_PARTS_SEED=0
+            export RUN_DB_SEED=1
+            bash /var/www/crownev/deploy/deploy-app.sh
+
+      - name: Wait before final SSH retry
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy over SSH (attempt 3/3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ env.VPS_PORT }}
+          timeout: 120s
           command_timeout: 30m
           script_stop: true
           script: |
@@ -49,6 +96,8 @@ jobs:
       - name: SSH deploy failed — see DEPLOY.md
         if: failure()
         run: |
-          echo "::warning::GitHub Actions could not SSH to the VPS (dial tcp timeout)."
+          echo "::error::GitHub Actions could not SSH to ${{ env.VPS_HOST }}:22 (dial tcp i/o timeout)."
+          echo "The VPS poll-deploy cron still deploys within ~3 minutes after push."
           echo "Fix: Hostinger hPanel → VPS → Firewall → allow inbound TCP 22 from anywhere."
-          echo "Backup: poll-deploy cron on the VPS still deploys within ~3 minutes after push."
+          echo "Also confirm VPS → SSH access is enabled in hPanel."
+          exit 1

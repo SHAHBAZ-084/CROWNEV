@@ -6,7 +6,7 @@ export const FOUNDERS = [
     title: 'Founder',
     vision:
       'Electric mobility should not be a luxury in Pakistan. It should be reliable, affordable, and available in every major city.',
-    bio: 'Mohsin founded Crown Ev to make world-class EVs accessible nationwide. He leads product strategy, branch expansion, and the long-term vision for clean transport.',
+    bio: 'Mohsin established Crown Ev as a trusted dealer of Crown electric bikes in Pakistan. He leads sourcing, branch expansion, and the long term vision for accessible clean transport, from the online shop to every showroom floor.',
     image: '/images/about-founder-mohsin.webp',
   },
   {
@@ -14,14 +14,14 @@ export const FOUNDERS = [
     title: 'Co-Founder',
     vision:
       'Every rider deserves honest service, genuine parts, and a branch they can trust. That is the Crown Ev promise on the ground.',
-    bio: 'Sufi builds the operations behind the brand: service quality, supplier partnerships, and consistent standards across every showroom.',
+    bio: 'Sufi runs day to day operations across the Crown Ev branch network. He oversees service bookings, genuine parts and inventory, branch sales, and the standards that keep every showroom delivering the same quality customers expect online and in person.',
     image: '/images/about-founder-sufi.webp',
   },
 ] as const;
 
-export const COMPANY_STORY = `Crown Ev Bikes was born from a simple belief: Pakistan deserves world-class electric mobility without compromise. From our first showroom in Karachi to a growing network of branches nationwide, we combine premium EV engineering with local service expertise.
+export const COMPANY_STORY = `Crown Ev was founded on a simple belief: Pakistan deserves premium electric mobility without compromise. As a trusted dealer of Crown electric bikes, we bring quality models to riders through a growing network of branches, backed by local sales and service expertise you can rely on.
 
-Every Crown Ev bike is selected for Pakistani roads: heat-resistant batteries, robust suspension, and parts availability through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
+The Crown electric bikes we offer are well suited to Pakistani roads, with heat resistant batteries, robust suspension, and genuine parts stocked through our branch network. Whether you commute daily or run a delivery business, we are building the infrastructure to keep you moving cleanly and affordably.`;
 
 export const CONTACT_EMAIL = 'contact@crownevcenter.com';
 

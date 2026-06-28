@@ -25,6 +25,7 @@ echo "==> CROWNEV deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 echo "==> Pull latest code (${DEPLOY_BRANCH})"
 run_as_app "git fetch origin ${DEPLOY_BRANCH} && git reset --hard origin/${DEPLOY_BRANCH}"
+chmod +x "${APP_DIR}/deploy/deploy-app.sh" "${APP_DIR}/deploy/poll-deploy.sh" 2>/dev/null || true
 
 echo "==> Backend install & build"
 run_as_app "cd backend && npm ci && npx prisma generate && npm run build"

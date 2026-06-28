@@ -137,8 +137,8 @@ export default function ContactPage() {
 
             <div className="mx-auto mt-8 max-w-lg rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)] lg:p-8">
               <p className="text-sm leading-relaxed text-ink-muted">
-                Check your inbox for a copy of your message. In the meantime, browse our shop or track an existing
-                order.
+                Check your inbox for a copy of your message. In the meantime, browse our shop or book a service at
+                your nearest branch.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
                 <Link to="/shop" className="w-full sm:w-auto">
@@ -146,9 +146,9 @@ export default function ContactPage() {
                     Browse Shop
                   </Button>
                 </Link>
-                <Link to="/track" className="w-full sm:w-auto">
+                <Link to="/book-service" className="w-full sm:w-auto">
                   <Button variant="secondary" size="md" className="w-full sm:w-auto">
-                    Track Order
+                    Book Service
                   </Button>
                 </Link>
               </div>
