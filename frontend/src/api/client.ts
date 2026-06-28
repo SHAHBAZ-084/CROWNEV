@@ -194,12 +194,6 @@ export const publicApi = {
       subtitle: string;
       features: { icon: string; title: string; desc: string; stat: string; statLabel: string }[];
     }>('/public/features'),
-  footerContact: () =>
-    api<{
-      email: string;
-      phones: string[];
-      address: string;
-    }>('/public/footer-contact'),
 };
 
 export const customerApi = {
@@ -389,13 +383,6 @@ export const adminApi = {
     features: { icon: string; title: string; desc: string; stat: string; statLabel: string }[];
   }) =>
     api<typeof data>('/public/customization/features', { method: 'PUT', body: JSON.stringify(data) }),
-  footerContactSection: () => publicApi.footerContact(),
-  updateFooterContactSection: (data: {
-    email: string;
-    phones: string[];
-    address: string;
-  }) =>
-    api<typeof data>('/public/customization/footer-contact', { method: 'PUT', body: JSON.stringify(data) }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
 };

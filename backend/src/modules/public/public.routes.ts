@@ -112,33 +112,6 @@ publicRouter.put(
   })
 );
 
-const footerContactSectionSchema = z.object({
-  email: z.string().email(),
-  phones: z.array(z.string().min(1)).min(1).max(5),
-  address: z.string().min(1),
-});
-
-publicRouter.get(
-  '/footer-contact',
-  cachePublicJson(120),
-  asyncHandler(async (_req, res) => {
-    const section = await publicService.getFooterContactSection();
-    res.json(section);
-  })
-);
-
-publicRouter.put(
-  '/customization/footer-contact',
-  authenticate,
-  requireRoles(Role.ADMIN),
-  validateBody(footerContactSectionSchema),
-  asyncHandler(async (req, res) => {
-    const section = await publicService.upsertFooterContactSection(req.body);
-    res.json(section);
-  })
-);
-
-
 publicRouter.post(
   '/upload-founder-image',
   authenticate,
