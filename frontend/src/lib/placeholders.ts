@@ -25,10 +25,24 @@ Every Crown Ev bike is selected for Pakistani roads: heat-resistant batteries, r
 
 export const CONTACT_EMAIL = 'contact@crownevcenter.com';
 
+/** Head-office / official contact lines (footer, contact page, WhatsApp). */
+export const OFFICIAL_PHONES = ['0300 698 3345', '0300 449 4545'] as const;
+
+export function toTelHref(phone: string) {
+  return `tel:${phone.replace(/\s/g, '')}`;
+}
+
+export function toWhatsAppDigits(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0')) return `92${digits.slice(1)}`;
+  return digits;
+}
+
 export const FOOTER_CONTACT = {
   email: CONTACT_EMAIL,
-  phone: '+92 300 1234567',
-  whatsapp: '+923001234567',
+  phones: OFFICIAL_PHONES,
+  phone: OFFICIAL_PHONES[0],
+  whatsapp: toWhatsAppDigits(OFFICIAL_PHONES[0]),
   address: 'Head Office, Hadi Ev Center Bwn road Chishtian',
   whatsappMessage: "Hi Crown Ev! I'd like to know more about your electric bikes.",
 } as const;

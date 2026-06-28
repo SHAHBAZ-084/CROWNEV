@@ -9,7 +9,7 @@ import { PageHero } from '../../components/public/PageHero';
 import { BranchCardsSection } from '../../components/public/BranchCard';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
-import { FOOTER_CONTACT } from '../../lib/placeholders';
+import { FOOTER_CONTACT, OFFICIAL_PHONES, toTelHref } from '../../lib/placeholders';
 
 const CONTACT_CARDS = [
   {
@@ -24,12 +24,12 @@ const CONTACT_CARDS = [
     value: FOOTER_CONTACT.email,
     href: `mailto:${FOOTER_CONTACT.email}`,
   },
-  {
+  ...OFFICIAL_PHONES.map((phone, index) => ({
     icon: Phone,
-    label: 'Call Us',
-    value: FOOTER_CONTACT.phone,
-    href: `tel:${FOOTER_CONTACT.phone.replace(/\s/g, '')}`,
-  },
+    label: `Official No. ${index + 1}`,
+    value: phone,
+    href: toTelHref(phone),
+  })),
   {
     icon: Clock,
     label: 'Business Hours',

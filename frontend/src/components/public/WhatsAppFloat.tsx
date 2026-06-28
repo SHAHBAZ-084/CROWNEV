@@ -14,7 +14,7 @@ export function WhatsAppFloat() {
     setDismissed(localStorage.getItem(DISMISS_KEY) === '1');
   }, []);
 
-  const waDigits = FOOTER_CONTACT.whatsapp.replace(/\D/g, '');
+  const waDigits = FOOTER_CONTACT.whatsapp;
   const waUrl = `https://wa.me/${waDigits}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`;
 
   function hideWidget() {
@@ -113,7 +113,7 @@ export function WhatsAppFloat() {
 }
 
 export function WhatsAppNavLink({ className = '' }: { className?: string }) {
-  const waDigits = FOOTER_CONTACT.whatsapp.replace(/\D/g, '');
+  const waDigits = FOOTER_CONTACT.whatsapp;
   const waUrl = `https://wa.me/${waDigits}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`;
 
   return (

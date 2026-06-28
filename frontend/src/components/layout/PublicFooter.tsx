@@ -5,7 +5,7 @@ import { ArrowUpRight, Calendar, ChevronUp, Mail, MapPin, Phone, ShoppingCart } 
 import { Logo } from '../brand/Logo';
 import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon, YoutubeIcon } from '../icons/BrandIcons';
 import { ctaArrowClass } from '../../lib/publicMotion';
-import { FOOTER_CONTACT } from '../../lib/placeholders';
+import { FOOTER_CONTACT, toTelHref } from '../../lib/placeholders';
 import { useScrollPast } from '../../hooks/useScrollPast';
 import { Button } from '../ui/Button';
 
@@ -149,20 +149,22 @@ export function PublicFooter() {
                   <span className="pt-1.5 leading-snug">{FOOTER_CONTACT.email}</span>
                 </a>
               </li>
+              {FOOTER_CONTACT.phones.map((phone) => (
+                <li key={phone}>
+                  <a
+                    href={toTelHref(phone)}
+                    className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
+                  >
+                    <FooterContactIcon>
+                      <Phone className="h-4 w-4" strokeWidth={2} />
+                    </FooterContactIcon>
+                    <span className="pt-1.5 leading-snug">{phone}</span>
+                  </a>
+                </li>
+              ))}
               <li>
                 <a
-                  href={`tel:${FOOTER_CONTACT.phone.replace(/\s/g, '')}`}
-                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
-                >
-                  <FooterContactIcon>
-                    <Phone className="h-4 w-4" strokeWidth={2} />
-                  </FooterContactIcon>
-                  <span className="pt-1.5 leading-snug">{FOOTER_CONTACT.phone}</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`https://wa.me/${FOOTER_CONTACT.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`}
+                  href={`https://wa.me/${FOOTER_CONTACT.whatsapp}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
