@@ -260,8 +260,8 @@ async function listProductAtBranches(
 const HADI_EV_CENTER = {
   name: 'Hadi Ev Center',
   location: 'Bwn Road, Chishtian',
-  phone: '+92 300 1234567',
-  whatsapp: '+923001234567',
+  phone: '0300 698 3345',
+  whatsapp: '923006983345',
   latitude: 29.80616441707204,
   longitude: 72.86909682883606,
   description:

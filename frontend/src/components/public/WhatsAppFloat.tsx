@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { FOOTER_CONTACT } from '../../lib/placeholders';
+import { toWhatsAppHref } from '../../lib/placeholders';
 import { WhatsAppIcon } from '../icons/BrandIcons';
 
 const DISMISS_KEY = 'crown-ev-whatsapp-dismissed';
@@ -14,8 +14,7 @@ export function WhatsAppFloat() {
     setDismissed(localStorage.getItem(DISMISS_KEY) === '1');
   }, []);
 
-  const waDigits = FOOTER_CONTACT.whatsapp;
-  const waUrl = `https://wa.me/${waDigits}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`;
+  const waUrl = toWhatsAppHref();
 
   function hideWidget() {
     localStorage.setItem(DISMISS_KEY, '1');
@@ -113,8 +112,7 @@ export function WhatsAppFloat() {
 }
 
 export function WhatsAppNavLink({ className = '' }: { className?: string }) {
-  const waDigits = FOOTER_CONTACT.whatsapp;
-  const waUrl = `https://wa.me/${waDigits}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`;
+  const waUrl = toWhatsAppHref();
 
   return (
     <a

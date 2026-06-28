@@ -35,16 +35,30 @@ export function toTelHref(phone: string) {
 export function toWhatsAppDigits(phone: string) {
   const digits = phone.replace(/\D/g, '');
   if (digits.startsWith('0')) return `92${digits.slice(1)}`;
+  if (digits.startsWith('92')) return digits;
   return digits;
+}
+
+export const WHATSAPP_PREFILL_MESSAGE =
+  "Hi Crown Ev! I'd like to know more about your electric bikes." as const;
+
+/** Primary WhatsApp line for site-wide chat links (floating button, nav). */
+export const OFFICIAL_WHATSAPP_PHONE = OFFICIAL_PHONES[0];
+
+export function toWhatsAppHref(
+  phone: string = OFFICIAL_WHATSAPP_PHONE,
+  message: string = WHATSAPP_PREFILL_MESSAGE,
+) {
+  return `https://wa.me/${toWhatsAppDigits(phone)}?text=${encodeURIComponent(message)}`;
 }
 
 export const FOOTER_CONTACT = {
   email: CONTACT_EMAIL,
   phones: OFFICIAL_PHONES,
   phone: OFFICIAL_PHONES[0],
-  whatsapp: toWhatsAppDigits(OFFICIAL_PHONES[0]),
+  whatsapp: toWhatsAppDigits(OFFICIAL_WHATSAPP_PHONE),
   address: 'Head Office, Hadi Ev Center Bwn road Chishtian',
-  whatsappMessage: "Hi Crown Ev! I'd like to know more about your electric bikes.",
+  whatsappMessage: WHATSAPP_PREFILL_MESSAGE,
 } as const;
 
 /** About page brand story video — portrait 9:16 */

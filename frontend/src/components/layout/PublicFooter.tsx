@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Calendar, ChevronUp, Mail, MapPin, Phone, ShoppingCart } from 'lucide-react';
 import { Logo } from '../brand/Logo';
-import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon, YoutubeIcon } from '../icons/BrandIcons';
+import { FacebookIcon, InstagramIcon, TikTokIcon, YoutubeIcon } from '../icons/BrandIcons';
 import { ctaArrowClass } from '../../lib/publicMotion';
 import { FOOTER_CONTACT, toTelHref } from '../../lib/placeholders';
 import { useScrollPast } from '../../hooks/useScrollPast';
@@ -162,19 +162,6 @@ export function PublicFooter() {
                   </a>
                 </li>
               ))}
-              <li>
-                <a
-                  href={`https://wa.me/${FOOTER_CONTACT.whatsapp}?text=${encodeURIComponent(FOOTER_CONTACT.whatsappMessage)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
-                >
-                  <FooterContactIcon>
-                    <WhatsAppIcon className="h-4 w-4" />
-                  </FooterContactIcon>
-                  <span className="pt-1.5 leading-snug">WhatsApp: {FOOTER_CONTACT.phone}</span>
-                </a>
-              </li>
               <li className="flex items-start gap-3 text-sm text-white">
                 <FooterContactIcon>
                   <MapPin className="h-4 w-4" strokeWidth={2} />
