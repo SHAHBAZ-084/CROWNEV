@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Phone } from 'lucide-react';
 import { getBranchCardImage } from '../../lib/placeholders';
@@ -65,6 +65,40 @@ function InfoRow({
   }
 
   return <p className={className}>{content}</p>;
+}
+
+/** Long branch copy is clamped until the user expands it. */
+function BranchDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = text.trim();
+  const needsToggle = trimmed.length > 90 || trimmed.includes('\n');
+
+  if (!trimmed) return null;
+
+  return (
+    <div className="mt-2">
+      <p
+        className={`text-xs leading-relaxed text-ink-muted sm:text-sm ${
+          expanded || !needsToggle ? '' : 'line-clamp-2'
+        }`}
+      >
+        {trimmed}
+      </p>
+      {needsToggle ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((open) => !open);
+          }}
+          className="mt-1.5 text-xs font-semibold text-brand-light transition-colors hover:text-brand hover:underline"
+          aria-expanded={expanded}
+        >
+          {expanded ? 'View less' : 'View more'}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export function BranchCard({
@@ -149,9 +183,7 @@ export function BranchCard({
         </div>
 
         {showDescription && branch.description && !isCompact ? (
-          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-ink-muted sm:text-sm">
-            {branch.description}
-          </p>
+          <BranchDescription text={branch.description} />
         ) : null}
       </div>
     </motion.article>

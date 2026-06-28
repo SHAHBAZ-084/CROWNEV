@@ -46,6 +46,8 @@ export default function LoginPage() {
     }
   }
 
+  const closedAccount = error.includes('Register again');
+
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center bg-white px-4 py-16 lg:min-h-[calc(100dvh-6rem)]">
       <motion.div
@@ -60,7 +62,18 @@ export default function LoginPage() {
         <p className="mt-1 text-sm text-ink-muted">Sign in to your Crown Ev account</p>
 
         <div className="mt-8">
-          {error && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-warning">{error}</p>}
+          {error && (
+            <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-warning">
+              <p>{error}</p>
+              {closedAccount && (
+                <p className="mt-2">
+                  <Link to={getRegisterUrl(redirectTo ?? undefined)} className="font-medium text-brand-light hover:underline">
+                    Register again
+                  </Link>
+                </p>
+              )}
+            </div>
+          )}
           <GoogleSignInButton
             onCredential={handleGoogleCredential}
             onConfigError={setError}

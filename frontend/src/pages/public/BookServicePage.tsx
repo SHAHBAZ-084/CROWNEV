@@ -63,7 +63,7 @@ export default function BookServicePage() {
         <MotionSection as="div" className={`mx-auto max-w-xl ${isCustomerDashboard ? '' : 'px-4 pb-16 pt-8 lg:px-8'}`}>
           {!user && (
             <div className="mb-6 rounded-xl border border-border-light bg-elevated p-4 text-sm text-ink-muted">
-              Please <a href="/login" className="font-medium text-brand hover:text-brand-light">sign in</a> to book a service.
+              Please <a href={getLoginUrl('/book-service')} className="font-medium text-brand hover:text-brand-light">sign in</a> to book a service.
             </div>
           )}
 

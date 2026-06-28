@@ -1,4 +1,4 @@
-import { BranchPermission, OtpType, Role } from '@prisma/client';
+import { BranchPermission, OtpType, Role, type Prisma } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
 import { ensureOnlineCustomer } from '../customers/customers.service.js';
 import { prisma } from '../../config/database.js';
@@ -15,6 +15,60 @@ import { sendOtpEmail } from '../../utils/email.js';
 const oauthClient = new OAuth2Client(env.googleClientId);
 
 const MAX_OTP_ATTEMPTS = 5;
+
+export const CLOSED_ACCOUNT_LOGIN_MESSAGE =
+  'This account was closed. Register again with the same email to start fresh — previous orders and bookings will not carry over.';
+
+function archivedCustomerEmail(userId: string) {
+  return `archived.${userId}@deleted.crownev.local`;
+}
+
+function isClosedCustomer(user: { role: Role; isActive: boolean; isVerified: boolean }) {
+  return user.role === Role.CUSTOMER && user.isVerified && !user.isActive;
+}
+
+/** Free a deactivated customer's email/googleId so they can register as a new account. */
+async function archiveClosedCustomer(
+  user: { id: string; role: Role; isActive: boolean; isVerified: boolean },
+  tx: Prisma.TransactionClient = prisma,
+) {
+  if (!isClosedCustomer(user)) return;
+
+  await tx.customer.updateMany({
+    where: { userId: user.id },
+    data: { userId: null, isActive: false },
+  });
+
+  await tx.user.update({
+    where: { id: user.id },
+    data: {
+      email: archivedCustomerEmail(user.id),
+      googleId: null,
+    },
+  });
+}
+
+async function prepareEmailForRegistration(email: string, tx: Prisma.TransactionClient = prisma) {
+  const existing = await tx.user.findUnique({ where: { email } });
+  if (!existing) return;
+
+  if (existing.isVerified && existing.isActive) {
+    throw new AppError(409, 'Email already registered');
+  }
+
+  if (isClosedCustomer(existing)) {
+    await archiveClosedCustomer(existing, tx);
+    return;
+  }
+
+  if (existing.isVerified && !existing.isActive) {
+    throw new AppError(403, 'Account deactivated');
+  }
+
+  if (!existing.isVerified) {
+    await tx.user.delete({ where: { email } });
+  }
+}
 
 function authUserPayload(user: {
   id: string;
@@ -87,13 +141,7 @@ export async function register(data: {
   phone: string;
   city?: string;
 }) {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing?.isVerified) throw new AppError(409, 'Email already registered');
-
-  // Remove legacy unverified accounts from the old flow
-  if (existing && !existing.isVerified) {
-    await prisma.user.delete({ where: { email: data.email } });
-  }
+  await prepareEmailForRegistration(data.email);
 
   const passwordHash = await hashPassword(data.password);
   const otp = generateOtp();
@@ -144,11 +192,9 @@ export async function verifyRegistration(email: string, otp: string) {
 
   const payload = parseRegistrationPayload(record.payload);
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing?.isVerified) throw new AppError(409, 'Email already registered');
-  if (existing && !existing.isVerified) {
-    await prisma.user.delete({ where: { email } });
-  }
+  await prisma.$transaction(async (tx) => {
+    await prepareEmailForRegistration(email, tx);
+  });
 
   const user = await prisma.$transaction(async (tx) => {
     const marked = await tx.otpVerification.updateMany({
@@ -207,7 +253,12 @@ export async function login(email: string, password: string) {
     throw new AppError(401, 'Invalid credentials');
   }
   if (!user.isVerified) throw new AppError(403, 'Email not verified');
-  if (!user.isActive) throw new AppError(403, 'Account deactivated');
+  if (!user.isActive) {
+    if (user.role === Role.CUSTOMER) {
+      throw new AppError(403, CLOSED_ACCOUNT_LOGIN_MESSAGE);
+    }
+    throw new AppError(403, 'Account deactivated');
+  }
 
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) throw new AppError(401, 'Invalid credentials');
@@ -222,7 +273,7 @@ export async function login(email: string, password: string) {
 
 export async function forgotPassword(email: string) {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return { message: 'If the email exists, an OTP has been sent' };
+  if (!user || !user.isActive) return { message: 'If the email exists, an OTP has been sent' };
 
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000);
@@ -268,6 +319,11 @@ export async function resetPassword(email: string, otp: string, newPassword: str
       throw new AppError(400, 'Invalid or expired OTP');
     }
 
+    const user = await tx.user.findUnique({ where: { email } });
+    if (!user?.isActive) {
+      throw new AppError(403, CLOSED_ACCOUNT_LOGIN_MESSAGE);
+    }
+
     await tx.user.update({
       where: { email },
       data: { passwordHash },
@@ -305,6 +361,11 @@ export async function googleAuth(idToken: string) {
     where: { OR: [{ googleId }, { email }] },
   });
 
+  if (user && isClosedCustomer(user)) {
+    await archiveClosedCustomer(user);
+    user = null;
+  }
+
   if (!user) {
     user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -327,7 +388,12 @@ export async function googleAuth(idToken: string) {
     });
   }
 
-  if (!user.isActive) throw new AppError(403, 'Account deactivated');
+  if (!user.isActive) {
+    if (user.role === Role.CUSTOMER) {
+      throw new AppError(403, CLOSED_ACCOUNT_LOGIN_MESSAGE);
+    }
+    throw new AppError(403, 'Account deactivated');
+  }
 
   await ensureOnlineCustomer(user);
 
@@ -420,7 +486,10 @@ export async function deleteMyAccount(
   }
 
   await prisma.user.update({ where: { id: userId }, data: { isActive: false } });
-  return { message: 'Account deleted successfully' };
+  return {
+    message:
+      'Account deleted successfully. You can register again with the same email anytime — your previous orders and bookings will not appear on the new account.',
+  };
 }
 
 /** Remove customer accounts that were created before email verification was enforced. */
