@@ -1526,13 +1526,19 @@ export function AdminCustomizationPage() {
   const [loading, setLoading] = useState(true);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
+  const [savingFooter, setSavingFooter] = useState(false);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
+  const [footerContact, setFooterContact] = useState<{ email: string; phones: string[]; address: string }>({
+    email: '',
+    phones: [],
+    address: '',
+  });
   const [pendingPhotos, setPendingPhotos] = useState<(File | null)[]>([null, null]);
 
   useEffect(() => {
-    Promise.all([adminApi.foundersSection(), adminApi.featuresSection()])
-      .then(([foundersData, featuresData]) => {
+    Promise.all([adminApi.foundersSection(), adminApi.featuresSection(), adminApi.footerContactSection()])
+      .then(([foundersData, featuresData, footerData]) => {
         const founders = [...foundersData.founders];
         while (founders.length < 2) founders.push(emptyFounder());
         setSection({ ...foundersData, founders: founders.slice(0, 2) });
@@ -1540,6 +1546,12 @@ export function AdminCustomizationPage() {
         const features = [...featuresData.features];
         while (features.length < 4) features.push(emptyFeature());
         setFeatureSection(normalizeFeatureSection({ ...featuresData, features: features.slice(0, 4) }));
+
+        setFooterContact({
+          email: footerData.email || '',
+          phones: Array.isArray(footerData.phones) ? footerData.phones.filter(Boolean) : [],
+          address: footerData.address || '',
+        });
       })
       .catch(() => toast('Could not load customization settings', 'error'))
       .finally(() => setLoading(false));
@@ -1607,6 +1619,32 @@ export function AdminCustomizationPage() {
       toast(err instanceof Error ? err.message : 'Failed to save', 'error');
     } finally {
       setSavingFeatures(false);
+    }
+  }
+
+  async function handleSaveFooter(e: FormEvent) {
+    e.preventDefault();
+    setSavingFooter(true);
+    try {
+      const payload = {
+        email: footerContact.email.trim(),
+        phones: footerContact.phones.map((p) => p.trim()).filter(Boolean),
+        address: footerContact.address.trim(),
+      };
+      if (!payload.email || payload.phones.length === 0 || !payload.address) {
+        throw new Error('All contact fields are required, and at least one phone number.');
+      }
+      const saved = await adminApi.updateFooterContactSection(payload);
+      setFooterContact({
+        email: saved.email,
+        phones: saved.phones.filter(Boolean),
+        address: saved.address,
+      });
+      toast('Footer contact details updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingFooter(false);
     }
   }
 
@@ -1737,6 +1775,86 @@ export function AdminCustomizationPage() {
           </Button>
           <p className="text-xs text-text-muted">
             Changes appear on the homepage &ldquo;Built for Pakistan&rdquo; section after saving.
+          </p>
+        </div>
+      </form>
+
+      <form onSubmit={handleSaveFooter} className="mt-12 space-y-8 border-t border-border-light pt-12">
+        <h2 className="font-display text-xl font-bold text-ink">Footer & Contact Page — Contact Information</h2>
+
+        <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+          <h3 className="mb-4 font-display text-lg font-bold text-ink">Contact Details</h3>
+          <div className="space-y-4">
+            <Input
+              label="Email Address"
+              type="email"
+              value={footerContact.email}
+              onChange={(e) => setFooterContact((prev) => ({ ...prev, email: e.target.value }))}
+              required
+            />
+            <Textarea
+              label="Office Address"
+              rows={2}
+              value={footerContact.address}
+              onChange={(e) => setFooterContact((prev) => ({ ...prev, address: e.target.value }))}
+              required
+            />
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink/80">
+                Phone Numbers
+              </label>
+              <div className="space-y-2">
+                {footerContact.phones.map((phone, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <Input
+                      value={phone}
+                      onChange={(e) => {
+                        const nextPhones = [...footerContact.phones];
+                        nextPhones[idx] = e.target.value;
+                        setFooterContact((prev) => ({ ...prev, phones: nextPhones }));
+                      }}
+                      placeholder="e.g. 0300 698 3345"
+                      required
+                    />
+                    {footerContact.phones.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => {
+                          const nextPhones = footerContact.phones.filter((_, i) => i !== idx);
+                          setFooterContact((prev) => ({ ...prev, phones: nextPhones }));
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {footerContact.phones.length < 5 && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setFooterContact((prev) => ({ ...prev, phones: [...prev.phones, ''] }));
+                    }}
+                  >
+                    + Add Phone Number
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="accent" loading={savingFooter}>
+            Save contact details
+          </Button>
+          <p className="text-xs text-text-muted">
+            Changes appear in the footer and Contact page after saving.
           </p>
         </div>
       </form>

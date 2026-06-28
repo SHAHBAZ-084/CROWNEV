@@ -577,6 +577,19 @@ async function main() {
     create: { slug: 'home-features', title: 'Home Feature Cards', content: featuresContent },
   });
 
+  const footerContactContent = JSON.stringify({
+    email: 'contact@crownevcenter.com',
+    phones: ['0300 698 3345', '0300 449 4545'],
+    address: 'Head Office, Hadi Ev Center Bwn road Chishtian',
+  });
+
+  await prisma.contentPage.upsert({
+    where: { slug: 'footer-contact' },
+    update: {},
+    create: { slug: 'footer-contact', title: 'Footer Contact', content: footerContactContent },
+  });
+
+
   console.log('Seed complete.');
   console.log(`Catalog: ${BIKE_SEEDS.length} bikes (listed at Hadi Ev Center). Legacy demo parts deactivated.`);
   console.log('Admin: admin@crown-eve.com / Admin@123');
