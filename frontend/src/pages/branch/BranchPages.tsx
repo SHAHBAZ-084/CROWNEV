@@ -357,7 +357,9 @@ export function BranchInventoryPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [chassisModalItem, setChassisModalItem] = useState<StockRow | null>(null);
-  const [chassisList, setChassisList] = useState<{ id: number; chassisNumber: string }[]>([]);
+  const [chassisList, setChassisList] = useState<
+    { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]
+  >([]);
   const [chassisLoading, setChassisLoading] = useState(false);
 
   const reload = useCallback(() => {
@@ -667,7 +669,14 @@ export function BranchInventoryPage() {
             <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
               {chassisList.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className="font-mono text-sm font-medium text-slate-900">{c.chassisNumber}</span>
+                  <div>
+                    <p className="font-mono text-sm font-medium text-slate-900">{c.chassisNumber}</p>
+                    {(c.engineNumber || c.motorNumber) && (
+                      <p className="font-mono text-xs text-text-muted">
+                        {c.engineNumber ? `Engine: ${c.engineNumber}` : `Motor: ${c.motorNumber}`}
+                      </p>
+                    )}
+                  </div>
                   <span className="ml-auto inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
                     In stock
                   </span>

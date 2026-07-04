@@ -2,8 +2,29 @@ import { ChassisStatus, ProductType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError } from '../../utils/helpers.js';
 
+/** A single bike unit being purchased: chassis number is always required,
+ * plus exactly one of engineNumber / motorNumber. */
+export type BikeUnitInput = {
+  chassisNumber: string;
+  engineNumber?: string;
+  motorNumber?: string;
+};
+
 export function normalizeChassisNumber(value: string): string {
   return value.trim().toUpperCase();
+}
+
+/** Same normalization rule applied to engine/motor numbers. */
+export function normalizeIdentifierNumber(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function normalizeBikeUnit(unit: BikeUnitInput): BikeUnitInput {
+  return {
+    chassisNumber: normalizeChassisNumber(unit.chassisNumber),
+    engineNumber: unit.engineNumber ? normalizeIdentifierNumber(unit.engineNumber) : undefined,
+    motorNumber: unit.motorNumber ? normalizeIdentifierNumber(unit.motorNumber) : undefined,
+  };
 }
 
 export function assertNoDuplicateChassisInList(chassisNumbers: string[]) {
@@ -19,6 +40,36 @@ export function assertNoDuplicateChassisInList(chassisNumbers: string[]) {
   }
 }
 
+/** Checks a full list of bike units for duplicate chassis, engine, or motor numbers within the same invoice. */
+export function assertNoDuplicateBikeUnitsInList(units: BikeUnitInput[]) {
+  assertNoDuplicateChassisInList(units.map((u) => u.chassisNumber));
+
+  const engineSeen = new Set<string>();
+  const engineDuplicates = new Set<string>();
+  const motorSeen = new Set<string>();
+  const motorDuplicates = new Set<string>();
+
+  for (const unit of units) {
+    if (unit.engineNumber) {
+      const num = normalizeIdentifierNumber(unit.engineNumber);
+      if (engineSeen.has(num)) engineDuplicates.add(num);
+      engineSeen.add(num);
+    }
+    if (unit.motorNumber) {
+      const num = normalizeIdentifierNumber(unit.motorNumber);
+      if (motorSeen.has(num)) motorDuplicates.add(num);
+      motorSeen.add(num);
+    }
+  }
+
+  if (engineDuplicates.size > 0) {
+    throw new AppError(400, `Duplicate engine number(s) in this invoice: ${[...engineDuplicates].join(', ')}`);
+  }
+  if (motorDuplicates.size > 0) {
+    throw new AppError(400, `Duplicate motor number(s) in this invoice: ${[...motorDuplicates].join(', ')}`);
+  }
+}
+
 export async function findExistingChassisNumbers(chassisNumbers: string[]) {
   const normalized = [...new Set(chassisNumbers.map(normalizeChassisNumber))];
   if (normalized.length === 0) return [];
@@ -30,11 +81,50 @@ export async function findExistingChassisNumbers(chassisNumbers: string[]) {
   return existing.map((row: { chassisNumber: string }) => row.chassisNumber);
 }
 
+/** Finds any chassis/engine/motor numbers from the given units that already exist in the system. */
+export async function findExistingBikeUnitNumbers(units: BikeUnitInput[]) {
+  const chassisNumbers = [...new Set(units.map((u) => normalizeChassisNumber(u.chassisNumber)))];
+  const engineNumbers = [
+    ...new Set(units.filter((u) => u.engineNumber).map((u) => normalizeIdentifierNumber(u.engineNumber!))),
+  ];
+  const motorNumbers = [
+    ...new Set(units.filter((u) => u.motorNumber).map((u) => normalizeIdentifierNumber(u.motorNumber!))),
+  ];
+
+  const existing = await prisma.bikeChassisNumber.findMany({
+    where: {
+      OR: [
+        chassisNumbers.length > 0 ? { chassisNumber: { in: chassisNumbers } } : undefined,
+        engineNumbers.length > 0 ? { engineNumber: { in: engineNumbers } } : undefined,
+        motorNumbers.length > 0 ? { motorNumber: { in: motorNumbers } } : undefined,
+      ].filter(Boolean) as Prisma.BikeChassisNumberWhereInput[],
+    },
+    select: { chassisNumber: true, engineNumber: true, motorNumber: true },
+  });
+
+  const conflicts: string[] = [];
+  for (const row of existing) {
+    if (chassisNumbers.includes(row.chassisNumber)) conflicts.push(row.chassisNumber);
+    if (row.engineNumber && engineNumbers.includes(row.engineNumber)) conflicts.push(row.engineNumber);
+    if (row.motorNumber && motorNumbers.includes(row.motorNumber)) conflicts.push(row.motorNumber);
+  }
+  return [...new Set(conflicts)];
+}
+
 export async function validateChassisNumbersAvailable(chassisNumbers: string[]) {
   assertNoDuplicateChassisInList(chassisNumbers);
   const conflicts = await findExistingChassisNumbers(chassisNumbers);
   if (conflicts.length > 0) {
     throw new AppError(409, `Chassis number(s) already exist: ${conflicts.join(', ')}`);
+  }
+}
+
+/** Validates a full set of bike units (chassis + engine/motor) are unique and unused. */
+export async function validateBikeUnitsAvailable(units: BikeUnitInput[]) {
+  assertNoDuplicateBikeUnitsInList(units);
+  const conflicts = await findExistingBikeUnitNumbers(units);
+  if (conflicts.length > 0) {
+    throw new AppError(409, `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`);
   }
 }
 
@@ -48,6 +138,8 @@ export async function listAvailableChassis(branchId: number, productId: string) 
     select: {
       id: true,
       chassisNumber: true,
+      engineNumber: true,
+      motorNumber: true,
       productId: true,
       purchaseId: true,
       createdAt: true,
@@ -91,31 +183,30 @@ export async function createChassisRecordsInTx(
   data: {
     branchId: number;
     purchaseId: number;
-    records: { productId: string; chassisNumbers: string[] }[];
+    records: { productId: string; units: BikeUnitInput[] }[];
   },
 ) {
-  const allNumbers = data.records.flatMap((r) => r.chassisNumbers.map(normalizeChassisNumber));
-  assertNoDuplicateChassisInList(allNumbers);
+  const allUnits = data.records.flatMap((r) => r.units.map(normalizeBikeUnit));
+  assertNoDuplicateBikeUnitsInList(allUnits);
 
-  const conflicts = await tx.bikeChassisNumber.findMany({
-    where: { chassisNumber: { in: allNumbers } },
-    select: { chassisNumber: true },
-  });
+  const conflicts = await findExistingBikeUnitNumbers(allUnits);
   if (conflicts.length > 0) {
-    throw new AppError(
-      409,
-      `Chassis number(s) already exist: ${conflicts.map((c: { chassisNumber: string }) => c.chassisNumber).join(', ')}`,
-    );
+    throw new AppError(409, `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`);
   }
 
   const rows = data.records.flatMap((record) =>
-    record.chassisNumbers.map((chassisNumber) => ({
-      chassisNumber: normalizeChassisNumber(chassisNumber),
-      productId: record.productId,
-      branchId: data.branchId,
-      purchaseId: data.purchaseId,
-      status: ChassisStatus.IN_STOCK,
-    })),
+    record.units.map((unit) => {
+      const normalized = normalizeBikeUnit(unit);
+      return {
+        chassisNumber: normalized.chassisNumber,
+        engineNumber: normalized.engineNumber ?? null,
+        motorNumber: normalized.motorNumber ?? null,
+        productId: record.productId,
+        branchId: data.branchId,
+        purchaseId: data.purchaseId,
+        status: ChassisStatus.IN_STOCK,
+      };
+    }),
   );
 
   if (rows.length > 0) {
@@ -175,4 +266,44 @@ export function validateBikePurchaseChassis(
     throw new AppError(400, `Enter ${quantity} chassis number(s) for this bike line`);
   }
   assertNoDuplicateChassisInList(numbers);
+}
+
+/**
+ * Validates bike units for a purchase invoice line: every unit needs a chassis number,
+ * plus exactly one of engineNumber / motorNumber (never both, never neither).
+ */
+export function validateBikePurchaseUnits(
+  productType: ProductType,
+  quantity: number,
+  units?: BikeUnitInput[],
+) {
+  if (productType !== ProductType.BIKE) return;
+
+  const list = units ?? [];
+  if (list.length !== quantity) {
+    throw new AppError(400, `Enter details for ${quantity} bike unit(s) on this line`);
+  }
+
+  for (const unit of list) {
+    const chassisNumber = unit.chassisNumber?.trim();
+    if (!chassisNumber) {
+      throw new AppError(400, 'Chassis number is required for every bike unit');
+    }
+    const hasEngine = !!unit.engineNumber?.trim();
+    const hasMotor = !!unit.motorNumber?.trim();
+    if (hasEngine && hasMotor) {
+      throw new AppError(400, 'Enter either engine number or motor number for each bike unit, not both');
+    }
+    if (!hasEngine && !hasMotor) {
+      throw new AppError(400, 'Enter either engine number or motor number for each bike unit');
+    }
+  }
+
+  assertNoDuplicateBikeUnitsInList(
+    list.map((u) => ({
+      chassisNumber: u.chassisNumber,
+      engineNumber: u.engineNumber,
+      motorNumber: u.motorNumber,
+    })),
+  );
 }

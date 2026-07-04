@@ -126,7 +126,15 @@ purchasesRouter.post(
             productId: z.string().uuid(),
             quantity: z.number().int().positive(),
             unitCost: z.coerce.number().positive(),
-            chassisNumbers: z.array(z.string().trim().min(1)).optional(),
+            bikeUnits: z
+              .array(
+                z.object({
+                  chassisNumber: z.string().trim().min(1),
+                  engineNumber: z.string().trim().min(1).optional(),
+                  motorNumber: z.string().trim().min(1).optional(),
+                }),
+              )
+              .optional(),
           }),
         )
         .min(1),

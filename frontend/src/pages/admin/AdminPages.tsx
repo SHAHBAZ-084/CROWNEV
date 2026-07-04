@@ -1,7 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Building2, Receipt, ShoppingCart, Users } from 'lucide-react';
-import { adminApi } from '../../api/client';
+import { adminApi, authApi } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { TablePagination } from '../../components/ui/TablePagination';
@@ -966,6 +967,8 @@ export function AdminUsersPage() {
   const [edit, setEdit] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [branches, setBranches] = useState<Row[]>([]);
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [settingPassword, setSettingPassword] = useState(false);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteUser(String(item.id));
@@ -1023,6 +1026,33 @@ export function AdminUsersPage() {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!edit) return;
+    const fd = new FormData(e.currentTarget);
+    const newPassword = String(fd.get('newPassword'));
+    const confirmPassword = String(fd.get('confirmPassword'));
+    if (newPassword.length < 8) {
+      toast('New password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('Passwords do not match', 'error');
+      return;
+    }
+    setSettingPassword(true);
+    try {
+      await adminApi.setUserPassword(String(edit.id), newPassword);
+      toast('Password updated successfully', 'success');
+      setPasswordModal(false);
+      e.currentTarget.reset();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to update password', 'error');
+    } finally {
+      setSettingPassword(false);
     }
   }
 
@@ -1122,7 +1152,44 @@ export function AdminUsersPage() {
               <option value="false">Inactive</option>
             </Select>
           )}
+          {modal === 'edit' && !editingAdmin && (
+            <div className="rounded-xl border border-border bg-surface-muted/40 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text">Account password</p>
+                  <p className="text-xs text-text-muted">Set a new login password for this branch owner.</p>
+                </div>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setPasswordModal(true)}>
+                  Edit Password
+                </Button>
+              </div>
+            </div>
+          )}
           <FormActions onCancel={() => setModal(null)} loading={saving} />
+        </form>
+      </Modal>
+      <Modal open={passwordModal} onClose={() => setPasswordModal(false)} title="Edit Password">
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <p className="text-sm text-text-muted">
+            Set a new password for {String(edit?.firstName ?? '')} {String(edit?.lastName ?? '')}. They will need to use this new password next time they sign in.
+          </p>
+          <Input
+            name="newPassword"
+            label="New Password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <Input
+            name="confirmPassword"
+            label="Confirm New Password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <FormActions onCancel={() => setPasswordModal(false)} loading={settingPassword} />
         </form>
       </Modal>
     </div>
@@ -2198,6 +2265,117 @@ export function AdminReportsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export function AdminProfilePage() {
+  const { toast } = useToast();
+  const { user, setUser } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setSaving(true);
+    try {
+      const updated = await authApi.updateProfile({
+        firstName: String(fd.get('firstName')),
+        lastName: String(fd.get('lastName')),
+        phone: String(fd.get('phone') || '') || undefined,
+      });
+      setUser({ ...user!, ...updated });
+      toast('Profile updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to update profile', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const currentPassword = String(fd.get('currentPassword'));
+    const newPassword = String(fd.get('newPassword'));
+    const confirmPassword = String(fd.get('confirmPassword'));
+
+    if (newPassword.length < 8) {
+      toast('New password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('New passwords do not match', 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      toast('Password updated successfully', 'success');
+      e.currentTarget.reset();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to update password', 'error');
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageHeader title="Profile" subtitle="Manage your admin account details and password" />
+
+      <form
+        onSubmit={handleProfileSubmit}
+        className="mb-6 space-y-4 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+      >
+        <p className="text-sm font-semibold text-slate-900">Account details</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input name="firstName" label="First Name" required defaultValue={user?.firstName ?? ''} />
+          <Input name="lastName" label="Last Name" required defaultValue={user?.lastName ?? ''} />
+        </div>
+        <Input name="email" label="Email" type="email" value={user?.email ?? ''} disabled />
+        <Input name="phone" label="Phone" defaultValue={user?.phone ?? ''} />
+        <div className="flex justify-end">
+          <Button type="submit" variant="accent" loading={saving}>Save changes</Button>
+        </div>
+      </form>
+
+      <form
+        onSubmit={handlePasswordSubmit}
+        className="space-y-4 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+      >
+        <p className="text-sm font-semibold text-slate-900">Change password</p>
+        <Input
+          name="currentPassword"
+          label="Current Password"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+        <Input
+          name="newPassword"
+          label="New Password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
+        <Input
+          name="confirmPassword"
+          label="Confirm New Password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
+        <div className="flex justify-end">
+          <Button type="submit" variant="accent" loading={changingPassword}>Update password</Button>
+        </div>
+      </form>
     </div>
   );
 }

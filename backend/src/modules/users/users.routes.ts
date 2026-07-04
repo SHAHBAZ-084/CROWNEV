@@ -63,6 +63,19 @@ usersRouter.patch(
   })
 );
 
+usersRouter.patch(
+  '/:id/password',
+  validateBody(
+    z.object({
+      newPassword: passwordSchema,
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const result = await usersService.setUserPassword(param(req.params.id), req.body.newPassword);
+    res.json(result);
+  })
+);
+
 usersRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {

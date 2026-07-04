@@ -47,7 +47,16 @@ chassisRouter.post(
   '/:branchId/chassis/validate',
   validateBody(
     z.object({
-      chassisNumbers: z.array(z.string().trim().min(1)).min(1),
+      chassisNumbers: z.array(z.string().trim().min(1)).optional(),
+      bikeUnits: z
+        .array(
+          z.object({
+            chassisNumber: z.string().trim().min(1),
+            engineNumber: z.string().trim().min(1).optional(),
+            motorNumber: z.string().trim().min(1).optional(),
+          }),
+        )
+        .optional(),
     }),
   ),
   asyncHandler(async (req, res) => {
@@ -56,8 +65,24 @@ chassisRouter.post(
       res.status(403).json({ error: 'Cross-branch access denied' });
       return;
     }
-    chassisService.assertNoDuplicateChassisInList(req.body.chassisNumbers);
-    const conflicts = await chassisService.findExistingChassisNumbers(req.body.chassisNumbers);
+
+    if (req.body.bikeUnits?.length) {
+      chassisService.assertNoDuplicateBikeUnitsInList(req.body.bikeUnits);
+      const conflicts = await chassisService.findExistingBikeUnitNumbers(req.body.bikeUnits);
+      if (conflicts.length > 0) {
+        res.status(409).json({
+          error: `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`,
+          conflicts,
+        });
+        return;
+      }
+      res.json({ valid: true });
+      return;
+    }
+
+    const chassisNumbers = req.body.chassisNumbers ?? [];
+    chassisService.assertNoDuplicateChassisInList(chassisNumbers);
+    const conflicts = await chassisService.findExistingChassisNumbers(chassisNumbers);
     if (conflicts.length > 0) {
       res.status(409).json({
         error: `Chassis number(s) already exist: ${conflicts.join(', ')}`,

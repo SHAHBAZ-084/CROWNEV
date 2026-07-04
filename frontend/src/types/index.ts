@@ -161,6 +161,7 @@ export interface PurchaseInvoiceData {
     unitCost: number;
     total: number;
     chassisNumber?: string | null;
+    bikeUnits?: { chassisNumber: string; engineNumber: string | null; motorNumber: string | null }[];
   }[];
   subtotal: number;
   total: number;

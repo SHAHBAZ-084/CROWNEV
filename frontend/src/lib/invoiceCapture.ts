@@ -182,16 +182,12 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
     await waitForImages(clone);
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
-    // Lock the viewport width to CAPTURE_WIDTH to prevent media query wrapping 
-    // and clipping when the user's browser window is narrow.
     const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
       logging: false,
-      width: CAPTURE_WIDTH,
-      windowWidth: CAPTURE_WIDTH,
     });
 
     if (canvas.width === 0 || canvas.height === 0) {
@@ -206,27 +202,19 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
 
 export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
   const dataUrl = canvas.toDataURL('image/png');
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=950,height=800');
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
   if (!win) {
     throw new Error('Please allow pop-ups to print or save the invoice');
   }
-
-  // Choose appropriate orientation based on aspect ratio
-  const isLandscape = canvas.width >= canvas.height;
-  const pageSizeRule = isLandscape ? 'A5 landscape' : 'A5 portrait';
-
   win.document.open();
   win.document.write(`<!DOCTYPE html>
 <html><head><title>${title}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  @page { size: ${pageSizeRule}; margin: 8mm; }
-  body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f1f5f9; padding: 20px; }
-  img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); background: #ffffff; }
-  @media print {
-    body { background: transparent; padding: 0; display: block; min-height: 0; }
-    img { box-shadow: none; max-width: 100%; max-height: 100%; width: 100%; height: auto; }
-  }
+  @page { size: auto; margin: 0; }
+  body { display: flex; justify-content: center; padding: 16px; }
+  img { width: 100%; max-width: 800px; height: auto; }
+  @media print { body { padding: 0; } img { max-width: 100%; width: 100%; height: auto; } }
 </style></head>
 <body><img src="${dataUrl}" alt="Invoice" /></body></html>`);
   win.document.close();
@@ -238,50 +226,17 @@ export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
   setTimeout(triggerPrint, 400);
 }
 
-/** Export invoice canvas scaled and centered to fit perfectly on a standard A4 half page (A5 size). */
+/** Export invoice canvas as a single PDF page exactly matching captured content size. */
 export async function saveCanvasAsPdf(canvas: HTMLCanvasElement, filename: string) {
   const { default: jsPDF } = await import('jspdf');
   if (!canvas.width || !canvas.height) {
     throw new Error('Invoice capture is empty');
   }
-
-  // Standard A5 (half A4) dimensions in mm: 210 x 148
-  const a5W = 210;
-  const a5H = 148;
-  const margin = 8; // 8mm margin
-
-  // Determine orientation
-  const isLandscape = canvas.width >= canvas.height;
-  const pageW = isLandscape ? a5W : a5H;
-  const pageH = isLandscape ? a5H : a5W;
-
-  const printableW = pageW - (margin * 2);
-  const printableH = pageH - (margin * 2);
-
-  const canvasRatio = canvas.width / canvas.height;
-  const printableRatio = printableW / printableH;
-
-  let imgW = printableW;
-  let imgH = printableH;
-
-  if (canvasRatio > printableRatio) {
-    // Canvas is wider relative to its height than the printable area
-    imgW = printableW;
-    imgH = printableW / canvasRatio;
-  } else {
-    // Canvas is taller relative to its width than the printable area
-    imgH = printableH;
-    imgW = printableH * canvasRatio;
-  }
-
-  // Center on A5 page
-  const x = margin + (printableW - imgW) / 2;
-  const y = margin + (printableH - imgH) / 2;
-
+  const pageW = 210;
+  const pageH = (canvas.height * pageW) / canvas.width;
   const imgData = canvas.toDataURL('image/png');
-  const orientation = isLandscape ? 'l' : 'p';
-  
-  const pdf = new jsPDF(orientation, 'mm', 'a5');
-  pdf.addImage(imgData, 'PNG', x, y, imgW, imgH, undefined, 'FAST');
+  const orientation = pageH >= pageW ? 'p' : 'l';
+  const pdf = new jsPDF(orientation, 'mm', [pageW, pageH]);
+  pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
   pdf.save(filename);
 }

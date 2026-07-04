@@ -626,6 +626,8 @@ model PurchaseItem {
 model BikeChassisNumber {
   id            Int           @id @default(autoincrement())
   chassisNumber String        @unique
+  engineNumber  String?       @unique
+  motorNumber   String?       @unique
   productId     String
   branchId      Int
   status        ChassisStatus @default(IN_STOCK)

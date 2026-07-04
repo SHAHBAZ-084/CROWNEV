@@ -76,6 +76,7 @@ const AdminUsers = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminUse
 const AdminReports = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminReportsPage');
 const AdminTestimonials = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminTestimonialsPage');
 const AdminCustomization = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminCustomizationPage');
+const AdminProfile = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminProfilePage');
 
 const BranchDashboard = lazy(() => import('./pages/branch/BranchDashboard'));
 const BranchPOS = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPOSPage');
@@ -168,6 +169,7 @@ export default function App() {
                   <Route path="/admin/testimonials" element={<DashWrap><AdminTestimonials /></DashWrap>} />
                   <Route path="/admin/customization" element={<DashWrap><AdminCustomization /></DashWrap>} />
                   <Route path="/admin/reports" element={<DashWrap><AdminReports /></DashWrap>} />
+                  <Route path="/admin/profile" element={<DashWrap><AdminProfile /></DashWrap>} />
                 </Route>
               </Route>
 

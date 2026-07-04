@@ -159,6 +159,18 @@ export async function updateUser(
   });
 }
 
+export async function setUserPassword(id: string, newPassword: string) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError(404, 'User not found');
+  if (user.role !== Role.BRANCH_OWNER) {
+    throw new AppError(400, 'Password can only be reset here for branch owner accounts');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({ where: { id }, data: { passwordHash } });
+  return { message: 'Password updated successfully' };
+}
+
 export async function deleteUser(id: string) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new AppError(404, 'User not found');

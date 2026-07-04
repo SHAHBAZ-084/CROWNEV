@@ -305,6 +305,11 @@ export const adminApi = {
     api<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: string, data: Record<string, unknown>) =>
     api<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  setUserPassword: (id: string, newPassword: string) =>
+    api<{ message: string }>(`/users/${id}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
+    }),
   deleteUser: (id: string) => api<void>(`/users/${id}`, { method: 'DELETE' }),
   orders: (params?: Record<string, string>) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';
@@ -590,11 +595,21 @@ export const branchApi = {
     `/branches/${branchId}/purchase-products`,
   ),
   availableChassis: (branchId: number, productId: string) =>
-    api<{ id: number; chassisNumber: string }[]>(`/branches/${branchId}/chassis/available/${productId}`),
+    api<{ id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]>(
+      `/branches/${branchId}/chassis/available/${productId}`,
+    ),
   validateChassisNumbers: (branchId: number, chassisNumbers: string[]) =>
     api<{ valid: boolean }>(`/branches/${branchId}/chassis/validate`, {
       method: 'POST',
       body: JSON.stringify({ chassisNumbers }),
+    }),
+  validateBikeUnits: (
+    branchId: number,
+    bikeUnits: { chassisNumber: string; engineNumber?: string; motorNumber?: string }[],
+  ) =>
+    api<{ valid: boolean }>(`/branches/${branchId}/chassis/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ bikeUnits }),
     }),
   listChassis: (branchId: number, params?: { productId?: string; status?: 'IN_STOCK' | 'SOLD' }) => {
     const q = new URLSearchParams();
@@ -615,7 +630,12 @@ export const branchApi = {
     branchId: number;
     supplierId: number;
     reference?: string;
-    items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
+    items: {
+      productId: string;
+      quantity: number;
+      unitCost: number;
+      bikeUnits?: { chassisNumber: string; engineNumber?: string; motorNumber?: string }[];
+    }[];
     notes?: string;
   }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {
     method: 'POST',

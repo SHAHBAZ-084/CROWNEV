@@ -5,8 +5,10 @@ import { addStockInTx } from '../inventory/inventory.service.js';
 import {
   createChassisRecordsInTx,
   normalizeChassisNumber,
-  validateBikePurchaseChassis,
-  validateChassisNumbersAvailable,
+  normalizeIdentifierNumber,
+  validateBikePurchaseUnits,
+  validateBikeUnitsAvailable,
+  type BikeUnitInput,
 } from '../chassis/chassis.service.js';
 import {
   createVoucherInTx,
@@ -189,7 +191,7 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
 
 async function validatePurchaseItems(
   branchId: number,
-  items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[],
+  items: { productId: string; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[],
 ) {
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
@@ -210,7 +212,7 @@ async function validatePurchaseItems(
     quantity: number;
     unitCost: number;
     total: number;
-    chassisNumbers?: string[];
+    bikeUnits?: BikeUnitInput[];
     product: (typeof products)[number];
   }[] = [];
 
@@ -223,7 +225,7 @@ async function validatePurchaseItems(
       throw new AppError(400, `Product "${product.name}" cannot be purchased`);
     }
 
-    validateBikePurchaseChassis(product.type, item.quantity, item.chassisNumbers);
+    validateBikePurchaseUnits(product.type, item.quantity, item.bikeUnits);
 
     const unitCost = Number(item.unitCost);
     if (!Number.isFinite(unitCost) || unitCost <= 0) {
@@ -241,7 +243,11 @@ async function validatePurchaseItems(
       quantity: item.quantity,
       unitCost,
       total: unitCost * item.quantity,
-      chassisNumbers: item.chassisNumbers?.map(normalizeChassisNumber),
+      bikeUnits: item.bikeUnits?.map((u) => ({
+        chassisNumber: normalizeChassisNumber(u.chassisNumber),
+        engineNumber: u.engineNumber ? normalizeIdentifierNumber(u.engineNumber) : undefined,
+        motorNumber: u.motorNumber ? normalizeIdentifierNumber(u.motorNumber) : undefined,
+      })),
       product,
     });
   }
@@ -255,7 +261,7 @@ export async function createPurchaseInvoice(data: {
   reference?: string;
   notes?: string;
   createdById: string;
-  items: { productId: string; quantity: number; unitCost: number; chassisNumbers?: string[] }[];
+  items: { productId: string; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[];
 }) {
   const supplier = await prisma.supplier.findFirst({
     where: { id: data.supplierId, branchId: data.branchId, isActive: true },
@@ -271,9 +277,9 @@ export async function createPurchaseInvoice(data: {
   const total = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (total <= 0) throw new AppError(400, 'Purchase total must be greater than zero');
 
-  const allChassis = pricedItems.flatMap((i) => i.chassisNumbers ?? []);
-  if (allChassis.length > 0) {
-    await validateChassisNumbersAvailable(allChassis);
+  const allBikeUnits = pricedItems.flatMap((i) => i.bikeUnits ?? []);
+  if (allBikeUnits.length > 0) {
+    await validateBikeUnitsAvailable(allBikeUnits);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -300,8 +306,8 @@ export async function createPurchaseInvoice(data: {
     });
 
     const bikeChassisRecords = pricedItems
-      .filter((i) => i.product.type === ProductType.BIKE && i.chassisNumbers?.length)
-      .map((i) => ({ productId: i.productId, chassisNumbers: i.chassisNumbers! }));
+      .filter((i) => i.product.type === ProductType.BIKE && i.bikeUnits?.length)
+      .map((i) => ({ productId: i.productId, units: i.bikeUnits! }));
 
     if (bikeChassisRecords.length > 0) {
       await createChassisRecordsInTx(tx, {
@@ -452,11 +458,24 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       branch: true,
       supplier: true,
       items: { include: { product: true, part: true } },
+      chassis: {
+        select: { productId: true, chassisNumber: true, engineNumber: true, motorNumber: true },
+      },
     },
   });
   if (!purchase) throw new AppError(404, 'Purchase not found');
 
   const reference = purchase.documentRef?.trim() || purchase.invoiceNumber?.trim() || null;
+
+  const unitsByProduct = new Map<
+    string,
+    { chassisNumber: string; engineNumber: string | null; motorNumber: string | null }[]
+  >();
+  for (const c of purchase.chassis) {
+    const list = unitsByProduct.get(c.productId) ?? [];
+    list.push({ chassisNumber: c.chassisNumber, engineNumber: c.engineNumber, motorNumber: c.motorNumber });
+    unitsByProduct.set(c.productId, list);
+  }
 
   return {
     invoiceType: 'PURCHASE' as const,
@@ -482,6 +501,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       const name = i.product?.name ?? i.part?.name ?? 'Item';
       const type = i.product?.type ?? 'PART';
       const unitCost = Number(i.unitCost);
+      const bikeUnits = i.productId ? unitsByProduct.get(i.productId) : undefined;
       return {
         name,
         type,
@@ -489,6 +509,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
         unitCost,
         total: unitCost * i.quantity,
         chassisNumber: i.chassisNumber,
+        bikeUnits: bikeUnits ?? undefined,
       };
     }),
     subtotal: Number(purchase.total),

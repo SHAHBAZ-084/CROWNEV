@@ -634,9 +634,22 @@ function newSaleLine(): SaleLine {
   return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
 }
 
-function resizeChassisNumbers(current: string[] | undefined, qty: number): string[] {
+/** One bike unit on a purchase invoice line: chassis number is always required,
+ * plus a choice of either engine number or motor number (never both). */
+type BikeUnit = {
+  chassisNumber: string;
+  numberType: 'ENGINE' | 'MOTOR';
+  engineNumber: string;
+  motorNumber: string;
+};
+
+function newBikeUnit(): BikeUnit {
+  return { chassisNumber: '', numberType: 'ENGINE', engineNumber: '', motorNumber: '' };
+}
+
+function resizeBikeUnits(current: BikeUnit[] | undefined, qty: number): BikeUnit[] {
   const next = [...(current ?? [])];
-  while (next.length < qty) next.push('');
+  while (next.length < qty) next.push(newBikeUnit());
   return next.slice(0, qty);
 }
 
@@ -645,7 +658,7 @@ type PurchaseLine = {
   productId: string;
   quantity: number;
   unitCost?: number;
-  chassisNumbers?: string[];
+  bikeUnits?: BikeUnit[];
 };
 
 function newPurchaseLine(): PurchaseLine {
@@ -1197,7 +1210,7 @@ export function PosPurchaseInvoicePage() {
 
   function selectProductForLine(lineKey: string, productId: string) {
     if (!productId) {
-      updateLine(lineKey, { productId: '', unitCost: undefined, chassisNumbers: undefined });
+      updateLine(lineKey, { productId: '', unitCost: undefined, bikeUnits: undefined });
       return;
     }
     const currentLine = lines.find((l) => l.key === lineKey);
@@ -1212,7 +1225,7 @@ export function PosPurchaseInvoicePage() {
     updateLine(lineKey, {
       productId,
       unitCost: undefined,
-      chassisNumbers: product?.type === 'BIKE' ? resizeChassisNumbers(undefined, Math.max(1, qty)) : undefined,
+      bikeUnits: product?.type === 'BIKE' ? resizeBikeUnits(undefined, Math.max(1, qty)) : undefined,
     });
   }
 
@@ -1232,21 +1245,21 @@ export function PosPurchaseInvoicePage() {
       const product = productById.get(next.productId);
       if (product?.type === 'BIKE') {
         if (patch.quantity !== undefined) {
-          next.chassisNumbers = resizeChassisNumbers(next.chassisNumbers, Math.max(1, next.quantity));
+          next.bikeUnits = resizeBikeUnits(next.bikeUnits, Math.max(1, next.quantity));
         }
       } else {
-        next.chassisNumbers = undefined;
+        next.bikeUnits = undefined;
       }
       return next;
     }));
   }
 
-  function updateChassisNumber(lineKey: string, index: number, value: string) {
+  function updateBikeUnit(lineKey: string, index: number, patch: Partial<BikeUnit>) {
     setLines((prev) => prev.map((l) => {
       if (l.key !== lineKey) return l;
-      const nums = resizeChassisNumbers(l.chassisNumbers, l.quantity);
-      nums[index] = value;
-      return { ...l, chassisNumbers: nums };
+      const units = resizeBikeUnits(l.bikeUnits, l.quantity);
+      units[index] = { ...units[index], ...patch };
+      return { ...l, bikeUnits: units };
     }));
   }
 
@@ -1264,28 +1277,52 @@ export function PosPurchaseInvoicePage() {
     for (const l of lineDetails) {
       if (!l.product) continue;
       if (l.product.type === 'BIKE') {
-        const nums = (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean);
-        if (nums.length !== l.qty) {
-          toast(`Enter all ${l.qty} chassis numbers for ${l.product.name}`, 'error');
+        const units = resizeBikeUnits(l.bikeUnits, l.qty);
+        for (const u of units) {
+          if (!u.chassisNumber.trim()) {
+            toast(`Enter chassis number for all ${l.qty} unit(s) of ${l.product.name}`, 'error');
+            return;
+          }
+          const numberValue = u.numberType === 'ENGINE' ? u.engineNumber : u.motorNumber;
+          if (!numberValue?.trim()) {
+            toast(
+              `Enter ${u.numberType === 'ENGINE' ? 'engine' : 'motor'} number for every unit of ${l.product.name}`,
+              'error',
+            );
+            return;
+          }
+        }
+        const chassisNums = units.map((u) => u.chassisNumber.trim().toUpperCase());
+        if (new Set(chassisNums).size !== chassisNums.length) {
+          toast('Duplicate chassis numbers on this invoice', 'error');
           return;
         }
-        const normalized = nums.map((n) => n.toUpperCase());
-        if (new Set(normalized).size !== normalized.length) {
-          toast('Duplicate chassis numbers on this invoice', 'error');
+        const engineNums = units.filter((u) => u.numberType === 'ENGINE').map((u) => u.engineNumber.trim().toUpperCase());
+        if (new Set(engineNums).size !== engineNums.length) {
+          toast('Duplicate engine numbers on this invoice', 'error');
+          return;
+        }
+        const motorNums = units.filter((u) => u.numberType === 'MOTOR').map((u) => u.motorNumber.trim().toUpperCase());
+        if (new Set(motorNums).size !== motorNums.length) {
+          toast('Duplicate motor numbers on this invoice', 'error');
           return;
         }
       }
     }
-    const allChassis = lineDetails.flatMap((l) =>
+    const allBikeUnits = lineDetails.flatMap((l) =>
       l.product?.type === 'BIKE'
-        ? (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean)
+        ? resizeBikeUnits(l.bikeUnits, l.qty).map((u) => ({
+            chassisNumber: u.chassisNumber.trim(),
+            engineNumber: u.numberType === 'ENGINE' ? u.engineNumber.trim() : undefined,
+            motorNumber: u.numberType === 'MOTOR' ? u.motorNumber.trim() : undefined,
+          }))
         : [],
     );
-    if (allChassis.length > 0) {
+    if (allBikeUnits.length > 0) {
       try {
-        await branchApi.validateChassisNumbers(branchId, allChassis);
+        await branchApi.validateBikeUnits(branchId, allBikeUnits);
       } catch (err) {
-        toast(err instanceof Error ? err.message : 'Chassis number validation failed', 'error');
+        toast(err instanceof Error ? err.message : 'Chassis/engine/motor number validation failed', 'error');
         return;
       }
     }
@@ -1296,7 +1333,13 @@ export function PosPurchaseInvoicePage() {
         quantity: l.qty,
         unitCost: Number(l.unitCost),
         ...(l.product?.type === 'BIKE'
-          ? { chassisNumbers: (l.chassisNumbers ?? []).map((n) => n.trim()).filter(Boolean) }
+          ? {
+              bikeUnits: resizeBikeUnits(l.bikeUnits, l.qty).map((u) => ({
+                chassisNumber: u.chassisNumber.trim(),
+                engineNumber: u.numberType === 'ENGINE' ? u.engineNumber.trim() : undefined,
+                motorNumber: u.numberType === 'MOTOR' ? u.motorNumber.trim() : undefined,
+              })),
+            }
           : {}),
       }));
     if (items.length === 0) {
@@ -1438,16 +1481,63 @@ export function PosPurchaseInvoicePage() {
               </Button>
               </div>
               {line.product?.type === 'BIKE' && (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {resizeChassisNumbers(line.chassisNumbers, line.qty).map((num, idx) => (
-                    <Input
-                      key={`${line.key}-chassis-${idx}`}
-                      label={`Chassis number ${idx + 1}`}
-                      value={num}
-                      required
-                      placeholder="Unique chassis number"
-                      onChange={(e) => updateChassisNumber(line.key, idx, e.target.value)}
-                    />
+                <div className="space-y-3">
+                  {resizeBikeUnits(line.bikeUnits, line.qty).map((unit, idx) => (
+                    <div
+                      key={`${line.key}-unit-${idx}`}
+                      className="rounded-xl border border-border/60 p-3"
+                    >
+                      <p className="mb-2 text-xs font-semibold text-text-muted">Bike unit {idx + 1}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Input
+                          label="Chassis number"
+                          value={unit.chassisNumber}
+                          required
+                          placeholder="Unique chassis number"
+                          onChange={(e) => updateBikeUnit(line.key, idx, { chassisNumber: e.target.value })}
+                        />
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-text-muted">Engine or motor number</p>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={unit.numberType === 'ENGINE' ? 'accent' : 'secondary'}
+                              onClick={() => updateBikeUnit(line.key, idx, { numberType: 'ENGINE' })}
+                            >
+                              Engine Number
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={unit.numberType === 'MOTOR' ? 'accent' : 'secondary'}
+                              onClick={() => updateBikeUnit(line.key, idx, { numberType: 'MOTOR' })}
+                            >
+                              Motor Number
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        {unit.numberType === 'ENGINE' ? (
+                          <Input
+                            label="Engine number"
+                            value={unit.engineNumber}
+                            required
+                            placeholder="Unique engine number"
+                            onChange={(e) => updateBikeUnit(line.key, idx, { engineNumber: e.target.value })}
+                          />
+                        ) : (
+                          <Input
+                            label="Motor number"
+                            value={unit.motorNumber}
+                            required
+                            placeholder="Unique motor number"
+                            onChange={(e) => updateBikeUnit(line.key, idx, { motorNumber: e.target.value })}
+                          />
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}

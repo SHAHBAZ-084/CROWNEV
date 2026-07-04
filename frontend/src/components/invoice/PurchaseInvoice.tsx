@@ -135,8 +135,19 @@ export function PurchaseInvoice({
                 <td className="px-2 py-3">
                   <p className="font-medium text-slate-900">{item.name}</p>
                   <p className={invoiceSubtext}>{item.type}</p>
-                  {item.chassisNumber && (
+                  {item.chassisNumber && !item.bikeUnits?.length && (
                     <p className={invoiceSubtext}>Chassis number: {item.chassisNumber}</p>
+                  )}
+                  {item.bikeUnits && item.bikeUnits.length > 0 && (
+                    <div className={invoiceSubtext}>
+                      {item.bikeUnits.map((u, uIdx) => (
+                        <p key={uIdx}>
+                          Chassis: {u.chassisNumber}
+                          {u.engineNumber ? ` · Engine: ${u.engineNumber}` : ''}
+                          {u.motorNumber ? ` · Motor: ${u.motorNumber}` : ''}
+                        </p>
+                      ))}
+                    </div>
                   )}
                 </td>
                 <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>
