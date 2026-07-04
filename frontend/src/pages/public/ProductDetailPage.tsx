@@ -18,6 +18,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [color, setColor] = useState('');
   const [qty, setQty] = useState(1);
+  const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
   const { addItem } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -28,6 +29,28 @@ export default function ProductDetailPage() {
 
   const images = useMemo(() => sortProductImages(product?.images), [product?.images]);
 
+  const colors = useMemo(() => {
+    if (!product) return [];
+    const raw = (product.colorOptions as any[] | null) ?? [];
+    return raw
+      .map((c) => {
+        if (typeof c === 'string') {
+          return { name: c, imageUrl: null };
+        }
+        return { name: c?.name || '', imageUrl: c?.imageUrl || null };
+      })
+      .filter((c) => c.name !== '');
+  }, [product]);
+
+  useEffect(() => {
+    if (colors.length > 0) {
+      setColor(colors[0].name);
+      if (colors[0].imageUrl) {
+        setActiveImageUrl(colors[0].imageUrl);
+      }
+    }
+  }, [colors]);
+
   if (!product) {
     return (
       <div className="bg-subtle p-8">
@@ -37,7 +60,6 @@ export default function ProductDetailPage() {
   }
 
   const price = Number(product.salePrice ?? product.price);
-  const colors = (product.colorOptions as string[] | null) ?? [];
   const specs = product.specs as Record<string, unknown> | null;
   const specTitle = product.type === 'PART' ? 'Part Details' : 'EV Specifications';
   const hasSpecs = specs && Object.keys(specs).length > 0;
@@ -62,7 +84,12 @@ export default function ProductDetailPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:px-8">
         <div className="grid gap-8 sm:gap-10 lg:grid-cols-2 lg:items-start lg:gap-x-12">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <ProductImageGallery images={product.images} alt={product.name} />
+            <ProductImageGallery
+              images={product.images}
+              alt={product.name}
+              activeOverrideUrl={activeImageUrl}
+              onImageChange={setActiveImageUrl}
+            />
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
@@ -83,16 +110,21 @@ export default function ProductDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {colors.map((c) => (
                     <button
-                      key={c}
+                      key={c.name}
                       type="button"
-                      onClick={() => setColor(c)}
+                      onClick={() => {
+                        setColor(c.name);
+                        if (c.imageUrl) {
+                          setActiveImageUrl(c.imageUrl);
+                        }
+                      }}
                       className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                        color === c
+                        color === c.name
                           ? 'border-brand bg-brand/10 text-brand'
                           : 'border-border-light bg-elevated text-ink-muted hover:border-brand/40 hover:text-ink'
                       }`}
                     >
-                      {c}
+                      {c.name}
                     </button>
                   ))}
                 </div>

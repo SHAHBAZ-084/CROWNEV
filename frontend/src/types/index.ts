@@ -15,6 +15,11 @@ export interface User {
   hasPassword?: boolean;
 }
 
+export interface ColorOption {
+  name: string;
+  imageUrl: string | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -24,8 +29,9 @@ export interface Product {
   salePrice?: string | null;
   description?: string | null;
   specs?: Record<string, string> | null;
-  colorOptions?: string[] | null;
+  colorOptions?: (string | ColorOption)[] | null;
   brand?: { id: number; name: string } | null;
+
   category?: { id: number; name: string } | null;
   images?: { id?: number; url: string; isPrimary: boolean; sortOrder?: number }[];
   stockAtBranch?: number;

@@ -15,6 +15,14 @@ export const productsRouter = Router();
 
 const priceField = z.number().positive().max(9_999_999_999.99, 'Price exceeds maximum allowed value');
 
+const colorOptionSchema = z.union([
+  z.string().min(1),
+  z.object({
+    name: z.string().min(1),
+    imageUrl: z.string().nullable().optional(),
+  }),
+]);
+
 const productCreateSchema = z.object({
   name: z.string().min(1),
   type: z.nativeEnum(ProductType),
@@ -24,7 +32,7 @@ const productCreateSchema = z.object({
   salePrice: priceField.optional(),
   description: z.string().optional(),
   specs: z.record(z.unknown()).optional(),
-  colorOptions: z.array(z.string().min(1)).optional(),
+  colorOptions: z.array(colorOptionSchema).optional(),
 });
 
 const productUpdateSchema = productCreateSchema.partial().extend({

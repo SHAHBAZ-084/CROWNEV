@@ -19,11 +19,22 @@ export function getPrimaryProductImage(images?: ProductImage[]) {
 export function ProductImageGallery({
   images,
   alt,
+  activeOverrideUrl,
+  onImageChange,
 }: {
   images?: ProductImage[];
   alt: string;
+  activeOverrideUrl?: string | null;
+  onImageChange?: (url: string) => void;
 }) {
-  const sorted = useMemo(() => sortProductImages(images), [images]);
+  const sorted = useMemo(() => {
+    const list = sortProductImages(images);
+    if (activeOverrideUrl && !list.some((img) => img.url === activeOverrideUrl)) {
+      list.push({ url: activeOverrideUrl, isPrimary: false });
+    }
+    return list;
+  }, [images, activeOverrideUrl]);
+
   const [active, setActive] = useState(0);
   const thumbsRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -33,6 +44,23 @@ export function ProductImageGallery({
   useEffect(() => {
     setActive(0);
   }, [sorted]);
+
+  // Synchronize with activeOverrideUrl if set
+  useEffect(() => {
+    if (activeOverrideUrl) {
+      const idx = sorted.findIndex((img) => img.url === activeOverrideUrl);
+      if (idx !== -1) {
+        setActive(idx);
+      }
+    }
+  }, [activeOverrideUrl, sorted]);
+
+  // Trigger callback when active changes
+  useEffect(() => {
+    if (sorted[active] && onImageChange) {
+      onImageChange(sorted[active].url);
+    }
+  }, [active, sorted, onImageChange]);
 
   // Auto-scroll active thumbnail into center view
   useEffect(() => {
@@ -88,9 +116,9 @@ export function ProductImageGallery({
 
   return (
     <div className="w-full space-y-3">
-      {/* Main image — no fixed aspect ratio, frame fits the photo exactly */}
+      {/* Main image — fixed aspect ratio on mobile & desktop, object-contain fits full bike */}
       <div
-        className="group relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-gray-50 shadow-[var(--shadow-card)]"
+        className="group relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-slate-200 bg-gray-50 shadow-[var(--shadow-card)] sm:aspect-square"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -103,7 +131,7 @@ export function ProductImageGallery({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="block h-auto w-full"
+            className="h-full w-full object-contain"
           />
         </AnimatePresence>
 

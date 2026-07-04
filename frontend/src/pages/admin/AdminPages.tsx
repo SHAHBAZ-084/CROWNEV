@@ -13,10 +13,9 @@ import { StatCard } from '../../components/ui/StatCard';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { BranchPhotoField } from '../../components/crud/BranchPhotoField';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
-import { EvSpecsFields } from '../../components/crud/EvSpecsFields';
+import { EvSpecsFields, type ColorRow } from '../../components/crud/EvSpecsFields';
 import { PartDetailFields, parsePartDetailFromForm, validatePartDetailFromForm } from '../../components/crud/PartDetailFields';
 import {
-  parseColorOptionsFromForm,
   parseEvSpecsFromForm,
   validateEvSpecsFromForm,
 } from '../../lib/evSpecs';
@@ -572,6 +571,7 @@ export function AdminProductsPage() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
+  const [colorRows, setColorRows] = useState<ColorRow[]>([]);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
@@ -588,6 +588,12 @@ export function AdminProductsPage() {
     });
     setExistingImages([]);
     setPrimarySelection(null);
+    colorRows.forEach((row) => {
+      if (row.file) {
+        URL.revokeObjectURL(URL.createObjectURL(row.file));
+      }
+    });
+    setColorRows([]);
   }
 
   function closeModal() {
@@ -606,12 +612,14 @@ export function AdminProductsPage() {
     resetImageState();
     setEdit(null);
     setModal('create');
+    setColorRows([]);
   }
 
   function openEditModal(row: Row) {
     resetImageState();
     setEdit(row);
     setModal('edit');
+    setColorRows([]);
     adminApi
       .getProduct(String(row.id))
       .then((full) => {
@@ -619,6 +627,30 @@ export function AdminProductsPage() {
         const imgs = (full.images as ExistingImage[] | undefined) ?? [];
         setExistingImages(imgs);
         setPrimarySelection(primaryFromImages(imgs, []));
+
+        // Load & normalize color options
+        const rawColors = (full.colorOptions as any[] | null) ?? [];
+        const mappedRows = rawColors
+          .map((c, i) => {
+            if (typeof c === 'string') {
+              return {
+                id: `existing-${i}-${Math.random()}`,
+                name: c,
+                file: null,
+                imageUrl: null,
+              };
+            } else if (c && typeof c === 'object' && 'name' in c) {
+              return {
+                id: `existing-${i}-${Math.random()}`,
+                name: c.name || '',
+                file: null,
+                imageUrl: c.imageUrl || null,
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) as ColorRow[];
+        setColorRows(mappedRows);
       })
       .catch((err) => {
         toast(err instanceof Error ? err.message : 'Failed to load product', 'error');
@@ -683,6 +715,34 @@ export function AdminProductsPage() {
     let body: Record<string, unknown>;
     try {
       const salePrice = parseOptionalFormPrice(fd.get('salePrice'), 'Sale price');
+
+      // Upload newly added color-option images
+      let updatedColorRows = [...colorRows];
+      const rowsToUpload = colorRows.filter((r) => r.file !== null);
+      if (rowsToUpload.length > 0) {
+        setSaving(true);
+        const { urls } = await adminApi.uploadProductImages(rowsToUpload.map((r) => r.file!));
+        let uploadIdx = 0;
+        updatedColorRows = colorRows.map((row) => {
+          if (row.file !== null) {
+            return {
+              ...row,
+              imageUrl: urls[uploadIdx++],
+              file: null,
+            };
+          }
+          return row;
+        });
+        setColorRows(updatedColorRows);
+      }
+
+      const colorOptionsPayload = updatedColorRows
+        .map((r) => ({
+          name: r.name.trim(),
+          imageUrl: r.imageUrl,
+        }))
+        .filter((r) => r.name !== '');
+
       body = {
         name: String(fd.get('name')).trim(),
         type: productType,
@@ -691,7 +751,7 @@ export function AdminProductsPage() {
         ...(salePrice !== undefined && { salePrice }),
         ...(tab === 'bikes' && {
           specs: parseEvSpecsFromForm(fd),
-          colorOptions: parseColorOptionsFromForm(fd),
+          colorOptions: colorOptionsPayload,
         }),
         ...(tab === 'parts' && { specs: parsePartDetailFromForm(fd) }),
         ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
@@ -865,7 +925,8 @@ export function AdminProductsPage() {
             {tab === 'bikes' && (
               <EvSpecsFields
                 specs={edit?.specs as Record<string, string> | undefined}
-                colorOptions={edit?.colorOptions as string[] | undefined}
+                colorRows={colorRows}
+                onColorRowsChange={setColorRows}
               />
             )}
             {modal === 'edit' && (

@@ -253,7 +253,7 @@ export async function createProduct(
     salePrice?: number;
     description?: string;
     specs?: object;
-    colorOptions?: string[] | object;
+    colorOptions?: any;
   },
   linkBranchId?: number
 ) {
