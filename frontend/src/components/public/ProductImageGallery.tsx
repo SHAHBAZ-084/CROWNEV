@@ -36,6 +36,8 @@ export function ProductImageGallery({
   }, [images, activeOverrideUrl]);
 
   const [active, setActive] = useState(0);
+  const [ratio, setRatio] = useState<number>(1);
+  const ratioCache = useRef<Map<string, number>>(new Map());
   const thumbsRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -76,6 +78,17 @@ export function ProductImageGallery({
     });
   }, [active]);
 
+  const currentUrl = sorted[active]?.url ?? sorted[0]?.url;
+
+  // Whenever the active image changes, switch to its cached ratio (if we've
+  // already measured it) so the frame doesn't flash/jump before the new
+  // image's onLoad fires again. Hook must stay above any early return.
+  useEffect(() => {
+    if (!currentUrl) return;
+    const cached = ratioCache.current.get(currentUrl);
+    if (cached) setRatio(cached);
+  }, [currentUrl]);
+
   if (!sorted.length) {
     return (
       <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
@@ -87,15 +100,25 @@ export function ProductImageGallery({
   const current = sorted[active] ?? sorted[0];
   const hasMultiple = sorted.length > 1;
 
+  function handleImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    if (!naturalWidth || !naturalHeight) return;
+    // Clamp so extremely tall/wide source photos can't wreck the page layout.
+    const raw = naturalWidth / naturalHeight;
+    const clamped = Math.min(1.6, Math.max(0.6, raw));
+    ratioCache.current.set(current.url, clamped);
+    setRatio(clamped);
+  }
+
   function goPrev() {
     setActive((i) => (i - 1 + sorted.length) % sorted.length);
   }
 
+  // Touch swipe handlers for main image
   function goNext() {
     setActive((i) => (i + 1) % sorted.length);
   }
 
-  // Touch swipe handlers for main image
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -116,9 +139,13 @@ export function ProductImageGallery({
 
   return (
     <div className="w-full space-y-3">
-      {/* Main image — fixed aspect ratio on mobile & desktop, object-contain fits full bike */}
+      {/* Main image — frame's aspect ratio is measured from the actual photo
+          (see handleImageLoad), so it always matches the source image exactly.
+          That means no cropping AND no leftover white/grey bars on any side,
+          regardless of whether a given photo is portrait, landscape, or square. */}
       <div
-        className="group relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-slate-200 bg-gray-50 shadow-[var(--shadow-card)] sm:aspect-square"
+        className="group relative w-full max-h-[75vh] overflow-hidden rounded-2xl border border-slate-200 bg-gray-50 shadow-[var(--shadow-card)] transition-[aspect-ratio] duration-200"
+        style={{ aspectRatio: ratio }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -127,11 +154,12 @@ export function ProductImageGallery({
             key={current.url}
             src={current.url}
             alt={alt}
+            onLoad={handleImageLoad}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover"
           />
         </AnimatePresence>
 
@@ -167,13 +195,9 @@ export function ProductImageGallery({
         <div
           ref={thumbsRef}
           className={[
-            // Layout — no negative margins to prevent viewport overflow
             'flex gap-2 overflow-x-auto',
-            // Snap scrolling
             'snap-x snap-mandatory',
-            // Hide scrollbar across all browsers
             '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
-            // Bottom padding so ring shadow isn't clipped
             'pb-1',
           ].join(' ')}
         >
@@ -187,7 +211,6 @@ export function ProductImageGallery({
                 aria-label={`View image ${index + 1}`}
                 aria-current={selected}
                 className={[
-                  // Smaller on mobile, standard on sm+
                   'relative h-16 w-16 sm:h-20 sm:w-20',
                   'shrink-0 snap-start overflow-hidden rounded-xl border-2 transition-all duration-200',
                   selected

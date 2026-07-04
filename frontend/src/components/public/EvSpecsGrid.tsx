@@ -4,14 +4,23 @@ import { groupedSpecEntries, orderedSpecEntries, type SpecGroup } from '../../li
 function SpecGroupGrid({ group }: { group: SpecGroup }) {
   return (
     <div>
-      <div className="border-b border-border-light bg-subtle/80 px-4 py-2 sm:px-6">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand">{group.title}</h3>
+      <div className="border-b border-border-light bg-subtle/80 px-3 py-2 sm:px-6">
+        <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand sm:text-[11px] sm:tracking-[0.16em]">
+          {group.title}
+        </h3>
       </div>
-      <dl className="grid grid-cols-1 gap-px bg-elevated sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px bg-border-light sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {group.entries.map(({ key, label, value }) => (
-          <div key={key} className="flex flex-col justify-center bg-elevated px-4 py-2 sm:px-5 sm:py-2.5">
-            <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">{label}</dt>
-            <dd className="mt-0.5 font-display text-sm font-semibold leading-snug text-ink">{value}</dd>
+          <div
+            key={key}
+            className="flex min-w-0 flex-col justify-center gap-0.5 bg-elevated px-3 py-2.5 sm:px-5 sm:py-3"
+          >
+            <dt className="truncate text-[10px] font-medium uppercase tracking-wide text-ink-muted sm:text-[11px]">
+              {label}
+            </dt>
+            <dd className="break-words font-display text-sm font-semibold leading-snug text-ink sm:text-[15px]">
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
@@ -40,9 +49,9 @@ export function EvSpecsGrid({
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)]">
-      <div className="border-b border-border-light bg-gradient-to-r from-brand/[0.06] via-accent/[0.04] to-transparent px-4 py-4 sm:px-6 sm:py-5">
-        <h2 className="font-display text-lg font-bold text-ink sm:text-xl">{title}</h2>
-        <p className="mt-1 text-sm text-ink-muted">
+      <div className="border-b border-border-light bg-gradient-to-r from-brand/[0.06] via-accent/[0.04] to-transparent px-3 py-3 sm:px-6 sm:py-5">
+        <h2 className="font-display text-base font-bold text-ink sm:text-xl">{title}</h2>
+        <p className="mt-0.5 text-xs text-ink-muted sm:mt-1 sm:text-sm">
           {totalSpecs} specification{totalSpecs === 1 ? '' : 's'}
         </p>
       </div>
