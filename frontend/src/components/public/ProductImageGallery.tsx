@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 
@@ -25,10 +25,28 @@ export function ProductImageGallery({
 }) {
   const sorted = useMemo(() => sortProductImages(images), [images]);
   const [active, setActive] = useState(0);
+  const thumbsRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
+  // Reset to first image when product changes
   useEffect(() => {
     setActive(0);
   }, [sorted]);
+
+  // Auto-scroll active thumbnail into center view
+  useEffect(() => {
+    const container = thumbsRef.current;
+    if (!container) return;
+    const thumb = container.children[active] as HTMLElement | undefined;
+    if (!thumb) return;
+    const containerCenter = container.offsetWidth / 2;
+    const thumbCenter = thumb.offsetLeft + thumb.offsetWidth / 2;
+    container.scrollTo({
+      left: thumbCenter - containerCenter,
+      behavior: 'smooth',
+    });
+  }, [active]);
 
   if (!sorted.length) {
     return (
@@ -49,9 +67,33 @@ export function ProductImageGallery({
     setActive((i) => (i + 1) % sorted.length);
   }
 
+  // Touch swipe handlers for main image
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    // Only trigger if horizontal swipe is more dominant than vertical
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
+
   return (
     <div className="space-y-3">
-      <div className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-card)]">
+      {/* Main image */}
+      <div
+        className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-card)]"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.img
             key={current.url}
@@ -83,6 +125,8 @@ export function ProductImageGallery({
             >
               <ChevronRight className="h-5 w-5" />
             </button>
+
+            {/* Counter badge */}
             <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-brand/75 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
               {active + 1} / {sorted.length}
             </div>
@@ -90,8 +134,23 @@ export function ProductImageGallery({
         )}
       </div>
 
+      {/* Thumbnail strip — edge-to-edge on mobile, auto-scrolls active into center */}
       {hasMultiple && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div
+          ref={thumbsRef}
+          className={[
+            // Negative margin so strip goes edge-to-edge with horizontal padding on mobile
+            '-mx-4 px-4 sm:mx-0 sm:px-0',
+            // Layout
+            'flex gap-2 overflow-x-auto',
+            // Snap scrolling
+            'snap-x snap-mandatory',
+            // Hide scrollbar across all browsers
+            '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+            // Bottom padding so ring shadow isn't clipped
+            'pb-1',
+          ].join(' ')}
+        >
           {sorted.map((img, index) => {
             const selected = index === active;
             return (
@@ -101,11 +160,14 @@ export function ProductImageGallery({
                 onClick={() => setActive(index)}
                 aria-label={`View image ${index + 1}`}
                 aria-current={selected}
-                className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
+                className={[
+                  // Smaller on mobile, standard on sm+
+                  'relative h-16 w-16 sm:h-20 sm:w-20',
+                  'shrink-0 snap-start overflow-hidden rounded-xl border-2 transition-all duration-200',
                   selected
-                    ? 'border-orange-500 ring-2 ring-orange-500/25 shadow-[var(--shadow-card)]'
-                    : 'border-slate-200 opacity-75 hover:border-orange-300 hover:opacity-100'
-                }`}
+                    ? 'border-orange-500 ring-2 ring-orange-500/25 shadow-[var(--shadow-card)] scale-100 opacity-100'
+                    : 'border-slate-200 opacity-60 hover:border-orange-300 hover:opacity-100',
+                ].join(' ')}
               >
                 <img src={img.url} alt="" className="h-full w-full object-cover" />
               </button>
