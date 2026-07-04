@@ -88,9 +88,9 @@ export function ProductImageGallery({
 
   return (
     <div className="w-full space-y-3">
-      {/* Main image — 4:3 on mobile so the full bike fits, square on desktop */}
+      {/* Main image — no fixed aspect ratio, frame fits the photo exactly */}
       <div
-        className="group relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-[var(--shadow-card)] sm:aspect-square"
+        className="group relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-gray-50 shadow-[var(--shadow-card)]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -99,11 +99,11 @@ export function ProductImageGallery({
             key={current.url}
             src={current.url}
             alt={alt}
-            initial={{ opacity: 0, scale: 1.02 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="h-full w-full object-contain"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="block h-auto w-full"
           />
         </AnimatePresence>
 
