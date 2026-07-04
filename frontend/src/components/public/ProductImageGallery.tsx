@@ -87,10 +87,10 @@ export function ProductImageGallery({
   }
 
   return (
-    <div className="space-y-3">
-      {/* Main image */}
+    <div className="w-full space-y-3">
+      {/* Main image — 4:3 on mobile so the full bike fits, square on desktop */}
       <div
-        className="group relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-card)]"
+        className="group relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-[var(--shadow-card)] sm:aspect-square"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -103,7 +103,7 @@ export function ProductImageGallery({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
         </AnimatePresence>
 
@@ -139,9 +139,7 @@ export function ProductImageGallery({
         <div
           ref={thumbsRef}
           className={[
-            // Negative margin so strip goes edge-to-edge with horizontal padding on mobile
-            '-mx-4 px-4 sm:mx-0 sm:px-0',
-            // Layout
+            // Layout — no negative margins to prevent viewport overflow
             'flex gap-2 overflow-x-auto',
             // Snap scrolling
             'snap-x snap-mandatory',

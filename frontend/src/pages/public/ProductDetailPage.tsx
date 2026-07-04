@@ -58,7 +58,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="bg-subtle">
+    <div className="overflow-x-hidden bg-subtle">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 lg:px-8">
         <div className="grid gap-8 sm:gap-10 lg:grid-cols-2 lg:items-start lg:gap-x-12">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
