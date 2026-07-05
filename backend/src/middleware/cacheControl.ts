@@ -7,3 +7,14 @@ export function cachePublicJson(seconds: number): RequestHandler {
     next();
   };
 }
+
+/**
+ * Never cache — for public endpoints that mirror admin-editable content
+ * (About page founders, homepage feature cards, etc.). Admins expect a save
+ * to show up immediately, and this content changes rarely enough that
+ * skipping caching entirely has no real performance cost.
+ */
+export const noStorePublicJson: RequestHandler = (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+};
