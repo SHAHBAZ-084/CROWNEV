@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, requireRoles } from '../../middleware/auth.js';
-import { cachePublicJson } from '../../middleware/cacheControl.js';
+import { cachePublicJson, noStorePublicJson } from '../../middleware/cacheControl.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import { founderImagePublicUrl, saveFounderImageAsWebp } from '../../utils/imageProcessing.js';
 import * as publicService from './public.service.js';
@@ -74,7 +74,7 @@ publicRouter.get(
 
 publicRouter.get(
   '/founders',
-  cachePublicJson(120),
+  noStorePublicJson,
   asyncHandler(async (_req, res) => {
     const section = await publicService.getFoundersSection();
     res.json(section);
@@ -94,7 +94,7 @@ publicRouter.put(
 
 publicRouter.get(
   '/features',
-  cachePublicJson(120),
+  noStorePublicJson,
   asyncHandler(async (_req, res) => {
     const section = await publicService.getFeatureSection();
     res.json(section);
