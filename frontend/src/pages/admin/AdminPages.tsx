@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users } from 'lucide-react';
+import { Building2, Receipt, ShoppingCart, Users } from 'lucide-react';
 import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
@@ -1036,7 +1036,7 @@ export function AdminUsersPage() {
     const newPassword = String(fd.get('newPassword'));
     const confirmPassword = String(fd.get('confirmPassword'));
     if (newPassword.length < 8) {
-      toast('New password must be at least 8 characters', 'error');
+      toast('Password must be at least 8 characters long and include an uppercase letter and a number', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -1181,6 +1181,9 @@ export function AdminUsersPage() {
             minLength={8}
             autoComplete="new-password"
           />
+          <p className="-mt-2 text-xs text-text-muted">
+            At least 8 characters, with one uppercase letter and one number.
+          </p>
           <Input
             name="confirmPassword"
             label="Confirm New Password"
@@ -2276,9 +2279,6 @@ export function AdminProfilePage() {
   const { user, setUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [showCurrentPw, setShowCurrentPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -2307,7 +2307,7 @@ export function AdminProfilePage() {
     const confirmPassword = String(fd.get('confirmPassword'));
 
     if (newPassword.length < 8) {
-      toast('New password must be at least 8 characters', 'error');
+      toast('Password must be at least 8 characters long and include an uppercase letter and a number', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -2352,59 +2352,32 @@ export function AdminProfilePage() {
         className="space-y-4 rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-[var(--shadow-card)]"
       >
         <p className="text-sm font-semibold text-slate-900">Change password</p>
-        <div className="relative">
-          <Input
-            name="currentPassword"
-            label="Current Password"
-            type={showCurrentPw ? 'text' : 'password'}
-            required
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowCurrentPw((v) => !v)}
-            className="absolute right-3 top-[2.1rem] text-slate-400 hover:text-slate-600"
-            aria-label={showCurrentPw ? 'Hide password' : 'Show password'}
-          >
-            {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <div className="relative">
-          <Input
-            name="newPassword"
-            label="New Password"
-            type={showNewPw ? 'text' : 'password'}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowNewPw((v) => !v)}
-            className="absolute right-3 top-[2.1rem] text-slate-400 hover:text-slate-600"
-            aria-label={showNewPw ? 'Hide password' : 'Show password'}
-          >
-            {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <div className="relative">
-          <Input
-            name="confirmPassword"
-            label="Confirm New Password"
-            type={showConfirmPw ? 'text' : 'password'}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPw((v) => !v)}
-            className="absolute right-3 top-[2.1rem] text-slate-400 hover:text-slate-600"
-            aria-label={showConfirmPw ? 'Hide password' : 'Show password'}
-          >
-            {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
+        <Input
+          name="currentPassword"
+          label="Current Password"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+        <Input
+          name="newPassword"
+          label="New Password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
+        <p className="-mt-2 text-xs text-text-muted">
+          At least 8 characters, with one uppercase letter and one number.
+        </p>
+        <Input
+          name="confirmPassword"
+          label="Confirm New Password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
         <div className="flex justify-end">
           <Button type="submit" variant="accent" loading={changingPassword}>Update password</Button>
         </div>

@@ -27,14 +27,14 @@ usersRouter.post(
   '/',
   validateBody(
     z.object({
-      email: z.string().email(),
+      email: z.string().email('Please enter a valid email address'),
       password: passwordSchema,
-      firstName: z.string().min(1),
-      lastName: z.string().min(1),
+      firstName: z.string().min(1, 'Please enter a first name'),
+      lastName: z.string().min(1, 'Please enter a last name'),
       role: z.literal(Role.BRANCH_OWNER),
       phone: z.string().optional(),
       city: z.string().optional(),
-      branchId: z.number().int(),
+      branchId: z.number().int('Please select a branch'),
       branchPermission: z.nativeEnum(BranchPermission).optional(),
     }),
   ),

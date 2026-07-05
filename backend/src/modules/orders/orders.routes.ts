@@ -154,8 +154,8 @@ ordersRouter.patch(
   requireRoles(Role.CUSTOMER),
   validateBody(
     z.object({
-      paymentTransactionId: z.string().min(1),
-      bankTransferScreenshot: z.string().min(1),
+      paymentTransactionId: z.string().min(1, 'Please enter your transaction ID'),
+      bankTransferScreenshot: z.string().min(1, 'Please upload your payment screenshot'),
     }),
   ),
   asyncHandler(async (req, res) => {
