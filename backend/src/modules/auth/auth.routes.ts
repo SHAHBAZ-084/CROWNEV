@@ -19,11 +19,11 @@ authRouter.post(
   authLimiter,
   validateBody(
     z.object({
-      email: z.string().email(),
+      email: z.string().email('Please enter a valid email address'),
       password: passwordSchema,
-      firstName: z.string().min(1),
-      lastName: z.string().min(1),
-      phone: z.string().min(1),
+      firstName: z.string().min(1, 'Please enter your first name'),
+      lastName: z.string().min(1, 'Please enter your last name'),
+      phone: z.string().min(1, 'Please enter your phone number'),
       city: z.string().optional(),
     })
   ),
@@ -36,7 +36,12 @@ authRouter.post(
 authRouter.post(
   '/verify-otp',
   authLimiter,
-  validateBody(z.object({ email: z.string().email(), otp: z.string().length(6) })),
+  validateBody(
+    z.object({
+      email: z.string().email('Please enter a valid email address'),
+      otp: z.string().length(6, 'Enter the 6-digit code we sent you'),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const result = await authService.verifyRegistration(req.body.email, req.body.otp);
     res.json(result);
@@ -46,7 +51,12 @@ authRouter.post(
 authRouter.post(
   '/login',
   authLimiter,
-  validateBody(z.object({ email: z.string().email(), password: z.string().min(1) })),
+  validateBody(
+    z.object({
+      email: z.string().email('Please enter a valid email address'),
+      password: z.string().min(1, 'Please enter your password'),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const result = await authService.login(req.body.email, req.body.password);
     res.json(result);
@@ -56,7 +66,7 @@ authRouter.post(
 authRouter.post(
   '/forgot-password',
   authLimiter,
-  validateBody(z.object({ email: z.string().email() })),
+  validateBody(z.object({ email: z.string().email('Please enter a valid email address') })),
   asyncHandler(async (req, res) => {
     const result = await authService.forgotPassword(req.body.email);
     res.json(result);
@@ -68,8 +78,8 @@ authRouter.post(
   authLimiter,
   validateBody(
     z.object({
-      email: z.string().email(),
-      otp: z.string().length(6),
+      email: z.string().email('Please enter a valid email address'),
+      otp: z.string().length(6, 'Enter the 6-digit code we sent you'),
       newPassword: passwordSchema,
     })
   ),
@@ -107,8 +117,8 @@ authRouter.patch(
   authenticate,
   validateBody(
     z.object({
-      firstName: z.string().min(1).optional(),
-      lastName: z.string().min(1).optional(),
+      firstName: z.string().min(1, 'Please enter your first name').optional(),
+      lastName: z.string().min(1, 'Please enter your last name').optional(),
       phone: z.string().optional(),
       city: z.string().optional(),
     })
@@ -125,7 +135,7 @@ authRouter.post(
   authLimiter,
   validateBody(
     z.object({
-      currentPassword: z.string().min(1),
+      currentPassword: z.string().min(1, 'Please enter your current password'),
       newPassword: passwordSchema,
     })
   ),
@@ -146,7 +156,7 @@ authRouter.post(
   validateBody(
     z.object({
       currentPassword: z.string().optional(),
-      confirmEmail: z.string().email().optional(),
+      confirmEmail: z.string().email('Please enter a valid email address').optional(),
     }),
   ),
   asyncHandler(async (req, res) => {

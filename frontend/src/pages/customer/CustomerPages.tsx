@@ -503,7 +503,7 @@ export function CustomerProfilePage() {
     const confirmPassword = String(fd.get('confirmPassword'));
 
     if (newPassword.length < 8) {
-      toast('New password must be at least 8 characters', 'error');
+      toast('Password must be at least 8 characters long and include an uppercase letter and a number', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -722,6 +722,9 @@ export function CustomerProfilePage() {
             minLength={8}
             autoComplete="new-password"
           />
+          <p className="-mt-2 text-xs text-text-muted">
+            At least 8 characters, with one uppercase letter and one number.
+          </p>
           <Input
             name="confirmPassword"
             label="Confirm New Password"

@@ -136,6 +136,9 @@ export default function RegisterPage() {
                     <div key={i} className={`h-1 flex-1 rounded-full ${i <= passwordStrength ? 'bg-success' : 'bg-border'}`} />
                   ))}
                 </div>
+                <p className="mt-1 text-xs text-text-muted">
+                  At least 8 characters, with one uppercase letter and one number.
+                </p>
               </div>
               <SearchSelect
                 label="City"
