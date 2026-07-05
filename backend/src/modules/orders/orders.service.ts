@@ -169,8 +169,8 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       total: Number(i.total),
       color: i.color,
       chassisNumber: i.chassisNumber,
-      engineNumber: i.soldChassis?.engineNumber ?? null,
-      motorNumber: i.soldChassis?.motorNumber ?? null,
+      engineNumber: i.engineNumber,
+      motorNumber: i.motorNumber,
     })),
     subtotal: Number(order.subtotal),
     total: Number(order.total),
@@ -534,7 +534,11 @@ export async function createSaleInvoice(data: {
         });
         await tx.orderItem.update({
           where: { id: orderItem.id },
-          data: { chassisNumber: chassis.chassisNumber },
+          data: {
+            chassisNumber: chassis.chassisNumber,
+            engineNumber: chassis.engineNumber,
+            motorNumber: chassis.motorNumber,
+          },
         });
       }
     }

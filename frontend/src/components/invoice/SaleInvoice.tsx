@@ -136,11 +136,13 @@ export function SaleInvoice({
                   <p className="font-medium text-slate-900">{item.name}</p>
                   {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   {item.chassisNumber && (
-                    <p className={invoiceSubtext}>
-                      Chassis: {item.chassisNumber}
-                      {item.engineNumber ? ` · Engine: ${item.engineNumber}` : ''}
-                      {item.motorNumber ? ` · Motor: ${item.motorNumber}` : ''}
-                    </p>
+                    <p className={invoiceSubtext}>Chassis number: {item.chassisNumber}</p>
+                  )}
+                  {item.engineNumber && (
+                    <p className={invoiceSubtext}>Engine number: {item.engineNumber}</p>
+                  )}
+                  {item.motorNumber && (
+                    <p className={invoiceSubtext}>Motor number: {item.motorNumber}</p>
                   )}
                 </td>
                 <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>

@@ -20,6 +20,14 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
         res.status(409).json({ error: 'Chassis number(s) already exist' });
         return;
       }
+      if (fields.some((field) => String(field).includes('engineNumber'))) {
+        res.status(409).json({ error: 'Engine number already exists' });
+        return;
+      }
+      if (fields.some((field) => String(field).includes('motorNumber'))) {
+        res.status(409).json({ error: 'Motor number already exists' });
+        return;
+      }
       if (fields.some((field) => String(field).includes('saleOrderItemId'))) {
         res.status(409).json({ error: 'This chassis number is already linked to a sale line' });
         return;

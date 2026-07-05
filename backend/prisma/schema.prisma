@@ -453,6 +453,8 @@ model OrderItem {
   total         Decimal @db.Decimal(12, 2)
   color         String?
   chassisNumber String?
+  engineNumber  String?
+  motorNumber   String?
 
   order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product     Product            @relation(fields: [productId], references: [id])

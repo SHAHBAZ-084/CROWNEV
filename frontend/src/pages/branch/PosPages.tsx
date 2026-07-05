@@ -685,7 +685,9 @@ export function PosSaleInvoicePage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [chassisOptions, setChassisOptions] = useState<Record<string, { id: number; chassisNumber: string }[]>>({});
+  const [chassisOptions, setChassisOptions] = useState<
+    Record<string, { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]>
+  >({});
 
   const reloadOrders = useCallback(() => {
     if (!branchId) return;
@@ -1007,7 +1009,11 @@ export function PosSaleInvoicePage() {
                   onChange={(id) => updateLine(line.key, { bikeChassisNumberId: id ? parseInt(id, 10) : undefined })}
                   options={(chassisOptions[line.key] ?? []).map((c) => ({
                     value: String(c.id),
-                    label: c.chassisNumber,
+                    label: c.engineNumber
+                      ? `${c.chassisNumber} · Engine: ${c.engineNumber}`
+                      : c.motorNumber
+                        ? `${c.chassisNumber} · Motor: ${c.motorNumber}`
+                        : c.chassisNumber,
                   }))}
                   placeholder={
                     (chassisOptions[line.key]?.length ?? 0) === 0

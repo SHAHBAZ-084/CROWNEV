@@ -350,6 +350,8 @@ export function CustomerOrdersPage() {
                       <span>
                         {item.product?.name ?? 'Product'} ×{item.quantity}
                         {item.chassisNumber && <span className="block text-xs text-slate-500">Chassis number: {item.chassisNumber}</span>}
+                        {item.engineNumber && <span className="block text-xs text-slate-500">Engine number: {item.engineNumber}</span>}
+                        {item.motorNumber && <span className="block text-xs text-slate-500">Motor number: {item.motorNumber}</span>}
                       </span>
                       <span className="tabular-nums text-slate-900">{formatPKR(Number(item.total))}</span>
                     </li>

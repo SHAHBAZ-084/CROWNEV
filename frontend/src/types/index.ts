@@ -66,6 +66,8 @@ export interface OrderItem {
   total: string;
   color?: string;
   chassisNumber?: string;
+  engineNumber?: string;
+  motorNumber?: string;
   product?: { name: string; type: 'BIKE' | 'PART'; images?: { url: string }[] };
 }
 
