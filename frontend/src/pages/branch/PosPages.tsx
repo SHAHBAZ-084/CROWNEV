@@ -367,6 +367,8 @@ const entityTableColumns = (
   onDelete: (r: Row) => void,
   deleteDisabled?: boolean,
   disabledTitle?: string,
+  onEdit?: (r: Row) => void,
+  editDisabled?: boolean,
 ) => [
   { key: 'name', header: 'Name' },
   { key: 'phone', header: 'Phone', render: (r: Row) => String(r.phone ?? '—') },
@@ -382,6 +384,8 @@ const entityTableColumns = (
     header: '',
     render: (r: Row) => (
       <RowActions
+        onEdit={onEdit ? () => onEdit(r) : undefined}
+        editDisabled={editDisabled}
         deleteLabel="Delete"
         onDelete={() => onDelete(r)}
         deleteDisabled={deleteDisabled}
@@ -394,9 +398,10 @@ const entityTableColumns = (
 export function PosCustomersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [customers, setCustomers] = useState<Row[]>([]);
   const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [cnic, setCnic] = useState('');
   const [cnicError, setCnicError] = useState('');
@@ -420,13 +425,22 @@ export function PosCustomersPage() {
   }
 
   function openModal() {
+    setEditing(null);
     setCnic('');
+    setCnicError('');
+    setModal(true);
+  }
+
+  function openEditModal(row: Row) {
+    setEditing(row);
+    setCnic(String(row.cnic ?? ''));
     setCnicError('');
     setModal(true);
   }
 
   function closeModal() {
     setModal(false);
+    setEditing(null);
     setCnic('');
     setCnicError('');
   }
@@ -445,13 +459,19 @@ export function PosCustomersPage() {
     setSaving(true);
     setCnicError('');
     try {
-      await branchApi.createWalkInCustomer(branchId, {
+      const data = {
         name: String(fd.get('name')),
         phone: String(fd.get('phone') || '') || undefined,
         cnic: normalizeCnic(cnic),
         address: String(fd.get('address') || '') || undefined,
-      });
-      toast('Customer added', 'success');
+      };
+      if (editing) {
+        await branchApi.updateWalkInCustomer(branchId, Number(editing.id), data);
+        toast('Customer updated', 'success');
+      } else {
+        await branchApi.createWalkInCustomer(branchId, data);
+        toast('Customer added', 'success');
+      }
       closeModal();
       reload();
     } catch (err) {
@@ -493,15 +513,17 @@ export function PosCustomersPage() {
           (r) => customerDelete.setTarget(r),
           !canDelete,
           restrictedTitle,
+          (r) => openEditModal(r),
+          !canUpdate,
         )}
         data={customers}
         emptyMessage="No customers yet"
       />
       {customerDelete.modal}
-      <Modal open={modal} onClose={closeModal} title="Add Customer">
+      <Modal open={modal} onClose={closeModal} title={editing ? 'Edit Customer' : 'Add Customer'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input name="name" label="Full Name" required />
-          <Input name="phone" label="Phone" />
+          <Input name="name" label="Full Name" required defaultValue={editing ? String(editing.name ?? '') : ''} />
+          <Input name="phone" label="Phone" defaultValue={editing ? String(editing.phone ?? '') : ''} />
           <Input
             name="cnic"
             label="CNIC"
@@ -519,7 +541,7 @@ export function PosCustomersPage() {
             }}
             error={cnicError}
           />
-          <Input name="address" label="Address" />
+          <Input name="address" label="Address" defaultValue={editing ? String(editing.address ?? '') : ''} />
           <FormActions onCancel={closeModal} loading={saving} />
         </form>
       </Modal>
@@ -531,9 +553,10 @@ export function PosCustomersPage() {
 export function PosSuppliersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -543,22 +566,42 @@ export function PosSuppliersPage() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  function openModal() {
+    setEditing(null);
+    setModal(true);
+  }
+
+  function openEditModal(row: Row) {
+    setEditing(row);
+    setModal(true);
+  }
+
+  function closeModal() {
+    setModal(false);
+    setEditing(null);
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!branchId) return;
     const fd = new FormData(e.currentTarget);
     setSaving(true);
     try {
-      await branchApi.createSupplier({
-        branchId,
+      const data = {
         name: String(fd.get('name')),
         contactPerson: String(fd.get('contactPerson') || '') || undefined,
         phone: String(fd.get('phone') || '') || undefined,
         email: String(fd.get('email') || '') || undefined,
         address: String(fd.get('address') || '') || undefined,
-      });
-      toast('Supplier added', 'success');
-      setModal(false);
+      };
+      if (editing) {
+        await branchApi.updateSupplier(Number(editing.id), data);
+        toast('Supplier updated', 'success');
+      } else {
+        await branchApi.createSupplier({ branchId, ...data });
+        toast('Supplier added', 'success');
+      }
+      closeModal();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -582,7 +625,7 @@ export function PosSuppliersPage() {
 
   return (
     <div>
-      <PageHeader title="Suppliers" subtitle="Manage branch suppliers" action={<Button variant="accent" onClick={() => setModal(true)}>Add Supplier</Button>} />
+      <PageHeader title="Suppliers" subtitle="Manage branch suppliers" action={<Button variant="accent" onClick={openModal}>Add Supplier</Button>} />
       <DataTable
         columns={entityTableColumns(
           {
@@ -594,19 +637,21 @@ export function PosSuppliersPage() {
           (r) => supplierDelete.setTarget(r),
           !canDelete,
           restrictedTitle,
+          (r) => openEditModal(r),
+          !canUpdate,
         )}
         data={suppliers}
         emptyMessage="No suppliers yet"
       />
       {supplierDelete.modal}
-      <Modal open={modal} onClose={() => setModal(false)} title="Add Supplier">
+      <Modal open={modal} onClose={closeModal} title={editing ? 'Edit Supplier' : 'Add Supplier'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input name="name" label="Name" required />
-          <Input name="contactPerson" label="Contact Person" />
-          <Input name="phone" label="Phone" />
-          <Input name="email" label="Email" type="email" />
-          <Input name="address" label="Address" />
-          <FormActions onCancel={() => setModal(false)} loading={saving} />
+          <Input name="name" label="Name" required defaultValue={editing ? String(editing.name ?? '') : ''} />
+          <Input name="contactPerson" label="Contact Person" defaultValue={editing ? String(editing.contactPerson ?? '') : ''} />
+          <Input name="phone" label="Phone" defaultValue={editing ? String(editing.phone ?? '') : ''} />
+          <Input name="email" label="Email" type="email" defaultValue={editing ? String(editing.email ?? '') : ''} />
+          <Input name="address" label="Address" defaultValue={editing ? String(editing.address ?? '') : ''} />
+          <FormActions onCancel={closeModal} loading={saving} />
         </form>
       </Modal>
       <WorkspaceCloseBar className="mt-8" />
