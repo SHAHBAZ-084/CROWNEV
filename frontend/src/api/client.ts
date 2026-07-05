@@ -556,10 +556,10 @@ export const branchApi = {
       method: 'PATCH',
       body: JSON.stringify({ approved, biltyId }),
     }),
-  setBiltyCharges: (orderId: number, biltyCharges: number) =>
+  setBiltyCharges: (orderId: number, biltyCharges: number, shippingProvider: string) =>
     api<Order>(`/orders/${orderId}/bilty-charges`, {
       method: 'PATCH',
-      body: JSON.stringify({ biltyCharges }),
+      body: JSON.stringify({ biltyCharges, shippingProvider }),
     }),
   setBiltyTracking: (orderId: number, biltyId: string) =>
     api<Order>(`/orders/${orderId}/bilty-tracking`, {

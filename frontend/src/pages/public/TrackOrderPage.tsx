@@ -88,6 +88,9 @@ export default function TrackOrderPage() {
                   <Package className="h-5 w-5" />
                   <span className="font-semibold">Bilty ID</span>
                 </div>
+                {order.shippingProvider && (
+                  <p className="mt-1 text-sm text-slate-600">Courier: {order.shippingProvider}</p>
+                )}
                 <p className="mt-2 font-mono text-lg font-bold text-slate-900">{order.biltyId}</p>
                 <p className="mt-1 text-xs text-slate-500">
                   Use this number to track your shipment with the courier.

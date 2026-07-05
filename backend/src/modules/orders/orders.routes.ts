@@ -244,7 +244,12 @@ ordersRouter.patch(
   '/:id/bilty-charges',
   requireRoles(Role.BRANCH_OWNER),
   requireBranchUpdatePermission,
-  validateBody(z.object({ biltyCharges: z.number().min(0) })),
+  validateBody(
+    z.object({
+      biltyCharges: z.number().min(0),
+      shippingProvider: z.string().trim().min(1).max(80),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.branchId;
     if (!branchId) {
@@ -254,6 +259,7 @@ ordersRouter.patch(
     const order = await ordersService.setBiltyCharges(
       parseInt(param(req.params.id), 10),
       req.body.biltyCharges,
+      req.body.shippingProvider,
       branchId,
     );
     res.json(order);

@@ -333,13 +333,8 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
     <p style="margin:0 0 10px">2. Arrive a few minutes early so check in is smooth.</p>
     <p style="margin:0 0 16px">3. If you need to reschedule, contact the branch directly or use your customer dashboard.</p>
     <p style="margin:0 0 16px">Booking reference: <strong>#${data.bookingId}</strong></p>
-    <p style="margin:0 0 12px">
-      <a href="${ticketUrl}" style="display:inline-block;background:${EMAIL_ACCENT};color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">
-        Download your visit ticket
-      </a>
-    </p>
     <p style="font-size:13px;color:#666;margin:0">
-      You can also open
+      Open
       <a href="${dashboardUrl}" style="color:${EMAIL_ACCENT}"><strong>My Bookings</strong></a>
       in your Crown Ev dashboard to view or download your ticket anytime.
     </p>
@@ -370,7 +365,6 @@ export async function sendBookingConfirmationEmail(data: BookingConfirmationEmai
     '',
     `Booking reference #${data.bookingId}`,
     '',
-    `Download your ticket: ${ticketUrl}`,
     `My Bookings: ${dashboardUrl}`,
     emailFooterText(),
   ]

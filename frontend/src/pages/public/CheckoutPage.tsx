@@ -1,6 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -10,6 +9,7 @@ import { formatPKR } from '../../lib/format';
 import { getLoginUrl, defaultDashboardForRole } from '../../lib/authRedirect';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
+import { ScreenshotUpload } from '../../components/ui/ScreenshotUpload';
 import { MotionSection } from '../../components/public/MotionSection';
 
 const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
@@ -345,25 +345,13 @@ export default function CheckoutPage() {
                   placeholder="Paste your bank/wallet transaction ID"
                   required
                 />
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-orange-500 hover:text-orange-600">
-                  <Upload className="h-4 w-4" />
-                  Upload payment screenshot *
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={(e) => handleScreenshot(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-                {uploading && <p className="text-xs text-slate-500">Uploading…</p>}
-                {screenshotUrl && (
-                  <img
-                    src={`${BASE}${screenshotUrl}`}
-                    alt="Payment proof"
-                    className="max-h-36 rounded-lg border border-slate-200 object-contain"
-                  />
-                )}
+                <ScreenshotUpload
+                  label="Upload payment screenshot"
+                  imageUrl={screenshotUrl}
+                  uploading={uploading}
+                  onSelect={handleScreenshot}
+                  baseUrl={BASE}
+                />
                 <Textarea label="Order Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </div>
             )}

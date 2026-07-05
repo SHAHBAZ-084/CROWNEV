@@ -68,7 +68,7 @@ export default function ServiceTicketPage() {
         page="contact"
         eyebrow="Service Visit"
         title="Download Visit Ticket"
-        subtitle="No login required. Confirm your email to open your printable ticket."
+        subtitle="No login required. Confirm your email to download your visit ticket."
       />
 
       <MotionSection as="div" className="mx-auto max-w-lg px-4 pb-16 pt-4">
@@ -87,7 +87,7 @@ export default function ServiceTicketPage() {
                 {preview.branch ? ` · ${preview.branch.name}` : ''}
               </p>
               <p className="mt-2 text-xs text-text-muted">
-                If the print window did not open, allow pop-ups and tap download again.
+                Your ticket file has been saved to your device's Downloads folder.
               </p>
             </div>
           )}

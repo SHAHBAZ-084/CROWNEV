@@ -135,6 +135,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     shippingMethod: order.shippingMethod,
     saleReference: order.saleReference,
     biltyId: order.biltyId,
+    shippingProvider: order.shippingProvider,
     biltyCharges,
     date: order.createdAt,
     branch: {
@@ -194,6 +195,7 @@ export async function trackOrder(publicId: string) {
       biltyCharges: true,
       total: true,
       biltyId: true,
+      shippingProvider: true,
       paymentMethod: true,
       paymentStatus: true,
       createdAt: true,
@@ -723,7 +725,12 @@ async function confirmOrder(order: {
   await deductStockForOrder(order.branchId, itemsWithDetails);
 }
 
-export async function setBiltyCharges(id: number, biltyCharges: number, branchId?: number) {
+export async function setBiltyCharges(
+  id: number,
+  biltyCharges: number,
+  shippingProvider: string,
+  branchId?: number,
+) {
   const order = await getOrder(id, branchId);
   if (order.type !== OrderType.ONLINE) throw new AppError(400, 'Bilty charges only apply to online orders');
   if (order.shippingMethod !== ShippingMethod.BILTY) {
@@ -735,6 +742,9 @@ export async function setBiltyCharges(id: number, biltyCharges: number, branchId
   if (!Number.isFinite(biltyCharges) || biltyCharges < 0) {
     throw new AppError(400, 'Bilty charges must be zero or greater');
   }
+  if (!shippingProvider?.trim()) {
+    throw new AppError(400, 'Please select a courier / shipping provider');
+  }
 
   const subtotal = Number(order.subtotal);
   const total = subtotal + biltyCharges;
@@ -743,6 +753,7 @@ export async function setBiltyCharges(id: number, biltyCharges: number, branchId
     where: { id },
     data: {
       biltyCharges,
+      shippingProvider: shippingProvider.trim(),
       total,
       status: OrderStatus.AWAITING_PAYMENT,
     },

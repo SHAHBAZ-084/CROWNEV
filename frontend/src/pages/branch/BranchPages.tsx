@@ -15,6 +15,7 @@ import type { Order } from '../../types';
 import { isAwaitingPaymentVerification, PaymentStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime, orderListReference } from '../../lib/format';
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
+import { SHIPPING_PROVIDERS } from '../../lib/constants';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -123,6 +124,8 @@ export function BranchOrdersPage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [biltyId, setBiltyId] = useState('');
   const [biltyCharges, setBiltyCharges] = useState('');
+  const [shippingProvider, setShippingProvider] = useState('');
+  const [shippingProviderOther, setShippingProviderOther] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
@@ -162,12 +165,19 @@ export function BranchOrdersPage() {
       toast('Enter a valid bilty charges amount', 'error');
       return;
     }
+    const provider = shippingProvider === 'Other' ? shippingProviderOther.trim() : shippingProvider;
+    if (!provider) {
+      toast('Select a courier / shipping provider', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      await branchApi.setBiltyCharges(Number(biltyChargesModal.id), amount);
+      await branchApi.setBiltyCharges(Number(biltyChargesModal.id), amount, provider);
       toast('Bilty charges set. Customer can now pay', 'success');
       setBiltyChargesModal(null);
       setBiltyCharges('');
+      setShippingProvider('');
+      setShippingProviderOther('');
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -225,7 +235,7 @@ export function BranchOrdersPage() {
               <div className="flex flex-wrap gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
                 {r.status === 'AWAITING_BILTY_CHARGES' && (
-                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyChargesModal(r); setBiltyCharges(''); }}>Bilty charges</Button>
+                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyChargesModal(r); setBiltyCharges(''); setShippingProvider(''); setShippingProviderOther(''); }}>Bilty charges</Button>
                 )}
                 {r.status === 'PAYMENT_SUBMITTED' && r.paymentStatus === 'PENDING' && (
                   <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setPaymentModal(r); setBiltyId(''); }}>Verify</Button>
@@ -257,6 +267,9 @@ export function BranchOrdersPage() {
             {detail.biltyCharges != null && (
               <p><span className="text-slate-500">Bilty charges:</span> {formatPKR(Number(detail.biltyCharges))}</p>
             )}
+            {detail.shippingProvider ? (
+              <p><span className="text-slate-500">Courier:</span> {String(detail.shippingProvider)}</p>
+            ) : null}
             <p><span className="text-slate-500">Total:</span> {formatPKR(Number(detail.total))}</p>
             {detail.biltyId ? (
               <p><span className="text-slate-500">Bilty ID:</span> {String(detail.biltyId)}</p>
@@ -268,8 +281,26 @@ export function BranchOrdersPage() {
       <Modal open={!!biltyChargesModal} onClose={() => setBiltyChargesModal(null)} title="Set Bilty Charges">
         <form onSubmit={handleBiltyCharges} className="space-y-4">
           <p className="text-sm text-slate-500">
-            Enter shipping (bilty) charges. The customer will be prompted to pay product price + bilty charges.
+            Enter shipping (bilty) charges and select a courier. The customer will be prompted to pay product price + bilty charges.
           </p>
+          <Select
+            label="Shipping / courier provider"
+            placeholder="Select a courier"
+            value={shippingProvider}
+            onChange={(e) => setShippingProvider(e.target.value)}
+            required
+          >
+            {SHIPPING_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </Select>
+          {shippingProvider === 'Other' && (
+            <Input
+              label="Courier name"
+              value={shippingProviderOther}
+              onChange={(e) => setShippingProviderOther(e.target.value)}
+              placeholder="e.g. Swift Couriers"
+              required
+            />
+          )}
           <Input
             label="Bilty charges (PKR)"
             type="number"
@@ -296,6 +327,9 @@ export function BranchOrdersPage() {
           <div className="space-y-4 text-sm text-slate-700">
             <p>Customer: <strong className="text-slate-900">{orderRowCustomer(paymentModal)}</strong></p>
             <p>Total: <strong className="text-slate-900">{formatPKR(Number(paymentModal.total))}</strong></p>
+            {paymentModal.shippingProvider ? (
+              <p>Courier: <strong className="text-slate-900">{String(paymentModal.shippingProvider)}</strong></p>
+            ) : null}
             <p>TID: <strong className="font-mono text-slate-900">{String(paymentModal.paymentTransactionId ?? '')}</strong></p>
             {paymentModal.bankTransferScreenshot ? (
               <img

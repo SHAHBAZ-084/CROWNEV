@@ -86,6 +86,7 @@ export interface Order {
   saleReference?: string | null;
   biltyId?: string | null;
   biltyCharges?: string | null;
+  shippingProvider?: string | null;
   shippingMethod?: ShippingMethod | null;
   branchId?: number;
   userId?: string;
@@ -120,6 +121,7 @@ export interface InvoiceData {
   shippingMethod?: ShippingMethod | null;
   saleReference?: string | null;
   biltyId?: string | null;
+  shippingProvider?: string | null;
   biltyCharges?: number | null;
   date: string;
   branch: { name: string; location: string; phone: string; whatsapp?: string | null };

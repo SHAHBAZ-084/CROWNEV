@@ -91,20 +91,16 @@ const THERMAL_RECEIPT_CSS = `
   }
 `;
 
-function openThermalReceiptWindow(html: string) {
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=340,height=720,scrollbars=yes');
-  if (!win) {
-    alert('Please allow pop-ups to print the receipt.');
-    return;
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  const triggerPrint = () => {
-    win.focus();
-    win.print();
-  };
-  setTimeout(triggerPrint, 400);
+function downloadHtmlAsFile(html: string, filename: string) {
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.html') ? filename : `${filename}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function formatPkrReceipt(value: number): string {
@@ -182,7 +178,7 @@ export function downloadBookingReceipt(receipt: Record<string, unknown>) {
 </body>
 </html>`;
 
-  openThermalReceiptWindow(html);
+  downloadHtmlAsFile(html, `booking-ticket-${esc(receipt.bookingId) || 'ticket'}`);
 }
 
 export function buildServiceInvoiceReceiptHtml(invoice: {
@@ -281,5 +277,5 @@ export function downloadServiceInvoiceReceipt(invoice: {
   total: number;
   notes?: string;
 }) {
-  openThermalReceiptWindow(buildServiceInvoiceReceiptHtml(invoice));
+  downloadHtmlAsFile(buildServiceInvoiceReceiptHtml(invoice), `service-invoice-${esc(invoice.invoiceNumber) || 'receipt'}`);
 }

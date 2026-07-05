@@ -420,6 +420,7 @@ model Order {
   paymentTransactionId   String?
   biltyCharges           Decimal?       @db.Decimal(12, 2)
   biltyId                String?
+  shippingProvider       String?
   customerName           String?
   customerPhone          String?
   customerAddress        String?

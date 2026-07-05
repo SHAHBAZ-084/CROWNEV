@@ -112,6 +112,9 @@ export function SaleInvoice({
             </p>
             <p><span className={invoiceFieldLabel}>Payment:</span> <span className={invoiceFieldValue}>{data.paymentMethod.replace('_', ' ')}</span></p>
             <p><span className={invoiceFieldLabel}>Status:</span> <span className={invoiceFieldValue}>{data.status.replace(/_/g, ' ')}</span></p>
+            {data.shippingMethod === 'BILTY' && data.shippingProvider && (
+              <p><span className={invoiceFieldLabel}>Courier:</span> <span className={invoiceFieldValue}>{data.shippingProvider}</span></p>
+            )}
             {data.shippingMethod === 'BILTY' && data.biltyId && (
               <p><span className={invoiceFieldLabel}>Bilty ID:</span> <span className={`font-mono ${invoiceFieldValue}`}>{data.biltyId}</span></p>
             )}

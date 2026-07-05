@@ -141,6 +141,17 @@ export const PAKISTAN_CITY_OPTIONS = PAKISTAN_CITIES.map((city) => ({
   label: city,
 }));
 
+export const SHIPPING_PROVIDERS = [
+  'TCS',
+  'Leopards Courier',
+  'M&P Express',
+  'Trax',
+  'PostEx',
+  'Call Courier',
+  'Local Delivery',
+  'Other',
+] as const;
+
 export const ORDER_STATUS_COLORS: Record<string, string> = {
   AWAITING_BILTY_CHARGES: 'bg-amber-100 text-amber-800',
   AWAITING_PAYMENT: 'bg-amber-100 text-amber-800',

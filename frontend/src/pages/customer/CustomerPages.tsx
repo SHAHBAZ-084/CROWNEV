@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FileText, KeyRound, Mail, MapPin, Pencil, Phone, Shield, Trash2, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { customerApi, publicApi } from '../../api/client';
@@ -10,6 +10,7 @@ import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { ScreenshotUpload } from '../../components/ui/ScreenshotUpload';
 import { FormActions } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { OrderStatusTimeline, isInvoiceAvailable, isAwaitingPaymentVerification, needsCustomerPayment, orderItemsSummary, orderReference, PaymentStatusBadge } from '../../lib/orderHelpers';
@@ -79,10 +80,30 @@ export function CustomerDashboard() {
               { key: 'product', header: 'Product', render: (r) => orderItemsSummary(r as unknown as Order) || '—' },
               { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
               { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
+              {
+                key: 'actions',
+                header: '',
+                render: (r) => {
+                  const order = r as unknown as Order;
+                  if (needsCustomerPayment(order)) {
+                    return (
+                      <Link to={`/customer/orders?pay=${order.id}`}>
+                        <Button size="sm" variant="accent">Proceed to Payment</Button>
+                      </Link>
+                    );
+                  }
+                  return null;
+                },
+              },
             ]}
             data={orders.slice(0, 5) as unknown as Record<string, unknown>[]}
             emptyMessage="No orders yet"
           />
+          {orders.some((o) => needsCustomerPayment(o)) && (
+            <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+              <strong>Bilty is ready.</strong> Your shipping charges have been added — proceed to payment to confirm your order.
+            </div>
+          )}
           {orders.length > 5 && <Link to="/customer/orders" className="mt-2 inline-block text-sm text-orange-500 hover:text-orange-600">View all →</Link>}
         </div>
         <div>
@@ -139,6 +160,8 @@ export function CustomerDashboard() {
 
 export function CustomerOrdersPage() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [detail, setDetail] = useState<Order | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
@@ -160,6 +183,15 @@ export function CustomerOrdersPage() {
   useEffect(() => {
     reload();
   }, []);
+
+  useEffect(() => {
+    const payId = searchParams.get('pay');
+    if (!payId) return;
+    const id = Number(payId);
+    if (Number.isFinite(id)) viewOrder(id);
+    navigate('/customer/orders', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function viewOrder(id: number) {
     try {
@@ -292,7 +324,16 @@ export function CustomerOrdersPage() {
                 <p className="text-xs font-semibold uppercase text-slate-500">Order total</p>
                 <p><span className="text-slate-500">Product price:</span> {formatPKR(Number(detail.subtotal ?? detail.total))}</p>
                 <p><span className="text-slate-500">Bilty charges:</span> {formatPKR(Number(detail.biltyCharges))}</p>
+                {detail.shippingProvider && (
+                  <p><span className="text-slate-500">Courier:</span> {detail.shippingProvider}</p>
+                )}
                 <p className="mt-2 font-semibold text-slate-900">Total: {formatPKR(Number(detail.total))}</p>
+              </div>
+            )}
+
+            {needsCustomerPayment(detail) && detail.shippingMethod === 'BILTY' && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+                <strong>Bilty is ready!</strong> Your shipping charges have been added{detail.shippingProvider ? ` via ${detail.shippingProvider}` : ''}. Please proceed to payment below.
               </div>
             )}
 
@@ -338,19 +379,13 @@ export function CustomerOrdersPage() {
                   onChange={(e) => setPaymentTid(e.target.value)}
                   required
                 />
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-orange-500">
-                  Upload payment screenshot *
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={(e) => handlePaymentScreenshot(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-                {paymentScreenshot && (
-                  <img src={`${BASE}${paymentScreenshot}`} alt="Payment proof" className="max-h-36 rounded-lg border object-contain" />
-                )}
+                <ScreenshotUpload
+                  label="Upload payment screenshot"
+                  imageUrl={paymentScreenshot}
+                  uploading={uploading}
+                  onSelect={handlePaymentScreenshot}
+                  baseUrl={BASE}
+                />
                 <Button type="submit" variant="accent" loading={submittingPayment} disabled={!paymentTid.trim() || !paymentScreenshot}>
                   Submit Payment
                 </Button>
