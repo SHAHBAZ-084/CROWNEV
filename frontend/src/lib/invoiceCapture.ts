@@ -182,12 +182,16 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
     await waitForImages(clone);
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
+    // Lock the viewport width to CAPTURE_WIDTH to prevent media query wrapping 
+    // and clipping when the user's browser window is narrow.
     const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       allowTaint: false,
       backgroundColor: '#ffffff',
       logging: false,
+      width: CAPTURE_WIDTH,
+      windowWidth: CAPTURE_WIDTH,
     });
 
     if (canvas.width === 0 || canvas.height === 0) {
@@ -202,19 +206,32 @@ export async function captureInvoiceElement(source: HTMLElement): Promise<HTMLCa
 
 export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
   const dataUrl = canvas.toDataURL('image/png');
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=950,height=800');
   if (!win) {
     throw new Error('Please allow pop-ups to print or save the invoice');
   }
+
+  // Pick whichever A5 half-page orientation lets the invoice render largest,
+  // matching the same heuristic used for the PDF export.
+  const canvasRatio = canvas.width / canvas.height;
+  const portraitRatio = 148 / 210;
+  const landscapeRatio = 210 / 148;
+  const isLandscape =
+    Math.abs(Math.log(canvasRatio / landscapeRatio)) < Math.abs(Math.log(canvasRatio / portraitRatio));
+  const pageSizeRule = isLandscape ? 'A5 landscape' : 'A5 portrait';
+
   win.document.open();
   win.document.write(`<!DOCTYPE html>
 <html><head><title>${title}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  @page { size: auto; margin: 0; }
-  body { display: flex; justify-content: center; padding: 16px; }
-  img { width: 100%; max-width: 800px; height: auto; }
-  @media print { body { padding: 0; } img { max-width: 100%; width: 100%; height: auto; } }
+  @page { size: ${pageSizeRule}; margin: 8mm; }
+  body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f1f5f9; padding: 20px; }
+  img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); background: #ffffff; }
+  @media print {
+    body { background: transparent; padding: 0; display: block; min-height: 0; }
+    img { box-shadow: none; max-width: 100%; max-height: 100%; width: 100%; height: auto; }
+  }
 </style></head>
 <body><img src="${dataUrl}" alt="Invoice" /></body></html>`);
   win.document.close();
@@ -226,17 +243,56 @@ export function openPrintWindow(canvas: HTMLCanvasElement, title: string) {
   setTimeout(triggerPrint, 400);
 }
 
-/** Export invoice canvas as a single PDF page exactly matching captured content size. */
+/**
+ * Export invoice canvas onto a true half-A4 (A5) PDF page.
+ * Picks whichever A5 orientation (portrait 148x210mm or landscape 210x148mm)
+ * lets the invoice render largest without ever exceeding the page bounds,
+ * then top-aligns it with a small margin so it always looks like a proper
+ * compact half-page invoice regardless of how many line items it has.
+ */
 export async function saveCanvasAsPdf(canvas: HTMLCanvasElement, filename: string) {
   const { default: jsPDF } = await import('jspdf');
   if (!canvas.width || !canvas.height) {
     throw new Error('Invoice capture is empty');
   }
-  const pageW = 210;
-  const pageH = (canvas.height * pageW) / canvas.width;
+
+  const A5_PORTRAIT = { w: 148, h: 210 } as const;
+  const A5_LANDSCAPE = { w: 210, h: 148 } as const;
+  const margin = 6; // mm
+
+  const canvasRatio = canvas.width / canvas.height;
+
+  function fitToPage(page: { w: number; h: number }) {
+    const printableW = page.w - margin * 2;
+    const printableH = page.h - margin * 2;
+    const printableRatio = printableW / printableH;
+
+    let imgW: number;
+    let imgH: number;
+    if (canvasRatio > printableRatio) {
+      imgW = printableW;
+      imgH = printableW / canvasRatio;
+    } else {
+      imgH = printableH;
+      imgW = printableH * canvasRatio;
+    }
+    return { imgW, imgH, area: imgW * imgH };
+  }
+
+  const portraitFit = fitToPage(A5_PORTRAIT);
+  const landscapeFit = fitToPage(A5_LANDSCAPE);
+  const useLandscape = landscapeFit.area > portraitFit.area;
+
+  const page = useLandscape ? A5_LANDSCAPE : A5_PORTRAIT;
+  const { imgW, imgH } = useLandscape ? landscapeFit : portraitFit;
+
+  // Center horizontally, top-align vertically (natural document flow —
+  // header sits just under the margin instead of floating mid-page).
+  const x = (page.w - imgW) / 2;
+  const y = margin;
+
   const imgData = canvas.toDataURL('image/png');
-  const orientation = pageH >= pageW ? 'p' : 'l';
-  const pdf = new jsPDF(orientation, 'mm', [pageW, pageH]);
-  pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+  const pdf = new jsPDF(useLandscape ? 'l' : 'p', 'mm', 'a5');
+  pdf.addImage(imgData, 'PNG', x, y, imgW, imgH, undefined, 'FAST');
   pdf.save(filename);
 }

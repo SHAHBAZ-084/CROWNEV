@@ -12,34 +12,25 @@ echo "==> CROWNEV SSL fix for ${DOMAIN}"
 echo "--- Step 1: What is listening on 443? ---"
 ss -tlnp | grep ':443 ' || echo "(nothing on 443 yet)"
 
-echo "--- Step 2: Remove SSH from port 443 and 1022 (supporting leading whitespace/tabs) ---"
+echo "--- Step 2: Remove SSH from port 443 (Hostinger uses lowercase 'port 443') ---"
 mkdir -p /etc/ssh/sshd_config.d /etc/systemd/system/ssh.socket.d
-# Recursively find ssh configuration files and patch any Port 443 or Port 1022 definition
-find /etc/ssh -type f | while read -r f; do
+for f in /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf; do
   [[ -f "$f" ]] || continue
-  if grep -qiE '^\s*port\s+(443|1022)' "$f" 2>/dev/null; then
+  if grep -qiE '^port\s+(443|1022)' "$f" 2>/dev/null; then
     cp -a "$f" "${f}.bak.$(date +%s)"
-    # Comment out Port 443 and Port 1022
-    sed -i -E 's/^(\s*[Pp]ort\s+(443|1022))/## \1/g' "$f" || true
+    sed -i '/^[Pp]ort 443/d;/^[Pp]ort 1022/d' "$f" || true
     echo "Patched: $f"
   fi
 done
 echo 'Port 22' > /etc/ssh/sshd_config.d/99-crownev-ssh.conf
-
-# Clean up any old 99-crownev drop-in files to prevent duplicate/conflicting configurations
-rm -f /etc/systemd/system/ssh.socket.d/99-crownev.conf
-rm -f /etc/systemd/system/ssh.socket.d/99-crownev-ssl.conf
-
-# Prevent ssh.socket generator from re-adding extra ports.
-# Naming it zz-crownev-override.conf ensures it loads AFTER Hostinger's addresses.conf
-# because systemd processes drop-in files alphabetically (numbers come before letters).
-cat > /etc/systemd/system/ssh.socket.d/zz-crownev-override.conf << 'EOF'
+# Prevent ssh.socket generator from re-adding extra ports
+cat > /etc/systemd/system/ssh.socket.d/99-crownev.conf << 'EOF'
 [Socket]
 ListenStream=
 ListenStream=0.0.0.0:22
 ListenStream=[::]:22
 EOF
-grep -riE '^\s*port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || true
+grep -riE '^port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || true
 sshd -t
 systemctl daemon-reload
 systemctl restart ssh.socket ssh

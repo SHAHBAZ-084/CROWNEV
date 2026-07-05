@@ -80,29 +80,6 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# Configure SSH to avoid port conflicts with Nginx on port 443 (Hostinger KVM socket activation issue)
-echo "==> Configuring SSH to avoid port conflicts with Nginx"
-mkdir -p /etc/ssh/sshd_config.d /etc/systemd/system/ssh.socket.d
-find /etc/ssh -type f | while read -r f; do
-  [[ -f "$f" ]] || continue
-  if grep -qiE '^\s*port\s+(443|1022)' "$f" 2>/dev/null; then
-    cp -a "$f" "${f}.bak.$(date +%s)"
-    sed -i -E 's/^(\s*[Pp]ort\s+(443|1022))/## \1/g' "$f" || true
-  fi
-done
-echo 'Port 22' > /etc/ssh/sshd_config.d/99-crownev-ssh.conf
-rm -f /etc/systemd/system/ssh.socket.d/99-crownev.conf
-rm -f /etc/systemd/system/ssh.socket.d/99-crownev-ssl.conf
-
-cat > /etc/systemd/system/ssh.socket.d/zz-crownev-override.conf << 'EOF'
-[Socket]
-ListenStream=
-ListenStream=0.0.0.0:22
-ListenStream=[::]:22
-EOF
-systemctl daemon-reload
-systemctl restart ssh.socket ssh 2>/dev/null || systemctl restart ssh
-
 # Nginx site
 sed "s/__DOMAIN__/${DOMAIN}/g" "${APP_DIR}/deploy/nginx/crownev.conf" \
   > "/etc/nginx/sites-available/crownev"

@@ -130,6 +130,8 @@ export interface InvoiceData {
     total: number;
     color?: string;
     chassisNumber?: string;
+    engineNumber?: string | null;
+    motorNumber?: string | null;
   }[];
   subtotal: number;
   total: number;

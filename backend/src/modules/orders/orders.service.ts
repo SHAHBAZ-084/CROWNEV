@@ -107,6 +107,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
           product: {
             include: { images: { where: { isPrimary: true }, take: 1 } },
           },
+          soldChassis: { select: { engineNumber: true, motorNumber: true } },
         },
       },
       user: true,
@@ -168,6 +169,8 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       total: Number(i.total),
       color: i.color,
       chassisNumber: i.chassisNumber,
+      engineNumber: i.soldChassis?.engineNumber ?? null,
+      motorNumber: i.soldChassis?.motorNumber ?? null,
     })),
     subtotal: Number(order.subtotal),
     total: Number(order.total),

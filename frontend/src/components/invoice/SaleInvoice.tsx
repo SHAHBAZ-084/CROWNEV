@@ -80,7 +80,7 @@ export function SaleInvoice({
         ref={printRef}
         className={invoicePrintArea}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300 pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300 pb-4">
           <div className="flex items-start gap-4">
             <Logo size={invoiceLogoSize} className={invoiceLogoClass} />
             <div>
@@ -96,7 +96,7 @@ export function SaleInvoice({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <p className={invoiceSectionLabel}>Billed To</p>
             <p className="font-medium text-slate-900">{data.customer.name}</p>
@@ -118,36 +118,40 @@ export function SaleInvoice({
           </div>
         </div>
 
-        <table className="mt-8 w-full border-collapse text-sm">
+        <table className="mt-5 w-full border-collapse text-sm">
           <thead>
             <tr className={invoiceTableHead}>
-              <th className="px-2 py-2">#</th>
-              <th className="px-2 py-2">Product</th>
-              <th className="px-2 py-2 text-right">Qty</th>
-              <th className="px-2 py-2 text-right">Unit Price</th>
-              <th className="px-2 py-2 text-right">Total</th>
+              <th className="px-2 py-1.5">#</th>
+              <th className="px-2 py-1.5">Product</th>
+              <th className="px-2 py-1.5 text-right">Qty</th>
+              <th className="px-2 py-1.5 text-right">Unit Price</th>
+              <th className="px-2 py-1.5 text-right">Total</th>
             </tr>
           </thead>
           <tbody>
             {data.items.map((item, idx) => (
               <tr key={idx} className="border-b border-slate-200 align-top">
-                <td className={`px-2 py-3 ${invoiceTableCell}`}>{idx + 1}</td>
-                <td className="px-2 py-3">
+                <td className={`px-2 py-2 ${invoiceTableCell}`}>{idx + 1}</td>
+                <td className="px-2 py-2">
                   <p className="font-medium text-slate-900">{item.name}</p>
                   {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   {item.chassisNumber && (
-                    <p className={invoiceSubtext}>Chassis number: {item.chassisNumber}</p>
+                    <p className={invoiceSubtext}>
+                      Chassis: {item.chassisNumber}
+                      {item.engineNumber ? ` · Engine: ${item.engineNumber}` : ''}
+                      {item.motorNumber ? ` · Motor: ${item.motorNumber}` : ''}
+                    </p>
                   )}
                 </td>
-                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>
-                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.unitPrice)}</td>
-                <td className={`px-2 py-3 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.total)}</td>
+                <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>
+                <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.unitPrice)}</td>
+                <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.total)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-3 flex justify-end">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
               <span className={invoiceTotalsLabel}>Subtotal</span>

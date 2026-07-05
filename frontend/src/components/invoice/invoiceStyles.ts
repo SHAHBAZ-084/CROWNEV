@@ -1,10 +1,10 @@
-/** Shared invoice print/PDF styling — font sizes unchanged; stronger text contrast. */
+/** Shared invoice print/PDF styling — compact spacing so invoices fit a half-A4 (A5) page. */
 export const invoicePrintArea =
-  'print-area rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-800 shadow-sm';
+  'print-area rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-800 shadow-sm';
 
 /** Compact but readable — between the old tiny logo and oversized md. */
 export const invoiceLogoSize = 'sm' as const;
-export const invoiceLogoClass = 'shrink-0 !h-14 !max-w-[170px]';
+export const invoiceLogoClass = 'shrink-0 !h-11 !max-w-[140px]';
 
 export const invoiceMetaText = 'text-xs text-slate-700';
 export const invoiceSectionLabel =
