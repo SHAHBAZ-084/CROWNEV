@@ -35,7 +35,7 @@ export function CustomerDashboard() {
     setDownloadingId(id);
     try {
       const receipt = await customerApi.bookingReceipt(id);
-      downloadBookingReceipt(receipt);
+      await downloadBookingReceipt(receipt);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to load ticket', 'error');
     } finally {
@@ -453,7 +453,7 @@ export function CustomerBookingsPage() {
     setDownloadingId(id);
     try {
       const receipt = await customerApi.bookingReceipt(id);
-      downloadBookingReceipt(receipt);
+      await downloadBookingReceipt(receipt);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to load receipt', 'error');
     } finally {

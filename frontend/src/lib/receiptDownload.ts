@@ -1,3 +1,5 @@
+import html2canvasPro from 'html2canvas-pro';
+
 function formatDate(value: unknown): string {
   if (!value) return '';
   const d = new Date(String(value));
@@ -91,16 +93,77 @@ const THERMAL_RECEIPT_CSS = `
   }
 `;
 
-function downloadHtmlAsFile(html: string, filename: string) {
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.html') ? filename : `${filename}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+/**
+ * Renders a full thermal-receipt HTML document (72mm layout) into a real PDF —
+ * not an .html file. Loads the markup into a hidden iframe so the receipt's
+ * own <style> block applies exactly as written, captures it with html2canvas,
+ * then sizes the PDF page to match the receipt's physical 72mm width (plus a
+ * small margin) so it looks like an actual slip rather than a stamp in the
+ * middle of a big blank page.
+ */
+async function downloadHtmlAsFile(html: string, filename: string) {
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText =
+    'position:fixed;left:-9999px;top:0;width:320px;height:600px;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(iframe);
+
+  try {
+    await new Promise<void>((resolve) => {
+      const doc = iframe.contentDocument;
+      if (!doc) {
+        resolve();
+        return;
+      }
+      iframe.onload = () => resolve();
+      doc.open();
+      doc.write(html);
+      doc.close();
+    });
+
+    // Layout settles on the next couple of frames — receipt uses system
+    // monospace fonts only, so there's no web-font load to wait on.
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    const body = iframe.contentDocument?.body;
+    if (!body) throw new Error('Could not render the receipt for download');
+
+    const canvas = await html2canvasPro(body, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+
+    if (!canvas.width || !canvas.height) {
+      throw new Error('Receipt capture is empty');
+    }
+
+    const { default: jsPDF } = await import('jspdf');
+
+    // The receipt body is a fixed 72mm-wide thermal layout — match the PDF
+    // page to that physical width exactly, with height following the
+    // captured aspect ratio, plus a small margin all round.
+    const contentWidthMm = 72;
+    const marginMm = 4;
+    const contentHeightMm = contentWidthMm * (canvas.height / canvas.width);
+    const pageW = contentWidthMm + marginMm * 2;
+    const pageH = contentHeightMm + marginMm * 2;
+
+    const pdf = new jsPDF({ unit: 'mm', format: [pageW, pageH] });
+    pdf.addImage(
+      canvas.toDataURL('image/png'),
+      'PNG',
+      marginMm,
+      marginMm,
+      contentWidthMm,
+      contentHeightMm,
+      undefined,
+      'FAST',
+    );
+    pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+  } finally {
+    iframe.remove();
+  }
 }
 
 function formatPkrReceipt(value: number): string {
@@ -128,7 +191,7 @@ function thermalFooter(refLabel: string) {
   <div class="barcode" aria-hidden="true"></div>`;
 }
 
-export function downloadBookingReceipt(receipt: Record<string, unknown>) {
+export async function downloadBookingReceipt(receipt: Record<string, unknown>) {
   const branch = (receipt.branch ?? {}) as Record<string, unknown>;
   const customer = (receipt.customer ?? {}) as Record<string, unknown>;
   const service = (receipt.service ?? {}) as Record<string, unknown>;
@@ -178,7 +241,7 @@ export function downloadBookingReceipt(receipt: Record<string, unknown>) {
 </body>
 </html>`;
 
-  downloadHtmlAsFile(html, `booking-ticket-${esc(receipt.bookingId) || 'ticket'}`);
+  await downloadHtmlAsFile(html, `booking-ticket-${esc(receipt.bookingId) || 'ticket'}`);
 }
 
 export function buildServiceInvoiceReceiptHtml(invoice: {
@@ -265,7 +328,7 @@ export function buildServiceInvoiceReceiptHtml(invoice: {
 </html>`;
 }
 
-export function downloadServiceInvoiceReceipt(invoice: {
+export async function downloadServiceInvoiceReceipt(invoice: {
   invoiceNumber: string;
   reference: string;
   date: string;
@@ -277,5 +340,8 @@ export function downloadServiceInvoiceReceipt(invoice: {
   total: number;
   notes?: string;
 }) {
-  downloadHtmlAsFile(buildServiceInvoiceReceiptHtml(invoice), `service-invoice-${esc(invoice.invoiceNumber) || 'receipt'}`);
+  await downloadHtmlAsFile(
+    buildServiceInvoiceReceiptHtml(invoice),
+    `service-invoice-${esc(invoice.invoiceNumber) || 'receipt'}`,
+  );
 }
