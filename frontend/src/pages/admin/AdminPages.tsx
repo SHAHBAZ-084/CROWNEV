@@ -226,12 +226,79 @@ function ClearBranchDataModal({
   );
 }
 
+function DeleteBranchModal({
+  branch,
+  open,
+  onClose,
+  onDeleted,
+}: {
+  branch: Row | null;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const { toast } = useToast();
+  const [confirmName, setConfirmName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!open || !branch) {
+      setConfirmName('');
+    }
+  }, [open, branch]);
+
+  const branchName = String(branch?.name ?? '');
+  const canConfirm = confirmName.trim() === branchName.trim() && !deleting;
+
+  async function handleDelete() {
+    if (!branch || !canConfirm) return;
+    setDeleting(true);
+    try {
+      await adminApi.deleteBranch(Number(branch.id));
+      toast('Branch deleted permanently', 'success');
+      onClose();
+      onDeleted();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to delete branch', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Confirm delete" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-ink-muted">
+          Permanently delete branch <strong>{branchName}</strong>? Clear branch data first if it still has
+          sales, customers, or vouchers. This cannot be undone.
+        </p>
+        <Input
+          label={`Type "${branchName}" to confirm`}
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+          placeholder={branchName}
+          autoComplete="off"
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="danger" loading={deleting} disabled={!canConfirm} onClick={handleDelete}>
+            Delete
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function AdminBranchesPage() {
   const { toast } = useToast();
   const { rows, reload } = useCrudList(() => adminApi.branches() as Promise<Row[]>);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
   const [clearTarget, setClearTarget] = useState<Row | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [branchImageUrl, setBranchImageUrl] = useState<string | null>(null);
   const [pendingBranchPhoto, setPendingBranchPhoto] = useState<File | null>(null);
@@ -245,20 +312,6 @@ export function AdminBranchesPage() {
     setBranchImageUrl(edit?.imageUrl ? String(edit.imageUrl) : null);
     setPendingBranchPhoto(null);
   }, [modal, edit]);
-  const del = useDeleteConfirm<Row>(
-    async (item) => {
-      await adminApi.deleteBranch(Number(item.id));
-      toast('Branch deleted permanently', 'success');
-      setModal(null);
-      setEdit(null);
-      reload();
-    },
-    {
-      message: (item) =>
-        `Permanently delete branch "${String(item.name)}"? Clear branch data first if it still has sales, customers, or vouchers. This cannot be undone.`,
-    }
-  );
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -356,7 +409,7 @@ export function AdminBranchesPage() {
           { key: 'actions', header: 'Actions', className: 'whitespace-nowrap w-40', render: (r) => (
             <RowActions
               onEdit={() => { setEdit(r); setModal('edit'); }}
-              onDelete={() => del.setTarget(r)}
+              onDelete={() => setDeleteTarget(r)}
               deleteLabel="Delete"
               extra={
                 <button
@@ -373,7 +426,16 @@ export function AdminBranchesPage() {
         ]}
         data={rows}
       />
-      {del.modal}
+      <DeleteBranchModal
+        branch={deleteTarget}
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={() => {
+          setModal(null);
+          setEdit(null);
+          reload();
+        }}
+      />
       <ClearBranchDataModal
         branch={clearTarget}
         open={!!clearTarget}
@@ -424,7 +486,12 @@ export function AdminBranchesPage() {
                   type="button"
                   variant="danger"
                   size="sm"
-                  onClick={() => edit && del.setTarget(edit)}
+                  onClick={() => {
+                    if (edit) {
+                      setModal(null);
+                      setDeleteTarget(edit);
+                    }
+                  }}
                 >
                   Delete Branch
                 </Button>
