@@ -2,8 +2,8 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileText, KeyRound, Mail, MapPin, Pencil, Phone, Shield, Trash2, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { customerApi } from '../../api/client';
-import type { Booking, InvoiceData, Order } from '../../types';
+import { customerApi, publicApi } from '../../api/client';
+import type { Booking, InvoiceData, Order, PaymentChannel } from '../../types';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { UserAvatar } from '../../components/layout/DashboardSidebar';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
@@ -148,6 +148,8 @@ export function CustomerOrdersPage() {
   const [paymentScreenshot, setPaymentScreenshot] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentChannels, setPaymentChannels] = useState<PaymentChannel[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
 
   const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
 
@@ -165,6 +167,16 @@ export function CustomerOrdersPage() {
       setDetail(order);
       setPaymentTid('');
       setPaymentScreenshot('');
+      setPaymentChannels([]);
+      const branchId = order.branchId ?? order.branch?.id;
+      if (branchId) {
+        setChannelsLoading(true);
+        publicApi
+          .paymentChannels(branchId)
+          .then(setPaymentChannels)
+          .catch(() => setPaymentChannels([]))
+          .finally(() => setChannelsLoading(false));
+      }
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to load order', 'error');
     }
@@ -295,6 +307,31 @@ export function CustomerOrdersPage() {
                 <p className="font-medium text-slate-900">
                   Please make payment of {formatPKR(Number(detail.total))} and submit your TID.
                 </p>
+
+                {channelsLoading ? (
+                  <p className="text-sm text-slate-500">Loading payment accounts…</p>
+                ) : paymentChannels.length > 0 ? (
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                    <p className="text-xs font-semibold uppercase text-slate-500">Pay to</p>
+                    <ul className="space-y-2">
+                      {paymentChannels.map((ch) => (
+                        <li key={ch.id} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                          <span className="text-xs font-semibold uppercase text-slate-500">
+                            {ch.type === 'WALLET' ? 'Wallet' : 'Bank'}
+                          </span>
+                          <p className="font-medium text-slate-900">{ch.name}</p>
+                          {ch.accountTitle && <p className="text-slate-500">{ch.accountTitle}</p>}
+                          <p className="font-mono text-orange-500">{ch.accountNumber}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-warning">
+                    No payment accounts set up for this branch yet. Please contact the branch directly before paying.
+                  </p>
+                )}
+
                 <Input
                   label="Transaction ID (TID)"
                   value={paymentTid}
