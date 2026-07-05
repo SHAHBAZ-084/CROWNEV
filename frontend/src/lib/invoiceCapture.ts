@@ -27,7 +27,12 @@ function copyThemeVars(target: HTMLElement) {
     const value = root.getPropertyValue(`--${name}`).trim();
     if (value) target.style.setProperty(`--${name}`, value);
   }
-  target.style.fontFamily = root.fontFamily;
+  // Use the real body font stack (Inter) — reading getComputedStyle(<html>).fontFamily
+  // here previously grabbed the *unset* font on the <html> element itself, which
+  // browsers resolve to a default serif face, not the Inter font the page actually
+  // renders with. That mismatch was the cause of the rough-looking PDF/print font.
+  const bodyFont = getComputedStyle(document.body).fontFamily;
+  target.style.fontFamily = bodyFont || root.getPropertyValue('--font-body').trim() || 'Inter, sans-serif';
   target.style.color = '#334155';
   target.style.background = '#ffffff';
 }
