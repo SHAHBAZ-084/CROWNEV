@@ -38,7 +38,7 @@ export default function ServiceTicketPage() {
         branch: receipt.branch as { name: string; location: string },
       });
       if (autoPrint) {
-        downloadBookingReceipt(receipt);
+        await downloadBookingReceipt(receipt);
         setDownloaded(true);
       }
     } catch (err) {
