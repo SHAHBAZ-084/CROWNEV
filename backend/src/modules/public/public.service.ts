@@ -5,7 +5,7 @@ export async function getLandingData() {
     prisma.testimonial.findMany({
       where: { status: 'APPROVED', isActive: true },
       orderBy: { sortOrder: 'asc' },
-      take: 6,
+      take: 12,
     }),
     prisma.branch.findMany({
       where: {

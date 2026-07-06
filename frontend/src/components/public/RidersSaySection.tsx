@@ -25,8 +25,38 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
+function useVisibleCount() {
+  const [visibleCount, setVisibleCount] = useState(() => {
+    if (typeof window === 'undefined') return 3;
+    if (window.innerWidth >= 1024) return 3;
+    if (window.innerWidth >= 640) return 2;
+    return 1;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setVisibleCount(3);
+      } else if (window.innerWidth >= 640) {
+        setVisibleCount(2);
+      } else {
+        setVisibleCount(1);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return visibleCount;
+}
+
 export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[] }) {
-  const items = testimonials?.slice(0, 3) ?? [];
+  const items = testimonials ?? [];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const visibleCount = useVisibleCount();
+
   const reduceMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const sectionRef = useRef<HTMLElement>(null);
@@ -69,6 +99,32 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
       video.pause();
     }
   }, [inView, showVideo, videoSrc]);
+
+  // Autoplay effect
+  useEffect(() => {
+    if (items.length <= visibleCount || isHovered) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const maxIndex = items.length - visibleCount;
+        if (prev >= maxIndex) {
+          return 0;
+        }
+        return prev + 1;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [items.length, visibleCount, isHovered]);
+
+  // Reset index when visible count changes or items list updates
+  useEffect(() => {
+    setCurrentIndex((prev) => {
+      const maxIndex = items.length - visibleCount;
+      if (maxIndex <= 0) return 0;
+      return Math.min(prev, maxIndex);
+    });
+  }, [visibleCount, items.length]);
 
   return (
     <section
@@ -134,26 +190,39 @@ export function RidersSaySection({ testimonials }: { testimonials?: Testimonial[
         </motion.div>
 
         {items.length > 0 ? (
-          <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-            {items.map((t, i) => (
-              <motion.div
-                key={t.customerName + i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-4 shadow-lg backdrop-blur-sm sm:p-5"
-              >
-                <div className="flex gap-0.5">
-                  {Array.from({ length: t.rating }).map((_, j) => (
-                    <Star key={j} className="h-4 w-4 fill-accent text-accent" />
-                  ))}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-8 overflow-hidden py-3 sm:mt-10"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <motion.div
+              className="flex select-none"
+              animate={{ x: `-${currentIndex * (100 / visibleCount)}%` }}
+              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+            >
+              {items.map((t, i) => (
+                <div
+                  key={t.customerName + i}
+                  className="w-full shrink-0 px-2 sm:w-1/2 sm:px-2.5 lg:w-1/3 lg:px-3"
+                >
+                  <div className="flex h-full flex-col justify-between rounded-[var(--radius-card)] border border-border-light bg-elevated/95 p-4 shadow-lg backdrop-blur-sm sm:p-5">
+                    <div>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: t.rating }).map((_, j) => (
+                          <Star key={j} className="h-4 w-4 fill-accent text-accent" />
+                        ))}
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-text-muted">&ldquo;{t.content}&rdquo;</p>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-brand">{t.customerName}</p>
+                  </div>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-text-muted">&ldquo;{t.content}&rdquo;</p>
-                <p className="mt-3 text-sm font-semibold text-brand">{t.customerName}</p>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </motion.div>
+          </motion.div>
         ) : (
           <p className="mt-10 text-center text-sm text-white/85">Customer reviews coming soon.</p>
         )}
