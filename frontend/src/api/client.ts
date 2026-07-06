@@ -721,7 +721,7 @@ export const branchApi = {
   },
   branchSuppliers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/suppliers`),
   branchCustomers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/customers`),
-  walkInCustomers: (branchId: number, params?: { limit?: string; page?: string }) => {
+  walkInCustomers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/walk-in/${branchId}/customers${q}`);
   },

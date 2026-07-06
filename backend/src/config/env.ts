@@ -34,6 +34,7 @@ export const env = {
     pass: process.env.BOOKING_SMTP_PASS ?? process.env.SMTP_PASS ?? '',
   },
   contactInboxEmail: process.env.CONTACT_INBOX_EMAIL ?? 'contact@crownevcenter.com',
+  salesInboxEmail: process.env.SALES_INBOX_EMAIL ?? 'sales@crownevcenter.com',
   /** Dev-only: receives contact inquiries when Resend sandbox blocks the real inbox. */
   contactDevInboxEmail: process.env.CONTACT_DEV_INBOX_EMAIL ?? '',
   uploadDir: process.env.UPLOAD_DIR ?? './uploads',

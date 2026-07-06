@@ -22,6 +22,8 @@ import {
 import { countInStockChassis, markChassisSoldInTx } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
+import { sendBiltyReadyEmail, sendPaymentSubmittedEmail } from '../../utils/email.js';
+import { env } from '../../config/env.js';
 
 function normalizeCnic(cnic: string): string {
   return cnic.replace(/\D/g, '');
@@ -823,7 +825,7 @@ export async function setBiltyCharges(
   const subtotal = Number(order.subtotal);
   const total = subtotal + biltyCharges;
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id },
     data: {
       biltyCharges,
@@ -837,6 +839,22 @@ export async function setBiltyCharges(
       branch: true,
     },
   });
+
+  if (updated.user?.email) {
+    await sendBiltyReadyEmail({
+      to: updated.user.email,
+      customerName: `${updated.user.firstName} ${updated.user.lastName}`.trim(),
+      orderId: updated.id,
+      publicId: updated.publicId,
+      subtotal,
+      biltyCharges,
+      total,
+      shippingProvider: shippingProvider.trim(),
+      dashboardUrl: env.appUrl,
+    });
+  }
+
+  return updated;
 }
 
 export async function submitOrderPayment(
@@ -863,7 +881,7 @@ export async function submitOrderPayment(
     throw new AppError(400, 'Payment proof is required');
   }
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id },
     data: {
       paymentTransactionId: data.paymentTransactionId.trim(),
@@ -871,8 +889,22 @@ export async function submitOrderPayment(
       paymentStatus: PaymentStatus.PENDING,
       status: OrderStatus.PAYMENT_SUBMITTED,
     },
-    include: { items: { include: { product: true } }, branch: true },
+    include: { items: { include: { product: true } }, user: true, branch: true },
   });
+
+  await sendPaymentSubmittedEmail({
+    orderId: updated.id,
+    publicId: updated.publicId,
+    customerName: updated.user ? `${updated.user.firstName} ${updated.user.lastName}`.trim() : (updated.customerName ?? 'Customer'),
+    customerEmail: updated.user?.email ?? '',
+    customerPhone: updated.user?.phone ?? updated.customerPhone,
+    branchName: updated.branch.name,
+    total: Number(updated.total),
+    paymentTransactionId: updated.paymentTransactionId!,
+    bankTransferScreenshot: updated.bankTransferScreenshot!,
+  });
+
+  return updated;
 }
 
 export async function approvePayment(
@@ -960,6 +992,7 @@ export async function setBiltyTracking(id: number, biltyId: string, branchId?: n
 export async function createWalkInCustomer(data: {
   branchId: number;
   name: string;
+  fatherName?: string;
   cnic: string;
   phone?: string;
   email?: string;
@@ -983,6 +1016,7 @@ export async function createWalkInCustomer(data: {
       data: {
         branchId: data.branchId,
         name: data.name,
+        fatherName: data.fatherName,
         cnic,
         phone: data.phone,
         email: data.email,
@@ -1007,7 +1041,7 @@ export async function getWalkInCustomer(id: number, branchId: number) {
 export async function updateWalkInCustomer(
   id: number,
   branchId: number,
-  data: Partial<{ name: string; phone: string; email: string; address: string }>
+  data: Partial<{ name: string; fatherName: string; phone: string; email: string; address: string }>
 ) {
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findFirst({
@@ -1081,9 +1115,20 @@ export async function listBranchCustomers(branchId: number, query: { page?: stri
   return paginatedResponse(customers, total, page, limit);
 }
 
-export async function listWalkInCustomers(branchId: number, query: { page?: string; limit?: string }) {
+export async function listWalkInCustomers(branchId: number, query: { page?: string; limit?: string; search?: string }) {
   const { page, limit, skip } = getPagination(query);
-  const where = { branchId, type: CustomerType.WALK_IN, isActive: true };
+  const search = query.search?.trim();
+  const where: Prisma.CustomerWhereInput = {
+    branchId,
+    type: CustomerType.WALK_IN,
+    isActive: true,
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { cnic: { contains: search.replace(/\D/g, '') } },
+      ],
+    }),
+  };
 
   const [rows, total] = await Promise.all([
     prisma.customer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),

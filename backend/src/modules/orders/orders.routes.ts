@@ -348,6 +348,7 @@ walkInRouter.get(
     const result = await ordersService.listWalkInCustomers(branchId, {
       page: req.query.page as string,
       limit: req.query.limit as string,
+      search: req.query.search as string,
     });
     res.json(result);
   })
@@ -368,6 +369,7 @@ walkInRouter.patch(
   validateBody(
     z.object({
       name: z.string().optional(),
+      fatherName: z.string().optional(),
       phone: z.string().optional(),
       email: z.string().email().optional(),
       address: z.string().optional(),
@@ -426,6 +428,7 @@ walkInRouter.post(
   validateBody(
     z.object({
       name: z.string().min(1),
+      fatherName: z.string().optional(),
       cnic: z
         .string()
         .min(1)

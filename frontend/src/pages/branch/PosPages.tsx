@@ -24,7 +24,7 @@ import {
   isProtectedCategory,
   isSuppliersCategory,
 } from '../../lib/accountingCategories';
-import { FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, FileText, Plus, Trash2, Search } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
@@ -406,12 +406,26 @@ export function PosCustomersPage() {
   const [cnic, setCnic] = useState('');
   const [cnicError, setCnicError] = useState('');
 
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [fatherName, setFatherName] = useState('');
+
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+
   const reload = useCallback(() => {
     if (!branchId) return;
-    branchApi.walkInCustomers(branchId).then((r) => setCustomers(r.data as Row[])).catch(console.error);
-  }, [branchId]);
+    branchApi.walkInCustomers(branchId, search ? { search } : undefined)
+      .then((r) => setCustomers(r.data as Row[]))
+      .catch(console.error);
+  }, [branchId, search]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  function handleSearchSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+  }
 
   function normalizeCnic(value: string) {
     return value.replace(/\D/g, '');
@@ -426,6 +440,9 @@ export function PosCustomersPage() {
 
   function openModal() {
     setEditing(null);
+    setFirstName('');
+    setLastName('');
+    setFatherName('');
     setCnic('');
     setCnicError('');
     setModal(true);
@@ -433,6 +450,10 @@ export function PosCustomersPage() {
 
   function openEditModal(row: Row) {
     setEditing(row);
+    const parts = String(row.name ?? '').trim().split(/\s+/);
+    setFirstName(parts[0] ?? '');
+    setLastName(parts.slice(1).join(' '));
+    setFatherName(String(row.fatherName ?? ''));
     setCnic(String(row.cnic ?? ''));
     setCnicError('');
     setModal(true);
@@ -441,6 +462,9 @@ export function PosCustomersPage() {
   function closeModal() {
     setModal(false);
     setEditing(null);
+    setFirstName('');
+    setLastName('');
+    setFatherName('');
     setCnic('');
     setCnicError('');
   }
@@ -460,7 +484,8 @@ export function PosCustomersPage() {
     setCnicError('');
     try {
       const data = {
-        name: String(fd.get('name')),
+        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        fatherName: fatherName.trim() || undefined,
         phone: String(fd.get('phone') || '') || undefined,
         cnic: normalizeCnic(cnic),
         address: String(fd.get('address') || '') || undefined,
@@ -502,6 +527,24 @@ export function PosCustomersPage() {
   return (
     <div>
       <PageHeader title="Customers" subtitle="Walk-in and online customers (same database)" action={<Button variant="accent" onClick={openModal}>Add Customer</Button>} />
+      
+      <form onSubmit={handleSearchSubmit} className="mb-4 flex gap-2">
+        <Input
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by CNIC or name…"
+          className="max-w-xs"
+        />
+        <Button type="submit" variant="secondary">
+          <Search className="h-4 w-4" />
+        </Button>
+        {search && (
+          <Button type="button" variant="ghost" onClick={() => { setSearchInput(''); setSearch(''); }}>
+            Clear
+          </Button>
+        )}
+      </form>
+
       <DataTable
         columns={entityTableColumns(
           {
@@ -522,7 +565,11 @@ export function PosCustomersPage() {
       {customerDelete.modal}
       <Modal open={modal} onClose={closeModal} title={editing ? 'Edit Customer' : 'Add Customer'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input name="name" label="Full Name" required defaultValue={editing ? String(editing.name ?? '') : ''} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+            <Input label="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+          </div>
+          <Input label="Father Name" value={fatherName} onChange={(e) => setFatherName(e.target.value)} />
           <Input name="phone" label="Phone" defaultValue={editing ? String(editing.phone ?? '') : ''} />
           <Input
             name="cnic"

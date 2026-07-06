@@ -682,6 +682,7 @@ model Customer {
   userId    String?      @unique
   type      CustomerType
   name      String
+  fatherName String?
   cnic      String?      @unique
   phone     String?
   email     String?

@@ -589,3 +589,127 @@ export async function sendContactFormEmails(data: ContactFormEmail): Promise<{
 
   return { inboxSent, confirmationSent };
 }
+
+export type BiltyReadyEmail = {
+  to: string;
+  customerName: string;
+  orderId: number;
+  publicId: string;
+  subtotal: number;
+  biltyCharges: number;
+  total: number;
+  shippingProvider: string;
+  dashboardUrl: string;
+};
+
+/** Sent when a branch owner confirms bilty (shipping) charges — failures are logged only. */
+export async function sendBiltyReadyEmail(data: BiltyReadyEmail) {
+  const transport = getTransporter();
+  const ordersUrl = `${data.dashboardUrl}/customer/orders`;
+
+  const html = emailShell(`
+    <h2 style="color:${EMAIL_ACCENT};margin:0 0 12px">Your shipping charges are ready</h2>
+    <p style="margin:0 0 16px">Hi ${escHtml(data.customerName)},</p>
+    <p style="margin:0 0 16px">
+      We've calculated the shipping (bilty) charges for your order. Please review the updated total below and complete payment to proceed.
+    </p>
+    <div style="background:#FFF7F0;border:1px solid #F0C9A8;border-radius:12px;padding:20px;margin:20px 0">
+      <p style="margin:0 0 4px;font-size:13px;color:#666">Order #${data.publicId}</p>
+      <table style="width:100%;font-size:14px;margin-top:8px">
+        <tr><td style="padding:4px 0;color:#666">Subtotal</td><td style="padding:4px 0;text-align:right">Rs. ${data.subtotal.toLocaleString()}</td></tr>
+        <tr><td style="padding:4px 0;color:#666">Shipping (${escHtml(data.shippingProvider)})</td><td style="padding:4px 0;text-align:right">Rs. ${data.biltyCharges.toLocaleString()}</td></tr>
+        <tr><td style="padding:8px 0 0;font-weight:700">Total due</td><td style="padding:8px 0 0;text-align:right;font-weight:700;color:${EMAIL_ACCENT}">Rs. ${data.total.toLocaleString()}</td></tr>
+      </table>
+    </div>
+    <p style="margin:0 0 16px">
+      Open <a href="${ordersUrl}" style="color:${EMAIL_ACCENT}"><strong>My Orders</strong></a> in your Crown Ev dashboard to submit payment and upload your transaction receipt.
+    </p>
+  `);
+
+  const text = [
+    'Your shipping charges are ready',
+    '',
+    `Hi ${data.customerName},`,
+    '',
+    `Order #${data.publicId}`,
+    `Subtotal: Rs. ${data.subtotal}`,
+    `Shipping (${data.shippingProvider}): Rs. ${data.biltyCharges}`,
+    `Total due: Rs. ${data.total}`,
+    '',
+    `Pay now: ${ordersUrl}`,
+    emailFooterText(),
+  ].join('\n');
+
+  if (!transport) {
+    console.log(`[DEV] Bilty ready for order #${data.orderId}: total Rs. ${data.total}`);
+    return;
+  }
+
+  try {
+    await transport.sendMail({ from: formatFrom('Crown Ev'), to: data.to, subject: `Shipping charges ready for order #${data.publicId}`, html, text });
+  } catch (err) {
+    console.error(`[SMTP] Failed to send bilty-ready email for order #${data.orderId}:`, err instanceof Error ? err.message : err);
+  }
+}
+
+export type PaymentSubmittedEmail = {
+  orderId: number;
+  publicId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  branchName: string;
+  total: number;
+  paymentTransactionId: string;
+  bankTransferScreenshot: string;
+};
+
+/** Notifies sales@ inbox every time a customer submits payment. Failures are logged only. */
+export async function sendPaymentSubmittedEmail(data: PaymentSubmittedEmail) {
+  const screenshotUrl = data.bankTransferScreenshot.startsWith('http')
+    ? data.bankTransferScreenshot
+    : `${env.appUrl}${data.bankTransferScreenshot}`;
+
+  const html = emailShell(`
+    <h2 style="color:${EMAIL_ACCENT};margin:0 0 12px">Payment submitted for order #${data.publicId}</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px">
+      <tr><td style="padding:6px 0;color:#666;width:140px">Customer</td><td style="padding:6px 0"><strong>${escHtml(data.customerName)}</strong></td></tr>
+      <tr><td style="padding:6px 0;color:#666">Email</td><td style="padding:6px 0">${escHtml(data.customerEmail)}</td></tr>
+      ${data.customerPhone ? `<tr><td style="padding:6px 0;color:#666">Phone</td><td style="padding:6px 0">${escHtml(data.customerPhone)}</td></tr>` : ''}
+      <tr><td style="padding:6px 0;color:#666">Branch</td><td style="padding:6px 0">${escHtml(data.branchName)}</td></tr>
+      <tr><td style="padding:6px 0;color:#666">Amount</td><td style="padding:6px 0"><strong>Rs. ${data.total.toLocaleString()}</strong></td></tr>
+      <tr><td style="padding:6px 0;color:#666">Transaction ID</td><td style="padding:6px 0">${escHtml(data.paymentTransactionId)}</td></tr>
+    </table>
+    <p style="margin:0 0 8px"><a href="${screenshotUrl}" style="color:${EMAIL_ACCENT}">View payment screenshot</a></p>
+    <p style="margin:16px 0 0;font-size:13px;color:#666">Verify this payment from the branch's admin panel under Pending Bank Transfers.</p>
+  `);
+
+  const text = [
+    `Payment submitted for order #${data.publicId}`,
+    '',
+    `Customer: ${data.customerName} (${data.customerEmail})`,
+    data.customerPhone ? `Phone: ${data.customerPhone}` : '',
+    `Branch: ${data.branchName}`,
+    `Amount: Rs. ${data.total}`,
+    `Transaction ID: ${data.paymentTransactionId}`,
+    `Screenshot: ${screenshotUrl}`,
+  ].filter(Boolean).join('\n');
+
+  const transport = getTransporter();
+  if (!transport) {
+    console.log(`[DEV] Payment submitted notification for order #${data.orderId} → sales@`);
+    return;
+  }
+
+  try {
+    await transport.sendMail({
+      from: formatFrom('Crown Ev Orders'),
+      to: env.salesInboxEmail,
+      subject: `Payment submitted — order #${data.publicId} (Rs. ${data.total.toLocaleString()})`,
+      html,
+      text,
+    });
+  } catch (err) {
+    console.error(`[SMTP] Failed to notify sales@ for order #${data.orderId}:`, err instanceof Error ? err.message : err);
+  }
+}
