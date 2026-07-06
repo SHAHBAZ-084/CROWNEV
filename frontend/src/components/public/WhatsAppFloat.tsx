@@ -3,18 +3,28 @@ import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toWhatsAppHref } from '../../lib/placeholders';
 import { WhatsAppIcon } from '../icons/BrandIcons';
+import { publicApi } from '../../api/client';
 
 const DISMISS_KEY = 'crown-ev-whatsapp-dismissed';
 
 export function WhatsAppFloat() {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [waUrl, setWaUrl] = useState(() => toWhatsAppHref());
 
   useEffect(() => {
     setDismissed(localStorage.getItem(DISMISS_KEY) === '1');
   }, []);
 
-  const waUrl = toWhatsAppHref();
+  useEffect(() => {
+    publicApi.footerContact()
+      .then((data) => {
+        if (data.phones?.[0]) {
+          setWaUrl(toWhatsAppHref(data.phones[0]));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   function hideWidget() {
     localStorage.setItem(DISMISS_KEY, '1');
@@ -112,7 +122,17 @@ export function WhatsAppFloat() {
 }
 
 export function WhatsAppNavLink({ className = '' }: { className?: string }) {
-  const waUrl = toWhatsAppHref();
+  const [waUrl, setWaUrl] = useState(() => toWhatsAppHref());
+
+  useEffect(() => {
+    publicApi.footerContact()
+      .then((data) => {
+        if (data.phones?.[0]) {
+          setWaUrl(toWhatsAppHref(data.phones[0]));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <a

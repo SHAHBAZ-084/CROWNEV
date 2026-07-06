@@ -42,6 +42,12 @@ const featureSectionSchema = z.object({
   features: z.array(featureCardSchema).min(1).max(6),
 });
 
+const footerContactSchema = z.object({
+  email: z.string().email(),
+  phones: z.array(z.string().min(1)).min(1).max(4),
+  address: z.string().min(1),
+});
+
 publicRouter.get(
   '/landing',
   cachePublicJson(120),
@@ -108,6 +114,26 @@ publicRouter.put(
   validateBody(featureSectionSchema),
   asyncHandler(async (req, res) => {
     const section = await publicService.upsertFeatureSection(req.body);
+    res.json(section);
+  })
+);
+
+publicRouter.get(
+  '/footer-contact',
+  noStorePublicJson,
+  asyncHandler(async (_req, res) => {
+    const section = await publicService.getFooterContact();
+    res.json(section);
+  })
+);
+
+publicRouter.put(
+  '/customization/footer-contact',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(footerContactSchema),
+  asyncHandler(async (req, res) => {
+    const section = await publicService.upsertFooterContact(req.body);
     res.json(section);
   })
 );

@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers } from 'lucide-react';
+import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone } from 'lucide-react';
 import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
@@ -1721,17 +1721,23 @@ function FeatureCardEditor({
 
 export function AdminCustomizationPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'about' | 'features'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer'>('about');
   const [loading, setLoading] = useState(true);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
+  const [savingFooter, setSavingFooter] = useState(false);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
+  const [footerSection, setFooterSection] = useState<{ email: string; phones: string[]; address: string }>({
+    email: '',
+    phones: ['', ''],
+    address: '',
+  });
   const [pendingPhotos, setPendingPhotos] = useState<(File | null)[]>([null, null]);
 
   useEffect(() => {
-    Promise.all([adminApi.foundersSection(), adminApi.featuresSection()])
-      .then(([foundersData, featuresData]) => {
+    Promise.all([adminApi.foundersSection(), adminApi.featuresSection(), adminApi.footerContactSection()])
+      .then(([foundersData, featuresData, footerData]) => {
         const founders = [...foundersData.founders];
         while (founders.length < 2) founders.push(emptyFounder());
         setSection({ ...foundersData, founders: founders.slice(0, 2) });
@@ -1739,6 +1745,14 @@ export function AdminCustomizationPage() {
         const features = [...featuresData.features];
         while (features.length < 4) features.push(emptyFeature());
         setFeatureSection(normalizeFeatureSection({ ...featuresData, features: features.slice(0, 4) }));
+
+        const phones = [...(footerData.phones ?? [])];
+        while (phones.length < 2) phones.push('');
+        setFooterSection({
+          email: footerData.email ?? '',
+          phones: phones.slice(0, 2),
+          address: footerData.address ?? '',
+        });
       })
       .catch(() => toast('Could not load customization settings', 'error'))
       .finally(() => setLoading(false));
@@ -1809,6 +1823,35 @@ export function AdminCustomizationPage() {
     }
   }
 
+  async function handleSaveFooter(e: FormEvent) {
+    e.preventDefault();
+    setSavingFooter(true);
+    try {
+      const activePhones = footerSection.phones.map((p) => p.trim()).filter(Boolean);
+      if (activePhones.length === 0) {
+        throw new Error('At least one phone number is required');
+      }
+      const payload = {
+        email: footerSection.email.trim(),
+        phones: activePhones,
+        address: footerSection.address.trim(),
+      };
+      const saved = await adminApi.updateFooterContactSection(payload);
+      const updatedPhones = [...saved.phones];
+      while (updatedPhones.length < 2) updatedPhones.push('');
+      setFooterSection({
+        email: saved.email,
+        phones: updatedPhones.slice(0, 2),
+        address: saved.address,
+      });
+      toast('Footer contact details updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingFooter(false);
+    }
+  }
+
   const founders = section.founders.length >= 2
     ? section.founders.slice(0, 2)
     : [...section.founders, ...Array.from({ length: Math.max(0, 2 - section.founders.length) }, emptyFounder)];
@@ -1862,6 +1905,18 @@ export function AdminCustomizationPage() {
           >
             <Layers className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'features' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
             <span className="truncate text-left">Feature Cards</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('footer')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'footer'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <Phone className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'footer' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Footer Contact</span>
           </button>
         </div>
 
@@ -1924,7 +1979,7 @@ export function AdminCustomizationPage() {
                 </p>
               </div>
             </form>
-          ) : (
+          ) : activeTab === 'features' ? (
             <form onSubmit={handleSaveFeatures} className="space-y-6">
               <h2 className="font-display text-xl font-bold text-ink">Homepage — feature stats</h2>
 
@@ -1972,6 +2027,63 @@ export function AdminCustomizationPage() {
                 </Button>
                 <p className="text-xs text-text-muted">
                   Changes appear on the homepage &ldquo;Built for Pakistan&rdquo; section after saving.
+                </p>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleSaveFooter} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Footer Contact Details</h2>
+
+              <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
+                <Input
+                  label="Contact Email"
+                  type="email"
+                  value={footerSection.email}
+                  onChange={(e) => setFooterSection((prev) => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Phone Number 1"
+                    value={footerSection.phones[0]}
+                    onChange={(e) =>
+                      setFooterSection((prev) => {
+                        const nextPhones = [...prev.phones];
+                        nextPhones[0] = e.target.value;
+                        return { ...prev, phones: nextPhones };
+                      })
+                    }
+                    required
+                  />
+                  <Input
+                    label="Phone Number 2 (Optional)"
+                    value={footerSection.phones[1]}
+                    onChange={(e) =>
+                      setFooterSection((prev) => {
+                        const nextPhones = [...prev.phones];
+                        nextPhones[1] = e.target.value;
+                        return { ...prev, phones: nextPhones };
+                      })
+                    }
+                  />
+                </div>
+
+                <Textarea
+                  label="Official Address"
+                  rows={2}
+                  value={footerSection.address}
+                  onChange={(e) => setFooterSection((prev) => ({ ...prev, address: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingFooter}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear in the website footer and contact pages after saving.
                 </p>
               </div>
             </form>

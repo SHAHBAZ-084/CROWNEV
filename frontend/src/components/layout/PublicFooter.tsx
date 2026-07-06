@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactNode } from 'react';
+import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Calendar, ChevronUp, Mail, MapPin, Phone, ShoppingCart } from 'lucide-react';
@@ -8,6 +8,7 @@ import { ctaArrowClass } from '../../lib/publicMotion';
 import { FOOTER_CONTACT, toTelHref } from '../../lib/placeholders';
 import { useScrollPast } from '../../hooks/useScrollPast';
 import { Button } from '../ui/Button';
+import { publicApi } from '../../api/client';
 
 function SocialIcon({
   href,
@@ -94,6 +95,29 @@ function FooterCtaBanner() {
 
 export function PublicFooter() {
   const isHome = useLocation().pathname === '/';
+  const [contact, setContact] = useState<{
+    email: string;
+    phones: string[] | readonly string[];
+    phone: string;
+    whatsapp: string;
+    address: string;
+    whatsappMessage: string;
+  }>(FOOTER_CONTACT);
+
+  useEffect(() => {
+    publicApi.footerContact()
+      .then((data) => {
+        setContact({
+          email: data.email,
+          phones: data.phones,
+          phone: data.phones[0] || '',
+          whatsapp: data.phones[0] || '',
+          address: data.address,
+          whatsappMessage: FOOTER_CONTACT.whatsappMessage,
+        });
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <footer className="relative overflow-hidden border-t border-border bg-surface-alt bg-[radial-gradient(ellipse_at_top_right,_rgb(249_115_22_/_6%)_0%,_transparent_50%)]">
@@ -139,16 +163,16 @@ export function PublicFooter() {
             <ul className="mt-4 space-y-3.5">
               <li>
                 <a
-                  href={`mailto:${FOOTER_CONTACT.email}`}
+                  href={`mailto:${contact.email}`}
                   className="group flex items-start gap-3 text-sm text-white transition-colors hover:text-brand-light"
                 >
                   <FooterContactIcon>
                     <Mail className="h-4 w-4" strokeWidth={2} />
                   </FooterContactIcon>
-                  <span className="pt-1.5 leading-snug">{FOOTER_CONTACT.email}</span>
+                  <span className="pt-1.5 leading-snug">{contact.email}</span>
                 </a>
               </li>
-              {FOOTER_CONTACT.phones.map((phone) => (
+              {contact.phones.map((phone) => (
                 <li key={phone}>
                   <a
                     href={toTelHref(phone)}
@@ -165,7 +189,7 @@ export function PublicFooter() {
                 <FooterContactIcon>
                   <MapPin className="h-4 w-4" strokeWidth={2} />
                 </FooterContactIcon>
-                <span className="pt-1.5 leading-relaxed">{FOOTER_CONTACT.address}</span>
+                <span className="pt-1.5 leading-relaxed">{contact.address}</span>
               </li>
             </ul>
           </div>

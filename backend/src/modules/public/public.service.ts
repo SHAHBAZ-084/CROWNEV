@@ -252,3 +252,45 @@ export async function upsertFeatureSection(section: FeatureSection) {
   await upsertContentPage(FEATURES_PAGE_SLUG, 'Home Feature Cards', content);
   return section;
 }
+
+export type FooterContactSection = {
+  email: string;
+  phones: string[];
+  address: string;
+};
+
+export const DEFAULT_FOOTER_CONTACT: FooterContactSection = {
+  email: 'contact@crownevcenter.com',
+  phones: ['0300 698 3345', '0300 449 4545'],
+  address: 'Head Office, Hadi Ev Center Bwn road Chishtian',
+};
+
+const FOOTER_PAGE_SLUG = 'footer-contact';
+
+function parseFooterContact(content: string): FooterContactSection | null {
+  try {
+    const parsed = JSON.parse(content) as Partial<FooterContactSection>;
+    if (!parsed || typeof parsed.email !== 'string' || !Array.isArray(parsed.phones) || typeof parsed.address !== 'string') {
+      return null;
+    }
+    return {
+      email: parsed.email.trim(),
+      phones: parsed.phones.map((p) => String(p).trim()).filter(Boolean),
+      address: parsed.address.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getFooterContact(): Promise<FooterContactSection> {
+  const page = await prisma.contentPage.findUnique({ where: { slug: FOOTER_PAGE_SLUG } });
+  if (!page) return DEFAULT_FOOTER_CONTACT;
+  return parseFooterContact(page.content) ?? DEFAULT_FOOTER_CONTACT;
+}
+
+export async function upsertFooterContact(section: FooterContactSection) {
+  const content = JSON.stringify(section);
+  await upsertContentPage(FOOTER_PAGE_SLUG, 'Footer Contact Section', content);
+  return section;
+}

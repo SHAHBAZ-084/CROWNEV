@@ -9,33 +9,9 @@ import { PageHero } from '../../components/public/PageHero';
 import { BranchCardsSection } from '../../components/public/BranchCard';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
-import { FOOTER_CONTACT, OFFICIAL_PHONES, toTelHref } from '../../lib/placeholders';
+import { FOOTER_CONTACT, toTelHref } from '../../lib/placeholders';
 
-const CONTACT_CARDS = [
-  {
-    icon: MapPin,
-    label: 'Head Office',
-    value: FOOTER_CONTACT.address,
-    href: undefined,
-  },
-  {
-    icon: Mail,
-    label: 'Email Us',
-    value: FOOTER_CONTACT.email,
-    href: `mailto:${FOOTER_CONTACT.email}`,
-  },
-  {
-    icon: Phone,
-    label: 'Call Us',
-    phones: OFFICIAL_PHONES,
-  },
-  {
-    icon: Clock,
-    label: 'Business Hours',
-    value: 'Mon to Sat, 10:00 AM to 8:00 PM PKT',
-    href: undefined,
-  },
-] as const;
+
 
 function ContactInfoCard({
   icon: Icon,
@@ -92,10 +68,59 @@ export default function ContactPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [contact, setContact] = useState<{
+    email: string;
+    phones: string[] | readonly string[];
+    phone: string;
+    whatsapp: string;
+    address: string;
+    whatsappMessage: string;
+  }>(FOOTER_CONTACT);
 
   useEffect(() => {
-    publicApi.branches().then(setBranches).catch(console.error);
+    Promise.all([
+      publicApi.branches(),
+      publicApi.footerContact()
+    ])
+      .then(([branchesData, contactData]) => {
+        setBranches(branchesData);
+        setContact({
+          email: contactData.email,
+          phones: contactData.phones,
+          phone: contactData.phones[0] || '',
+          whatsapp: contactData.phones[0] || '',
+          address: contactData.address,
+          whatsappMessage: FOOTER_CONTACT.whatsappMessage,
+        });
+      })
+      .catch(console.error);
   }, []);
+
+  const contactCards = [
+    {
+      icon: MapPin,
+      label: 'Head Office',
+      value: contact.address,
+      href: undefined,
+    },
+    {
+      icon: Mail,
+      label: 'Email Us',
+      value: contact.email,
+      href: `mailto:${contact.email}`,
+    },
+    {
+      icon: Phone,
+      label: 'Call Us',
+      phones: contact.phones,
+    },
+    {
+      icon: Clock,
+      label: 'Business Hours',
+      value: 'Mon to Sat, 10:00 AM to 8:00 PM PKT',
+      href: undefined,
+    },
+  ] as const;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -187,7 +212,7 @@ export default function ContactPage() {
             </p>
 
             <div className="mt-8 space-y-4">
-              {CONTACT_CARDS.map((card) => (
+              {contactCards.map((card) => (
                 <ContactInfoCard key={card.label} {...card} />
               ))}
             </div>
