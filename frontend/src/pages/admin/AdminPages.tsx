@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users } from 'lucide-react';
+import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers } from 'lucide-react';
 import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
@@ -1721,6 +1721,7 @@ function FeatureCardEditor({
 
 export function AdminCustomizationPage() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'about' | 'features'>('about');
   const [loading, setLoading] = useState(true);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
@@ -1832,112 +1833,151 @@ export function AdminCustomizationPage() {
         subtitle="Edit public website content for the About page and homepage"
       />
 
-      <form onSubmit={handleSaveFounders} className="space-y-8">
-        <h2 className="font-display text-xl font-bold text-ink">About page — founders</h2>
-        <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
-          <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Eyebrow"
-              value={section.eyebrow}
-              onChange={(e) => setSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
-              required
-            />
-            <Input
-              label="Title"
-              value={section.title}
-              onChange={(e) => setSection((prev) => ({ ...prev, title: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="mt-4">
-            <Textarea
-              label="Subtitle"
-              rows={2}
-              value={section.subtitle}
-              onChange={(e) => setSection((prev) => ({ ...prev, subtitle: e.target.value }))}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <FounderEditor
-            label="Founder"
-            founder={founders[0]}
-            pendingPhoto={pendingPhotos[0]}
-            onFounderChange={(next) => updateFounder(0, next)}
-            onPendingPhotoChange={(file) => setPendingPhoto(0, file)}
-          />
-          <FounderEditor
-            label="Co-Founder"
-            founder={founders[1]}
-            pendingPhoto={pendingPhotos[1]}
-            onFounderChange={(next) => updateFounder(1, next)}
-            onPendingPhotoChange={(file) => setPendingPhoto(1, file)}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" variant="accent" loading={savingFounders}>
-            Save founders
-          </Button>
-          <p className="text-xs text-text-muted">
-            Changes appear on the public About page after saving.
+      <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-start">
+        {/* Sub-navigation Sidebar */}
+        <div className="w-full space-y-1.5 md:w-60 shrink-0 rounded-2xl border border-border-light bg-elevated p-3 shadow-sm">
+          <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            Sections
           </p>
-        </div>
-      </form>
-
-      <form onSubmit={handleSaveFeatures} className="mt-12 space-y-8 border-t border-border-light pt-12">
-        <h2 className="font-display text-xl font-bold text-ink">Homepage — feature stats</h2>
-
-        <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
-          <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Eyebrow"
-              value={featureSection.eyebrow}
-              onChange={(e) => setFeatureSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
-              required
-            />
-            <Input
-              label="Title"
-              value={featureSection.title}
-              onChange={(e) => setFeatureSection((prev) => ({ ...prev, title: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="mt-4">
-            <Textarea
-              label="Subtitle"
-              rows={2}
-              value={featureSection.subtitle}
-              onChange={(e) => setFeatureSection((prev) => ({ ...prev, subtitle: e.target.value }))}
-              required
-            />
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('about')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'about'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <Info className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'about' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">About Page</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('features')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'features'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <Layers className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'features' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Feature Cards</span>
+          </button>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          {features.map((feature, index) => (
-            <FeatureCardEditor
-              key={`feature-${index}`}
-              label={`Feature card ${index + 1}`}
-              feature={feature}
-              onChange={(next) => updateFeature(index, next)}
-            />
-          ))}
-        </div>
+        {/* Content Panel */}
+        <div className="flex-1 min-w-0">
+          {activeTab === 'about' ? (
+            <form onSubmit={handleSaveFounders} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">About page — founders</h2>
+              
+              <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+                <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Eyebrow"
+                    value={section.eyebrow}
+                    onChange={(e) => setSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+                    required
+                  />
+                  <Input
+                    label="Title"
+                    value={section.title}
+                    onChange={(e) => setSection((prev) => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="mt-4">
+                  <Textarea
+                    label="Subtitle"
+                    rows={2}
+                    value={section.subtitle}
+                    onChange={(e) => setSection((prev) => ({ ...prev, subtitle: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" variant="accent" loading={savingFeatures}>
-            Save feature cards
-          </Button>
-          <p className="text-xs text-text-muted">
-            Changes appear on the homepage &ldquo;Built for Pakistan&rdquo; section after saving.
-          </p>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <FounderEditor
+                  label="Founder"
+                  founder={founders[0]}
+                  pendingPhoto={pendingPhotos[0]}
+                  onFounderChange={(next) => updateFounder(0, next)}
+                  onPendingPhotoChange={(file) => setPendingPhoto(0, file)}
+                />
+                <FounderEditor
+                  label="Co-Founder"
+                  founder={founders[1]}
+                  pendingPhoto={pendingPhotos[1]}
+                  onFounderChange={(next) => updateFounder(1, next)}
+                  onPendingPhotoChange={(file) => setPendingPhoto(1, file)}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingFounders}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear on the public About page after saving.
+                </p>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleSaveFeatures} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Homepage — feature stats</h2>
+
+              <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
+                <h3 className="mb-4 font-display text-lg font-bold text-ink">Section heading</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Eyebrow"
+                    value={featureSection.eyebrow}
+                    onChange={(e) => setFeatureSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+                    required
+                  />
+                  <Input
+                    label="Title"
+                    value={featureSection.title}
+                    onChange={(e) => setFeatureSection((prev) => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="mt-4">
+                  <Textarea
+                    label="Subtitle"
+                    rows={2}
+                    value={featureSection.subtitle}
+                    onChange={(e) => setFeatureSection((prev) => ({ ...prev, subtitle: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                {features.map((feature, index) => (
+                  <FeatureCardEditor
+                    key={`feature-${index}`}
+                    label={`Feature card ${index + 1}`}
+                    feature={feature}
+                    onChange={(next) => updateFeature(index, next)}
+                  />
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingFeatures}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear on the homepage &ldquo;Built for Pakistan&rdquo; section after saving.
+                </p>
+              </div>
+            </form>
+          )}
         </div>
-      </form>
+      </div>
     </div>
   );
 }
