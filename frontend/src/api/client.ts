@@ -200,6 +200,7 @@ export const publicApi = {
       phones: string[];
       address: string;
     }>('/public/footer-contact'),
+  partsFulfillmentBranch: () => api<{ branchId: number | null }>('/public/parts-fulfillment-branch'),
 };
 
 export const customerApi = {
@@ -401,6 +402,12 @@ export const adminApi = {
     address: string;
   }) =>
     api<typeof data>('/public/customization/footer-contact', { method: 'PUT', body: JSON.stringify(data) }),
+  partsFulfillmentBranch: () => publicApi.partsFulfillmentBranch(),
+  updatePartsFulfillmentBranch: (branchId: number | null) =>
+    api<{ branchId: number | null }>('/public/customization/parts-fulfillment-branch', {
+      method: 'PUT',
+      body: JSON.stringify({ branchId }),
+    }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
 };

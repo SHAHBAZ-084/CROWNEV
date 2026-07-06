@@ -138,6 +138,26 @@ publicRouter.put(
   })
 );
 
+publicRouter.get(
+  '/parts-fulfillment-branch',
+  cachePublicJson(60),
+  asyncHandler(async (_req, res) => {
+    const setting = await publicService.getPartsFulfillmentBranch();
+    res.json(setting);
+  })
+);
+
+publicRouter.put(
+  '/customization/parts-fulfillment-branch',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(z.object({ branchId: z.number().int().nullable() })),
+  asyncHandler(async (req, res) => {
+    const setting = await publicService.setPartsFulfillmentBranch(req.body.branchId);
+    res.json(setting);
+  })
+);
+
 publicRouter.post(
   '/upload-founder-image',
   authenticate,

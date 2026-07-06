@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.js';
-
+import { AppError } from '../../utils/helpers.js';
 export async function getLandingData() {
   const [testimonials, branches, categories, brands, featuredProducts, stats] = await Promise.all([
     prisma.testimonial.findMany({
@@ -293,4 +293,31 @@ export async function upsertFooterContact(section: FooterContactSection) {
   const content = JSON.stringify(section);
   await upsertContentPage(FOOTER_PAGE_SLUG, 'Footer Contact Section', content);
   return section;
+}
+
+const PARTS_FULFILLMENT_SLUG = 'parts-fulfillment-branch';
+
+export type PartsFulfillmentSetting = {
+  branchId: number | null;
+};
+
+export async function getPartsFulfillmentBranch(): Promise<PartsFulfillmentSetting> {
+  const page = await prisma.contentPage.findUnique({ where: { slug: PARTS_FULFILLMENT_SLUG } });
+  if (!page) return { branchId: null };
+  try {
+    const parsed = JSON.parse(page.content) as { branchId?: number };
+    return { branchId: typeof parsed.branchId === 'number' ? parsed.branchId : null };
+  } catch {
+    return { branchId: null };
+  }
+}
+
+export async function setPartsFulfillmentBranch(branchId: number | null): Promise<PartsFulfillmentSetting> {
+  if (branchId != null) {
+    const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+    if (!branch) throw new AppError(400, 'Selected branch does not exist');
+  }
+  const content = JSON.stringify({ branchId });
+  await upsertContentPage(PARTS_FULFILLMENT_SLUG, 'Parts Fulfillment Branch', content);
+  return { branchId };
 }

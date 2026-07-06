@@ -107,6 +107,12 @@ export default function CheckoutPage() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [partsBranchId, setPartsBranchId] = useState<number | null>(null);
+  const [partsSettingLoaded, setPartsSettingLoaded] = useState(false);
+
+  const hasBikes = useMemo(() => items.some((i) => i.productType === 'BIKE'), [items]);
+  const hasParts = useMemo(() => items.some((i) => i.productType === 'PART'), [items]);
+
   const selectedBranch = branches.find((b) => b.id === branchId);
   const isSelfPickup = shippingMethod === 'SELF';
   const maxStep = 4;
@@ -136,9 +142,18 @@ export default function CheckoutPage() {
     }
     if (items.length === 0) { navigate('/shop'); return; }
     publicApi.branches().then(setBranches).catch(console.error);
+    publicApi.partsFulfillmentBranch()
+      .then((s) => setPartsBranchId(s.branchId))
+      .finally(() => setPartsSettingLoaded(true));
     setCustomerName(`${user.firstName} ${user.lastName}`.trim());
     setCustomerPhone(user.phone ?? '');
   }, [user, items, navigate]);
+
+  useEffect(() => {
+    if (!hasBikes && partsBranchId) {
+      setBranchId(partsBranchId);
+    }
+  }, [hasBikes, partsBranchId, setBranchId]);
 
   useEffect(() => {
     if (!branchId) {
@@ -240,6 +255,22 @@ export default function CheckoutPage() {
 
   if (!user || items.length === 0) return null;
 
+  if (partsSettingLoaded && hasParts && !partsBranchId) {
+    return (
+      <div className="min-h-full w-full bg-slate-50 flex items-center justify-center px-4 py-16">
+        <div className="max-w-md w-full rounded-2xl border border-orange-200 bg-orange-50 p-6 text-center text-sm text-orange-950 shadow-sm space-y-4">
+          <p className="font-semibold text-base text-orange-800">Parts Ordering Unavailable</p>
+          <p className="text-orange-900/90 leading-relaxed">
+            Online parts ordering is temporarily unavailable. Please remove parts from your cart or try again later.
+          </p>
+          <Link to="/shop" className="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold hover:bg-orange-700 transition-colors">
+            Go to Shop
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full w-full bg-slate-50">
       <MotionSection as="div" className="mx-auto max-w-3xl px-4 py-12 lg:px-8">
@@ -273,17 +304,27 @@ export default function CheckoutPage() {
 
             {step === 2 && (
               <div className="space-y-4">
-                <Select
-                  label="Fulfillment Branch"
-                  value={branchId ?? ''}
-                  onChange={(e) => setBranchId(parseInt(e.target.value, 10))}
-                  required
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}, {b.location}</option>
-                  ))}
-                </Select>
+                {hasBikes ? (
+                  <Select
+                    label="Fulfillment Branch"
+                    value={branchId ?? ''}
+                    onChange={(e) => setBranchId(parseInt(e.target.value, 10))}
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}, {b.location}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Fulfillment Branch</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {branches.find((b) => b.id === partsBranchId)?.name || 'Loading parts branch...'}
+                    </p>
+                    <p className="text-xs text-slate-500">Parts orders are automatically fulfilled by this branch.</p>
+                  </div>
+                )}
                 {selectedBranch && (
                   <p className="text-xs text-slate-500">Phone: {selectedBranch.phone}</p>
                 )}

@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone } from 'lucide-react';
+import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package } from 'lucide-react';
 import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
@@ -1721,11 +1721,12 @@ function FeatureCardEditor({
 
 export function AdminCustomizationPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer' | 'parts'>('about');
   const [loading, setLoading] = useState(true);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [savingFooter, setSavingFooter] = useState(false);
+  const [savingPartsBranch, setSavingPartsBranch] = useState(false);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
   const [footerSection, setFooterSection] = useState<{ email: string; phones: string[]; address: string }>({
@@ -1733,11 +1734,19 @@ export function AdminCustomizationPage() {
     phones: ['', ''],
     address: '',
   });
+  const [branches, setBranches] = useState<any[]>([]);
+  const [partsBranchId, setPartsBranchId] = useState<number | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<(File | null)[]>([null, null]);
 
   useEffect(() => {
-    Promise.all([adminApi.foundersSection(), adminApi.featuresSection(), adminApi.footerContactSection()])
-      .then(([foundersData, featuresData, footerData]) => {
+    Promise.all([
+      adminApi.foundersSection(),
+      adminApi.featuresSection(),
+      adminApi.footerContactSection(),
+      adminApi.branches(),
+      adminApi.partsFulfillmentBranch(),
+    ])
+      .then(([foundersData, featuresData, footerData, branchesData, partsSetting]) => {
         const founders = [...foundersData.founders];
         while (founders.length < 2) founders.push(emptyFounder());
         setSection({ ...foundersData, founders: founders.slice(0, 2) });
@@ -1753,6 +1762,9 @@ export function AdminCustomizationPage() {
           phones: phones.slice(0, 2),
           address: footerData.address ?? '',
         });
+
+        setBranches(branchesData as any[]);
+        setPartsBranchId(partsSetting.branchId);
       })
       .catch(() => toast('Could not load customization settings', 'error'))
       .finally(() => setLoading(false));
@@ -1852,6 +1864,19 @@ export function AdminCustomizationPage() {
     }
   }
 
+  async function handleSavePartsBranch(e: FormEvent) {
+    e.preventDefault();
+    setSavingPartsBranch(true);
+    try {
+      await adminApi.updatePartsFulfillmentBranch(partsBranchId);
+      toast('Parts fulfillment branch updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingPartsBranch(false);
+    }
+  }
+
   const founders = section.founders.length >= 2
     ? section.founders.slice(0, 2)
     : [...section.founders, ...Array.from({ length: Math.max(0, 2 - section.founders.length) }, emptyFounder)];
@@ -1917,6 +1942,18 @@ export function AdminCustomizationPage() {
           >
             <Phone className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'footer' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
             <span className="truncate text-left">Footer Contact</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('parts')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'parts'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <Package className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'parts' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Parts Fulfillment</span>
           </button>
         </div>
 
@@ -2030,7 +2067,7 @@ export function AdminCustomizationPage() {
                 </p>
               </div>
             </form>
-          ) : (
+          ) : activeTab === 'footer' ? (
             <form onSubmit={handleSaveFooter} className="space-y-6">
               <h2 className="font-display text-xl font-bold text-ink">Footer Contact Details</h2>
 
@@ -2086,6 +2123,33 @@ export function AdminCustomizationPage() {
                   Changes appear in the website footer and contact pages after saving.
                 </p>
               </div>
+            </form>
+          ) : (
+            <form onSubmit={handleSavePartsBranch} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Online parts orders</h2>
+              <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
+                <p className="text-sm text-ink-muted">
+                  Choose the branch that will receive and fulfill all online <strong>parts</strong> orders.
+                  Customers will no longer choose a branch for parts — it always goes to this one.
+                  Bike orders are unaffected; customers still choose a branch for bikes at checkout.
+                </p>
+                <Select
+                  label="Parts fulfillment branch"
+                  value={partsBranchId ?? ''}
+                  onChange={(e) => setPartsBranchId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">Not selected — online parts ordering disabled</option>
+                  {branches.map((b) => (
+                    <option key={String(b.id)} value={String(b.id)}>{String(b.name)}</option>
+                  ))}
+                </Select>
+                {!partsBranchId && (
+                  <p className="text-xs text-orange-500 font-medium">
+                    No branch selected — customers will not be able to order parts online until you pick one.
+                  </p>
+                )}
+              </div>
+              <Button type="submit" variant="accent" loading={savingPartsBranch}>Save changes</Button>
             </form>
           )}
         </div>

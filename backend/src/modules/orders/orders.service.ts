@@ -21,6 +21,7 @@ import {
 } from '../accounting/accounting.service.js';
 import { countInStockChassis, markChassisSoldInTx } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
+import { getPartsFulfillmentBranch } from '../public/public.service.js';
 
 function normalizeCnic(cnic: string): string {
   return cnic.replace(/\D/g, '');
@@ -38,7 +39,12 @@ export async function listOrders(query: {
 }) {
   const { page, limit, skip } = getPagination(query);
   const where = {
-    ...(query.branchId && { branchId: query.branchId }),
+    ...(query.branchId && {
+      OR: [
+        { branchId: query.branchId },
+        { items: { some: { branchId: query.branchId } } },
+      ],
+    }),
     ...(query.status && { status: query.status }),
     ...(query.type && { type: query.type }),
     ...(query.userId && { userId: query.userId }),
@@ -68,7 +74,12 @@ export async function listOrders(query: {
 export async function listPendingBankTransfers(branchId?: number) {
   return prisma.order.findMany({
     where: {
-      ...(branchId && { branchId }),
+      ...(branchId && {
+        OR: [
+          { branchId },
+          { items: { some: { branchId } } },
+        ],
+      }),
       type: OrderType.ONLINE,
       status: OrderStatus.PAYMENT_SUBMITTED,
       paymentMethod: PaymentMethod.BANK_TRANSFER,
@@ -86,7 +97,15 @@ export async function listPendingBankTransfers(branchId?: number) {
 
 export async function getOrder(id: number, branchId?: number) {
   const order = await prisma.order.findFirst({
-    where: { id, ...(branchId && { branchId }) },
+    where: {
+      id,
+      ...(branchId && {
+        OR: [
+          { branchId },
+          { items: { some: { branchId } } },
+        ],
+      }),
+    },
     include: {
       items: { include: { product: true } },
       user: true,
@@ -100,7 +119,15 @@ export async function getOrder(id: number, branchId?: number) {
 
 export async function getOrderInvoice(id: number, userId?: string, branchId?: number) {
   const order = await prisma.order.findFirst({
-    where: { id, ...(branchId && { branchId }) },
+    where: {
+      id,
+      ...(branchId && {
+        OR: [
+          { branchId },
+          { items: { some: { branchId } } },
+        ],
+      }),
+    },
     include: {
       items: {
         include: {
@@ -213,15 +240,19 @@ export async function trackOrder(publicId: string) {
 }
 
 export async function validateAndPriceItems(
-  branchId: number,
+  branchOrResolver: number | ((item: { productId: string }, product: { type: ProductType }) => number),
   items: { productId: string; quantity: number; unitPrice?: number; color?: string; chassisNumber?: string }[]
 ) {
+  const resolveBranch = typeof branchOrResolver === 'function'
+    ? branchOrResolver
+    : () => branchOrResolver;
+
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
     where: { id: { in: uniqueProductIds }, isActive: true },
     include: {
       bikePartDetails: true,
-      branchProducts: { where: { branchId, isListed: true } },
+      branchProducts: true,
     },
   });
 
@@ -236,15 +267,19 @@ export async function validateAndPriceItems(
 
   for (const [productId, totalQty] of qtyByProduct) {
     const product = products.find((p) => p.id === productId)!;
-    if (product.branchProducts.length === 0) {
-      throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
+    const sampleItem = items.find((i) => i.productId === productId)!;
+    const branchIdForProduct = resolveBranch(sampleItem, product);
+
+    const bp = product.branchProducts.find((bp) => bp.branchId === branchIdForProduct && bp.isListed);
+    if (!bp) {
+      throw new AppError(400, `Product "${product.name}" is not listed at the selected branch`);
     }
 
     if (product.type === ProductType.BIKE || product.type === ProductType.PART) {
       const stock =
         product.type === ProductType.BIKE
-          ? await countInStockChassis(branchId, productId)
-          : product.branchProducts[0]?.stock ?? 0;
+          ? await countInStockChassis(branchIdForProduct, productId)
+          : bp.stock ?? 0;
       if (stock < totalQty) {
         throw new AppError(
           400,
@@ -262,10 +297,12 @@ export async function validateAndPriceItems(
     color?: string;
     chassisNumber?: string;
     product: (typeof products)[number];
+    effectiveBranchId: number;
   }[] = [];
 
   for (const item of items) {
     const product = products.find((p) => p.id === item.productId)!;
+    const effectiveBranchId = resolveBranch(item, product);
     const catalogPrice = Number(product.salePrice ?? product.price);
     const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : catalogPrice;
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
@@ -280,6 +317,7 @@ export async function validateAndPriceItems(
       color: item.color,
       chassisNumber: item.chassisNumber,
       product,
+      effectiveBranchId,
     });
   }
 
@@ -299,7 +337,26 @@ export async function createOnlineOrder(data: {
   customerPhone?: string;
   customerAddress?: string;
 }) {
-  const pricedItems = await validateAndPriceItems(data.branchId, data.items);
+  const itemProductIds = data.items.map((i) => i.productId);
+  const productsBrief = await prisma.product.findMany({
+    where: { id: { in: itemProductIds } },
+    select: { id: true, type: true },
+  });
+  const hasPartItems = productsBrief.some((p) => p.type === ProductType.PART);
+
+  let partsBranchId: number | null = null;
+  if (hasPartItems) {
+    const setting = await getPartsFulfillmentBranch();
+    if (!setting.branchId) {
+      throw new AppError(400, 'Online parts ordering is temporarily unavailable. Please try again later.');
+    }
+    partsBranchId = setting.branchId;
+  }
+
+  const resolveBranch = (item: { productId: string }, product: { type: ProductType }) =>
+    product.type === ProductType.PART ? partsBranchId! : data.branchId;
+
+  const pricedItems = await validateAndPriceItems(resolveBranch, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
 
   const isSelfPickup = data.shippingMethod === ShippingMethod.SELF;
@@ -338,6 +395,7 @@ export async function createOnlineOrder(data: {
           total: i.total,
           color: i.color,
           chassisNumber: i.chassisNumber,
+          branchId: i.effectiveBranchId === data.branchId ? null : i.effectiveBranchId,
         })),
       },
     },
@@ -674,19 +732,35 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
 }
 
 export async function deductStockForOrder(
-  branchId: number,
-  items: {
+  arg1: number | any[],
+  arg2?: any[] | number,
+  arg3?: Prisma.TransactionClient
+) {
+  let fallbackBranchId: number;
+  let items: {
     productId: string;
     quantity: number;
+    branchId?: number | null;
     product: { type: ProductType; bikePartDetails: { partId: number | null }[] };
-  }[],
-  tx?: Prisma.TransactionClient
-) {
+  }[];
+  let tx: Prisma.TransactionClient | undefined;
+
+  if (typeof arg1 === 'number') {
+    fallbackBranchId = arg1;
+    items = arg2 as any[];
+    tx = arg3;
+  } else {
+    items = arg1 as any[];
+    fallbackBranchId = arg2 as number;
+    tx = arg3;
+  }
+
   const db = tx ?? prisma;
 
   for (const item of items) {
+    const effectiveBranchId = item.branchId ?? fallbackBranchId;
     if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
-      await deductBranchProductStockInTx(db, branchId, item.productId, item.quantity, item.product.type);
+      await deductBranchProductStockInTx(db, effectiveBranchId, item.productId, item.quantity, item.product.type);
     }
   }
 }
@@ -722,7 +796,7 @@ async function confirmOrder(order: {
     where: { orderId: order.id },
     include: { product: { include: { bikePartDetails: true } } },
   });
-  await deductStockForOrder(order.branchId, itemsWithDetails);
+  await deductStockForOrder(itemsWithDetails, order.branchId);
 }
 
 export async function setBiltyCharges(
