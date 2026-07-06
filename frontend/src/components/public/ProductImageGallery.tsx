@@ -195,7 +195,7 @@ export function ProductImageGallery({
         <div
           ref={thumbsRef}
           className={[
-            'flex gap-2 overflow-x-auto',
+            'flex w-full gap-2 overflow-x-auto',
             'snap-x snap-mandatory',
             '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
             'pb-1',
