@@ -1,7 +1,42 @@
 import { useMemo } from 'react';
 import { groupedSpecEntries, orderedSpecEntries, type SpecGroup } from '../../lib/evSpecs';
 
+function getFillerCells(count: number) {
+  const fillers: { className: string; key: string }[] = [];
+
+  // For 4 columns (xl)
+  const xlNeeded = (4 - (count % 4)) % 4;
+  for (let i = 0; i < xlNeeded; i++) {
+    fillers.push({
+      className: 'hidden xl:block bg-elevated px-3 py-2.5 sm:px-5 sm:py-3',
+      key: `filler-xl-${i}`,
+    });
+  }
+
+  // For 3 columns (lg)
+  const lgNeeded = (3 - (count % 3)) % 3;
+  for (let i = 0; i < lgNeeded; i++) {
+    fillers.push({
+      className: 'hidden lg:block xl:hidden bg-elevated px-3 py-2.5 sm:px-5 sm:py-3',
+      key: `filler-lg-${i}`,
+    });
+  }
+
+  // For 2 columns (default/sm)
+  const smNeeded = (2 - (count % 2)) % 2;
+  for (let i = 0; i < smNeeded; i++) {
+    fillers.push({
+      className: 'block lg:hidden bg-elevated px-3 py-2.5 sm:px-5 sm:py-3',
+      key: `filler-sm-${i}`,
+    });
+  }
+
+  return fillers;
+}
+
 function SpecGroupGrid({ group }: { group: SpecGroup }) {
+  const fillers = useMemo(() => getFillerCells(group.entries.length), [group.entries.length]);
+
   return (
     <div>
       <div className="border-b border-border-light bg-subtle/80 px-3 py-2 sm:px-6">
@@ -22,6 +57,9 @@ function SpecGroupGrid({ group }: { group: SpecGroup }) {
               {value}
             </dd>
           </div>
+        ))}
+        {fillers.map(({ className, key }) => (
+          <div key={key} className={className} aria-hidden />
         ))}
       </dl>
     </div>
