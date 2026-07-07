@@ -641,6 +641,13 @@ model BikeChassisNumber {
   status          ChassisStatus @default(IN_STOCK)
   purchaseId      Int
   saleOrderItemId Int?          @unique
+
+  isUsed          Boolean       @default(false)
+  purchasePrice   Decimal?      @db.Decimal(12, 2)
+  meterReading    Int?
+  condition       String?
+  comments        String?
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

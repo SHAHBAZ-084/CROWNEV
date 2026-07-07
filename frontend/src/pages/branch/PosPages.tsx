@@ -758,10 +758,23 @@ type BikeUnit = {
   numberType: 'ENGINE' | 'MOTOR';
   engineNumber: string;
   motorNumber: string;
+  purchasePrice?: string;
+  meterReading?: string;
+  condition?: string;
+  comments?: string;
 };
 
 function newBikeUnit(): BikeUnit {
-  return { chassisNumber: '', numberType: 'ENGINE', engineNumber: '', motorNumber: '' };
+  return {
+    chassisNumber: '',
+    numberType: 'ENGINE',
+    engineNumber: '',
+    motorNumber: '',
+    purchasePrice: '',
+    meterReading: '',
+    condition: '',
+    comments: '',
+  };
 }
 
 function resizeBikeUnits(current: BikeUnit[] | undefined, qty: number): BikeUnit[] {
@@ -1306,6 +1319,7 @@ export function PosPurchaseInvoicePage() {
   const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [purchaseType, setPurchaseType] = useState<'NEW' | 'OLD'>('NEW');
   const [supplierLedger, setSupplierLedger] = useState<{
     supplier: { name: string; code: string; balance: number };
     rows: LedgerRow[];
@@ -1367,16 +1381,20 @@ export function PosPurchaseInvoicePage() {
     () => lines.map((line) => {
       const product = productById.get(line.productId);
       const qty = Math.max(1, line.quantity);
-      const unitCost = line.unitCost ?? 0;
+      const isOldBikeLine = purchaseType === 'OLD' && product?.type === 'BIKE';
+      const unitsSum = isOldBikeLine
+        ? resizeBikeUnits(line.bikeUnits, qty).reduce((sum, u) => sum + (Number(u.purchasePrice) || 0), 0)
+        : undefined;
+      const unitCost = isOldBikeLine ? undefined : (line.unitCost ?? 0);
       return {
         ...line,
         product,
         qty,
-        unitCost,
-        lineTotal: unitCost * qty,
+        unitCost: unitCost ?? 0,
+        lineTotal: isOldBikeLine ? unitsSum! : (unitCost ?? 0) * qty,
       };
     }),
-    [lines, productById],
+    [lines, productById, purchaseType],
   );
 
   const grandTotal = useMemo(
@@ -1467,6 +1485,13 @@ export function PosPurchaseInvoicePage() {
             );
             return;
           }
+          if (purchaseType === 'OLD') {
+            const price = parseFloat(u.purchasePrice || '');
+            if (Number.isNaN(price) || price <= 0) {
+              toast(`Enter a valid price for every unit of ${l.product.name}`, 'error');
+              return;
+            }
+          }
         }
         const chassisNums = units.map((u) => u.chassisNumber.trim().toUpperCase());
         if (new Set(chassisNums).size !== chassisNums.length) {
@@ -1504,20 +1529,32 @@ export function PosPurchaseInvoicePage() {
     }
     const items = lineDetails
       .filter((l) => l.product)
-      .map((l) => ({
-        productId: l.productId,
-        quantity: l.qty,
-        unitCost: Number(l.unitCost),
-        ...(l.product?.type === 'BIKE'
-          ? {
-              bikeUnits: resizeBikeUnits(l.bikeUnits, l.qty).map((u) => ({
-                chassisNumber: u.chassisNumber.trim(),
-                engineNumber: u.numberType === 'ENGINE' ? u.engineNumber.trim() : undefined,
-                motorNumber: u.numberType === 'MOTOR' ? u.motorNumber.trim() : undefined,
-              })),
-            }
-          : {}),
-      }));
+      .map((l) => {
+        const isOldBike = purchaseType === 'OLD' && l.product?.type === 'BIKE';
+        return {
+          productId: l.productId,
+          quantity: l.qty,
+          unitCost: isOldBike
+            ? resizeBikeUnits(l.bikeUnits, l.qty).reduce((sum, u) => sum + (parseFloat(u.purchasePrice || '') || 0), 0) / l.qty
+            : Number(l.unitCost),
+          ...(l.product?.type === 'BIKE'
+            ? {
+                bikeUnits: resizeBikeUnits(l.bikeUnits, l.qty).map((u) => ({
+                  chassisNumber: u.chassisNumber.trim(),
+                  engineNumber: u.numberType === 'ENGINE' ? u.engineNumber.trim() : undefined,
+                  motorNumber: u.numberType === 'MOTOR' ? u.motorNumber.trim() : undefined,
+                  ...(purchaseType === 'OLD' && {
+                    isUsed: true,
+                    purchasePrice: parseFloat(u.purchasePrice || '') || 0,
+                    meterReading: u.meterReading ? parseInt(u.meterReading, 10) : undefined,
+                    condition: u.condition || undefined,
+                    comments: u.comments || undefined,
+                  }),
+                })),
+              }
+            : {}),
+        };
+      });
     if (items.length === 0) {
       toast('Add at least one product', 'error');
       return;
@@ -1528,6 +1565,9 @@ export function PosPurchaseInvoicePage() {
     }
     for (const l of lineDetails) {
       if (!l.product) continue;
+      if (purchaseType === 'OLD' && l.product.type === 'BIKE') {
+        continue;
+      }
       if (l.unitCost <= 0) {
         toast(`Enter a valid purchase cost for ${l.product.name}`, 'error');
         return;
@@ -1545,6 +1585,7 @@ export function PosPurchaseInvoicePage() {
       toast(`Purchase saved. Invoice #${invoiceNo}`, 'success');
       setLines([newPurchaseLine()]);
       setNotes('');
+      setPurchaseType('NEW');
       branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
       reloadPurchases();
       reloadNextInvoiceNo();
@@ -1579,6 +1620,30 @@ export function PosPurchaseInvoicePage() {
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-700">Purchase type:</span>
+          <div className="inline-flex rounded-lg border border-border p-1">
+            <button
+              type="button"
+              onClick={() => setPurchaseType('NEW')}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                purchaseType === 'NEW' ? 'bg-accent text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              New
+            </button>
+            <button
+              type="button"
+              onClick={() => setPurchaseType('OLD')}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                purchaseType === 'OLD' ? 'bg-accent text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Old
+            </button>
+          </div>
+        </div>
+
         <div className="mb-6 grid gap-4 lg:grid-cols-3">
           <SearchSelect
             label="Supplier account"
@@ -1621,16 +1686,20 @@ export function PosPurchaseInvoicePage() {
                 options={productOptionsForLine(line.key)}
                 placeholder="Search bike or part…"
               />
-              <Input
-                label="Unit cost (PKR)"
-                type="number"
-                min={1}
-                step={1}
-                value={line.product ? (line.unitCost || '') : ''}
-                disabled={!line.product}
-                placeholder="Purchase cost"
-                onChange={(e) => updateLine(line.key, { unitCost: parseFloat(e.target.value) || 0 })}
-              />
+              {purchaseType === 'OLD' && line.product?.type === 'BIKE' ? (
+                <div className="w-[140px]" />
+              ) : (
+                <Input
+                  label="Unit cost (PKR)"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={line.product ? (line.unitCost || '') : ''}
+                  disabled={!line.product}
+                  placeholder="Purchase cost"
+                  onChange={(e) => updateLine(line.key, { unitCost: parseFloat(e.target.value) || 0 })}
+                />
+              )}
               <Input
                 label="Qty"
                 type="number"
@@ -1641,7 +1710,7 @@ export function PosPurchaseInvoicePage() {
               <div>
                 <p className="mb-1 text-xs font-medium text-text-muted">Line total</p>
                 <p className="text-sm font-semibold text-brand">
-                  {line.product && line.unitCost > 0 ? formatPKR(line.lineTotal) : '—'}
+                  {line.product && line.lineTotal > 0 ? formatPKR(line.lineTotal) : '—'}
                 </p>
               </div>
               <Button
@@ -1713,6 +1782,42 @@ export function PosPurchaseInvoicePage() {
                           />
                         )}
                       </div>
+                      {purchaseType === 'OLD' && (
+                        <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                          <Input
+                            label="Price"
+                            type="number"
+                            min={0}
+                            value={unit.purchasePrice ?? ''}
+                            onChange={(e) => updateBikeUnit(line.key, idx, { purchasePrice: e.target.value })}
+                            required
+                          />
+                          <Input
+                            label="Meter reading (km)"
+                            type="number"
+                            min={0}
+                            value={unit.meterReading ?? ''}
+                            onChange={(e) => updateBikeUnit(line.key, idx, { meterReading: e.target.value })}
+                          />
+                          <Select
+                            label="Condition"
+                            value={unit.condition ?? ''}
+                            onChange={(e) => updateBikeUnit(line.key, idx, { condition: e.target.value })}
+                          >
+                            <option value="">Select condition</option>
+                            <option value="Excellent">Excellent</option>
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Poor">Poor</option>
+                          </Select>
+                          <Input
+                            label="Comments"
+                            value={unit.comments ?? ''}
+                            onChange={(e) => updateBikeUnit(line.key, idx, { comments: e.target.value })}
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

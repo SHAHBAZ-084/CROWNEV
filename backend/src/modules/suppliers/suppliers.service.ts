@@ -241,9 +241,19 @@ async function validatePurchaseItems(
 
     validateBikePurchaseUnits(product.type, item.quantity, item.bikeUnits);
 
-    const unitCost = Number(item.unitCost);
-    if (!Number.isFinite(unitCost) || unitCost <= 0) {
+    const isOldBikeLine = product.type === ProductType.BIKE && item.bikeUnits?.every((u) => u.purchasePrice != null && u.purchasePrice > 0);
+    const lineTotal = isOldBikeLine
+      ? item.bikeUnits!.reduce((sum, u) => sum + (u.purchasePrice ?? 0), 0)
+      : (Number(item.unitCost) || 0) * item.quantity;
+    const effectiveUnitCost = isOldBikeLine ? lineTotal / item.quantity : Number(item.unitCost);
+
+    if (!isOldBikeLine && (!Number.isFinite(effectiveUnitCost) || effectiveUnitCost <= 0)) {
       throw new AppError(400, `Enter a valid purchase cost for "${product.name}"`);
+    }
+
+    const someUnitsPriced = product.type === ProductType.BIKE && item.bikeUnits?.some((u) => u.purchasePrice != null && u.purchasePrice > 0);
+    if (someUnitsPriced && !isOldBikeLine) {
+      throw new AppError(400, 'Enter a price for every unit, or none, on this line');
     }
 
     let partId: number | undefined;
@@ -255,12 +265,17 @@ async function validatePurchaseItems(
       productId: item.productId,
       partId,
       quantity: item.quantity,
-      unitCost,
-      total: unitCost * item.quantity,
+      unitCost: effectiveUnitCost,
+      total: lineTotal,
       bikeUnits: item.bikeUnits?.map((u) => ({
         chassisNumber: normalizeChassisNumber(u.chassisNumber),
         engineNumber: u.engineNumber ? normalizeIdentifierNumber(u.engineNumber) : undefined,
         motorNumber: u.motorNumber ? normalizeIdentifierNumber(u.motorNumber) : undefined,
+        isUsed: u.isUsed,
+        purchasePrice: u.purchasePrice,
+        meterReading: u.meterReading,
+        condition: u.condition?.trim(),
+        comments: u.comments?.trim(),
       })),
       product,
     });
@@ -473,7 +488,17 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       supplier: true,
       items: { include: { product: true, part: true } },
       chassis: {
-        select: { productId: true, chassisNumber: true, engineNumber: true, motorNumber: true },
+        select: {
+          productId: true,
+          chassisNumber: true,
+          engineNumber: true,
+          motorNumber: true,
+          isUsed: true,
+          purchasePrice: true,
+          meterReading: true,
+          condition: true,
+          comments: true,
+        },
       },
     },
   });
@@ -483,11 +508,29 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
 
   const unitsByProduct = new Map<
     string,
-    { chassisNumber: string; engineNumber: string | null; motorNumber: string | null }[]
+    {
+      chassisNumber: string;
+      engineNumber: string | null;
+      motorNumber: string | null;
+      isUsed: boolean;
+      purchasePrice: number | null;
+      meterReading: number | null;
+      condition: string | null;
+      comments: string | null;
+    }[]
   >();
   for (const c of purchase.chassis) {
     const list = unitsByProduct.get(c.productId) ?? [];
-    list.push({ chassisNumber: c.chassisNumber, engineNumber: c.engineNumber, motorNumber: c.motorNumber });
+    list.push({
+      chassisNumber: c.chassisNumber,
+      engineNumber: c.engineNumber,
+      motorNumber: c.motorNumber,
+      isUsed: c.isUsed,
+      purchasePrice: c.purchasePrice ? Number(c.purchasePrice) : null,
+      meterReading: c.meterReading,
+      condition: c.condition,
+      comments: c.comments,
+    });
     unitsByProduct.set(c.productId, list);
   }
 

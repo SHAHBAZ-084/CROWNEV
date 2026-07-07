@@ -392,7 +392,15 @@ export function BranchInventoryPage() {
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [chassisModalItem, setChassisModalItem] = useState<StockRow | null>(null);
   const [chassisList, setChassisList] = useState<
-    { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]
+    {
+      id: number;
+      chassisNumber: string;
+      engineNumber?: string | null;
+      motorNumber?: string | null;
+      isUsed?: boolean;
+      condition?: string | null;
+      meterReading?: number | null;
+    }[]
   >([]);
   const [chassisLoading, setChassisLoading] = useState(false);
 
@@ -704,7 +712,14 @@ export function BranchInventoryPage() {
               {chassisList.map((c) => (
                 <li key={c.id} className="flex items-center gap-3 px-4 py-3">
                   <div>
-                    <p className="font-mono text-sm font-medium text-slate-900">{c.chassisNumber}</p>
+                    <p className="font-mono text-sm font-medium text-slate-900">
+                      {c.chassisNumber}
+                      {c.isUsed && (
+                        <span className="ml-2 inline-flex items-center rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/10">
+                          Used ({c.condition || 'Good'}{c.meterReading != null ? ` · ${c.meterReading} km` : ''})
+                        </span>
+                      )}
+                    </p>
                     {(c.engineNumber || c.motorNumber) && (
                       <p className="font-mono text-xs text-text-muted">
                         {c.engineNumber ? `Engine: ${c.engineNumber}` : `Motor: ${c.motorNumber}`}

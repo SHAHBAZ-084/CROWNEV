@@ -8,6 +8,11 @@ export type BikeUnitInput = {
   chassisNumber: string;
   engineNumber?: string;
   motorNumber?: string;
+  isUsed?: boolean;
+  purchasePrice?: number;
+  meterReading?: number;
+  condition?: string;
+  comments?: string;
 };
 
 export function normalizeChassisNumber(value: string): string {
@@ -24,6 +29,11 @@ function normalizeBikeUnit(unit: BikeUnitInput): BikeUnitInput {
     chassisNumber: normalizeChassisNumber(unit.chassisNumber),
     engineNumber: unit.engineNumber ? normalizeIdentifierNumber(unit.engineNumber) : undefined,
     motorNumber: unit.motorNumber ? normalizeIdentifierNumber(unit.motorNumber) : undefined,
+    isUsed: unit.isUsed,
+    purchasePrice: unit.purchasePrice,
+    meterReading: unit.meterReading,
+    condition: unit.condition?.trim(),
+    comments: unit.comments?.trim(),
   };
 }
 
@@ -143,6 +153,11 @@ export async function listAvailableChassis(branchId: number, productId: string) 
       productId: true,
       purchaseId: true,
       createdAt: true,
+      isUsed: true,
+      purchasePrice: true,
+      meterReading: true,
+      condition: true,
+      comments: true,
     },
     orderBy: { chassisNumber: 'asc' },
   });
@@ -205,6 +220,11 @@ export async function createChassisRecordsInTx(
         branchId: data.branchId,
         purchaseId: data.purchaseId,
         status: ChassisStatus.IN_STOCK,
+        isUsed: normalized.isUsed ?? false,
+        purchasePrice: normalized.purchasePrice ?? null,
+        meterReading: normalized.meterReading ?? null,
+        condition: normalized.condition ?? null,
+        comments: normalized.comments ?? null,
       };
     }),
   );
