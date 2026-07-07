@@ -6,7 +6,7 @@ import { LegalPageLayout } from '../../components/public/LegalPageLayout';
 import { PrivacyPolicyView } from '../../components/public/PrivacyPolicyView';
 import { PageHero } from '../../components/public/PageHero';
 import { BranchCardsSection } from '../../components/public/BranchCard';
-import { COMPANY_STORY, DEFAULT_FOUNDERS_SECTION, type FoundersSection } from '../../lib/placeholders';
+import { DEFAULT_FOUNDERS_SECTION, DEFAULT_ABOUT_HERO_SECTION, type FoundersSection, type AboutHeroSection } from '../../lib/placeholders';
 import { resolveUploadUrl } from '../../lib/media';
 import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
 import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
@@ -16,19 +16,21 @@ import type { Branch } from '../../types';
 export function AboutPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [foundersSection, setFoundersSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
+  const [heroSection, setHeroSection] = useState<AboutHeroSection>(DEFAULT_ABOUT_HERO_SECTION);
 
   useEffect(() => {
     publicApi.branches().then(setBranches).catch(console.error);
     publicApi.founders().then(setFoundersSection).catch(console.error);
+    publicApi.aboutHero().then(setHeroSection).catch(console.error);
   }, []);
 
   return (
     <div>
       <PageHero
         page="about"
-        eyebrow="Electric mobility for Pakistan"
-        title="About Crown Ev Bikes"
-        subtitle={COMPANY_STORY.split('\n\n')[0]}
+        eyebrow={heroSection.eyebrow}
+        title={heroSection.title}
+        subtitle={heroSection.subtitle}
       />
 
       <section className="overflow-hidden border-y border-border-light bg-elevated py-12 lg:py-16">
@@ -40,12 +42,12 @@ export function AboutPage() {
               viewport={{ once: true }}
               className="order-2 lg:order-1"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Our vision</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{heroSection.visionEyebrow}</p>
               <h2 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-                Built for Pakistani roads
+                {heroSection.visionTitle}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
-                {COMPANY_STORY.split('\n\n')[1] ?? COMPANY_STORY.split('\n\n')[0]}
+                {heroSection.visionBody}
               </p>
               <ul className="mt-5 space-y-2.5 text-sm text-ink-muted">
                 <li className="flex gap-3">

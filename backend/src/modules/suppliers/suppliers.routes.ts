@@ -23,6 +23,7 @@ suppliersRouter.get(
     const result = await suppliersService.listSuppliers(branchId, {
       page: req.query.page as string,
       limit: req.query.limit as string,
+      search: req.query.search as string,
     });
     res.json(result);
   })

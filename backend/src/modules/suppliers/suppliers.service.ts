@@ -116,9 +116,23 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
   };
 }
 
-export async function listSuppliers(branchId?: number, query?: { page?: string; limit?: string }) {
+export async function listSuppliers(
+  branchId?: number,
+  query?: { page?: string; limit?: string; search?: string },
+) {
   const { page, limit, skip } = getPagination(query ?? {});
-  const where = branchId ? { branchId, isActive: true } : { isActive: true };
+  const search = query?.search?.trim();
+  const where = {
+    ...(branchId ? { branchId } : {}),
+    isActive: true,
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { contactPerson: { contains: search, mode: 'insensitive' as const } },
+        { phone: { contains: search } },
+      ],
+    }),
+  };
 
   const [suppliers, total] = await Promise.all([
     prisma.supplier.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),

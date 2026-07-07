@@ -606,12 +606,20 @@ export function PosSuppliersPage() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+
   const reload = useCallback(() => {
     if (!branchId) return;
-    branchApi.suppliers(branchId).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
-  }, [branchId]);
+    branchApi.suppliers(branchId, search || undefined).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
+  }, [branchId, search]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  function handleSearchSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+  }
 
   function openModal() {
     setEditing(null);
@@ -673,6 +681,24 @@ export function PosSuppliersPage() {
   return (
     <div>
       <PageHeader title="Suppliers" subtitle="Manage branch suppliers" action={<Button variant="accent" onClick={openModal}>Add Supplier</Button>} />
+
+      <form onSubmit={handleSearchSubmit} className="mb-4 flex gap-2">
+        <Input
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name, contact person, or phone…"
+          className="max-w-xs"
+        />
+        <Button type="submit" variant="secondary">
+          <Search className="h-4 w-4" />
+        </Button>
+        {search && (
+          <Button type="button" variant="ghost" onClick={() => { setSearchInput(''); setSearch(''); }}>
+            Clear
+          </Button>
+        )}
+      </form>
+
       <DataTable
         columns={entityTableColumns(
           {

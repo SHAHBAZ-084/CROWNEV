@@ -257,3 +257,21 @@ export function getBranchCardImage(branch: { name: string; location: string }): 
 }
 
 export const BRANCH_HIGHLIGHTS = ['Test rides', 'Sales', 'Service', 'Genuine parts'] as const;
+
+export type AboutHeroSection = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  visionEyebrow: string;
+  visionTitle: string;
+  visionBody: string;
+};
+
+export const DEFAULT_ABOUT_HERO_SECTION: AboutHeroSection = {
+  eyebrow: 'Electric mobility for Pakistan',
+  title: 'About Crown Ev Bikes',
+  subtitle: COMPANY_STORY.split('\n\n')[0],
+  visionEyebrow: 'Our vision',
+  visionTitle: 'Built for Pakistani roads',
+  visionBody: COMPANY_STORY.split('\n\n')[1] ?? COMPANY_STORY.split('\n\n')[0],
+};

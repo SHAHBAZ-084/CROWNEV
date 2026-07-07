@@ -31,7 +31,7 @@ import {
 } from '../../lib/reportExport';
 import { formatDate, formatPKR } from '../../lib/format';
 import { resolveUploadUrl } from '../../lib/media';
-import { DEFAULT_FOUNDERS_SECTION, DEFAULT_FEATURE_SECTION, FEATURE_ICON_OPTIONS, normalizeFeatureSection, type FeatureCard, type FeatureIconId, type FeatureSection, type FounderProfile, type FoundersSection } from '../../lib/placeholders';
+import { DEFAULT_FOUNDERS_SECTION, DEFAULT_ABOUT_HERO_SECTION, DEFAULT_FEATURE_SECTION, FEATURE_ICON_OPTIONS, normalizeFeatureSection, type FeatureCard, type FeatureIconId, type FeatureSection, type FounderProfile, type FoundersSection, type AboutHeroSection } from '../../lib/placeholders';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -1723,10 +1723,12 @@ export function AdminCustomizationPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer' | 'parts'>('about');
   const [loading, setLoading] = useState(true);
+  const [savingHero, setSavingHero] = useState(false);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [savingFooter, setSavingFooter] = useState(false);
   const [savingPartsBranch, setSavingPartsBranch] = useState(false);
+  const [heroSection, setHeroSection] = useState<AboutHeroSection>(DEFAULT_ABOUT_HERO_SECTION);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
   const [footerSection, setFooterSection] = useState<{ email: string; phones: string[]; address: string }>({
@@ -1740,13 +1742,16 @@ export function AdminCustomizationPage() {
 
   useEffect(() => {
     Promise.all([
+      adminApi.aboutHeroSection(),
       adminApi.foundersSection(),
       adminApi.featuresSection(),
       adminApi.footerContactSection(),
       adminApi.branches(),
       adminApi.partsFulfillmentBranch(),
     ])
-      .then(([foundersData, featuresData, footerData, branchesData, partsSetting]) => {
+      .then(([heroData, foundersData, featuresData, footerData, branchesData, partsSetting]) => {
+        setHeroSection(heroData);
+
         const founders = [...foundersData.founders];
         while (founders.length < 2) founders.push(emptyFounder());
         setSection({ ...foundersData, founders: founders.slice(0, 2) });
@@ -1786,6 +1791,20 @@ export function AdminCustomizationPage() {
       ...prev,
       features: prev.features.map((f, i) => (i === index ? next : f)),
     }));
+  }
+
+  async function handleSaveHero(e: FormEvent) {
+    e.preventDefault();
+    setSavingHero(true);
+    try {
+      const saved = await adminApi.updateAboutHeroSection(heroSection);
+      setHeroSection(saved);
+      toast('About page hero text updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingHero(false);
+    }
   }
 
   async function handleSaveFounders(e: FormEvent) {
@@ -1960,7 +1979,64 @@ export function AdminCustomizationPage() {
         {/* Content Panel */}
         <div className="flex-1 min-w-0">
           {activeTab === 'about' ? (
-            <form onSubmit={handleSaveFounders} className="space-y-6">
+            <div className="space-y-10">
+              <form onSubmit={handleSaveHero} className="space-y-6 mb-10">
+                <h2 className="font-display text-xl font-bold text-ink">About page — hero & vision</h2>
+
+                <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
+                  <h3 className="font-display text-lg font-bold text-ink">Page hero</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      label="Eyebrow"
+                      value={heroSection.eyebrow}
+                      onChange={(e) => setHeroSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+                      required
+                    />
+                    <Input
+                      label="Title"
+                      value={heroSection.title}
+                      onChange={(e) => setHeroSection((prev) => ({ ...prev, title: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <Textarea
+                    label="Subtitle"
+                    rows={2}
+                    value={heroSection.subtitle}
+                    onChange={(e) => setHeroSection((prev) => ({ ...prev, subtitle: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
+                  <h3 className="font-display text-lg font-bold text-ink">Vision section</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      label="Eyebrow"
+                      value={heroSection.visionEyebrow}
+                      onChange={(e) => setHeroSection((prev) => ({ ...prev, visionEyebrow: e.target.value }))}
+                      required
+                    />
+                    <Input
+                      label="Heading"
+                      value={heroSection.visionTitle}
+                      onChange={(e) => setHeroSection((prev) => ({ ...prev, visionTitle: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <Textarea
+                    label="Body text"
+                    rows={3}
+                    value={heroSection.visionBody}
+                    onChange={(e) => setHeroSection((prev) => ({ ...prev, visionBody: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" variant="accent" loading={savingHero}>Save changes</Button>
+              </form>
+
+              <form onSubmit={handleSaveFounders} className="space-y-6">
               <h2 className="font-display text-xl font-bold text-ink">About page — founders</h2>
               
               <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6">
@@ -2016,6 +2092,7 @@ export function AdminCustomizationPage() {
                 </p>
               </div>
             </form>
+          </div>
           ) : activeTab === 'features' ? (
             <form onSubmit={handleSaveFeatures} className="space-y-6">
               <h2 className="font-display text-xl font-bold text-ink">Homepage — feature stats</h2>

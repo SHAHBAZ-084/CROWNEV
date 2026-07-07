@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import { enqueueRequest } from '../lib/apiQueue';
 import { fetchWithRetry } from '../lib/queryRetry';
+import type { AboutHeroSection } from '../lib/placeholders';
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -201,6 +202,7 @@ export const publicApi = {
       address: string;
     }>('/public/footer-contact'),
   partsFulfillmentBranch: () => api<{ branchId: number | null }>('/public/parts-fulfillment-branch'),
+  aboutHero: () => api<AboutHeroSection>('/public/about-hero'),
 };
 
 export const customerApi = {
@@ -408,6 +410,9 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ branchId }),
     }),
+  aboutHeroSection: () => publicApi.aboutHero(),
+  updateAboutHeroSection: (data: AboutHeroSection) =>
+    api<AboutHeroSection>('/public/customization/about-hero', { method: 'PUT', body: JSON.stringify(data) }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
 };
@@ -604,7 +609,10 @@ export const branchApi = {
   deletePaymentChannel: (branchId: number, channelId: number) =>
     api<void>(`/branches/${branchId}/payment-channels/${channelId}`, { method: 'DELETE' }),
   bookingReceipt: (id: number) => api<Record<string, unknown>>(`/bookings/${id}/receipt`),
-  suppliers: (branchId: number) => api<Paginated<unknown>>(`/suppliers?branchId=${branchId}`),
+  suppliers: (branchId: number, search?: string) => {
+    const q = new URLSearchParams({ branchId: String(branchId), ...(search && { search }) });
+    return api<Paginated<unknown>>(`/suppliers?${q}`);
+  },
   createSupplier: (data: Record<string, unknown>) =>
     api<unknown>('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
   updateSupplier: (id: number, data: Record<string, unknown>) =>

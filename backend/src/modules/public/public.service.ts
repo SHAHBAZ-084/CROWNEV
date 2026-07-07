@@ -321,3 +321,52 @@ export async function setPartsFulfillmentBranch(branchId: number | null): Promis
   await upsertContentPage(PARTS_FULFILLMENT_SLUG, 'Parts Fulfillment Branch', content);
   return { branchId };
 }
+
+const ABOUT_HERO_SLUG = 'about-hero';
+
+export type AboutHeroSection = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  visionEyebrow: string;
+  visionTitle: string;
+  visionBody: string;
+};
+
+const DEFAULT_ABOUT_HERO_SECTION: AboutHeroSection = {
+  eyebrow: 'Electric mobility for Pakistan',
+  title: 'About Crown Ev Bikes',
+  subtitle: "Crown Ev was founded on a simple belief: Pakistan deserves premium electric mobility without compromise.",
+  visionEyebrow: 'Our vision',
+  visionTitle: 'Built for Pakistani roads',
+  visionBody: "As a trusted dealer of Crown electric bikes, we bring quality models to riders through a growing network of branches, backed by local sales and service expertise you can rely on.",
+};
+
+function parseAboutHeroSection(content: string): AboutHeroSection | null {
+  try {
+    const parsed = JSON.parse(content) as Partial<AboutHeroSection>;
+    if (!parsed) return null;
+    return {
+      eyebrow: String(parsed.eyebrow ?? DEFAULT_ABOUT_HERO_SECTION.eyebrow).trim(),
+      title: String(parsed.title ?? DEFAULT_ABOUT_HERO_SECTION.title).trim(),
+      subtitle: String(parsed.subtitle ?? DEFAULT_ABOUT_HERO_SECTION.subtitle).trim(),
+      visionEyebrow: String(parsed.visionEyebrow ?? DEFAULT_ABOUT_HERO_SECTION.visionEyebrow).trim(),
+      visionTitle: String(parsed.visionTitle ?? DEFAULT_ABOUT_HERO_SECTION.visionTitle).trim(),
+      visionBody: String(parsed.visionBody ?? DEFAULT_ABOUT_HERO_SECTION.visionBody).trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getAboutHeroSection(): Promise<AboutHeroSection> {
+  const page = await prisma.contentPage.findUnique({ where: { slug: ABOUT_HERO_SLUG } });
+  if (!page) return DEFAULT_ABOUT_HERO_SECTION;
+  return parseAboutHeroSection(page.content) ?? DEFAULT_ABOUT_HERO_SECTION;
+}
+
+export async function upsertAboutHeroSection(section: AboutHeroSection) {
+  const content = JSON.stringify(section);
+  await upsertContentPage(ABOUT_HERO_SLUG, 'About Hero', content);
+  return section;
+}
