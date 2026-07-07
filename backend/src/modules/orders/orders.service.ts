@@ -484,11 +484,10 @@ export async function createSaleInvoice(data: {
     where: {
       id: data.customerId,
       branchId: data.branchId,
-      type: CustomerType.WALK_IN,
       isActive: true,
     },
   });
-  if (!customer) throw new AppError(404, 'Walk-in customer not found');
+  if (!customer) throw new AppError(404, 'Customer not found');
 
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
@@ -1073,7 +1072,7 @@ export async function createWalkInCustomer(data: {
 
 export async function getWalkInCustomer(id: number, branchId: number) {
   const customer = await prisma.customer.findFirst({
-    where: { id, branchId, type: CustomerType.WALK_IN },
+    where: { id, branchId },
     include: { ledger: { orderBy: { createdAt: 'desc' }, take: 50 } },
   });
   if (!customer) throw new AppError(404, 'Customer not found');
@@ -1087,7 +1086,7 @@ export async function updateWalkInCustomer(
 ) {
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findFirst({
-      where: { id, branchId, type: CustomerType.WALK_IN },
+      where: { id, branchId },
     });
     if (!customer) throw new AppError(404, 'Customer not found');
     const updated = await tx.customer.update({ where: { id }, data });
@@ -1110,7 +1109,7 @@ export async function recordWalkInPayment(data: {
 }) {
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findFirstOrThrow({
-      where: { id: data.customerId, branchId: data.branchId, type: CustomerType.WALK_IN },
+      where: { id: data.customerId, branchId: data.branchId },
     });
     const newBalance = Math.max(0, Number(customer.balance) - data.amount);
     await tx.customer.update({
@@ -1131,7 +1130,7 @@ export async function recordWalkInPayment(data: {
 
 export async function softDeleteWalkInCustomer(id: number, branchId: number) {
   const customer = await prisma.customer.findFirst({
-    where: { id, branchId, type: CustomerType.WALK_IN, isActive: true },
+    where: { id, branchId, isActive: true },
   });
   if (!customer) throw new AppError(404, 'Customer not found');
   return prisma.customer.update({
@@ -1162,7 +1161,6 @@ export async function listWalkInCustomers(branchId: number, query: { page?: stri
   const search = query.search?.trim();
   const where: Prisma.CustomerWhereInput = {
     branchId,
-    type: CustomerType.WALK_IN,
     isActive: true,
     ...(search && {
       OR: [
