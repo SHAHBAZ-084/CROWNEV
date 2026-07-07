@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -9,7 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DataTable } from '../../components/ui/DataTable';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Settings, FileWarning } from 'lucide-react';
 
 type Row = Record<string, any>;
 
@@ -215,6 +215,16 @@ export default function PosBikeDocumentsPage() {
       <PageHeader
         title="Bike Documents"
         subtitle="Manage and track physical document handovers from suppliers to customers"
+        action={
+          isAdmin ? (
+            <Link to="/admin/document-types">
+              <Button variant="secondary">
+                <Settings className="mr-1.5 h-4 w-4" />
+                Manage Document Types
+              </Button>
+            </Link>
+          ) : undefined
+        }
       />
 
       <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
@@ -301,7 +311,38 @@ export default function PosBikeDocumentsPage() {
               </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            {!checklist?.documents?.length ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+                <FileWarning className="h-8 w-8 text-orange-400" />
+                <div>
+                  <p className="text-sm font-semibold text-ink">No document types configured yet</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {isAdmin
+                      ? 'Add at least one document type (e.g. Warranty Card) to start tracking paperwork for this bike.'
+                      : 'Ask an admin to configure document types before you can track paperwork for this bike.'}
+                  </p>
+                </div>
+                {isAdmin && (
+                  <Link to="/admin/document-types">
+                    <Button variant="secondary" size="sm">
+                      <Settings className="mr-1.5 h-4 w-4" />
+                      Manage Document Types
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="rounded-full bg-surface-alt px-3 py-1 text-ink">
+                    Supplier: {checklist.documents.filter((d: Row) => d.receivedFromSupplier).length}/{checklist.documents.length} received
+                  </span>
+                  <span className="rounded-full bg-surface-alt px-3 py-1 text-ink">
+                    Customer: {checklist.documents.filter((d: Row) => d.givenToCustomer).length}/{checklist.documents.length} given
+                  </span>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
               {/* Received from supplier */}
               <div className="rounded-xl border border-border p-4 bg-white">
                 <h3 className="mb-4 font-display text-sm font-bold text-brand">Received from Supplier</h3>
@@ -383,7 +424,9 @@ export default function PosBikeDocumentsPage() {
                   </div>
                 )}
               </div>
-            </div>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end">
               <Button type="button" onClick={closeChecklist}>
