@@ -134,6 +134,9 @@ export function SavingsCalculator() {
   const [electricModelId, setElectricModelId] = useState('');
   const [petrolModelId, setPetrolModelId] = useState<string>(PETROL_BIKE_MODELS[1].id);
   const [petrolPrice, setPetrolPrice] = useState(PETROL_PRICE_DEFAULT);
+  // Raw text so the user can freely type/clear the field; only coerced to a
+  // number for calculations, and only clamped on blur (not per keystroke).
+  const [petrolPriceText, setPetrolPriceText] = useState(String(PETROL_PRICE_DEFAULT));
   const [modelYear, setModelYear] = useState<number>(2024);
   const [dailyDistance, setDailyDistance] = useState(DAILY_DISTANCE_DEFAULT);
 
@@ -249,13 +252,25 @@ export function SavingsCalculator() {
               <Field id="petrol-price" label="Petrol Price (Rs/L)">
                 <input
                   id="petrol-price"
-                  type="number"
-                  min={PETROL_PRICE_MIN}
-                  max={PETROL_PRICE_MAX}
-                  value={petrolPrice}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={petrolPriceText}
                   onChange={(e) => {
-                    const n = parseFloat(e.target.value);
-                    setPetrolPrice(Number.isFinite(n) ? clampPetrolPrice(n) : PETROL_PRICE_DEFAULT);
+                    // Allow only digits while typing so the field stays a
+                    // free-form direct-entry box (no spinner arrows, no
+                    // per-keystroke clamping that would reset the value).
+                    const raw = e.target.value.replace(/[^\d]/g, '');
+                    setPetrolPriceText(raw);
+                    const n = parseInt(raw, 10);
+                    if (Number.isFinite(n)) setPetrolPrice(n);
+                  }}
+                  onBlur={() => {
+                    // Clamp + normalize only once the user is done editing.
+                    const n = parseInt(petrolPriceText, 10);
+                    const clamped = clampPetrolPrice(Number.isFinite(n) ? n : PETROL_PRICE_DEFAULT);
+                    setPetrolPrice(clamped);
+                    setPetrolPriceText(String(clamped));
                   }}
                   className={inputClass}
                 />
