@@ -19,7 +19,10 @@ export const EV_SPEC_FIELDS = [
   { key: 'braking_system', label: 'Braking System', placeholder: 'e.g. F/R CBS' },
   { key: 'frame_material', label: 'Frame Material', placeholder: 'e.g. Aluminium / Steel' },
   { key: 'wheel_size', label: 'Wheel Size', placeholder: 'e.g. 17"' },
-  { key: 'warranty', label: 'Warranty', placeholder: 'e.g. 1 Year Battery' },
+  { key: 'battery_warranty', label: 'Battery Warranty', placeholder: 'e.g. 1 Year / 12,000km' },
+  { key: 'motor_warranty', label: 'Motor Warranty', placeholder: 'e.g. 3 Years / 36,000km' },
+  { key: 'controller_warranty', label: 'Controller Warranty', placeholder: 'e.g. 3 Years / 36,000km' },
+  { key: 'body_parts_warranty', label: 'Body Parts Warranty', placeholder: 'e.g. 6 Months' },
 ] as const;
 
 export type EvSpecKey = (typeof EV_SPEC_FIELDS)[number]['key'];
@@ -191,7 +194,15 @@ export const EV_SPEC_GROUPS = [
       'frame_material',
       'wheel_size',
       'security',
-      'warranty',
+    ],
+  },
+  {
+    title: 'Warranty',
+    keys: [
+      'battery_warranty',
+      'motor_warranty',
+      'controller_warranty',
+      'body_parts_warranty',
     ],
   },
 ] as const;

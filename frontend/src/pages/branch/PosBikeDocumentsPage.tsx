@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
+import { useDebounce } from '../../hooks/useDebounce';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -22,8 +23,8 @@ export default function PosBikeDocumentsPage() {
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   
   // Search and list state
-  const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 300);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_SUPPLIER' | 'PENDING_CUSTOMER'>('ALL');
   const [bikes, setBikes] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,7 +80,6 @@ export default function PosBikeDocumentsPage() {
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSearch(searchInput.trim());
   }
 
   // Fetch checklist for modal
@@ -256,10 +256,7 @@ export default function PosBikeDocumentsPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => {
-                setSearchInput('');
-                setSearch('');
-              }}
+              onClick={() => setSearchInput('')}
             >
               Clear Search
             </Button>

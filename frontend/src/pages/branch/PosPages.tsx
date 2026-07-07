@@ -13,6 +13,7 @@ import { Input, Select } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
 import { TablePagination } from '../../components/ui/TablePagination';
 import { usePagination } from '../../hooks/usePagination';
+import { useDebounce } from '../../hooks/useDebounce';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
@@ -410,8 +411,8 @@ export function PosCustomersPage() {
   const [lastName, setLastName] = useState('');
   const [fatherName, setFatherName] = useState('');
 
-  const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 300);
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -424,7 +425,6 @@ export function PosCustomersPage() {
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
-    setSearch(searchInput.trim());
   }
 
   function normalizeCnic(value: string) {
@@ -539,7 +539,7 @@ export function PosCustomersPage() {
           <Search className="h-4 w-4" />
         </Button>
         {search && (
-          <Button type="button" variant="ghost" onClick={() => { setSearchInput(''); setSearch(''); }}>
+          <Button type="button" variant="ghost" onClick={() => setSearchInput('')}>
             Clear
           </Button>
         )}
@@ -606,8 +606,8 @@ export function PosSuppliersPage() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 300);
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -618,7 +618,6 @@ export function PosSuppliersPage() {
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
-    setSearch(searchInput.trim());
   }
 
   function openModal() {
@@ -693,7 +692,7 @@ export function PosSuppliersPage() {
           <Search className="h-4 w-4" />
         </Button>
         {search && (
-          <Button type="button" variant="ghost" onClick={() => { setSearchInput(''); setSearch(''); }}>
+          <Button type="button" variant="ghost" onClick={() => setSearchInput('')}>
             Clear
           </Button>
         )}
