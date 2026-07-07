@@ -477,6 +477,8 @@ export async function createSaleInvoice(data: {
   reference?: string;
   notes?: string;
   createdById: string;
+  receivedAmount?: number;      // NEW
+  receivedAccountId?: number;   // NEW
 }) {
   const customer = await prisma.customer.findFirst({
     where: {
@@ -491,6 +493,17 @@ export async function createSaleInvoice(data: {
   const pricedItems = await validateAndPriceItems(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (subtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
+
+  const receivedAmount = data.receivedAmount && data.receivedAmount > 0 ? data.receivedAmount : 0;
+
+  if (receivedAmount > 0) {
+    if (!data.receivedAccountId) {
+      throw new AppError(400, 'Select the bank or cash account the payment was received into');
+    }
+    if (receivedAmount > subtotal) {
+      throw new AppError(400, 'Received amount cannot exceed the invoice total');
+    }
+  }
 
   const chassisIds = data.items.map((i) => i.bikeChassisNumberId).filter(Boolean) as number[];
   if (new Set(chassisIds).size !== chassisIds.length) {
@@ -645,7 +658,36 @@ export async function createSaleInvoice(data: {
       createdById: data.createdById,
     });
 
-    return { order: orderWithChassis, voucher };
+    let receiptVoucher = null;
+    if (receivedAmount > 0) {
+      const balanceAfterReceipt = newBalance - receivedAmount;
+      await tx.customer.update({
+        where: { id: data.customerId },
+        data: { balance: balanceAfterReceipt },
+      });
+      await tx.customerLedger.create({
+        data: {
+          customerId: data.customerId,
+          orderId: order.id,
+          type: CustomerLedgerType.CREDIT,
+          amount: receivedAmount,
+          balance: balanceAfterReceipt,
+          notes: `Received against sale invoice #${reference}`,
+        },
+      });
+
+      receiptVoucher = await createVoucherInTx(tx, {
+        branchId: data.branchId,
+        type: VoucherType.RECEIPT,
+        debitAccountId: data.receivedAccountId!,
+        creditAccountId: customerAccount.id,
+        amount: receivedAmount,
+        reference,
+        createdById: data.createdById,
+      });
+    }
+
+    return { order: orderWithChassis, voucher, receiptVoucher };
   });
 }
 

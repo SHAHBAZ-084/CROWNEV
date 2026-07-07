@@ -783,6 +783,11 @@ function newPurchaseLine(): PurchaseLine {
   return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
 }
 
+function isBankOrCashCategory(name: string) {
+  const n = name.trim().toLowerCase();
+  return n.includes('bank') || n.includes('cash');
+}
+
 export function PosSaleInvoicePage() {
   const branchId = useBranchId();
   const { toast } = useToast();
@@ -794,6 +799,9 @@ export function PosSaleInvoicePage() {
   const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [bankCashAccounts, setBankCashAccounts] = useState<Row[]>([]);
+  const [receivedAmount, setReceivedAmount] = useState('');
+  const [receivedAccountId, setReceivedAccountId] = useState('');
   const [customerLedger, setCustomerLedger] = useState<{
     customer: { name: string; code: string; balance: number };
     rows: LedgerRow[];
@@ -825,6 +833,9 @@ export function PosSaleInvoicePage() {
     if (!branchId) return;
     branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+    branchApi.accounts(branchId)
+      .then((accounts) => setBankCashAccounts((accounts as Row[]).filter((a) => isBankOrCashCategory(String((a.category as Row | undefined)?.name ?? '')))))
+      .catch(console.error);
     reloadOrders();
     reloadNextInvoiceNo();
   }, [branchId, reloadOrders, reloadNextInvoiceNo]);
@@ -993,6 +1004,18 @@ export function PosSaleInvoicePage() {
       toast('Duplicate chassis number selection', 'error');
       return;
     }
+    const receivedNum = receivedAmount ? Number(receivedAmount) : 0;
+    if (receivedNum > 0) {
+      if (receivedNum > grandTotal) {
+        toast('Received amount cannot exceed the invoice total', 'error');
+        return;
+      }
+      if (!receivedAccountId) {
+        toast('Select the bank or cash account the payment was received into', 'error');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const result = await branchApi.createSaleInvoice({
@@ -1000,11 +1023,20 @@ export function PosSaleInvoicePage() {
         customerId: parseInt(customerId, 10),
         items,
         notes: notes.trim() || undefined,
+        receivedAmount: receivedNum > 0 ? receivedNum : undefined,
+        receivedAccountId: receivedNum > 0 ? Number(receivedAccountId) : undefined,
       });
       const invoiceNo = String((result.order as { saleReference?: string }).saleReference ?? nextInvoiceNo);
-      toast(`Sale saved. Invoice #${invoiceNo}`, 'success');
+      toast(
+        receivedNum > 0
+          ? `Sale saved. Invoice #${invoiceNo} — Rs. ${receivedNum.toLocaleString()} received`
+          : `Sale saved. Invoice #${invoiceNo}`,
+        'success',
+      );
       setLines([newSaleLine()]);
       setNotes('');
+      setReceivedAmount('');
+      setReceivedAccountId('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadOrders();
       reloadNextInvoiceNo();
@@ -1059,6 +1091,27 @@ export function PosSaleInvoicePage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Invoice notes"
+          />
+        </div>
+
+        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          <Input
+            label="Received amount (optional)"
+            type="number"
+            min={0}
+            max={grandTotal || undefined}
+            step={1}
+            value={receivedAmount}
+            onChange={(e) => setReceivedAmount(e.target.value)}
+            placeholder="Leave blank if not paid now"
+          />
+          <SearchSelect
+            label="Received into (Bank/Cash account)"
+            value={receivedAccountId}
+            onChange={setReceivedAccountId}
+            options={bankCashAccounts.map((a) => ({ value: String(a.id), label: String(a.name) }))}
+            placeholder="Select account"
+            disabled={!receivedAmount || Number(receivedAmount) <= 0}
           />
         </div>
 
