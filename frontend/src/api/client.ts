@@ -650,7 +650,7 @@ export const branchApi = {
       method: 'POST',
       body: JSON.stringify({ bikeUnits }),
     }),
-  listChassis: (branchId: number, params?: { productId?: string; status?: 'IN_STOCK' | 'SOLD' }) => {
+  listChassis: (branchId: number, params?: { productId?: string; status?: 'IN_STOCK' | 'RESERVED' | 'SOLD' }) => {
     const q = new URLSearchParams();
     if (params?.productId) q.set('productId', params.productId);
     if (params?.status) q.set('status', params.status);
@@ -658,7 +658,7 @@ export const branchApi = {
     return api<{
       id: number;
       chassisNumber: string;
-      status: 'IN_STOCK' | 'SOLD';
+      status: 'IN_STOCK' | 'RESERVED' | 'SOLD';
       product: { id: string; name: string; type: string };
       purchase: { id: number; documentRef: string | null; invoiceNumber: string | null; createdAt: string };
       saleOrder: { id: number; saleReference: string | null; trackingId: string | null; createdAt: string } | null;

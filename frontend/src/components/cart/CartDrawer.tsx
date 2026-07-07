@@ -82,30 +82,45 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         <p className="truncate font-medium text-slate-900">{item.name}</p>
                         {item.color && <p className="text-xs text-slate-500">{item.color}</p>}
                         <p className="text-sm font-medium text-orange-500">{formatPKR(item.price)}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateQty(item.productId, item.quantity - 1)}
-                            className="rounded-lg border border-slate-200 bg-slate-50 p-1 transition-colors hover:bg-white"
-                          >
-                            <Minus className="h-3 w-3 text-slate-600" />
-                          </button>
-                          <span className="w-6 text-center text-sm tabular-nums text-slate-900">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQty(item.productId, item.quantity + 1)}
-                            className="rounded-lg border border-slate-200 bg-slate-50 p-1 transition-colors hover:bg-white"
-                          >
-                            <Plus className="h-3 w-3 text-slate-600" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.productId)}
-                            className="ml-auto rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        {item.productType === 'BIKE' ? (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                              Qty: 1 (Bike limit)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.productId)}
+                              className="ml-auto rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateQty(item.productId, item.quantity - 1)}
+                              className="rounded-lg border border-slate-200 bg-slate-50 p-1 transition-colors hover:bg-white"
+                            >
+                              <Minus className="h-3 w-3 text-slate-600" />
+                            </button>
+                            <span className="w-6 text-center text-sm tabular-nums text-slate-900">{item.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQty(item.productId, item.quantity + 1)}
+                              className="rounded-lg border border-slate-200 bg-slate-50 p-1 transition-colors hover:bg-white"
+                            >
+                              <Plus className="h-3 w-3 text-slate-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.productId)}
+                              className="ml-auto rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   ))}

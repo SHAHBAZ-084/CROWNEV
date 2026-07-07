@@ -105,6 +105,7 @@ enum CustomerLedgerType {
 
 enum ChassisStatus {
   IN_STOCK
+  RESERVED
   SOLD
 }
 

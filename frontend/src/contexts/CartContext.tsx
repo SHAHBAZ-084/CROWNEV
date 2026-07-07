@@ -34,13 +34,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => {
       const existing = prev.find((i) => i.productId === item.productId && i.color === item.color);
       if (existing) {
+        if (item.productType === 'BIKE') {
+          return prev;
+        }
         return prev.map((i) =>
           i.productId === item.productId && i.color === item.color
             ? { ...i, quantity: i.quantity + qty }
             : i
         );
       }
-      return [...prev, { ...item, quantity: qty }];
+      return [...prev, { ...item, quantity: item.productType === 'BIKE' ? 1 : qty }];
     });
   }, []);
 
@@ -53,7 +56,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setItems((prev) => prev.filter((i) => i.productId !== productId));
       return;
     }
-    setItems((prev) => prev.map((i) => (i.productId === productId ? { ...i, quantity } : i)));
+    setItems((prev) => prev.map((i) => {
+      if (i.productId === productId) {
+        const finalQty = i.productType === 'BIKE' ? 1 : quantity;
+        return { ...i, quantity: finalQty };
+      }
+      return i;
+    }));
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);

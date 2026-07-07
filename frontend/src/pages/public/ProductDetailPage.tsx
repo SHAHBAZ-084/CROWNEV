@@ -74,7 +74,7 @@ export default function ProductDetailPage() {
         imageUrl: images[0]?.url,
         productType: product!.type,
       },
-      qty,
+      product!.type === 'BIKE' ? 1 : qty,
     );
     toast('Added to cart!', 'success');
   }
@@ -139,19 +139,21 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            <div className="mt-6 flex items-center gap-4">
-              <label htmlFor="product-qty" className="text-sm font-semibold text-ink">
-                Qty
-              </label>
-              <input
-                id="product-qty"
-                type="number"
-                min={1}
-                value={qty}
-                onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-20 rounded-xl border border-border-light bg-elevated px-3 py-2 text-center text-ink shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
+            {product.type !== 'BIKE' && (
+              <div className="mt-6 flex items-center gap-4">
+                <label htmlFor="product-qty" className="text-sm font-semibold text-ink">
+                  Qty
+                </label>
+                <input
+                  id="product-qty"
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-20 rounded-xl border border-border-light bg-elevated px-3 py-2 text-center text-ink shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                />
+              </div>
+            )}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button variant="accent" size="lg" onClick={handleAddToCart}>

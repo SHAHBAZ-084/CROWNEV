@@ -91,7 +91,7 @@ chassisRouter.get(
     }
     const statusParam = req.query.status as string | undefined;
     const status =
-      statusParam === 'IN_STOCK' || statusParam === 'SOLD'
+      statusParam === 'IN_STOCK' || statusParam === 'RESERVED' || statusParam === 'SOLD'
         ? (statusParam as ChassisStatus)
         : undefined;
     const rows = await chassisService.listBranchChassis(branchId, {

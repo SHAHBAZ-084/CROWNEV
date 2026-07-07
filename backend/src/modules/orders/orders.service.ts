@@ -19,7 +19,13 @@ import {
   ensureSaleRevenueAccount,
   formatPurchaseItemsDescription,
 } from '../accounting/accounting.service.js';
-import { countInStockChassis, markChassisSoldInTx } from '../chassis/chassis.service.js';
+import {
+  countInStockChassis,
+  markChassisSoldInTx,
+  reserveChassisInTx,
+  finalizeChassisReservationInTx,
+  releaseChassisReservationInTx,
+} from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
 import { sendBiltyReadyEmail, sendPaymentSubmittedEmail } from '../../utils/email.js';
@@ -359,6 +365,19 @@ export async function createOnlineOrder(data: {
     product.type === ProductType.PART ? partsBranchId! : data.branchId;
 
   const pricedItems = await validateAndPriceItems(resolveBranch, data.items);
+
+  // NEW — expand bike lines with quantity > 1 into individual quantity-1 units,
+  // exactly mirroring how POS Sale Invoice treats bikes (one chassis per line).
+  const expandedItems = pricedItems.flatMap((item) => {
+    if (item.product.type !== ProductType.BIKE) return [item];
+    return Array.from({ length: item.quantity }, () => ({
+      ...item,
+      quantity: 1,
+      unitPrice: item.unitPrice,
+      total: item.unitPrice, // per-unit total now that quantity is 1
+    }));
+  });
+
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
 
   const isSelfPickup = data.shippingMethod === ShippingMethod.SELF;
@@ -372,36 +391,81 @@ export async function createOnlineOrder(data: {
     }
   }
 
-  return prisma.order.create({
-    data: {
-      branchId: data.branchId,
-      userId: data.userId,
-      type: OrderType.ONLINE,
-      shippingMethod: data.shippingMethod,
-      status: isSelfPickup ? OrderStatus.PAYMENT_SUBMITTED : OrderStatus.AWAITING_BILTY_CHARGES,
-      paymentMethod: PaymentMethod.BANK_TRANSFER,
-      paymentStatus: PaymentStatus.PENDING,
-      subtotal,
-      total: subtotal,
-      notes: data.notes,
-      bankTransferScreenshot: isSelfPickup ? data.bankTransferScreenshot : undefined,
-      paymentTransactionId: isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      customerAddress: data.customerAddress,
-      items: {
-        create: pricedItems.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          unitPrice: i.unitPrice,
-          total: i.total,
-          color: i.color,
-          chassisNumber: i.chassisNumber,
-          branchId: i.effectiveBranchId === data.branchId ? null : i.effectiveBranchId,
-        })),
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({
+      data: {
+        branchId: data.branchId,
+        userId: data.userId,
+        type: OrderType.ONLINE,
+        shippingMethod: data.shippingMethod,
+        status: isSelfPickup ? OrderStatus.PAYMENT_SUBMITTED : OrderStatus.AWAITING_BILTY_CHARGES,
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        paymentStatus: PaymentStatus.PENDING,
+        subtotal,
+        total: subtotal,
+        notes: data.notes,
+        bankTransferScreenshot: isSelfPickup ? data.bankTransferScreenshot : undefined,
+        paymentTransactionId: isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerAddress: data.customerAddress,
+        items: {
+          create: expandedItems.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            total: i.total,
+            color: i.color,
+            chassisNumber: i.chassisNumber,
+            branchId: i.effectiveBranchId === data.branchId ? null : i.effectiveBranchId,
+          })),
+        },
       },
-    },
-    include: { items: { include: { product: true } }, branch: true },
+      include: { items: { include: { product: true } }, branch: true },
+    });
+
+    const orderItems = await tx.orderItem.findMany({
+      where: { orderId: order.id },
+      orderBy: { id: 'asc' },
+    });
+
+    const bikeExpandedItems = expandedItems.filter(i => i.product.type === ProductType.BIKE);
+    const bikeOrderItems = orderItems.filter(oi => {
+      const product = pricedItems.find(pi => pi.productId === oi.productId)?.product;
+      return product?.type === ProductType.BIKE;
+    });
+
+    for (let idx = 0; idx < bikeOrderItems.length; idx++) {
+      const item = bikeExpandedItems[idx];
+      const orderItem = bikeOrderItems[idx];
+      let chassis;
+      try {
+        chassis = await reserveChassisInTx(tx, {
+          branchId: item.effectiveBranchId ?? data.branchId,
+          productId: item.productId,
+          saleOrderItemId: orderItem.id,
+        });
+      } catch {
+        chassis = await reserveChassisInTx(tx, {
+          branchId: item.effectiveBranchId ?? data.branchId,
+          productId: item.productId,
+          saleOrderItemId: orderItem.id,
+        });
+      }
+      await tx.orderItem.update({
+        where: { id: orderItem.id },
+        data: {
+          chassisNumber: chassis.chassisNumber,
+          engineNumber: chassis.engineNumber ?? null,
+          motorNumber: chassis.motorNumber ?? null,
+        },
+      });
+    }
+
+    return tx.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { items: { include: { product: true } }, branch: true },
+    });
   });
 }
 
@@ -823,6 +887,18 @@ export async function updateOrderStatus(id: number, status: OrderStatus, branchI
     await confirmOrder(order);
   }
 
+  // NEW — release any reserved chassis back to stock if an online order is cancelled before being confirmed
+  if (order.type === OrderType.ONLINE && status === OrderStatus.CANCELLED) {
+    const bikeItems = order.items.filter((i) => i.product.type === ProductType.BIKE);
+    if (bikeItems.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const item of bikeItems) {
+          await releaseChassisReservationInTx(tx, item.id);
+        }
+      });
+    }
+  }
+
   return prisma.order.update({
     where: { id },
     data: { status },
@@ -840,6 +916,15 @@ async function confirmOrder(order: {
     include: { product: { include: { bikePartDetails: true } } },
   });
   await deductStockForOrder(itemsWithDetails, order.branchId);
+
+  // NEW — finalize any reserved chassis on this order's bike items
+  await prisma.$transaction(async (tx) => {
+    for (const item of itemsWithDetails) {
+      if (item.product.type === ProductType.BIKE) {
+        await finalizeChassisReservationInTx(tx, item.id);
+      }
+    }
+  });
 }
 
 export async function setBiltyCharges(

@@ -143,7 +143,7 @@ export async function listAvailableChassis(branchId: number, productId: string) 
     where: {
       branchId,
       productId,
-      status: ChassisStatus.IN_STOCK,
+      status: { in: [ChassisStatus.IN_STOCK, ChassisStatus.RESERVED] },
     },
     select: {
       id: true,
@@ -158,6 +158,7 @@ export async function listAvailableChassis(branchId: number, productId: string) 
       meterReading: true,
       condition: true,
       comments: true,
+      status: true,
     },
     orderBy: { chassisNumber: 'asc' },
   });
@@ -342,4 +343,45 @@ export function validateBikePurchaseUnits(
       motorNumber: u.motorNumber,
     })),
   );
+}
+
+/** Auto-picks one available chassis for a product/branch and reserves it for an online order item. */
+export async function reserveChassisInTx(
+  tx: Prisma.TransactionClient,
+  data: { branchId: number; productId: string; saleOrderItemId: number },
+) {
+  // Oldest unit first (FIFO)
+  const candidate = await tx.bikeChassisNumber.findFirst({
+    where: { branchId: data.branchId, productId: data.productId, status: ChassisStatus.IN_STOCK },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (!candidate) {
+    throw new AppError(409, 'No chassis available for this bike — stock may have just sold out');
+  }
+
+  const claimed = await tx.bikeChassisNumber.updateMany({
+    where: { id: candidate.id, status: ChassisStatus.IN_STOCK },
+    data: { status: ChassisStatus.RESERVED, saleOrderItemId: data.saleOrderItemId },
+  });
+  if (claimed.count !== 1) {
+    throw new AppError(409, 'Selected chassis was just reserved by another order, please retry');
+  }
+
+  return tx.bikeChassisNumber.findUniqueOrThrow({ where: { id: candidate.id } });
+}
+
+/** RESERVED → SOLD, once an online order's payment is confirmed. */
+export async function finalizeChassisReservationInTx(tx: Prisma.TransactionClient, saleOrderItemId: number) {
+  await tx.bikeChassisNumber.updateMany({
+    where: { saleOrderItemId, status: ChassisStatus.RESERVED },
+    data: { status: ChassisStatus.SOLD },
+  });
+}
+
+/** RESERVED → IN_STOCK, if an online order is cancelled/rejected before payment completes. */
+export async function releaseChassisReservationInTx(tx: Prisma.TransactionClient, saleOrderItemId: number) {
+  await tx.bikeChassisNumber.updateMany({
+    where: { saleOrderItemId, status: ChassisStatus.RESERVED },
+    data: { status: ChassisStatus.IN_STOCK, saleOrderItemId: null },
+  });
 }

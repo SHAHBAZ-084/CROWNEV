@@ -400,6 +400,7 @@ export function BranchInventoryPage() {
       isUsed?: boolean;
       condition?: string | null;
       meterReading?: number | null;
+      status?: 'IN_STOCK' | 'RESERVED' | 'SOLD';
     }[]
   >([]);
   const [chassisLoading, setChassisLoading] = useState(false);
@@ -726,9 +727,15 @@ export function BranchInventoryPage() {
                       </p>
                     )}
                   </div>
-                  <span className="ml-auto inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                    In stock
-                  </span>
+                  {c.status === 'RESERVED' ? (
+                    <span className="ml-auto inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                      Reserved
+                    </span>
+                  ) : (
+                    <span className="ml-auto inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                      In stock
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
