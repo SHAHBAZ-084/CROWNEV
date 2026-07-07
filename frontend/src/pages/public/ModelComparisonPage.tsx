@@ -105,7 +105,7 @@ const COMPARISON_ROWS: ComparisonRowDef[] = [
     getDisplay: (p) => {
       const ah = pickSpec(p, 'battery_capacity_ah');
       const voltage = pickSpec(p, 'battery_voltage');
-      if (ah && voltage) return `${ah} / ${voltage}`;
+      if (ah && voltage) return `${voltage} / ${ah}`;
       return ah ?? voltage;
     },
     getNumeric: (p) => parseNumeric(pickSpec(p, 'battery_capacity_ah')),
