@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Building2, Package, ShoppingCart, Users, BarChart3,
   Calendar, CreditCard, MessageSquare, Truck, Boxes, Store, Wrench, SlidersHorizontal, UserCog,
+  FileCheck,
 } from 'lucide-react';
 import { DashboardSidebar, type SidebarNavItem } from './DashboardSidebar';
 import { DashboardShell } from './DashboardShell';
@@ -17,6 +18,7 @@ const adminNav: SidebarNavItem[] = [
   { to: '/admin/products', label: 'Catalog', icon: Package },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
+  { to: '/admin/bike-documents', label: 'Bike Documents', icon: FileCheck },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
   { to: '/admin/customization', label: 'Customization', icon: SlidersHorizontal },
@@ -28,6 +30,7 @@ const branchNav: SidebarNavItem[] = [
   { to: '/branch', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/branch/orders', label: 'Orders', icon: Truck },
   { to: '/branch/inventory', label: 'Stock', icon: Boxes },
+  { to: '/branch/bike-documents', label: 'Bike Documents', icon: FileCheck },
   { to: '/branch/bookings', label: 'Service Booking', icon: Calendar },
   { to: '/branch/payments', label: 'Payments', icon: CreditCard },
   { to: '/branch/reports', label: 'Reports', icon: BarChart3 },

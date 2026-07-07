@@ -4,10 +4,82 @@ import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, requireRoles } from '../../middleware/auth.js';
 import * as chassisService from './chassis.service.js';
+import * as bikeDocumentsService from './bike-documents.service.js';
 
 export const chassisRouter = Router();
 
 chassisRouter.use(authenticate, requireRoles(Role.ADMIN, Role.BRANCH_OWNER), branchScope);
+
+chassisRouter.get(
+  '/admin/bike-documents',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req, res) => {
+    const branchId = req.query.branchId ? parseInt(req.query.branchId as string, 10) : undefined;
+    const rows = await bikeDocumentsService.listBikeDocuments(branchId, {
+      search: req.query.search as string,
+      status: req.query.status as 'PENDING_SUPPLIER' | 'PENDING_CUSTOMER' | 'ALL',
+    });
+    res.json(rows);
+  }),
+);
+
+chassisRouter.get(
+  '/:branchId/bike-documents',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const rows = await bikeDocumentsService.listBikeDocuments(branchId, {
+      search: req.query.search as string,
+      status: req.query.status as 'PENDING_SUPPLIER' | 'PENDING_CUSTOMER' | 'ALL',
+    });
+    res.json(rows);
+  }),
+);
+
+chassisRouter.get(
+  '/:branchId/bike-documents/:chassisId',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const chassis = await bikeDocumentsService.getBikeDocumentChecklist(parseInt(param(req.params.chassisId), 10));
+    if (chassis.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    res.json(chassis);
+  }),
+);
+
+chassisRouter.patch(
+  '/:branchId/bike-documents/:chassisId/:documentId',
+  validateBody(
+    z.object({
+      receivedFromSupplier: z.boolean().optional(),
+      receivedNotes: z.string().optional(),
+      givenToCustomer: z.boolean().optional(),
+      givenNotes: z.string().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const updated = await bikeDocumentsService.updateBikeDocument(
+      parseInt(param(req.params.documentId), 10),
+      req.body,
+      req.user!.userId,
+    );
+    res.json(updated);
+  }),
+);
 
 chassisRouter.get(
   '/:branchId/chassis',

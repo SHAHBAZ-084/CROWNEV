@@ -100,6 +100,8 @@ const PosPurchaseInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'P
 const PosServiceInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosServiceInvoicePage');
 const PosAccountLedger = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountLedgerPage');
 const PosDetailTrialBalance = lazyNamed(() => import('./pages/branch/PosPages'), 'PosDetailTrialBalancePage');
+const PosBikeDocumentsPage = lazy(() => import('./pages/branch/PosBikeDocumentsPage'));
+const AdminDocumentTypesPage = lazy(() => import('./pages/admin/AdminDocumentTypesPage'));
 
 const CustomerDashboard = lazyNamed(() => import('./pages/customer/CustomerPages'), 'CustomerDashboard');
 const CustomerOrders = lazyNamed(() => import('./pages/customer/CustomerPages'), 'CustomerOrdersPage');
@@ -168,6 +170,8 @@ export default function App() {
                   <Route path="/admin/users" element={<DashWrap><AdminUsers /></DashWrap>} />
                   <Route path="/admin/testimonials" element={<DashWrap><AdminTestimonials /></DashWrap>} />
                   <Route path="/admin/customization" element={<DashWrap><AdminCustomization /></DashWrap>} />
+                  <Route path="/admin/bike-documents" element={<DashWrap><PosBikeDocumentsPage /></DashWrap>} />
+                  <Route path="/admin/document-types" element={<DashWrap><AdminDocumentTypesPage /></DashWrap>} />
                   <Route path="/admin/reports" element={<DashWrap><AdminReports /></DashWrap>} />
                   <Route path="/admin/profile" element={<DashWrap><AdminProfile /></DashWrap>} />
                 </Route>
@@ -184,6 +188,7 @@ export default function App() {
                   <Route path="/branch/suppliers" element={<Navigate to="/branch/workspace/suppliers" replace />} />
                   <Route path="/branch/purchases" element={<DashWrap><BranchPurchases /></DashWrap>} />
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
+                  <Route path="/branch/bike-documents" element={<DashWrap><PosBikeDocumentsPage /></DashWrap>} />
                   <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
                 </Route>
                 <Route element={<LazyBranchWorkspaceLayout />}>

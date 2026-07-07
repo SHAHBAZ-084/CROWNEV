@@ -415,6 +415,15 @@ export const adminApi = {
     api<AboutHeroSection>('/public/customization/about-hero', { method: 'PUT', body: JSON.stringify(data) }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
+  allBikeDocuments: (params?: { search?: string; status?: string; branchId?: string }) => {
+    const q = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v));
+    const qs = q.toString() ? `?${q}` : '';
+    return api<Record<string, unknown>[]>(`/branches/admin/bike-documents${qs}`);
+  },
+  documentTypes: () => api<Record<string, unknown>[]>('/document-types'),
+  createDocumentType: (name: string) => api<Record<string, unknown>>('/document-types', { method: 'POST', body: JSON.stringify({ name }) }),
+  setDocumentTypeActive: (id: number, isActive: boolean) =>
+    api<Record<string, unknown>>(`/document-types/${id}/active`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
 };
 
 export const branchApi = {
@@ -763,4 +772,13 @@ export const branchApi = {
     return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
   },
   exportInventory: () => api<Record<string, unknown>[]>('/reports/export/inventory'),
+  bikeDocuments: (branchId: number, params?: { search?: string; status?: string }) => {
+    const q = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v));
+    const qs = q.toString() ? `?${q}` : '';
+    return api<Record<string, unknown>[]>(`/branches/${branchId}/bike-documents${qs}`);
+  },
+  bikeDocumentChecklist: (branchId: number, chassisId: number) =>
+    api<Record<string, unknown>>(`/branches/${branchId}/bike-documents/${chassisId}`),
+  updateBikeDocument: (branchId: number, chassisId: number, documentId: number, data: Record<string, unknown>) =>
+    api<Record<string, unknown>>(`/branches/${branchId}/bike-documents/${chassisId}/${documentId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };

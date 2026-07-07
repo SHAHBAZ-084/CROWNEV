@@ -211,6 +211,22 @@ export async function createChassisRecordsInTx(
 
   if (rows.length > 0) {
     await tx.bikeChassisNumber.createMany({ data: rows });
+
+    const created = await tx.bikeChassisNumber.findMany({
+      where: { chassisNumber: { in: rows.map((r) => r.chassisNumber) } },
+      select: { id: true },
+    });
+
+    const activeTypes = await tx.documentType.findMany({ where: { isActive: true }, select: { id: true } });
+
+    if (activeTypes.length > 0 && created.length > 0) {
+      await tx.bikeDocument.createMany({
+        data: created.flatMap((chassis) =>
+          activeTypes.map((type) => ({ chassisNumberId: chassis.id, documentTypeId: type.id }))
+        ),
+        skipDuplicates: true,
+      });
+    }
   }
 }
 

@@ -648,6 +648,7 @@ model BikeChassisNumber {
   branch        Branch     @relation(fields: [branchId], references: [id])
   purchase      Purchase   @relation(fields: [purchaseId], references: [id])
   saleOrderItem OrderItem? @relation(fields: [saleOrderItemId], references: [id])
+  documents     BikeDocument[]
 
   @@index([productId, branchId, status])
   @@index([branchId])
@@ -950,4 +951,40 @@ model ContentPage {
   content   String
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+model DocumentType {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bikeDocuments BikeDocument[]
+}
+
+model BikeDocument {
+  id               Int       @id @default(autoincrement())
+  chassisNumberId  Int
+  documentTypeId   Int
+
+  receivedFromSupplier Boolean   @default(false)
+  receivedAt           DateTime?
+  receivedNotes        String?
+
+  givenToCustomer  Boolean   @default(false)
+  givenAt          DateTime?
+  givenNotes       String?
+
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  chassis      BikeChassisNumber @relation(fields: [chassisNumberId], references: [id], onDelete: Cascade)
+  documentType DocumentType      @relation(fields: [documentTypeId], references: [id])
+
+  @@unique([chassisNumberId, documentTypeId])
+  @@index([chassisNumberId])
+  @@index([documentTypeId])
 }
