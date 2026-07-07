@@ -348,6 +348,22 @@ async function main() {
 
   await purgeTestData();
 
+  const DEFAULT_DOCUMENT_TYPES = [
+    { name: 'Warranty Card', sortOrder: 1 },
+    { name: 'Registration Card', sortOrder: 2 },
+    { name: 'Registration Letter', sortOrder: 3 },
+    { name: 'Sale Tax Invoice', sortOrder: 4 },
+    { name: 'Form F', sortOrder: 5 },
+  ];
+  for (const doc of DEFAULT_DOCUMENT_TYPES) {
+    await prisma.documentType.upsert({
+      where: { name: doc.name },
+      update: { sortOrder: doc.sortOrder },
+      create: { name: doc.name, sortOrder: doc.sortOrder },
+    });
+  }
+  console.log(`Document types: ${DEFAULT_DOCUMENT_TYPES.length} seeded (Warranty Card, Registration Card, Registration Letter, Sale Tax Invoice, Form F).`);
+
   const adminPassword = await bcrypt.hash('Admin@123', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@crown-eve.com' },
