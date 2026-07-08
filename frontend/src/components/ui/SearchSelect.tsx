@@ -138,14 +138,17 @@ export function SearchSelect({
             }
             if (e.key === 'Enter') {
               e.preventDefault();
-              if (open && filtered.length > 0) {
-                pick(filtered[0]);
-                return;
-              }
-              if (allowCustom && trimmedQuery) {
-                onChange(trimmedQuery);
-                setQuery(trimmedQuery);
-                setOpen(false);
+              if (open) {
+                e.stopPropagation();
+                if (filtered.length > 0) {
+                  pick(filtered[0]);
+                  return;
+                }
+                if (allowCustom && trimmedQuery) {
+                  onChange(trimmedQuery);
+                  setQuery(trimmedQuery);
+                  setOpen(false);
+                }
               }
             }
           }}

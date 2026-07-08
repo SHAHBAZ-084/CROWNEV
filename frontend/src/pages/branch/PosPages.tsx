@@ -1138,14 +1138,27 @@ export function PosSaleInvoicePage() {
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line) => (
-            <div key={line.key} className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4">
+          {lineDetails.map((line, idx) => (
+            <div
+              key={line.key}
+              className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLElement;
+                  if (target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    setLines((p) => [...p, newSaleLine()]);
+                  }
+                }
+              }}
+            >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <div>
                 <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
                 <ItemLookupField
                   onSelect={(item) => selectItemForLine(line.key, item)}
                   placeholder="Enter Item Code (e.g. 1)..."
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
                 />
                 {line.item && (
                   <div className="mt-1 text-xs text-text-muted">
@@ -1673,14 +1686,27 @@ export function PosPurchaseInvoicePage() {
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line) => (
-            <div key={line.key} className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4">
+          {lineDetails.map((line, idx) => (
+            <div
+              key={line.key}
+              className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLElement;
+                  if (target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    setLines((p) => [...p, newPurchaseLine()]);
+                  }
+                }
+              }}
+            >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
               <div>
                 <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
                 <ItemLookupField
                   onSelect={(item) => selectItemForLine(line.key, item)}
                   placeholder="Enter Item Code (e.g. 1)..."
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
                 />
                 {line.item && (
                   <div className="mt-1 text-xs text-text-muted">
@@ -2192,13 +2218,26 @@ export function PosServiceInvoicePage() {
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line) => (
-            <div key={line.key} className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
+          {lineDetails.map((line, idx) => (
+            <div
+              key={line.key}
+              className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLElement;
+                  if (target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    setLines((p) => [...p, newSaleLine()]);
+                  }
+                }
+              }}
+            >
               <div>
                 <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
                 <ItemLookupField
                   onSelect={(item) => selectItemForLine(line.key, item)}
                   placeholder="Enter Item Code (e.g. 1)..."
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
                 />
                 {line.item && (
                   <div className="mt-1 text-xs text-text-muted">

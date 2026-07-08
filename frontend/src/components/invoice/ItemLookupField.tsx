@@ -8,9 +8,10 @@ interface ItemLookupFieldProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  autoFocus?: boolean;
 }
 
-export function ItemLookupField({ onSelect, placeholder = "Enter Item Code...", className = "", error }: ItemLookupFieldProps) {
+export function ItemLookupField({ onSelect, placeholder = "Enter Item Code...", className = "", error, autoFocus }: ItemLookupFieldProps) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState('');
@@ -45,7 +46,10 @@ export function ItemLookupField({ onSelect, placeholder = "Enter Item Code...", 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleLookup(code);
+      if (code.trim()) {
+        e.stopPropagation();
+        handleLookup(code);
+      }
     }
   };
 
@@ -55,6 +59,7 @@ export function ItemLookupField({ onSelect, placeholder = "Enter Item Code...", 
         <input
           type="text"
           value={code}
+          autoFocus={autoFocus}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={() => handleLookup(code)}
