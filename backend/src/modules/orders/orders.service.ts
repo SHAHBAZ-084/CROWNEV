@@ -9,6 +9,7 @@ import {
   ProductType,
   ShippingMethod,
   VoucherType,
+  ChassisStatus,
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
@@ -142,6 +143,13 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
           product: {
             include: { images: { where: { isPrimary: true }, take: 1 } },
           },
+          item: {
+            include: {
+              product: {
+                include: { brand: true, category: true },
+              },
+            },
+          },
           soldChassis: { select: { engineNumber: true, motorNumber: true } },
         },
       },
@@ -197,17 +205,24 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
             phone: order.customerPhone,
             address: order.customerAddress,
           },
-    items: order.items.map((i) => ({
-      name: i.product.name,
-      type: i.product.type,
-      quantity: i.quantity,
-      unitPrice: Number(i.unitPrice),
-      total: Number(i.total),
-      color: i.color,
-      chassisNumber: i.chassisNumber,
-      engineNumber: i.engineNumber,
-      motorNumber: i.motorNumber,
-    })),
+    items: order.items.map((i) => {
+      const name = i.item
+        ? `${i.item.product.name} (${i.item.product.brand?.name ?? ''} ${i.item.product.category?.name ?? ''} ${i.item.model ?? ''})`
+        : i.product?.name ?? 'Item';
+      const type = i.item ? i.item.product.type : i.product?.type ?? 'PART';
+      const color = i.item ? i.item.color : i.color;
+      return {
+        name,
+        type,
+        quantity: i.quantity,
+        unitPrice: Number(i.unitPrice),
+        total: Number(i.total),
+        color,
+        chassisNumber: i.chassisNumber,
+        engineNumber: i.engineNumber,
+        motorNumber: i.motorNumber,
+      };
+    }),
     subtotal: Number(order.subtotal),
     total: Number(order.total),
     paymentMethod: order.paymentMethod,
@@ -534,15 +549,98 @@ export async function createPosOrder(data: {
   return order;
 }
 
+export async function validateAndPriceItemsByCode(
+  branchId: number,
+  items: { itemId: number; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[]
+) {
+  const uniqueItemIds = [...new Set(items.map((i) => i.itemId))];
+  const dbItems = await prisma.item.findMany({
+    where: { id: { in: uniqueItemIds }, isActive: true },
+    include: {
+      product: {
+        include: {
+          bikePartDetails: true,
+          branchProducts: { where: { branchId, isListed: true } },
+        },
+      },
+    },
+  });
+
+  if (dbItems.length !== uniqueItemIds.length) {
+    throw new AppError(400, 'One or more items not found or inactive');
+  }
+
+  const qtyByItem = new Map<number, number>();
+  for (const item of items) {
+    qtyByItem.set(item.itemId, (qtyByItem.get(item.itemId) ?? 0) + item.quantity);
+  }
+
+  for (const [itemId, totalQty] of qtyByItem) {
+    const item = dbItems.find((itm) => itm.id === itemId)!;
+    const bp = item.product.branchProducts[0];
+    if (!bp) {
+      throw new AppError(400, `Product "${item.product.name}" is not listed at the selected branch`);
+    }
+
+    if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
+      const stock =
+        item.product.type === ProductType.BIKE
+          ? await prisma.bikeChassisNumber.count({
+              where: { branchId, itemId: item.id, status: ChassisStatus.IN_STOCK },
+            })
+          : bp.stock ?? 0;
+      if (stock < totalQty) {
+        throw new AppError(
+          400,
+          `Insufficient stock for item #${item.id} (${item.product.name}). Available: ${stock}`,
+        );
+      }
+    }
+  }
+
+  const pricedItems: {
+    itemId: number;
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    color?: string;
+    bikeChassisNumberId?: number;
+    item: (typeof dbItems)[number];
+  }[] = [];
+
+  for (const inputItem of items) {
+    const item = dbItems.find((itm) => itm.id === inputItem.itemId)!;
+    const catalogPrice = Number(item.salePrice);
+    const unitPrice = inputItem.unitPrice != null ? Number(inputItem.unitPrice) : catalogPrice;
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      throw new AppError(400, `Price must be greater than zero for item #${item.id} (${item.product.name})`);
+    }
+
+    pricedItems.push({
+      itemId: inputItem.itemId,
+      productId: item.productId,
+      quantity: inputItem.quantity,
+      unitPrice,
+      total: unitPrice * inputItem.quantity,
+      color: item.color || undefined,
+      bikeChassisNumberId: inputItem.bikeChassisNumberId,
+      item,
+    });
+  }
+
+  return pricedItems;
+}
+
 export async function createSaleInvoice(data: {
   branchId: number;
   customerId: number;
-  items: { productId: string; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
+  items: { itemId: number; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
   reference?: string;
   notes?: string;
   createdById: string;
-  receivedAmount?: number;      // NEW
-  receivedAccountId?: number;   // NEW
+  receivedAmount?: number;
+  receivedAccountId?: number;
 }) {
   const customer = await prisma.customer.findFirst({
     where: {
@@ -553,7 +651,7 @@ export async function createSaleInvoice(data: {
   });
   if (!customer) throw new AppError(404, 'Customer not found');
 
-  const pricedItems = await validateAndPriceItems(data.branchId, data.items);
+  const pricedItems = await validateAndPriceItemsByCode(data.branchId, data.items);
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (subtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
 
@@ -575,7 +673,7 @@ export async function createSaleInvoice(data: {
 
   const partProductIds = new Set<string>();
   for (const priced of pricedItems) {
-    if (priced.product.type === ProductType.PART) {
+    if (priced.item.product.type === ProductType.PART) {
       if (partProductIds.has(priced.productId)) {
         throw new AppError(400, 'Part is already selected');
       }
@@ -584,44 +682,49 @@ export async function createSaleInvoice(data: {
   }
 
   const saleLines: {
+    itemId: number;
     productId: string;
     quantity: number;
     unitPrice: number;
     total: number;
-    chassisNumber?: string;
+    color?: string;
     bikeChassisNumberId?: number;
-    product: (typeof pricedItems)[number]['product'];
+    product: (typeof pricedItems)[number]['item']['product'];
   }[] = [];
 
   for (let idx = 0; idx < data.items.length; idx++) {
     const input = data.items[idx];
     const priced = pricedItems[idx];
 
-    if (priced.product.type === ProductType.BIKE) {
+    if (priced.item.product.type === ProductType.BIKE) {
       if (input.quantity !== 1) {
         throw new AppError(400, 'Bike sales must have quantity 1 — select one chassis number per line');
       }
       if (!input.bikeChassisNumberId) {
-        throw new AppError(400, `Select a chassis number for "${priced.product.name}"`);
+        throw new AppError(400, `Select a chassis number for "${priced.item.product.name}"`);
       }
       saleLines.push({
+        itemId: priced.itemId,
         productId: priced.productId,
         quantity: priced.quantity,
         unitPrice: priced.unitPrice,
         total: priced.total,
+        color: priced.color,
         bikeChassisNumberId: input.bikeChassisNumberId,
-        product: priced.product,
+        product: priced.item.product,
       });
     } else {
       if (input.bikeChassisNumberId) {
         throw new AppError(400, 'Chassis numbers apply to bikes only');
       }
       saleLines.push({
+        itemId: priced.itemId,
         productId: priced.productId,
         quantity: priced.quantity,
         unitPrice: priced.unitPrice,
         total: priced.total,
-        product: priced.product,
+        color: priced.color,
+        product: priced.item.product,
       });
     }
   }
@@ -646,10 +749,11 @@ export async function createSaleInvoice(data: {
         items: {
           create: saleLines.map((i) => ({
             productId: i.productId,
+            itemId: i.itemId,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             total: i.total,
-            chassisNumber: i.chassisNumber,
+            color: i.color,
           })),
         },
       },
@@ -664,18 +768,32 @@ export async function createSaleInvoice(data: {
       const line = saleLines[i];
       const orderItem = order.items[i];
       if (line.bikeChassisNumberId && orderItem) {
-        const chassis = await markChassisSoldInTx(tx, {
+        // Double check that the selected chassis matches the itemId
+        const chassis = await tx.bikeChassisNumber.findFirst({
+          where: {
+            id: line.bikeChassisNumberId,
+            branchId: data.branchId,
+            itemId: line.itemId,
+            status: ChassisStatus.IN_STOCK,
+          },
+        });
+        if (!chassis) {
+          throw new AppError(409, 'Selected chassis number is not available or does not match the item code');
+        }
+
+        const chassisSold = await markChassisSoldInTx(tx, {
           bikeChassisNumberId: line.bikeChassisNumberId,
           branchId: data.branchId,
           productId: line.productId,
           saleOrderItemId: orderItem.id,
         });
+
         await tx.orderItem.update({
           where: { id: orderItem.id },
           data: {
-            chassisNumber: chassis.chassisNumber,
-            engineNumber: chassis.engineNumber,
-            motorNumber: chassis.motorNumber,
+            chassisNumber: chassisSold.chassisNumber,
+            engineNumber: chassisSold.engineNumber,
+            motorNumber: chassisSold.motorNumber,
           },
         });
       }
@@ -704,7 +822,7 @@ export async function createSaleInvoice(data: {
         type: CustomerLedgerType.DEBIT,
         amount: subtotal,
         balance: newBalance,
-        notes: `From sale revenue to ${customer.name}`,
+        notes: `POS sale invoice #${reference}`,
       },
     });
 
@@ -845,10 +963,10 @@ export async function deductStockForOrder(
 ) {
   let fallbackBranchId: number;
   let items: {
-    productId: string;
+    productId: string | null;
     quantity: number;
     branchId?: number | null;
-    product: { type: ProductType; bikePartDetails: { partId: number | null }[] };
+    product: { type: ProductType; bikePartDetails: { id: number; partId: number | null; productId: string; modelCompatibility: string | null; compatibleBikeIds: Prisma.JsonValue }[] } | null;
   }[];
   let tx: Prisma.TransactionClient | undefined;
 
@@ -865,6 +983,7 @@ export async function deductStockForOrder(
   const db = tx ?? prisma;
 
   for (const item of items) {
+    if (!item.product || !item.productId) continue;
     const effectiveBranchId = item.branchId ?? fallbackBranchId;
     if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
       await deductBranchProductStockInTx(db, effectiveBranchId, item.productId, item.quantity, item.product.type);
@@ -889,7 +1008,7 @@ export async function updateOrderStatus(id: number, status: OrderStatus, branchI
 
   // NEW — release any reserved chassis back to stock if an online order is cancelled before being confirmed
   if (order.type === OrderType.ONLINE && status === OrderStatus.CANCELLED) {
-    const bikeItems = order.items.filter((i) => i.product.type === ProductType.BIKE);
+    const bikeItems = order.items.filter((i) => i.product && i.product.type === ProductType.BIKE);
     if (bikeItems.length > 0) {
       await prisma.$transaction(async (tx) => {
         for (const item of bikeItems) {
@@ -909,7 +1028,7 @@ export async function updateOrderStatus(id: number, status: OrderStatus, branchI
 async function confirmOrder(order: {
   id: number;
   branchId: number;
-  items: { productId: string; quantity: number; product: { type: ProductType; bikePartDetails?: { partId: number | null }[] } }[];
+  items: { productId: string | null; quantity: number; product: { type: ProductType; bikePartDetails?: { partId: number | null }[] } | null }[];
 }) {
   const itemsWithDetails = await prisma.orderItem.findMany({
     where: { orderId: order.id },
@@ -920,7 +1039,7 @@ async function confirmOrder(order: {
   // NEW — finalize any reserved chassis on this order's bike items
   await prisma.$transaction(async (tx) => {
     for (const item of itemsWithDetails) {
-      if (item.product.type === ProductType.BIKE) {
+      if (item.product && item.product.type === ProductType.BIKE) {
         await finalizeChassisReservationInTx(tx, item.id);
       }
     }

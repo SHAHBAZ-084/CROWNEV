@@ -27,6 +27,7 @@ import { testimonialsRouter } from './modules/testimonials/testimonials.routes.j
 import { publicRouter } from './modules/public/public.routes.js';
 import { contactRouter } from './modules/contact/contact.routes.js';
 import { documentTypesRouter } from './modules/document-types/document-types.routes.js';
+import { itemsRouter } from './modules/items/items.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
@@ -80,6 +81,7 @@ export function createApp() {
   app.use('/api/public', publicRouter);
   app.use('/api/contact', contactRouter);
   app.use('/api/document-types', documentTypesRouter);
+  app.use('/api/items', itemsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -124,7 +124,8 @@ purchasesRouter.post(
       items: z
         .array(
           z.object({
-            productId: z.string().uuid(),
+            productId: z.string().uuid().optional(),
+            itemId: z.number().int().positive().optional(),
             quantity: z.number().int().positive(),
             unitCost: z.coerce.number().positive(),
             bikeUnits: z

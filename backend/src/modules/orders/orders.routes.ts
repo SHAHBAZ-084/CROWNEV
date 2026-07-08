@@ -9,7 +9,8 @@ import * as ordersService from './orders.service.js';
 export const ordersRouter = Router();
 
 const orderItemSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().uuid().optional(),
+  itemId: z.number().int().positive().optional(),
   quantity: z.number().int().positive(),
   color: z.string().optional(),
   chassisNumber: z.string().optional(),
