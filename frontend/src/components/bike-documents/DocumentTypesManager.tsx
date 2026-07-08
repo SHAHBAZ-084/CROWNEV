@@ -1,15 +1,19 @@
 import { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
-import { PageHeader } from '../../components/layout/PageTransition';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { DataTable } from '../../components/ui/DataTable';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { DataTable } from '../ui/DataTable';
 import { Plus, Loader2 } from 'lucide-react';
 
 type Row = Record<string, any>;
 
-export default function AdminDocumentTypesPage() {
+/**
+ * Manage the admin-configurable list of bike document types (Warranty Card, Form F, etc).
+ * Rendered inline inside the Bike Documents page's "Manage Document Types" modal —
+ * this is intentionally page-chrome-free (no PageHeader) so it can drop into a Modal.
+ */
+export function DocumentTypesManager({ onChange }: { onChange?: () => void }) {
   const { toast } = useToast();
   const [types, setTypes] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +45,8 @@ export default function AdminDocumentTypesPage() {
       await adminApi.createDocumentType(newName);
       setNewName('');
       toast('Document type added', 'success');
-      loadTypes();
+      await loadTypes();
+      onChange?.();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to add', 'error');
     } finally {
@@ -54,7 +59,8 @@ export default function AdminDocumentTypesPage() {
     try {
       await adminApi.setDocumentTypeActive(id, !currentActive);
       toast(`Document type ${currentActive ? 'deactivated' : 'activated'}`, 'success');
-      loadTypes();
+      await loadTypes();
+      onChange?.();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to update status', 'error');
     } finally {
@@ -105,45 +111,32 @@ export default function AdminDocumentTypesPage() {
   );
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Document Types"
-        subtitle="Manage the template checklist of bike documents tracked in showrooms"
-      />
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="rounded-[var(--radius-card)] border border-border bg-white p-4">
+        {loading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+          </div>
+        ) : (
+          <DataTable columns={columns} data={types} emptyMessage="No document types configured yet" />
+        )}
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Document Types List */}
-        <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-          {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-brand" />
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={types}
-              emptyMessage="No document types configured yet"
-            />
-          )}
-        </div>
-
-        {/* Add Type Form */}
-        <div className="h-fit rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-          <h2 className="mb-4 font-display text-sm font-bold text-brand">Add Document Type</h2>
-          <form onSubmit={handleAdd} className="space-y-4">
-            <Input
-              label="Type Name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Sales Certificate"
-              required
-            />
-            <Button type="submit" className="w-full" loading={saving}>
-              <Plus className="mr-1 h-4 w-4" />
-              Add Type
-            </Button>
-          </form>
-        </div>
+      <div className="h-fit rounded-[var(--radius-card)] border border-border bg-white p-4">
+        <h3 className="mb-3 font-display text-sm font-bold text-brand">Add Document Type</h3>
+        <form onSubmit={handleAdd} className="space-y-3">
+          <Input
+            label="Type Name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g. Sales Certificate"
+            required
+          />
+          <Button type="submit" className="w-full" loading={saving}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add Type
+          </Button>
+        </form>
       </div>
     </div>
   );

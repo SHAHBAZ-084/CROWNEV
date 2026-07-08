@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DataTable } from '../../components/ui/DataTable';
+import { DocumentTypesManager } from '../../components/bike-documents/DocumentTypesManager';
 import { Search, Loader2, Settings, FileWarning } from 'lucide-react';
 
 type Row = Record<string, any>;
@@ -34,6 +35,9 @@ export default function PosBikeDocumentsPage() {
   const [checklist, setChecklist] = useState<Row | null>(null);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Document Types manager modal (admin only)
+  const [docTypesModalOpen, setDocTypesModalOpen] = useState(false);
 
   // Load branches if admin
   useEffect(() => {
@@ -217,12 +221,10 @@ export default function PosBikeDocumentsPage() {
         subtitle="Manage and track physical document handovers from suppliers to customers"
         action={
           isAdmin ? (
-            <Link to="/admin/document-types">
-              <Button variant="secondary">
-                <Settings className="mr-1.5 h-4 w-4" />
-                Manage Document Types
-              </Button>
-            </Link>
+            <Button variant="secondary" onClick={() => setDocTypesModalOpen(true)}>
+              <Settings className="mr-1.5 h-4 w-4" />
+              Manage Document Types
+            </Button>
           ) : undefined
         }
       />
@@ -323,12 +325,10 @@ export default function PosBikeDocumentsPage() {
                   </p>
                 </div>
                 {isAdmin && (
-                  <Link to="/admin/document-types">
-                    <Button variant="secondary" size="sm">
-                      <Settings className="mr-1.5 h-4 w-4" />
-                      Manage Document Types
-                    </Button>
-                  </Link>
+                  <Button variant="secondary" size="sm" onClick={() => setDocTypesModalOpen(true)}>
+                    <Settings className="mr-1.5 h-4 w-4" />
+                    Manage Document Types
+                  </Button>
                 )}
               </div>
             ) : (
@@ -436,6 +436,34 @@ export default function PosBikeDocumentsPage() {
           </div>
         )}
       </Modal>
+
+      {isAdmin && (
+        <Modal
+          open={docTypesModalOpen}
+          onClose={() => {
+            setDocTypesModalOpen(false);
+            loadBikes();
+            if (selectedChassis) {
+              branchApi.bikeDocumentChecklist(selectedChassis.branchId, selectedChassis.id).then(setChecklist).catch(() => {});
+            }
+          }}
+          title="Document Types"
+          size="lg"
+        >
+          <p className="mb-4 text-sm text-gray-500">
+            Manage the template checklist of bike documents tracked across showrooms. Deactivating a type keeps it
+            visible on bikes that already had it, but stops it from being added to newly purchased bikes.
+          </p>
+          <DocumentTypesManager
+            onChange={() => {
+              loadBikes();
+              if (selectedChassis) {
+                branchApi.bikeDocumentChecklist(selectedChassis.branchId, selectedChassis.id).then(setChecklist).catch(() => {});
+              }
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

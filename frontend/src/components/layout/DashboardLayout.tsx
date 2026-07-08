@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Building2, Package, ShoppingCart, Users, BarChart3,
   Calendar, CreditCard, MessageSquare, Truck, Boxes, Store, Wrench, SlidersHorizontal, UserCog,
-  FileCheck, ListChecks,
+  FileCheck,
 } from 'lucide-react';
 import { DashboardSidebar, type SidebarNavItem } from './DashboardSidebar';
 import { DashboardShell } from './DashboardShell';
@@ -19,7 +19,6 @@ const adminNav: SidebarNavItem[] = [
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
   { to: '/admin/bike-documents', label: 'Bike Documents', icon: FileCheck },
-  { to: '/admin/document-types', label: 'Document Types', icon: ListChecks },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
   { to: '/admin/customization', label: 'Customization', icon: SlidersHorizontal },
