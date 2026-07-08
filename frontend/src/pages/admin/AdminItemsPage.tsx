@@ -8,6 +8,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { TablePagination } from '../../components/ui/TablePagination';
+import { SearchSelect } from '../../components/ui/SearchSelect';
 import type { Item, Product } from '../../types';
 
 export default function AdminItemsPage() {
@@ -386,23 +387,20 @@ export default function AdminItemsPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-ink">Catalog Product</label>
-            <select
+            <SearchSelect
               value={formProductId}
-              onChange={(e) => {
-                setFormProductId(e.target.value);
+              onChange={(id) => {
+                setFormProductId(id);
                 setFormColor(''); // reset selected color on product change
               }}
               disabled={modal === 'edit'}
-              className="w-full rounded-lg border border-border-light bg-surface px-3 py-2 text-sm text-ink focus:border-orange-500 focus:outline-none disabled:bg-slate-50"
+              options={products.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${p.type})`,
+              }))}
+              placeholder="Select Catalog Product..."
               required
-            >
-              <option value="">Select Catalog Product...</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.type})
-                </option>
-              ))}
-            </select>
+            />
             {activeFormProduct && (
               <p className="mt-1 text-xs text-ink-muted">
                 Type: {activeFormProduct.type} · Brand: {activeFormProduct.brand?.name ?? '-'} · Category: {activeFormProduct.category?.name ?? '-'}
