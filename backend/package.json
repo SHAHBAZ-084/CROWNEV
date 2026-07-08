@@ -13,8 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-parts": "tsx scripts/seed-parts-catalog.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate",
-    "email:test": "tsx scripts/test-smtp.ts"
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
