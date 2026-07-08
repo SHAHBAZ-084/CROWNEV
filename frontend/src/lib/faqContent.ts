@@ -4,6 +4,9 @@ export type HomeFaqItem = {
   answer: string;
 };
 
+export type FaqItem = HomeFaqItem;
+
+
 export const HOME_FAQ_ITEMS: HomeFaqItem[] = [
   {
     question: 'What is Crown Ev and what can I do on this website?',

@@ -57,6 +57,18 @@ const footerContactSchema = z.object({
   address: z.string().min(1),
 });
 
+const legalSectionSchema = z.object({
+  title: z.string().min(1),
+  items: z.array(z.string().min(1)).min(1),
+});
+const legalSectionsSchema = z.array(legalSectionSchema).min(1);
+
+const faqItemSchema = z.object({
+  question: z.string().min(1),
+  answer: z.string().min(1),
+});
+const faqSectionSchema = z.array(faqItemSchema).min(1);
+
 publicRouter.get(
   '/landing',
   cachePublicJson(120),
@@ -215,4 +227,52 @@ publicRouter.put(
     );
     res.json(page);
   })
+);
+
+publicRouter.get('/terms', cachePublicJson(60), asyncHandler(async (_req, res) => {
+  const sections = await publicService.getTermsSection();
+  res.json(sections);
+}));
+
+publicRouter.put(
+  '/customization/terms',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(legalSectionsSchema),
+  asyncHandler(async (req, res) => {
+    const sections = await publicService.upsertTermsSection(req.body);
+    res.json(sections);
+  }),
+);
+
+publicRouter.get('/privacy', cachePublicJson(60), asyncHandler(async (_req, res) => {
+  const sections = await publicService.getPrivacySection();
+  res.json(sections);
+}));
+
+publicRouter.put(
+  '/customization/privacy',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(legalSectionsSchema),
+  asyncHandler(async (req, res) => {
+    const sections = await publicService.upsertPrivacySection(req.body);
+    res.json(sections);
+  }),
+);
+
+publicRouter.get('/faq', cachePublicJson(60), asyncHandler(async (_req, res) => {
+  const items = await publicService.getFaqSection();
+  res.json(items);
+}));
+
+publicRouter.put(
+  '/customization/faq',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(faqSectionSchema),
+  asyncHandler(async (req, res) => {
+    const items = await publicService.upsertFaqSection(req.body);
+    res.json(items);
+  }),
 );

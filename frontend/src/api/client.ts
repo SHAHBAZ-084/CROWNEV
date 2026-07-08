@@ -14,6 +14,8 @@ import type {
 import { enqueueRequest } from '../lib/apiQueue';
 import { fetchWithRetry } from '../lib/queryRetry';
 import type { AboutHeroSection } from '../lib/placeholders';
+import type { LegalSection } from '../lib/legalTypes';
+import type { FaqItem } from '../lib/faqContent';
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -203,6 +205,9 @@ export const publicApi = {
     }>('/public/footer-contact'),
   partsFulfillmentBranch: () => api<{ branchId: number | null }>('/public/parts-fulfillment-branch'),
   aboutHero: () => api<AboutHeroSection>('/public/about-hero'),
+  terms: () => api<LegalSection[]>('/public/terms'),
+  privacy: () => api<LegalSection[]>('/public/privacy'),
+  faq: () => api<FaqItem[]>('/public/faq'),
 };
 
 export const customerApi = {
@@ -413,6 +418,15 @@ export const adminApi = {
   aboutHeroSection: () => publicApi.aboutHero(),
   updateAboutHeroSection: (data: AboutHeroSection) =>
     api<AboutHeroSection>('/public/customization/about-hero', { method: 'PUT', body: JSON.stringify(data) }),
+  termsSection: () => publicApi.terms(),
+  updateTermsSection: (sections: LegalSection[]) =>
+    api<LegalSection[]>('/public/customization/terms', { method: 'PUT', body: JSON.stringify(sections) }),
+  privacySection: () => publicApi.privacy(),
+  updatePrivacySection: (sections: LegalSection[]) =>
+    api<LegalSection[]>('/public/customization/privacy', { method: 'PUT', body: JSON.stringify(sections) }),
+  faqSection: () => publicApi.faq(),
+  updateFaqSection: (items: FaqItem[]) =>
+    api<FaqItem[]>('/public/customization/faq', { method: 'PUT', body: JSON.stringify(items) }),
   brands: () => publicApi.brands(),
   categories: () => publicApi.categories(),
   allBikeDocuments: (params?: { search?: string; status?: string; branchId?: string }) => {

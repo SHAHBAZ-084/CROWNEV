@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, HelpCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { HOME_FAQ_ITEMS } from '../../lib/faqContent';
+import { publicApi } from '../../api/client';
 import {
   defaultViewport,
   easeOut,
@@ -120,6 +121,11 @@ function FaqItem({
 
 export function HomeFaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [faqItems, setFaqItems] = useState(HOME_FAQ_ITEMS);
+
+  useEffect(() => {
+    publicApi.faq().then(setFaqItems).catch(console.error);
+  }, []);
 
   function toggle(index: number) {
     setOpenIndex((prev) => (prev === index ? null : index));
@@ -163,7 +169,7 @@ export function HomeFaqSection() {
           whileInView="visible"
           viewport={defaultViewport}
         >
-          {HOME_FAQ_ITEMS.map(({ question, answer }, index) => (
+          {faqItems.map(({ question, answer }, index) => (
             <FaqItem
               key={question}
               index={index}

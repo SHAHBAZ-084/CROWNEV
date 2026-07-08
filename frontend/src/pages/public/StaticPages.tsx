@@ -11,6 +11,7 @@ import { resolveUploadUrl } from '../../lib/media';
 import { AboutBrandVideo } from '../../components/public/AboutBrandVideo';
 import { PRIVACY_SECTIONS } from '../../lib/privacyContent';
 import { TERMS_SECTIONS } from '../../lib/termsContent';
+import type { LegalSection } from '../../lib/legalTypes';
 import type { Branch } from '../../types';
 
 export function AboutPage() {
@@ -153,16 +154,24 @@ export function AboutPage() {
 }
 
 export function PrivacyPage() {
-  return <PrivacyPolicyView sections={PRIVACY_SECTIONS} />;
+  const [sections, setSections] = useState<LegalSection[]>(PRIVACY_SECTIONS);
+  useEffect(() => {
+    publicApi.privacy().then(setSections).catch(console.error);
+  }, []);
+  return <PrivacyPolicyView sections={sections} />;
 }
 
 export function TermsPage() {
+  const [sections, setSections] = useState<LegalSection[]>(TERMS_SECTIONS);
+  useEffect(() => {
+    publicApi.terms().then(setSections).catch(console.error);
+  }, []);
   return (
     <LegalPageLayout
       title="Terms and Conditions"
       subtitle="Please read the following terms carefully. Using the Crown Ev website, purchasing products, or booking services constitutes acceptance of these conditions."
     >
-      <LegalAccordion sections={TERMS_SECTIONS} />
+      <LegalAccordion sections={sections} />
     </LegalPageLayout>
   );
 }

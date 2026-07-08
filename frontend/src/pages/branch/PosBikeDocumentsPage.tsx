@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { branchApi, adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -17,6 +18,7 @@ type Row = Record<string, any>;
 export default function PosBikeDocumentsPage() {
   const location = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const isAdmin = location.pathname.startsWith('/admin');
 
   // Branch state
@@ -60,8 +62,6 @@ export default function PosBikeDocumentsPage() {
           branchId: selectedBranchId ? selectedBranchId : undefined,
         });
       } else {
-        const userStr = localStorage.getItem('user');
-        const user = userStr ? JSON.parse(userStr) : null;
         const branchId = user?.branchId;
         if (branchId) {
           data = await branchApi.bikeDocuments(branchId, {
@@ -76,7 +76,7 @@ export default function PosBikeDocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, search, statusFilter, selectedBranchId, toast]);
+  }, [isAdmin, search, statusFilter, selectedBranchId, toast, user]);
 
   useEffect(() => {
     loadBikes();

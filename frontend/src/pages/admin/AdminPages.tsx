@@ -1,8 +1,10 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package } from 'lucide-react';
+import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
 import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
+import type { LegalSection } from '../../lib/legalTypes';
+import type { FaqItem } from '../../lib/faqContent';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { TablePagination } from '../../components/ui/TablePagination';
@@ -1719,15 +1721,119 @@ function FeatureCardEditor({
   );
 }
 
+function LegalSectionsEditor({
+  sections,
+  onChange,
+}: {
+  sections: LegalSection[];
+  onChange: (next: LegalSection[]) => void;
+}) {
+  function updateSection(index: number, patch: Partial<LegalSection>) {
+    onChange(sections.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  }
+  function updateItemsText(index: number, text: string) {
+    updateSection(index, { items: text.split('\n').map((line) => line.trim()).filter(Boolean) });
+  }
+  function addSection() {
+    onChange([...sections, { title: '', items: [] }]);
+  }
+  function removeSection(index: number) {
+    onChange(sections.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="space-y-4">
+      {sections.map((section, i) => (
+        <div key={i} className="rounded-xl border border-border bg-white p-4 space-y-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <Input
+              label="Section title"
+              value={section.title}
+              onChange={(e) => updateSection(i, { title: e.target.value })}
+              className="flex-1"
+              required
+            />
+            {sections.length > 1 && (
+              <Button type="button" variant="ghost" className="mt-6" onClick={() => removeSection(i)}>
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            )}
+          </div>
+          <Textarea
+            label="Points (one per line)"
+            rows={4}
+            value={section.items.join('\n')}
+            onChange={(e) => updateItemsText(i, e.target.value)}
+            required
+          />
+        </div>
+      ))}
+      <Button type="button" variant="secondary" onClick={addSection}>
+        <Plus className="mr-1.5 h-4 w-4" />
+        Add Section
+      </Button>
+    </div>
+  );
+}
+
+function FaqEditor({ items, onChange }: { items: FaqItem[]; onChange: (next: FaqItem[]) => void }) {
+  function updateItem(index: number, patch: Partial<FaqItem>) {
+    onChange(items.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  }
+  function addItem() {
+    onChange([...items, { question: '', answer: '' }]);
+  }
+  function removeItem(index: number) {
+    onChange(items.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((item, i) => (
+        <div key={i} className="rounded-xl border border-border bg-white p-4 space-y-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <Input
+              label="Question"
+              value={item.question}
+              onChange={(e) => updateItem(i, { question: e.target.value })}
+              className="flex-1"
+              required
+            />
+            {items.length > 1 && (
+              <Button type="button" variant="ghost" className="mt-6" onClick={() => removeItem(i)}>
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            )}
+          </div>
+          <Textarea
+            label="Answer"
+            rows={3}
+            value={item.answer}
+            onChange={(e) => updateItem(i, { answer: e.target.value })}
+            required
+          />
+        </div>
+      ))}
+      <Button type="button" variant="secondary" onClick={addItem}>
+        <Plus className="mr-1.5 h-4 w-4" />
+        Add Question
+      </Button>
+    </div>
+  );
+}
+
 export function AdminCustomizationPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer' | 'parts'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer' | 'parts' | 'terms' | 'privacy' | 'faq'>('about');
   const [loading, setLoading] = useState(true);
   const [savingHero, setSavingHero] = useState(false);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [savingFooter, setSavingFooter] = useState(false);
   const [savingPartsBranch, setSavingPartsBranch] = useState(false);
+  const [savingTerms, setSavingTerms] = useState(false);
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [savingFaq, setSavingFaq] = useState(false);
   const [heroSection, setHeroSection] = useState<AboutHeroSection>(DEFAULT_ABOUT_HERO_SECTION);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
@@ -1736,6 +1842,9 @@ export function AdminCustomizationPage() {
     phones: ['', ''],
     address: '',
   });
+  const [termsSections, setTermsSections] = useState<LegalSection[]>([]);
+  const [privacySections, setPrivacySections] = useState<LegalSection[]>([]);
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [partsBranchId, setPartsBranchId] = useState<number | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<(File | null)[]>([null, null]);
@@ -1748,8 +1857,11 @@ export function AdminCustomizationPage() {
       adminApi.footerContactSection(),
       adminApi.branches(),
       adminApi.partsFulfillmentBranch(),
+      adminApi.termsSection(),
+      adminApi.privacySection(),
+      adminApi.faqSection(),
     ])
-      .then(([heroData, foundersData, featuresData, footerData, branchesData, partsSetting]) => {
+      .then(([heroData, foundersData, featuresData, footerData, branchesData, partsSetting, termsData, privacyData, faqData]) => {
         setHeroSection(heroData);
 
         const founders = [...foundersData.founders];
@@ -1770,6 +1882,10 @@ export function AdminCustomizationPage() {
 
         setBranches(branchesData as any[]);
         setPartsBranchId(partsSetting.branchId);
+
+        setTermsSections(termsData);
+        setPrivacySections(privacyData);
+        setFaqItems(faqData);
       })
       .catch(() => toast('Could not load customization settings', 'error'))
       .finally(() => setLoading(false));
@@ -1896,6 +2012,48 @@ export function AdminCustomizationPage() {
     }
   }
 
+  async function handleSaveTerms(e: FormEvent) {
+    e.preventDefault();
+    setSavingTerms(true);
+    try {
+      const saved = await adminApi.updateTermsSection(termsSections);
+      setTermsSections(saved);
+      toast('Terms and Conditions updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingTerms(false);
+    }
+  }
+
+  async function handleSavePrivacy(e: FormEvent) {
+    e.preventDefault();
+    setSavingPrivacy(true);
+    try {
+      const saved = await adminApi.updatePrivacySection(privacySections);
+      setPrivacySections(saved);
+      toast('Privacy Policy updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingPrivacy(false);
+    }
+  }
+
+  async function handleSaveFaq(e: FormEvent) {
+    e.preventDefault();
+    setSavingFaq(true);
+    try {
+      const saved = await adminApi.updateFaqSection(faqItems);
+      setFaqItems(saved);
+      toast('FAQs updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingFaq(false);
+    }
+  }
+
   const founders = section.founders.length >= 2
     ? section.founders.slice(0, 2)
     : [...section.founders, ...Array.from({ length: Math.max(0, 2 - section.founders.length) }, emptyFounder)];
@@ -1973,6 +2131,42 @@ export function AdminCustomizationPage() {
           >
             <Package className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'parts' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
             <span className="truncate text-left">Parts Fulfillment</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('terms')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'terms'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <FileText className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'terms' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Terms & Conditions</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('privacy')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'privacy'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <ShieldCheck className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'privacy' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Privacy Policy</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('faq')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'faq'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <HelpCircle className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'faq' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">FAQs</span>
           </button>
         </div>
 
@@ -2198,6 +2392,45 @@ export function AdminCustomizationPage() {
                 </Button>
                 <p className="text-xs text-text-muted">
                   Changes appear in the website footer and contact pages after saving.
+                </p>
+              </div>
+            </form>
+          ) : activeTab === 'terms' ? (
+            <form onSubmit={handleSaveTerms} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Terms and Conditions</h2>
+              <LegalSectionsEditor sections={termsSections} onChange={setTermsSections} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingTerms}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear on the public Terms and Conditions page after saving.
+                </p>
+              </div>
+            </form>
+          ) : activeTab === 'privacy' ? (
+            <form onSubmit={handleSavePrivacy} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Privacy Policy</h2>
+              <LegalSectionsEditor sections={privacySections} onChange={setPrivacySections} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingPrivacy}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear on the public Privacy Policy page after saving.
+                </p>
+              </div>
+            </form>
+          ) : activeTab === 'faq' ? (
+            <form onSubmit={handleSaveFaq} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Frequently Asked Questions</h2>
+              <FaqEditor items={faqItems} onChange={setFaqItems} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="submit" variant="accent" loading={savingFaq}>
+                  Save changes
+                </Button>
+                <p className="text-xs text-text-muted">
+                  Changes appear in the homepage FAQs section after saving.
                 </p>
               </div>
             </form>
