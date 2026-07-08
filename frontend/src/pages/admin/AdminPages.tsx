@@ -1156,12 +1156,18 @@ export function AdminUsersPage() {
             render: (r) => (r.role === 'BRANCH_OWNER' ? String(r.branchPermission ?? 'WRITE_UPDATE_DELETE').replace(/_/g, ' ') : '—'),
           },
           { key: 'isVerified', header: 'Verified', render: (r) => r.isVerified ? 'Yes' : 'No' },
-          { key: 'actions', header: '', render: (r) => (
-            <RowActions
-              onEdit={canEdit(r.role) ? () => { setEdit(r); setModal('edit'); } : undefined}
-              onDelete={canDelete(r.role) ? () => del.setTarget(r) : undefined}
-            />
-          ) },
+          {
+            key: 'actions',
+            header: '',
+            align: 'right',
+            className: 'w-24',
+            render: (r) => (
+              <RowActions
+                onEdit={canEdit(r.role) ? () => { setEdit(r); setModal('edit'); } : undefined}
+                onDelete={canDelete(r.role) ? () => del.setTarget(r) : undefined}
+              />
+            ),
+          },
         ]}
         data={rows}
       />
