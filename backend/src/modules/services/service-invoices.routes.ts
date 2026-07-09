@@ -22,8 +22,7 @@ serviceInvoicesRouter.post(
       items: z
         .array(
           z.object({
-            productId: z.string().uuid().optional(),
-            itemId: z.number().int().positive().optional(),
+            productId: z.string().uuid(),
             quantity: z.number().int().positive(),
             unitPrice: z.coerce.number().positive().optional(),
           }),

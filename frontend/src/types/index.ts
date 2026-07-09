@@ -230,17 +230,3 @@ export interface LandingData {
   featuredProducts: Product[];
   stats: { branches: number; products: number; ordersDelivered: number };
 }
-
-export interface Item {
-  id: number;
-  productId: string;
-  color?: string | null;
-  model?: string | null;
-  costPrice: string;
-  salePrice: string;
-  stockQty: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  product: Product;
-}

@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { branchApi, itemsApi } from '../../api/client';
+import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { LegacyVoucherScreen } from '../../components/pos/LegacyVoucherForm';
 import { ViewVoucherPanel } from '../../components/pos/ViewVoucherPanel';
@@ -29,8 +29,7 @@ import { FileSpreadsheet, FileText, Plus, Trash2, Search } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
-import { ItemLookupField } from '../../components/invoice/ItemLookupField';
-import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData, Item } from '../../types';
+import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData } from '../../types';
 
 type Row = Record<string, unknown>;
 
@@ -743,11 +742,9 @@ type SaleProduct = {
 type SaleLine = {
   key: string;
   productId: string;
-  itemId?: number;
   quantity: number;
   unitPrice?: number;
   bikeChassisNumberId?: number;
-  item?: Item;
 };
 
 function newSaleLine(): SaleLine {
@@ -789,11 +786,9 @@ function resizeBikeUnits(current: BikeUnit[] | undefined, qty: number): BikeUnit
 type PurchaseLine = {
   key: string;
   productId: string;
-  itemId?: number;
   quantity: number;
   unitCost?: number;
   bikeUnits?: BikeUnit[];
-  item?: Item;
 };
 
 function newPurchaseLine(): PurchaseLine {
@@ -894,19 +889,10 @@ export function PosSaleInvoicePage() {
 
   const lineDetails = useMemo(
     () => lines.map((line) => {
-      const product = line.item ? line.item.product : productById.get(line.productId);
+      const product = productById.get(line.productId);
       const qty = Math.max(1, line.quantity);
-      let unitPrice = line.unitPrice;
-      if (unitPrice === undefined) {
-        if (line.item) {
-          unitPrice = Number(line.item.salePrice);
-        } else if (product) {
-          unitPrice = 'unitPrice' in product ? product.unitPrice : Number(product.price);
-        } else {
-          unitPrice = 0;
-        }
-      }
-      const maxQty = line.item ? line.item.stockQty : (product && 'stockAtBranch' in product ? product.stockAtBranch : 0);
+      const unitPrice = line.unitPrice ?? product?.unitPrice ?? 0;
+      const maxQty = product?.stockAtBranch ?? 0;
       return {
         ...line,
         product,
@@ -924,36 +910,49 @@ export function PosSaleInvoicePage() {
     [lineDetails],
   );
 
-  function selectItemForLine(lineKey: string, item: Item) {
-    const productId = item.productId;
-    if (item.product.type === 'BIKE') {
-      updateLine(lineKey, {
-        productId,
-        itemId: item.id,
-        unitPrice: Number(item.salePrice),
-        quantity: 1,
-        bikeChassisNumberId: undefined,
-        item,
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitPrice: undefined, bikeChassisNumberId: undefined });
+      setChassisOptions((prev) => {
+        const next = { ...prev };
+        delete next[lineKey];
+        return next;
       });
+      return;
+    }
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
+    const product = productById.get(productId);
+    if (product?.type === 'BIKE') {
+      updateLine(lineKey, { productId, unitPrice: product.unitPrice, quantity: 1, bikeChassisNumberId: undefined });
       if (branchId) {
-        itemsApi.getChassisNumbers(item.id, branchId)
+        branchApi.availableChassis(branchId, productId)
           .then((opts) => setChassisOptions((prev) => ({ ...prev, [lineKey]: opts })))
           .catch(console.error);
       }
       return;
     }
-    const alreadySelected = lines.some((l) => l.key !== lineKey && l.itemId === item.id);
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
     if (alreadySelected) {
-      toast('Item is already selected', 'error');
+      toast('Product is already selected', 'error');
       return;
     }
-    updateLine(lineKey, {
-      productId,
-      itemId: item.id,
-      unitPrice: Number(item.salePrice),
-      bikeChassisNumberId: undefined,
-      item,
-    });
+    updateLine(lineKey, { productId, unitPrice: product?.unitPrice, bikeChassisNumberId: undefined });
+  }
+
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedPartIds = new Set(
+      lines
+        .filter((l) => l.key !== lineKey && l.productId)
+        .map((l) => l.productId)
+        .filter((id) => productById.get(id)?.type === 'PART'),
+    );
+    return products
+      .filter((p) => p.type === 'BIKE' || !selectedPartIds.has(p.id))
+      .map((p) => ({
+        value: p.id,
+        label: `${p.name} [${p.type}]`,
+      }));
   }
 
   function updateLine(key: string, patch: Partial<SaleLine>) {
@@ -979,9 +978,8 @@ export function PosSaleInvoicePage() {
       return;
     }
     const items = lineDetails
-      .filter((l) => l.item)
+      .filter((l) => l.product)
       .map((l) => ({
-        itemId: l.itemId,
         productId: l.productId,
         quantity: l.qty,
         unitPrice: Number(l.unitPrice),
@@ -990,7 +988,7 @@ export function PosSaleInvoicePage() {
           : {}),
       }));
     if (items.length === 0) {
-      toast('Add at least one item code', 'error');
+      toast('Add at least one product', 'error');
       return;
     }
     for (const l of lineDetails) {
@@ -1004,8 +1002,8 @@ export function PosSaleInvoicePage() {
           toast('Bike quantity must be 1 per line', 'error');
           return;
         }
-      } else if (l.qty > (l.maxQty ?? 0)) {
-        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty ?? 0}`, 'error');
+      } else if (l.qty > l.maxQty) {
+        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty}`, 'error');
         return;
       }
       if (l.unitPrice <= 0) {
@@ -1153,19 +1151,14 @@ export function PosSaleInvoicePage() {
               }}
             >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
-                <ItemLookupField
-                  onSelect={(item) => selectItemForLine(line.key, item)}
-                  placeholder="Enter Item Code (e.g. 1)..."
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
-                />
-                {line.item && (
-                  <div className="mt-1 text-xs text-text-muted">
-                    <strong>{line.item.product.name}</strong> · Color: {line.item.color || 'Default'} · Brand: {line.item.product.brand?.name ?? '-'} · Category: {line.item.product.category?.name ?? '-'} · Model: {line.item.model ?? '-'}
-                  </div>
-                )}
-              </div>
+              <SearchSelect
+                label="Product"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+                autoFocus={idx === lines.length - 1 && lines.length > 1}
+              />
               <Input
                 label="Unit price (PKR)"
                 type="number"
@@ -1399,13 +1392,13 @@ export function PosPurchaseInvoicePage() {
 
   const lineDetails = useMemo(
     () => lines.map((line) => {
-      const product = line.item ? line.item.product : productById.get(line.productId);
+      const product = productById.get(line.productId);
       const qty = Math.max(1, line.quantity);
       const isOldBikeLine = purchaseType === 'OLD' && product?.type === 'BIKE';
       const unitsSum = isOldBikeLine
         ? resizeBikeUnits(line.bikeUnits, qty).reduce((sum, u) => sum + (Number(u.purchasePrice) || 0), 0)
         : undefined;
-      const unitCost = isOldBikeLine ? undefined : (line.unitCost ?? (line.item ? Number(line.item.costPrice) : 0));
+      const unitCost = isOldBikeLine ? undefined : (line.unitCost ?? 0);
       return {
         ...line,
         product,
@@ -1422,24 +1415,35 @@ export function PosPurchaseInvoicePage() {
     [lineDetails],
   );
 
-  function selectItemForLine(lineKey: string, item: Item) {
-    const productId = item.productId;
-    const alreadySelected = lines.some((l) => l.key !== lineKey && l.itemId === item.id);
-    if (alreadySelected) {
-      toast('Item is already selected', 'error');
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitCost: undefined, bikeUnits: undefined });
       return;
     }
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
+    if (alreadySelected) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    const product = productById.get(productId);
     const qty = lines.find((l) => l.key === lineKey)?.quantity ?? 1;
     updateLine(lineKey, {
       productId,
-      itemId: item.id,
-      unitCost: Number(item.costPrice),
-      bikeUnits: item.product.type === 'BIKE' ? resizeBikeUnits(undefined, Math.max(1, qty)) : undefined,
-      item,
+      unitCost: undefined,
+      bikeUnits: product?.type === 'BIKE' ? resizeBikeUnits(undefined, Math.max(1, qty)) : undefined,
     });
   }
 
-
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedElsewhere = new Set(
+      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    );
+    return products
+      .filter((p) => !selectedElsewhere.has(p.id))
+      .map((p) => ({ value: p.id, label: `${p.name} [${p.type}]` }));
+  }
 
   function updateLine(key: string, patch: Partial<PurchaseLine>) {
     setLines((prev) => prev.map((l) => {
@@ -1537,11 +1541,10 @@ export function PosPurchaseInvoicePage() {
       }
     }
     const items = lineDetails
-      .filter((l) => l.item)
+      .filter((l) => l.product)
       .map((l) => {
         const isOldBike = purchaseType === 'OLD' && l.product?.type === 'BIKE';
         return {
-          itemId: l.itemId,
           productId: l.productId,
           quantity: l.qty,
           unitCost: isOldBike
@@ -1566,11 +1569,11 @@ export function PosPurchaseInvoicePage() {
         };
       });
     if (items.length === 0) {
-      toast('Add at least one item code', 'error');
+      toast('Add at least one product', 'error');
       return;
     }
-    if (new Set(items.map((i) => i.itemId)).size !== items.length) {
-      toast('Item variant is already selected', 'error');
+    if (new Set(items.map((i) => i.productId)).size !== items.length) {
+      toast('Product is already selected', 'error');
       return;
     }
     for (const l of lineDetails) {
@@ -1701,19 +1704,14 @@ export function PosPurchaseInvoicePage() {
               }}
             >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
-                <ItemLookupField
-                  onSelect={(item) => selectItemForLine(line.key, item)}
-                  placeholder="Enter Item Code (e.g. 1)..."
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
-                />
-                {line.item && (
-                  <div className="mt-1 text-xs text-text-muted">
-                    <strong>{line.item.product.name}</strong> · Color: {line.item.color || 'Default'} · Brand: {line.item.product.brand?.name ?? '-'} · Category: {line.item.product.category?.name ?? '-'} · Model: {line.item.model ?? '-'}
-                  </div>
-                )}
-              </div>
+              <SearchSelect
+                label="Product"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+                autoFocus={idx === lines.length - 1 && lines.length > 1}
+              />
               {purchaseType === 'OLD' && line.product?.type === 'BIKE' ? (
                 <div className="w-[140px]" />
               ) : (
@@ -2030,19 +2028,10 @@ export function PosServiceInvoicePage() {
 
   const lineDetails = useMemo(
     () => lines.map((line) => {
-      const product = line.item ? line.item.product : productById.get(line.productId);
+      const product = productById.get(line.productId);
       const qty = Math.max(1, line.quantity);
-      let unitPrice = line.unitPrice;
-      if (unitPrice === undefined) {
-        if (line.item) {
-          unitPrice = Number(line.item.salePrice);
-        } else if (product) {
-          unitPrice = 'unitPrice' in product ? product.unitPrice : Number(product.price);
-        } else {
-          unitPrice = 0;
-        }
-      }
-      const maxQty = line.item ? line.item.stockQty : (product && 'stockAtBranch' in product ? product.stockAtBranch : 0);
+      const unitPrice = line.unitPrice ?? product?.unitPrice ?? 0;
+      const maxQty = product?.stockAtBranch ?? 0;
       return {
         ...line,
         product,
@@ -2063,19 +2052,32 @@ export function PosServiceInvoicePage() {
   const labourAmount = parseFloat(labourCost) || 0;
   const grandTotal = partsTotal + labourAmount;
 
-  function selectItemForLine(lineKey: string, item: Item) {
-    const productId = item.productId;
-    const alreadySelected = lines.some((l) => l.key !== lineKey && l.itemId === item.id);
-    if (alreadySelected) {
-      toast('Item is already selected', 'error');
+  function selectProductForLine(lineKey: string, productId: string) {
+    if (!productId) {
+      updateLine(lineKey, { productId: '', unitPrice: undefined });
       return;
     }
-    updateLine(lineKey, {
-      productId,
-      itemId: item.id,
-      unitPrice: Number(item.salePrice),
-      item,
-    });
+    const currentLine = lines.find((l) => l.key === lineKey);
+    if (currentLine?.productId === productId) return;
+    const alreadySelected = lines.some((l) => l.key !== lineKey && l.productId === productId);
+    if (alreadySelected) {
+      toast('Product is already selected', 'error');
+      return;
+    }
+    const product = productById.get(productId);
+    updateLine(lineKey, { productId, unitPrice: product?.unitPrice });
+  }
+
+  function productOptionsForLine(lineKey: string): SearchSelectOption[] {
+    const selectedElsewhere = new Set(
+      lines.filter((l) => l.key !== lineKey && l.productId).map((l) => l.productId),
+    );
+    return products
+      .filter((p) => !selectedElsewhere.has(p.id))
+      .map((p) => ({
+        value: p.id,
+        label: `${p.name} [${p.type}]`,
+      }));
   }
 
   function updateLine(key: string, patch: Partial<SaleLine>) {
@@ -2113,9 +2115,8 @@ export function PosServiceInvoicePage() {
       return;
     }
     const items = lineDetails
-      .filter((l) => l.item)
+      .filter((l) => l.product)
       .map((l) => ({
-        itemId: l.itemId,
         productId: l.productId,
         quantity: l.qty,
         unitPrice: Number(l.unitPrice),
@@ -2124,14 +2125,14 @@ export function PosServiceInvoicePage() {
       toast('Add parts or enter a labour cost', 'error');
       return;
     }
-    if (new Set(items.map((i) => i.itemId)).size !== items.length) {
-      toast('Item variant is already selected', 'error');
+    if (new Set(items.map((i) => i.productId)).size !== items.length) {
+      toast('Product is already selected', 'error');
       return;
     }
     for (const l of lineDetails) {
       if (!l.product) continue;
-      if (l.qty > (l.maxQty ?? 0)) {
-        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty ?? 0}`, 'error');
+      if (l.qty > l.maxQty) {
+        toast(`Insufficient stock for ${l.product.name}. Available: ${l.maxQty}`, 'error');
         return;
       }
       if (l.unitPrice <= 0) {
@@ -2232,19 +2233,14 @@ export function PosServiceInvoicePage() {
                 }
               }}
             >
-              <div>
-                <label className="mb-1 block text-xs font-medium text-text-muted">Item Code Lookup</label>
-                <ItemLookupField
-                  onSelect={(item) => selectItemForLine(line.key, item)}
-                  placeholder="Enter Item Code (e.g. 1)..."
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
-                />
-                {line.item && (
-                  <div className="mt-1 text-xs text-text-muted">
-                    <strong>{line.item.product.name}</strong> · Color: {line.item.color || 'Default'} · Brand: {line.item.product.brand?.name ?? '-'} · Category: {line.item.product.category?.name ?? '-'} · Model: {line.item.model ?? '-'}
-                  </div>
-                )}
-              </div>
+              <SearchSelect
+                label="Product"
+                value={line.productId}
+                onChange={(id) => selectProductForLine(line.key, id)}
+                options={productOptionsForLine(line.key)}
+                placeholder="Search bike or part…"
+                autoFocus={idx === lines.length - 1 && lines.length > 1}
+              />
               <Input
                 label="Unit price (PKR)"
                 type="number"

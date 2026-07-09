@@ -16,6 +16,7 @@ interface SearchSelectProps {
   disabled?: boolean;
   /** Allow typing a value that is not in the options list */
   allowCustom?: boolean;
+  autoFocus?: boolean;
 }
 
 function filterOptions(options: SearchSelectOption[], query: string) {
@@ -33,6 +34,7 @@ export function SearchSelect({
   required,
   disabled,
   allowCustom = false,
+  autoFocus,
 }: SearchSelectProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -102,6 +104,7 @@ export function SearchSelect({
           type="text"
           autoComplete="off"
           disabled={disabled}
+          autoFocus={autoFocus}
           value={displayValue}
           placeholder={placeholder}
           required={required && !value.trim()}

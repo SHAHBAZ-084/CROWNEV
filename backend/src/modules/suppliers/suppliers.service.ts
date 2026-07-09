@@ -205,65 +205,33 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
 
 async function validatePurchaseItems(
   branchId: number,
-  items: { productId?: string; itemId?: number; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[],
+  items: { productId: string; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[],
 ) {
-  const resolvedItems = [];
-  for (const item of items) {
-    if (item.itemId) {
-      const dbItem = await prisma.item.findUnique({
-        where: { id: item.itemId, isActive: true },
-        include: {
-          product: {
-            include: {
-              bikePartDetails: true,
-              branchProducts: { where: { branchId } },
-            },
-          },
-        },
-      });
-      if (!dbItem) {
-        throw new AppError(404, `Item #${item.itemId} not found or inactive`);
-      }
-      resolvedItems.push({
-        ...item,
-        productId: dbItem.productId,
-        product: dbItem.product,
-        partId: dbItem.product.type === ProductType.PART ? dbItem.product.bikePartDetails.find(d => d.partId != null)?.partId ?? undefined : undefined,
-      });
-    } else if (item.productId) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId, isActive: true },
-        include: {
-          bikePartDetails: true,
-          branchProducts: { where: { branchId, isListed: true } },
-        },
-      });
-      if (!product) {
-        throw new AppError(404, `Product not found or inactive`);
-      }
-      resolvedItems.push({
-        ...item,
-        product,
-        partId: product.type === ProductType.PART ? product.bikePartDetails.find(d => d.partId != null)?.partId ?? undefined : undefined,
-      });
-    } else {
-      throw new AppError(400, 'Each item must have a productId or itemId');
-    }
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds }, isActive: true },
+    include: {
+      bikePartDetails: true,
+      branchProducts: { where: { branchId, isListed: true } },
+    },
+  });
+
+  if (products.length !== uniqueProductIds.length) {
+    throw new AppError(400, 'One or more products not found or inactive');
   }
 
   const pricedItems: {
     productId: string;
-    itemId?: number;
     partId?: number;
     quantity: number;
     unitCost: number;
     total: number;
     bikeUnits?: BikeUnitInput[];
-    product: any;
+    product: (typeof products)[number];
   }[] = [];
 
-  for (const item of resolvedItems) {
-    const product = item.product;
+  for (const item of items) {
+    const product = products.find((p) => p.id === item.productId)!;
     if (product.branchProducts.length === 0) {
       throw new AppError(400, `Product "${product.name}" is not listed at this branch`);
     }
@@ -288,10 +256,14 @@ async function validatePurchaseItems(
       throw new AppError(400, 'Enter a price for every unit, or none, on this line');
     }
 
+    let partId: number | undefined;
+    if (product.type === ProductType.PART) {
+      partId = product.bikePartDetails.find((d) => d.partId != null)?.partId ?? undefined;
+    }
+
     pricedItems.push({
-      productId: item.productId!,
-      itemId: item.itemId,
-      partId: item.partId,
+      productId: item.productId,
+      partId,
       quantity: item.quantity,
       unitCost: effectiveUnitCost,
       total: lineTotal,
@@ -318,16 +290,16 @@ export async function createPurchaseInvoice(data: {
   reference?: string;
   notes?: string;
   createdById: string;
-  items: { productId?: string; itemId?: number; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[];
+  items: { productId: string; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[];
 }) {
   const supplier = await prisma.supplier.findFirst({
     where: { id: data.supplierId, branchId: data.branchId, isActive: true },
   });
   if (!supplier) throw new AppError(404, 'Supplier not found');
 
-  const itemIdentifiers = data.items.map((i) => i.itemId ? `item-${i.itemId}` : `prod-${i.productId}`);
-  if (new Set(itemIdentifiers).size !== itemIdentifiers.length) {
-    throw new AppError(400, 'Duplicate item or product selection');
+  const productIds = data.items.map((i) => i.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new AppError(400, 'Product is already selected');
   }
 
   const pricedItems = await validatePurchaseItems(data.branchId, data.items);
@@ -353,7 +325,6 @@ export async function createPurchaseInvoice(data: {
         items: {
           create: pricedItems.map((i) => ({
             productId: i.productId,
-            itemId: i.itemId,
             partId: i.partId,
             quantity: i.quantity,
             unitCost: i.unitCost,
@@ -365,7 +336,7 @@ export async function createPurchaseInvoice(data: {
 
     const bikeChassisRecords = pricedItems
       .filter((i) => i.product.type === ProductType.BIKE && i.bikeUnits?.length)
-      .map((i) => ({ productId: i.productId, itemId: i.itemId, units: i.bikeUnits! }));
+      .map((i) => ({ productId: i.productId, units: i.bikeUnits! }));
 
     if (bikeChassisRecords.length > 0) {
       await createChassisRecordsInTx(tx, {
@@ -515,11 +486,10 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     include: {
       branch: true,
       supplier: true,
-      items: { include: { product: true, part: true, item: { include: { product: { include: { brand: true, category: true } } } } } },
+      items: { include: { product: true, part: true } },
       chassis: {
         select: {
           productId: true,
-          itemId: true,
           chassisNumber: true,
           engineNumber: true,
           motorNumber: true,
@@ -536,7 +506,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
 
   const reference = purchase.documentRef?.trim() || purchase.invoiceNumber?.trim() || null;
 
-  const unitsByItemOrProduct = new Map<
+  const unitsByProduct = new Map<
     string,
     {
       chassisNumber: string;
@@ -550,8 +520,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     }[]
   >();
   for (const c of purchase.chassis) {
-    const key = c.itemId ? `item-${c.itemId}` : `prod-${c.productId}`;
-    const list = unitsByItemOrProduct.get(key) ?? [];
+    const list = unitsByProduct.get(c.productId) ?? [];
     list.push({
       chassisNumber: c.chassisNumber,
       engineNumber: c.engineNumber,
@@ -562,7 +531,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       condition: c.condition,
       comments: c.comments,
     });
-    unitsByItemOrProduct.set(key, list);
+    unitsByProduct.set(c.productId, list);
   }
 
   return {
@@ -586,13 +555,10 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       address: purchase.supplier.address,
     },
     items: purchase.items.map((i) => {
-      const name = i.item
-        ? `${i.item.product.name} (${i.item.product.brand?.name ?? ''} ${i.item.product.category?.name ?? ''} ${i.item.model ?? ''})`
-        : i.product?.name ?? i.part?.name ?? 'Item';
-      const type = i.item ? i.item.product.type : i.product?.type ?? 'PART';
+      const name = i.product?.name ?? i.part?.name ?? 'Item';
+      const type = i.product?.type ?? 'PART';
       const unitCost = Number(i.unitCost);
-      const key = i.itemId ? `item-${i.itemId}` : `prod-${i.productId}`;
-      const bikeUnits = unitsByItemOrProduct.get(key);
+      const bikeUnits = i.productId ? unitsByProduct.get(i.productId) : undefined;
       return {
         name,
         type,

@@ -10,7 +10,6 @@ import type {
   PurchaseInvoiceData,
   ServiceInvoiceData,
   User,
-  Item,
 } from '../types';
 import { enqueueRequest } from '../lib/apiQueue';
 import { fetchWithRetry } from '../lib/queryRetry';
@@ -439,23 +438,6 @@ export const adminApi = {
   createDocumentType: (name: string) => api<Record<string, unknown>>('/document-types', { method: 'POST', body: JSON.stringify({ name }) }),
   setDocumentTypeActive: (id: number, isActive: boolean) =>
     api<Record<string, unknown>>(`/document-types/${id}/active`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
-};
-
-export const itemsApi = {
-  list: (params?: Record<string, string>) => {
-    const q = params ? `?${new URLSearchParams(params)}` : '';
-    return api<Paginated<Item>>(`/items${q}`);
-  },
-  get: (id: number) => api<Item>(`/items/${id}`),
-  create: (data: Record<string, unknown>) =>
-    api<Item>('/items', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: number, data: Record<string, unknown>) =>
-    api<Item>(`/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  delete: (id: number) => api<{ success: boolean; item: Item }>(`/items/${id}`, { method: 'DELETE' }),
-  getChassisNumbers: (id: number, branchId?: number) => {
-    const q = branchId ? `?branchId=${branchId}` : '';
-    return api<any[]>(`/items/${id}/chassis-numbers${q}`);
-  },
 };
 
 export const branchApi = {

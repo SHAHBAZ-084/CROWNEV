@@ -319,7 +319,6 @@ model Product {
   purchaseItems       PurchaseItem[]
   serviceInvoiceItems ServiceInvoiceItem[]
   bikeChassisNumbers  BikeChassisNumber[]
-  items               Item[]
 
   @@index([type])
   @@index([type, createdAt(sort: Desc)])
@@ -452,8 +451,7 @@ model Order {
 model OrderItem {
   id            Int     @id @default(autoincrement())
   orderId       Int
-  productId     String?
-  itemId        Int?
+  productId     String
   quantity      Int
   unitPrice     Decimal @db.Decimal(12, 2)
   total         Decimal @db.Decimal(12, 2)
@@ -464,14 +462,12 @@ model OrderItem {
   branchId      Int?
 
   order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product?           @relation(fields: [productId], references: [id])
-  item        Item?              @relation(fields: [itemId], references: [id])
+  product     Product            @relation(fields: [productId], references: [id])
   branch      Branch?            @relation(fields: [branchId], references: [id])
   soldChassis BikeChassisNumber?
 
   @@index([orderId])
   @@index([branchId])
-  @@index([itemId])
 }
 
 // ─── 14. Service ─────────────────────────────────────────────────────────────
@@ -622,7 +618,6 @@ model PurchaseItem {
   purchaseId    Int
   partId        Int?
   productId     String?
-  itemId        Int?
   quantity      Int
   unitCost      Decimal @db.Decimal(12, 2)
   engineNumber  String?
@@ -631,10 +626,8 @@ model PurchaseItem {
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   part     Part?    @relation(fields: [partId], references: [id])
   product  Product? @relation(fields: [productId], references: [id])
-  item     Item?    @relation(fields: [itemId], references: [id])
 
   @@index([purchaseId])
-  @@index([itemId])
 }
 
 // ─── 20b. BikeChassisNumber ──────────────────────────────────────────────────
@@ -645,7 +638,6 @@ model BikeChassisNumber {
   engineNumber    String?       @unique
   motorNumber     String?       @unique
   productId       String
-  itemId          Int?
   branchId        Int
   status          ChassisStatus @default(IN_STOCK)
   purchaseId      Int
@@ -661,14 +653,12 @@ model BikeChassisNumber {
   updatedAt       DateTime      @updatedAt
 
   product       Product    @relation(fields: [productId], references: [id])
-  item          Item?      @relation(fields: [itemId], references: [id])
   branch        Branch     @relation(fields: [branchId], references: [id])
   purchase      Purchase   @relation(fields: [purchaseId], references: [id])
   saleOrderItem OrderItem? @relation(fields: [saleOrderItemId], references: [id])
   documents     BikeDocument[]
 
   @@index([productId, branchId, status])
-  @@index([itemId, branchId, status])
   @@index([branchId])
   @@index([purchaseId])
 }
@@ -770,18 +760,15 @@ model ServiceInvoice {
 model ServiceInvoiceItem {
   id               Int     @id @default(autoincrement())
   serviceInvoiceId Int
-  productId        String?
-  itemId           Int?
+  productId        String
   quantity         Int
   unitPrice        Decimal @db.Decimal(12, 2)
   total            Decimal @db.Decimal(12, 2)
 
   serviceInvoice ServiceInvoice @relation(fields: [serviceInvoiceId], references: [id], onDelete: Cascade)
-  product        Product?       @relation(fields: [productId], references: [id])
-  item           Item?          @relation(fields: [itemId], references: [id])
+  product        Product        @relation(fields: [productId], references: [id])
 
   @@index([serviceInvoiceId])
-  @@index([itemId])
 }
 
 // ─── 24. BankAccount ─────────────────────────────────────────────────────────
@@ -1008,26 +995,4 @@ model BikeDocument {
   @@unique([chassisNumberId, documentTypeId])
   @@index([chassisNumberId])
   @@index([documentTypeId])
-}
-
-model Item {
-  id        Int      @id @default(autoincrement())   // Item Code
-  productId String                                   // FK to existing Product
-  color     String?                                  // variant color
-  model     String?                                  // optional sub-model override
-  costPrice Decimal  @db.Decimal(12, 2)
-  salePrice Decimal  @db.Decimal(12, 2)
-  stockQty  Int      @default(0)                     // cached global stock count
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  product             Product              @relation(fields: [productId], references: [id])
-  saleInvoiceItems    OrderItem[]
-  purchaseInvoiceItems PurchaseItem[]
-  serviceInvoiceItems ServiceInvoiceItem[]
-  bikeChassisNumbers  BikeChassisNumber[]
-
-  @@index([productId])
-  @@index([isActive])
 }

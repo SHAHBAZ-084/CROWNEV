@@ -199,7 +199,7 @@ export async function createChassisRecordsInTx(
   data: {
     branchId: number;
     purchaseId: number;
-    records: { productId: string; itemId?: number; units: BikeUnitInput[] }[];
+    records: { productId: string; units: BikeUnitInput[] }[];
   },
 ) {
   const allUnits = data.records.flatMap((r) => r.units.map(normalizeBikeUnit));
@@ -218,7 +218,6 @@ export async function createChassisRecordsInTx(
         engineNumber: normalized.engineNumber ?? null,
         motorNumber: normalized.motorNumber ?? null,
         productId: record.productId,
-        itemId: record.itemId ?? null,
         branchId: data.branchId,
         purchaseId: data.purchaseId,
         status: ChassisStatus.IN_STOCK,

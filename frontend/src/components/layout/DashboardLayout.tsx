@@ -16,7 +16,6 @@ const adminNav: SidebarNavItem[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/branches', label: 'Branches', icon: Building2 },
   { to: '/admin/products', label: 'Catalog', icon: Package },
-  { to: '/admin/items', label: 'Items', icon: Boxes },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/admin/bookings', label: 'Bookings', icon: Calendar },
   { to: '/admin/bike-documents', label: 'Bike Documents', icon: FileCheck },

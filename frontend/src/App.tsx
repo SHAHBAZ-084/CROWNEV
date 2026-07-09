@@ -69,7 +69,6 @@ const UnauthorizedPage = lazyNamed(() => import('./pages/public/StaticPages'), '
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminBranches = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminBranchesPage');
 const AdminProducts = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminProductsPage');
-const AdminItems = lazy(() => import('./pages/admin/AdminItemsPage'));
 const AdminParts = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminPartsPage');
 const AdminOrders = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminOrdersPage');
 const AdminBookings = lazyNamed(() => import('./pages/admin/AdminPages'), 'AdminBookingsPage');
@@ -165,7 +164,6 @@ export default function App() {
                   <Route path="/admin" element={<DashWrap><AdminDashboard /></DashWrap>} />
                   <Route path="/admin/branches" element={<DashWrap><AdminBranches /></DashWrap>} />
                   <Route path="/admin/products" element={<DashWrap><AdminProducts /></DashWrap>} />
-                  <Route path="/admin/items" element={<DashWrap><AdminItems /></DashWrap>} />
                   <Route path="/admin/parts" element={<DashWrap><AdminParts /></DashWrap>} />
                   <Route path="/admin/orders" element={<DashWrap><AdminOrders /></DashWrap>} />
                   <Route path="/admin/bookings" element={<DashWrap><AdminBookings /></DashWrap>} />

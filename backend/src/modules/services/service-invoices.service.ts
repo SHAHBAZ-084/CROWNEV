@@ -6,7 +6,7 @@ import {
   ensureCustomerAccount,
   ensureServiceRevenueAccount,
 } from '../accounting/accounting.service.js';
-import { deductStockForOrder, validateAndPriceItems, validateAndPriceItemsByCode } from '../orders/orders.service.js';
+import { deductStockForOrder, validateAndPriceItems } from '../orders/orders.service.js';
 import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
 
 export async function listServiceInvoices(branchId: number, query: { page?: string; limit?: string }) {
@@ -30,7 +30,7 @@ export async function listServiceInvoices(branchId: number, query: { page?: stri
 export async function createServiceInvoice(data: {
   branchId: number;
   customerId: number;
-  items: { productId?: string; itemId?: number; quantity: number; unitPrice?: number }[];
+  items: { productId: string; quantity: number; unitPrice?: number }[];
   labourCost: number;
   reference?: string;
   notes?: string;
@@ -51,36 +51,14 @@ export async function createServiceInvoice(data: {
     throw new AppError(400, 'Labour cost must be zero or greater');
   }
 
-  const itemIdentifiers = data.items.map((i) => i.itemId ? `item-${i.itemId}` : `prod-${i.productId}`);
-  if (new Set(itemIdentifiers).size !== itemIdentifiers.length) {
-    throw new AppError(400, 'Duplicate item or product selection');
+  const productIds = data.items.map((i) => i.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new AppError(400, 'Product is already selected');
   }
 
-  let pricedItems: {
-    itemId?: number;
-    productId: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }[] = [];
-
+  let pricedItems: Awaited<ReturnType<typeof validateAndPriceItems>> = [];
   if (data.items.length > 0) {
-    const codeItems = data.items.filter((i) => i.itemId) as { itemId: number; quantity: number; unitPrice?: number }[];
-    const prodItems = data.items.filter((i) => i.productId && !i.itemId) as { productId: string; quantity: number; unitPrice?: number }[];
-
-    if (codeItems.length > 0) {
-      const pricedCode = await validateAndPriceItemsByCode(data.branchId, codeItems);
-      pricedItems.push(...pricedCode);
-    }
-    if (prodItems.length > 0) {
-      const pricedProd = await validateAndPriceItems(data.branchId, prodItems);
-      pricedItems.push(...pricedProd.map((p) => ({
-        productId: p.productId,
-        quantity: p.quantity,
-        unitPrice: p.unitPrice,
-        total: p.total,
-      })));
-    }
+    pricedItems = await validateAndPriceItems(data.branchId, data.items);
   }
 
   const partsTotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
@@ -106,7 +84,6 @@ export async function createServiceInvoice(data: {
         items: {
           create: pricedItems.map((i) => ({
             productId: i.productId,
-            itemId: i.itemId,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             total: i.total,
@@ -121,7 +98,7 @@ export async function createServiceInvoice(data: {
     });
 
     if (invoice.items.length > 0) {
-      await deductStockForOrder(data.branchId, invoice.items as any[], tx);
+      await deductStockForOrder(data.branchId, invoice.items, tx);
     }
 
     const newBalance = Number(customer.balance) + total;
@@ -163,7 +140,7 @@ export async function getServiceInvoice(id: number, branchId?: number) {
     include: {
       branch: true,
       customer: true,
-      items: { include: { product: true, item: { include: { product: { include: { brand: true, category: true } } } } } },
+      items: { include: { product: true } },
     },
   });
   if (!invoice) throw new AppError(404, 'Service invoice not found');
@@ -193,19 +170,13 @@ export async function getServiceInvoiceFormatted(id: number, branchId?: number) 
       email: invoice.customer.email ?? undefined,
       address: invoice.customer.address ?? undefined,
     },
-    items: invoice.items.map((i) => {
-      const name = i.item
-        ? `${i.item.product.name} (${i.item.product.brand?.name ?? ''} ${i.item.product.category?.name ?? ''} ${i.item.model ?? ''})`
-        : i.product?.name ?? 'Item';
-      const type = i.item ? i.item.product.type : i.product?.type ?? 'PART';
-      return {
-        name,
-        type,
-        quantity: i.quantity,
-        unitPrice: Number(i.unitPrice),
-        total: Number(i.total),
-      };
-    }),
+    items: invoice.items.map((i) => ({
+      name: i.product.name,
+      type: i.product.type,
+      quantity: i.quantity,
+      unitPrice: Number(i.unitPrice),
+      total: Number(i.total),
+    })),
     labourCost: Number(invoice.labourCost),
     partsTotal: Number(invoice.partsTotal),
     subtotal: Number(invoice.partsTotal) + Number(invoice.labourCost),
