@@ -137,6 +137,13 @@ export function SaleInvoice({
                 <td className={`px-2 py-2 ${invoiceTableCell}`}>{idx + 1}</td>
                 <td className="px-2 py-2">
                   <p className="font-medium text-slate-900">{item.name}</p>
+                  {(item.brand || item.category || item.model) && (
+                    <p className={invoiceSubtext}>
+                      {item.brand && <span>Brand: {item.brand}</span>}
+                      {item.category && <span className="ml-2">· Category: {item.category}</span>}
+                      {item.model && <span className="ml-2">· Model: {item.model}</span>}
+                    </p>
+                  )}
                   {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   {item.chassisNumber && (
                     <p className={invoiceSubtext}>Chassis number: {item.chassisNumber}</p>

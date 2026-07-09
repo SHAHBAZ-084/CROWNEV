@@ -139,6 +139,30 @@ const COMPARISON_ROWS: ComparisonRowDef[] = [
     getDisplay: (p) => pickSpec(p, 'frame_material'),
     compare: 'none',
   },
+  {
+    label: 'Category',
+    getDisplay: (p) => p.category?.name ?? '—',
+    compare: 'none',
+  },
+  {
+    label: 'Brand',
+    getDisplay: (p) => p.brand?.name ?? '—',
+    compare: 'none',
+  },
+  {
+    label: 'Model',
+    getDisplay: (p) => p.model ?? '—',
+    compare: 'none',
+  },
+  {
+    label: 'Colors',
+    getDisplay: (p) => {
+      const opts = p.colorOptions as any[] | null;
+      if (!opts || !opts.length) return '—';
+      return opts.map((c) => (typeof c === 'string' ? c : c?.name)).filter(Boolean).join(', ');
+    },
+    compare: 'none',
+  },
 ];
 
 function bestSide(a: number | null, b: number | null, mode: CompareMode): 0 | 1 | null {

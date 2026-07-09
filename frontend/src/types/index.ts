@@ -35,6 +35,8 @@ export interface Product {
   category?: { id: number; name: string } | null;
   images?: { id?: number; url: string; isPrimary: boolean; sortOrder?: number }[];
   stockAtBranch?: number;
+  model?: string | null;
+  listingOrder?: number;
 }
 
 export interface Branch {
@@ -136,6 +138,10 @@ export interface InvoiceData {
     chassisNumber?: string;
     engineNumber?: string | null;
     motorNumber?: string | null;
+    brand?: string;
+    category?: string;
+    model?: string;
+    colorOptions?: (string | ColorOption)[] | null;
   }[];
   subtotal: number;
   total: number;
@@ -177,6 +183,10 @@ export interface PurchaseInvoiceData {
       comments?: string | null;
       purchasePrice?: number | null;
     }[];
+    brand?: string;
+    category?: string;
+    model?: string;
+    colorOptions?: (string | ColorOption)[] | null;
   }[];
   subtotal: number;
   total: number;

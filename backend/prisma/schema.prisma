@@ -300,6 +300,8 @@ model Product {
   type         ProductType
   brandId      Int?
   categoryId   Int?
+  model        String?
+  listingOrder Int         @default(0)
   price        Decimal     @db.Decimal(12, 2)
   salePrice    Decimal?    @db.Decimal(12, 2)
   description  String?

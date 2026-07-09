@@ -140,7 +140,11 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       items: {
         include: {
           product: {
-            include: { images: { where: { isPrimary: true }, take: 1 } },
+            include: {
+              images: { where: { isPrimary: true }, take: 1 },
+              brand: true,
+              category: true,
+            },
           },
           soldChassis: { select: { engineNumber: true, motorNumber: true } },
         },
@@ -207,6 +211,10 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       chassisNumber: i.chassisNumber,
       engineNumber: i.engineNumber,
       motorNumber: i.motorNumber,
+      brand: i.product.brand ? i.product.brand.name : undefined,
+      category: i.product.category ? i.product.category.name : undefined,
+      model: (i.product as any).model ?? undefined,
+      colorOptions: (i.product as any).colorOptions ?? undefined,
     })),
     subtotal: Number(order.subtotal),
     total: Number(order.total),

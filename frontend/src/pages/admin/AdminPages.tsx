@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
-import { adminApi, authApi } from '../../api/client';
+import { adminApi, authApi, publicApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LegalSection } from '../../lib/legalTypes';
 import type { FaqItem } from '../../lib/faqContent';
@@ -642,6 +642,15 @@ export function AdminProductsPage() {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
   const [colorRows, setColorRows] = useState<ColorRow[]>([]);
+  const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    if (modal) {
+      publicApi.brands().then((res) => setBrands(res)).catch(console.error);
+      publicApi.categories().then((res) => setCategories(res)).catch(console.error);
+    }
+  }, [modal]);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
@@ -813,6 +822,14 @@ export function AdminProductsPage() {
         }))
         .filter((r) => r.name !== '');
 
+      const brandIdRaw = fd.get('brandId');
+      const brandId = brandIdRaw ? parseInt(String(brandIdRaw), 10) : undefined;
+      const categoryIdRaw = fd.get('categoryId');
+      const categoryId = categoryIdRaw ? parseInt(String(categoryIdRaw), 10) : undefined;
+      const model = String(fd.get('model') ?? '').trim() || undefined;
+      const listingOrderRaw = fd.get('listingOrder');
+      const listingOrder = listingOrderRaw ? parseInt(String(listingOrderRaw), 10) : undefined;
+
       body = {
         name: String(fd.get('name')).trim(),
         type: productType,
@@ -822,6 +839,10 @@ export function AdminProductsPage() {
         ...(tab === 'bikes' && {
           specs: parseEvSpecsFromForm(fd),
           colorOptions: colorOptionsPayload,
+          brandId: brandId || null,
+          categoryId: categoryId || null,
+          model: model || null,
+          listingOrder: listingOrder ?? 0,
         }),
         ...(tab === 'parts' && { specs: parsePartDetailFromForm(fd) }),
         ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
@@ -993,11 +1014,41 @@ export function AdminProductsPage() {
               <PartDetailFields detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']} />
             )}
             {tab === 'bikes' && (
-              <EvSpecsFields
-                specs={edit?.specs as Record<string, string> | undefined}
-                colorRows={colorRows}
-                onColorRowsChange={setColorRows}
-              />
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Select name="brandId" label="Brand" defaultValue={String(edit?.brandId ?? '')}>
+                    <option value="">Select Brand...</option>
+                    {brands.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select name="categoryId" label="Category" defaultValue={String(edit?.categoryId ?? '')}>
+                    <option value="">Select Category...</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Input name="model" label="Model" placeholder="e.g. CR-V2" defaultValue={String(edit?.model ?? '')} />
+                  <Input
+                    name="listingOrder"
+                    label="Listing Order (Position in Shop)"
+                    type="number"
+                    min={0}
+                    defaultValue={String(edit?.listingOrder ?? 0)}
+                  />
+                </div>
+                <EvSpecsFields
+                  specs={edit?.specs as Record<string, string> | undefined}
+                  colorRows={colorRows}
+                  onColorRowsChange={setColorRows}
+                />
+              </>
             )}
             {modal === 'edit' && (
               <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>

@@ -156,7 +156,7 @@ export async function listShopProducts(query: {
     ...listedAtBranch,
   };
   const select = shopProductSelect(query.branchId);
-  const orderBy = { createdAt: 'desc' as const };
+  const orderBy = [{ listingOrder: 'asc' as const }, { createdAt: 'desc' as const }];
 
   if (query.type) {
     const [products, total] = await Promise.all([
@@ -249,6 +249,8 @@ export async function createProduct(
     type: ProductType;
     brandId?: number;
     categoryId?: number;
+    model?: string;
+    listingOrder?: number;
     price: number;
     salePrice?: number;
     description?: string;
@@ -268,6 +270,8 @@ export async function createProduct(
       type: data.type,
       brandId: data.brandId,
       categoryId: data.categoryId,
+      model: data.model,
+      listingOrder: data.listingOrder ?? 0,
       price: data.price,
       salePrice: data.salePrice,
       description: data.description,
@@ -374,9 +378,12 @@ export async function listSaleableBranchProducts(branchId: number) {
     id: string;
     name: string;
     type: ProductType;
+    model?: string | null;
     stockAtBranch: number;
     unitPrice: number;
     brand?: { name: string } | null;
+    category?: { name: string } | null;
+    colorOptions?: any;
     images?: { url: string }[];
   }[] = [];
 
@@ -394,9 +401,12 @@ export async function listSaleableBranchProducts(branchId: number) {
       id: product.id,
       name: product.name,
       type: product.type,
+      model: (product as any).model,
       stockAtBranch,
       unitPrice: Number(product.salePrice ?? product.price),
       brand: product.brand,
+      category: (product as any).category,
+      colorOptions: (product as any).colorOptions,
       images: product.images,
     });
   }

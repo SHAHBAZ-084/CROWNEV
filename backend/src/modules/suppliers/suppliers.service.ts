@@ -486,7 +486,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     include: {
       branch: true,
       supplier: true,
-      items: { include: { product: true, part: true } },
+      items: { include: { product: { include: { brand: true, category: true } }, part: true } },
       chassis: {
         select: {
           productId: true,
@@ -567,6 +567,10 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
         total: unitCost * i.quantity,
         chassisNumber: i.chassisNumber,
         bikeUnits: bikeUnits ?? undefined,
+        brand: i.product?.brand ? (i.product.brand as any).name : undefined,
+        category: i.product?.category ? (i.product.category as any).name : undefined,
+        model: i.product ? (i.product as any).model ?? undefined : undefined,
+        colorOptions: i.product ? (i.product as any).colorOptions ?? undefined : undefined,
       };
     }),
     subtotal: Number(purchase.total),
