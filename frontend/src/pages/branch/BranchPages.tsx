@@ -400,6 +400,7 @@ export function BranchInventoryPage() {
       isUsed?: boolean;
       condition?: string | null;
       meterReading?: number | null;
+      comments?: string | null;
       status?: 'IN_STOCK' | 'RESERVED' | 'SOLD';
     }[]
   >([]);
@@ -717,7 +718,7 @@ export function BranchInventoryPage() {
                       {c.chassisNumber}
                       {c.isUsed && (
                         <span className="ml-2 inline-flex items-center rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/10">
-                          Used ({c.condition || 'Good'}{c.meterReading != null ? ` · ${c.meterReading} km` : ''})
+                          Used
                         </span>
                       )}
                     </p>
@@ -725,6 +726,13 @@ export function BranchInventoryPage() {
                       <p className="font-mono text-xs text-text-muted">
                         {c.engineNumber ? `Engine: ${c.engineNumber}` : `Motor: ${c.motorNumber}`}
                       </p>
+                    )}
+                    {c.isUsed && (c.condition || c.meterReading != null || c.comments) && (
+                      <div className="mt-1 space-y-0.5 text-xs text-text-muted">
+                        {c.condition && <p>Condition: {c.condition}</p>}
+                        {c.meterReading != null && <p>Meter reading: {c.meterReading} km</p>}
+                        {c.comments && <p>Comments: {c.comments}</p>}
+                      </div>
                     )}
                   </div>
                   {c.status === 'RESERVED' ? (

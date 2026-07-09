@@ -648,7 +648,17 @@ export const branchApi = {
     `/branches/${branchId}/purchase-products`,
   ),
   availableChassis: (branchId: number, productId: string) =>
-    api<{ id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]>(
+    api<{
+      id: number;
+      chassisNumber: string;
+      engineNumber?: string | null;
+      motorNumber?: string | null;
+      isUsed?: boolean;
+      condition?: string | null;
+      meterReading?: number | null;
+      comments?: string | null;
+      status?: 'IN_STOCK' | 'RESERVED' | 'SOLD';
+    }[]>(
       `/branches/${branchId}/chassis/available/${productId}`,
     ),
   validateChassisNumbers: (branchId: number, chassisNumbers: string[]) =>

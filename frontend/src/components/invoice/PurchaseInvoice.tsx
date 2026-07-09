@@ -154,7 +154,7 @@ export function PurchaseInvoice({
                           {u.motorNumber ? ` · Motor: ${u.motorNumber}` : ''}
                           {u.isUsed && (
                             <span className="ml-2 inline-flex items-center rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 ring-1 ring-inset ring-orange-600/10">
-                              Used ({u.condition || 'Good'}{u.meterReading != null ? ` · ${u.meterReading} km` : ''})
+                              Used
                             </span>
                           )}
                         </p>
