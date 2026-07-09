@@ -2564,7 +2564,7 @@ export function AdminCustomizationPage() {
                 </p>
               </div>
             </form>
-          ) : (
+          ) : activeTab === 'parts' ? (
             <form onSubmit={handleSavePartsBranch} className="space-y-6">
               <h2 className="font-display text-xl font-bold text-ink">Online parts orders</h2>
               <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
@@ -2591,7 +2591,7 @@ export function AdminCustomizationPage() {
               </div>
               <Button type="submit" variant="accent" loading={savingPartsBranch}>Save changes</Button>
             </form>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
