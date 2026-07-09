@@ -2283,20 +2283,6 @@ export function AdminCustomizationPage() {
                   onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, subtext: e.target.value }))}
                   required
                 />
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label="Primary CTA Label"
-                    value={homeHeroSection.primaryCtaLabel}
-                    onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, primaryCtaLabel: e.target.value }))}
-                    required
-                  />
-                  <Input
-                    label="Secondary CTA Label"
-                    value={homeHeroSection.secondaryCtaLabel}
-                    onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, secondaryCtaLabel: e.target.value }))}
-                    required
-                  />
-                </div>
                 <Button type="submit" variant="accent" loading={savingHomeHero}>Save changes</Button>
               </div>
             </form>
