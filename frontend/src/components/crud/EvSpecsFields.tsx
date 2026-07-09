@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { EV_SPEC_FIELDS, getSpecDefault, isEvSpecRequired } from '../../lib/evSpecs';
+import { resolveUploadUrl } from '../../lib/media';
 
 export type ColorRow = {
   id: string;
@@ -19,7 +20,7 @@ function ColorRowItem({
   onRemove: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewUrl = row.file ? URL.createObjectURL(row.file) : row.imageUrl;
+  const previewUrl = row.file ? URL.createObjectURL(row.file) : resolveUploadUrl(row.imageUrl);
 
   useEffect(() => {
     return () => {

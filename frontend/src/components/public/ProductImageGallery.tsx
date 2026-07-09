@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { resolveUploadUrl } from '../../lib/media';
 
 type ProductImage = { id?: number; url: string; isPrimary: boolean; sortOrder?: number };
 
@@ -152,7 +153,7 @@ export function ProductImageGallery({
         <AnimatePresence mode="wait" initial={false}>
           <motion.img
             key={current.url}
-            src={current.url}
+            src={resolveUploadUrl(current.url)}
             alt={alt}
             onLoad={handleImageLoad}
             initial={{ opacity: 0 }}
@@ -218,7 +219,7 @@ export function ProductImageGallery({
                     : 'border-slate-200 opacity-60 hover:border-orange-300 hover:opacity-100',
                 ].join(' ')}
               >
-                <img src={img.url} alt="" className="h-full w-full object-cover" />
+                <img src={resolveUploadUrl(img.url)} alt="" className="h-full w-full object-cover" />
               </button>
             );
           })}
