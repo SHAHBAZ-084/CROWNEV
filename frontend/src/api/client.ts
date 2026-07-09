@@ -13,7 +13,7 @@ import type {
 } from '../types';
 import { enqueueRequest } from '../lib/apiQueue';
 import { fetchWithRetry } from '../lib/queryRetry';
-import type { AboutHeroSection } from '../lib/placeholders';
+import type { AboutHeroSection, HomeHeroSection } from '../lib/placeholders';
 import type { LegalSection } from '../lib/legalTypes';
 import type { FaqItem } from '../lib/faqContent';
 
@@ -205,6 +205,7 @@ export const publicApi = {
     }>('/public/footer-contact'),
   partsFulfillmentBranch: () => api<{ branchId: number | null }>('/public/parts-fulfillment-branch'),
   aboutHero: () => api<AboutHeroSection>('/public/about-hero'),
+  homeHero: () => api<HomeHeroSection>('/public/home-hero'),
   terms: () => api<LegalSection[]>('/public/terms'),
   privacy: () => api<LegalSection[]>('/public/privacy'),
   faq: () => api<FaqItem[]>('/public/faq'),
@@ -418,6 +419,9 @@ export const adminApi = {
   aboutHeroSection: () => publicApi.aboutHero(),
   updateAboutHeroSection: (data: AboutHeroSection) =>
     api<AboutHeroSection>('/public/customization/about-hero', { method: 'PUT', body: JSON.stringify(data) }),
+  homeHeroSection: () => publicApi.homeHero(),
+  updateHomeHeroSection: (data: HomeHeroSection) =>
+    api<HomeHeroSection>('/public/customization/home-hero', { method: 'PUT', body: JSON.stringify(data) }),
   termsSection: () => publicApi.terms(),
   updateTermsSection: (sections: LegalSection[]) =>
     api<LegalSection[]>('/public/customization/terms', { method: 'PUT', body: JSON.stringify(sections) }),

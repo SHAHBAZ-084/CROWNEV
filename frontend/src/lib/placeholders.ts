@@ -275,3 +275,19 @@ export const DEFAULT_ABOUT_HERO_SECTION: AboutHeroSection = {
   visionTitle: 'Built for Pakistani roads',
   visionBody: COMPANY_STORY.split('\n\n')[1] ?? COMPANY_STORY.split('\n\n')[0],
 };
+
+export type HomeHeroSection = {
+  eyebrow: string;
+  headline: string;
+  subtext: string;
+  primaryCtaLabel: string;
+  secondaryCtaLabel: string;
+};
+
+export const DEFAULT_HOME_HERO_SECTION: HomeHeroSection = {
+  eyebrow: 'Electric Mobility · Pakistan',
+  headline: 'Ride the Future with Crown Ev',
+  subtext: 'Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order.',
+  primaryCtaLabel: 'Browse Shop',
+  secondaryCtaLabel: 'Book Service',
+};

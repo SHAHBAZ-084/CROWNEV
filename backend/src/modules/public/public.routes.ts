@@ -25,6 +25,14 @@ const foundersSectionSchema = z.object({
   founders: z.array(founderProfileSchema).min(1).max(4),
 });
 
+const homeHeroSectionSchema = z.object({
+  eyebrow: z.string().min(1),
+  headline: z.string().min(1),
+  subtext: z.string().min(1),
+  primaryCtaLabel: z.string().min(1),
+  secondaryCtaLabel: z.string().min(1),
+});
+
 const aboutHeroSectionSchema = z.object({
   eyebrow: z.string().min(1),
   title: z.string().min(1),
@@ -176,6 +184,26 @@ publicRouter.put(
   asyncHandler(async (req, res) => {
     const setting = await publicService.setPartsFulfillmentBranch(req.body.branchId);
     res.json(setting);
+  })
+);
+
+publicRouter.get(
+  '/home-hero',
+  noStorePublicJson,
+  asyncHandler(async (_req, res) => {
+    const section = await publicService.getHomeHeroSection();
+    res.json(section);
+  })
+);
+
+publicRouter.put(
+  '/customization/home-hero',
+  authenticate,
+  requireRoles(Role.ADMIN),
+  validateBody(homeHeroSectionSchema),
+  asyncHandler(async (req, res) => {
+    const section = await publicService.upsertHomeHeroSection(req.body);
+    res.json(section);
   })
 );
 

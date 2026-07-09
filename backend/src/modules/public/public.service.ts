@@ -322,6 +322,52 @@ export async function setPartsFulfillmentBranch(branchId: number | null): Promis
   return { branchId };
 }
 
+const HOME_HERO_SLUG = 'home-hero';
+
+export type HomeHeroSection = {
+  eyebrow: string;
+  headline: string;
+  subtext: string;
+  primaryCtaLabel: string;
+  secondaryCtaLabel: string;
+};
+
+const DEFAULT_HOME_HERO_SECTION: HomeHeroSection = {
+  eyebrow: 'Electric Mobility · Pakistan',
+  headline: 'Ride the Future with Crown Ev',
+  subtext: 'Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order.',
+  primaryCtaLabel: 'Browse Shop',
+  secondaryCtaLabel: 'Book Service',
+};
+
+function parseHomeHeroSection(content: string): HomeHeroSection | null {
+  try {
+    const parsed = JSON.parse(content) as Partial<HomeHeroSection>;
+    if (!parsed) return null;
+    return {
+      eyebrow: String(parsed.eyebrow ?? DEFAULT_HOME_HERO_SECTION.eyebrow).trim(),
+      headline: String(parsed.headline ?? DEFAULT_HOME_HERO_SECTION.headline).trim(),
+      subtext: String(parsed.subtext ?? DEFAULT_HOME_HERO_SECTION.subtext).trim(),
+      primaryCtaLabel: String(parsed.primaryCtaLabel ?? DEFAULT_HOME_HERO_SECTION.primaryCtaLabel).trim(),
+      secondaryCtaLabel: String(parsed.secondaryCtaLabel ?? DEFAULT_HOME_HERO_SECTION.secondaryCtaLabel).trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getHomeHeroSection(): Promise<HomeHeroSection> {
+  const page = await prisma.contentPage.findUnique({ where: { slug: HOME_HERO_SLUG } });
+  if (!page) return DEFAULT_HOME_HERO_SECTION;
+  return parseHomeHeroSection(page.content) ?? DEFAULT_HOME_HERO_SECTION;
+}
+
+export async function upsertHomeHeroSection(section: HomeHeroSection) {
+  const content = JSON.stringify(section);
+  await upsertContentPage(HOME_HERO_SLUG, 'Home Hero', content);
+  return section;
+}
+
 const ABOUT_HERO_SLUG = 'about-hero';
 
 export type AboutHeroSection = {

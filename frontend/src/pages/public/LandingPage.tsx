@@ -9,6 +9,7 @@ import { ProductCard, FeatureGrid } from '../../components/public/ProductCard';
 import { Button } from '../../components/ui/Button';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { ctaArrowClass } from '../../lib/publicMotion';
+import { DEFAULT_HOME_HERO_SECTION, type HomeHeroSection } from '../../lib/placeholders';
 
 const SavingsCalculator = lazy(() =>
   import('../../components/public/SavingsCalculator').then((m) => ({ default: m.SavingsCalculator }))
@@ -29,9 +30,11 @@ function SectionFallback({ className = 'py-16' }: { className?: string }) {
 
 export default function LandingPage() {
   const [data, setData] = useState<LandingData | null>(null);
+  const [homeHero, setHomeHero] = useState<HomeHeroSection>(DEFAULT_HOME_HERO_SECTION);
 
   useEffect(() => {
     publicApi.landing().then(setData).catch(console.error);
+    publicApi.homeHero().then(setHomeHero).catch(console.error);
   }, []);
 
   return (
@@ -40,16 +43,16 @@ export default function LandingPage() {
         <MotionStagger immediate>
           <MotionItem>
             <p className="text-sm font-semibold uppercase tracking-wider text-brand drop-shadow-sm">
-              Electric Mobility · Pakistan
+              {homeHero.eyebrow}
             </p>
           </MotionItem>
           <HeroHeadline
-            text="Ride the Future with Crown Ev"
+            text={homeHero.headline}
             className="mt-4 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl lg:text-6xl"
           />
           <MotionItem>
             <p className="mt-6 text-lg leading-relaxed text-white/90 drop-shadow-sm">
-              Premium electric bikes and parts across multiple branches. Shop online, book service, and track your order.
+              {homeHero.subtext}
             </p>
           </MotionItem>
           <MotionItem>
@@ -57,7 +60,7 @@ export default function LandingPage() {
               <HeroCta>
                 <Link to="/shop">
                   <Button variant="accent" size="lg" className="group">
-                    Browse Shop <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} aria-hidden />
+                    {homeHero.primaryCtaLabel} <ArrowRight className={`h-4 w-4 ${ctaArrowClass}`} aria-hidden />
                   </Button>
                 </Link>
               </HeroCta>
@@ -68,7 +71,7 @@ export default function LandingPage() {
                     size="lg"
                     className="border border-white/80 bg-black/25 text-white shadow-sm backdrop-blur-sm hover:border-brand-light hover:bg-brand/20 hover:text-white"
                   >
-                    Book Service
+                    {homeHero.secondaryCtaLabel}
                   </Button>
                 </Link>
               </HeroCta>

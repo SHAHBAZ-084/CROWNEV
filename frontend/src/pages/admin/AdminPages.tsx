@@ -33,7 +33,7 @@ import {
 } from '../../lib/reportExport';
 import { formatDate, formatPKR } from '../../lib/format';
 import { resolveUploadUrl } from '../../lib/media';
-import { DEFAULT_FOUNDERS_SECTION, DEFAULT_ABOUT_HERO_SECTION, DEFAULT_FEATURE_SECTION, FEATURE_ICON_OPTIONS, normalizeFeatureSection, type FeatureCard, type FeatureIconId, type FeatureSection, type FounderProfile, type FoundersSection, type AboutHeroSection } from '../../lib/placeholders';
+import { DEFAULT_FOUNDERS_SECTION, DEFAULT_ABOUT_HERO_SECTION, DEFAULT_FEATURE_SECTION, FEATURE_ICON_OPTIONS, normalizeFeatureSection, type FeatureCard, type FeatureIconId, type FeatureSection, type FounderProfile, type FoundersSection, type AboutHeroSection, DEFAULT_HOME_HERO_SECTION, type HomeHeroSection } from '../../lib/placeholders';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -1881,8 +1881,9 @@ function FaqEditor({ items, onChange }: { items: FaqItem[]; onChange: (next: Faq
 
 export function AdminCustomizationPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'about' | 'features' | 'footer' | 'parts' | 'terms' | 'privacy' | 'faq'>('about');
+  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'features' | 'footer' | 'parts' | 'terms' | 'privacy' | 'faq'>('home');
   const [loading, setLoading] = useState(true);
+  const [savingHomeHero, setSavingHomeHero] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
   const [savingFounders, setSavingFounders] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
@@ -1891,6 +1892,7 @@ export function AdminCustomizationPage() {
   const [savingTerms, setSavingTerms] = useState(false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [savingFaq, setSavingFaq] = useState(false);
+  const [homeHeroSection, setHomeHeroSection] = useState<HomeHeroSection>(DEFAULT_HOME_HERO_SECTION);
   const [heroSection, setHeroSection] = useState<AboutHeroSection>(DEFAULT_ABOUT_HERO_SECTION);
   const [section, setSection] = useState<FoundersSection>(DEFAULT_FOUNDERS_SECTION);
   const [featureSection, setFeatureSection] = useState<FeatureSection>(DEFAULT_FEATURE_SECTION);
@@ -1909,6 +1911,7 @@ export function AdminCustomizationPage() {
   useEffect(() => {
     Promise.all([
       adminApi.aboutHeroSection(),
+      adminApi.homeHeroSection(),
       adminApi.foundersSection(),
       adminApi.featuresSection(),
       adminApi.footerContactSection(),
@@ -1918,8 +1921,9 @@ export function AdminCustomizationPage() {
       adminApi.privacySection(),
       adminApi.faqSection(),
     ])
-      .then(([heroData, foundersData, featuresData, footerData, branchesData, partsSetting, termsData, privacyData, faqData]) => {
+      .then(([heroData, homeHeroData, foundersData, featuresData, footerData, branchesData, partsSetting, termsData, privacyData, faqData]) => {
         setHeroSection(heroData);
+        setHomeHeroSection(homeHeroData);
 
         const founders = [...foundersData.founders];
         while (founders.length < 2) founders.push(emptyFounder());
@@ -1964,6 +1968,20 @@ export function AdminCustomizationPage() {
       ...prev,
       features: prev.features.map((f, i) => (i === index ? next : f)),
     }));
+  }
+
+  async function handleSaveHomeHero(e: FormEvent) {
+    e.preventDefault();
+    setSavingHomeHero(true);
+    try {
+      const saved = await adminApi.updateHomeHeroSection(homeHeroSection);
+      setHomeHeroSection(saved);
+      toast('Home page hero text updated', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setSavingHomeHero(false);
+    }
   }
 
   async function handleSaveHero(e: FormEvent) {
@@ -2143,6 +2161,18 @@ export function AdminCustomizationPage() {
           </p>
           <button
             type="button"
+            onClick={() => setActiveTab('home')}
+            className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'home'
+                ? 'border-l-2 border-orange-500 bg-slate-200 text-slate-900'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-orange-500'
+            }`}
+          >
+            <Building2 className={`h-4 w-4 shrink-0 transition-colors ${activeTab === 'home' ? 'text-orange-500' : 'text-slate-500 group-hover:text-orange-500'}`} />
+            <span className="truncate text-left">Home Page</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('about')}
             className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               activeTab === 'about'
@@ -2229,6 +2259,49 @@ export function AdminCustomizationPage() {
 
         {/* Content Panel */}
         <div className="flex-1 min-w-0">
+          {activeTab === 'home' && (
+            <form onSubmit={handleSaveHomeHero} className="space-y-6">
+              <h2 className="font-display text-xl font-bold text-ink">Home page — hero section</h2>
+
+              <div className="rounded-2xl border border-border-light bg-elevated p-5 shadow-sm sm:p-6 space-y-4">
+                <Input
+                  label="Eyebrow / Badge"
+                  value={homeHeroSection.eyebrow}
+                  onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, eyebrow: e.target.value }))}
+                  required
+                />
+                <Input
+                  label="Headline"
+                  value={homeHeroSection.headline}
+                  onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, headline: e.target.value }))}
+                  required
+                />
+                <Textarea
+                  label="Subtext"
+                  rows={3}
+                  value={homeHeroSection.subtext}
+                  onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, subtext: e.target.value }))}
+                  required
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    label="Primary CTA Label"
+                    value={homeHeroSection.primaryCtaLabel}
+                    onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, primaryCtaLabel: e.target.value }))}
+                    required
+                  />
+                  <Input
+                    label="Secondary CTA Label"
+                    value={homeHeroSection.secondaryCtaLabel}
+                    onChange={(e) => setHomeHeroSection((prev) => ({ ...prev, secondaryCtaLabel: e.target.value }))}
+                    required
+                  />
+                </div>
+                <Button type="submit" variant="accent" loading={savingHomeHero}>Save changes</Button>
+              </div>
+            </form>
+          )}
+
           {activeTab === 'about' ? (
             <div className="space-y-10">
               <form onSubmit={handleSaveHero} className="space-y-6 mb-10">
