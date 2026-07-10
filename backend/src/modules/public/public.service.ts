@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.js';
+import { findManyWithListingOrder } from '../products/products.service.js';
 import { AppError } from '../../utils/helpers.js';
 export async function getLandingData() {
   const [testimonials, branches, categories, brands, featuredProducts, stats] = await Promise.all([
@@ -31,10 +32,9 @@ export async function getLandingData() {
       take: 10,
     }),
     prisma.brand.findMany({ where: { isActive: true }, take: 12 }),
-    prisma.product.findMany({
+    findManyWithListingOrder({
       where: { isActive: true, type: 'BIKE' },
       include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
-      orderBy: { createdAt: 'desc' },
       take: 8,
     }),
     Promise.all([
