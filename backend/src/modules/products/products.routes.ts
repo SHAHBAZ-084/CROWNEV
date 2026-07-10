@@ -3,7 +3,7 @@ import { ProductType, Role } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
 import { authenticate, branchScope, optionalAuth, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
-import { cachePublicJson } from '../../middleware/cacheControl.js';
+import { cachePublicJson, noStorePublicJson } from '../../middleware/cacheControl.js';
 import { productImageUpload } from '../../middleware/upload.js';
 import {
   productImagePublicUrl,
@@ -43,7 +43,7 @@ const productUpdateSchema = productCreateSchema.partial().extend({
 
 productsRouter.get(
   '/shop',
-  cachePublicJson(60),
+  noStorePublicJson,
   optionalAuth,
   asyncHandler(async (req, res) => {
     const result = await productsService.listShopProducts({

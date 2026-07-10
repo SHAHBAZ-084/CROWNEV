@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/layout/PageTransition';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
+import { sortProductsByListingOrder } from '../../lib/productSort';
 
 const TYPE_FILTERS = [
   { value: '', label: 'All', icon: Package },
@@ -37,21 +38,14 @@ export default function ShopPage() {
 
   useEffect(() => {
     setLoading(true);
-    const q: Record<string, string> = {};
+    const q: Record<string, string> = { limit: '100' };
     if (debouncedSearch) q.search = debouncedSearch;
     if (type) q.type = type;
 
     publicApi
       .shop(q)
       .then((result) => {
-        const data =
-          type === ''
-            ? [...result.data].sort((a, b) => {
-                if (a.type === b.type) return 0;
-                return a.type === 'BIKE' ? -1 : 1;
-              })
-            : result.data;
-        setProducts(data);
+        setProducts(sortProductsByListingOrder(result.data, type));
       })
       .catch(console.error)
       .finally(() => setLoading(false));

@@ -97,6 +97,7 @@ export async function listProducts(query: {
     salePrice: true,
     specs: true,
     isActive: true,
+    listingOrder: true,
     createdAt: true,
     images: {
       orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
@@ -115,13 +116,7 @@ export async function listProducts(query: {
   } satisfies Prisma.ProductSelect;
 
   const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      select: listSelect,
-      orderBy: { createdAt: 'desc' },
-    }),
+    findManyWithListingOrder({ where, skip, take: limit, select: listSelect }),
     prisma.product.count({ where }),
   ]);
 
@@ -146,6 +141,8 @@ function shopProductSelect(branchId?: number) {
     salePrice: true,
     specs: true,
     colorOptions: true,
+    listingOrder: true,
+    createdAt: true,
     brand: { select: { id: true, name: true, slug: true } },
     category: { select: { id: true, name: true, slug: true } },
     images: {
