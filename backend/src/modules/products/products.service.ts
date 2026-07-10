@@ -4,6 +4,50 @@ import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { slugify } from '../../utils/crypto.js';
 
+/** Treat listingOrder 0 as unset — explicitly ordered products first, then by createdAt. */
+export async function findManyWithListingOrder<T extends Omit<Prisma.ProductFindManyArgs, 'orderBy'>>(
+  args: T,
+): Promise<Prisma.ProductGetPayload<T>[]> {
+  const where = args.where ?? {};
+  const orderedWhere: Prisma.ProductWhereInput = { AND: [where, { listingOrder: { gt: 0 } }] };
+  const unorderedWhere: Prisma.ProductWhereInput = { AND: [where, { listingOrder: 0 }] };
+  const skip = args.skip ?? 0;
+  const take = args.take;
+
+  const orderedCount = await prisma.product.count({ where: orderedWhere });
+  const results: Prisma.ProductGetPayload<T>[] = [];
+  let remaining = take;
+  let offset = skip;
+
+  if (offset < orderedCount && (remaining === undefined || remaining > 0)) {
+    const ordered = await prisma.product.findMany({
+      ...args,
+      where: orderedWhere,
+      orderBy: [{ listingOrder: 'asc' }, { createdAt: 'desc' }],
+      skip: offset,
+      take: remaining,
+    });
+    results.push(...(ordered as Prisma.ProductGetPayload<T>[]));
+    if (remaining !== undefined) remaining -= ordered.length;
+    offset = 0;
+  } else {
+    offset -= orderedCount;
+  }
+
+  if (remaining === undefined || remaining > 0) {
+    const unordered = await prisma.product.findMany({
+      ...args,
+      where: unorderedWhere,
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: remaining,
+    });
+    results.push(...(unordered as Prisma.ProductGetPayload<T>[]));
+  }
+
+  return results;
+}
+
 function buildProductListWhere(query: {
   type?: ProductType;
   brandId?: number;
@@ -156,11 +200,10 @@ export async function listShopProducts(query: {
     ...listedAtBranch,
   };
   const select = shopProductSelect(query.branchId);
-  const orderBy = [{ listingOrder: 'asc' as const }, { createdAt: 'desc' as const }];
 
   if (query.type) {
     const [products, total] = await Promise.all([
-      prisma.product.findMany({ where, skip, take: limit, select, orderBy }),
+      findManyWithListingOrder({ where, skip, take: limit, select }),
       prisma.product.count({ where }),
     ]);
     return paginatedResponse(
@@ -188,12 +231,11 @@ export async function listShopProducts(query: {
   let offset = skip;
 
   if (offset < bikeCount && remaining > 0) {
-    const bikes = await prisma.product.findMany({
+    const bikes = await findManyWithListingOrder({
       where: bikeWhere,
       skip: offset,
       take: Math.min(remaining, bikeCount - offset),
       select,
-      orderBy,
     });
     rows.push(...bikes);
     remaining -= bikes.length;
@@ -203,12 +245,11 @@ export async function listShopProducts(query: {
   }
 
   if (remaining > 0) {
-    const parts = await prisma.product.findMany({
+    const parts = await findManyWithListingOrder({
       where: partWhere,
       skip: offset,
       take: remaining,
       select,
-      orderBy,
     });
     rows.push(...parts);
   }
