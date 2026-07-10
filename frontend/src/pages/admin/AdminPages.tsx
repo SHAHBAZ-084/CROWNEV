@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FormEvent, Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
 import { adminApi, authApi, publicApi } from '../../api/client';
@@ -1014,7 +1014,7 @@ export function AdminProductsPage() {
               <PartDetailFields detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']} />
             )}
             {tab === 'bikes' && (
-              <>
+              <Fragment key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}`}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Select name="brandId" label="Brand" defaultValue={String(edit?.brandId ?? '')}>
                     <option value="">Select Brand...</option>
@@ -1048,7 +1048,7 @@ export function AdminProductsPage() {
                   colorRows={colorRows}
                   onColorRowsChange={setColorRows}
                 />
-              </>
+              </Fragment>
             )}
             {modal === 'edit' && (
               <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
