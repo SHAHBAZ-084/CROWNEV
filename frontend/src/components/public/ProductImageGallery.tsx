@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
-import { resolveUploadUrl } from '../../lib/media';
+import { resolveUploadUrl, sameUploadUrl } from '../../lib/media';
 
 type ProductImage = { id?: number; url: string; isPrimary: boolean; sortOrder?: number };
 
@@ -30,7 +30,7 @@ export function ProductImageGallery({
 }) {
   const sorted = useMemo(() => {
     const list = sortProductImages(images);
-    if (activeOverrideUrl && !list.some((img) => img.url === activeOverrideUrl)) {
+    if (activeOverrideUrl && !list.some((img) => sameUploadUrl(img.url, activeOverrideUrl))) {
       list.push({ url: activeOverrideUrl, isPrimary: false });
     }
     return list;
@@ -43,27 +43,28 @@ export function ProductImageGallery({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Reset to first image when product changes
+  // Reset to first image when the product's image set changes (not on color override)
   useEffect(() => {
     setActive(0);
-  }, [sorted]);
+  }, [images]);
 
   // Synchronize with activeOverrideUrl if set
   useEffect(() => {
     if (activeOverrideUrl) {
-      const idx = sorted.findIndex((img) => img.url === activeOverrideUrl);
+      const idx = sorted.findIndex((img) => sameUploadUrl(img.url, activeOverrideUrl));
       if (idx !== -1) {
         setActive(idx);
       }
     }
   }, [activeOverrideUrl, sorted]);
 
-  // Trigger callback when active changes
+  // Notify parent when the user changes the visible slide (skip if already in sync)
   useEffect(() => {
-    if (sorted[active] && onImageChange) {
-      onImageChange(sorted[active].url);
+    const url = sorted[active]?.url;
+    if (url && onImageChange && !sameUploadUrl(url, activeOverrideUrl)) {
+      onImageChange(url);
     }
-  }, [active, sorted, onImageChange]);
+  }, [active, sorted, onImageChange, activeOverrideUrl]);
 
   // Auto-scroll active thumbnail into center view
   useEffect(() => {
