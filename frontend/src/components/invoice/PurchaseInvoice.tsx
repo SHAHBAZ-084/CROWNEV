@@ -152,6 +152,7 @@ export function PurchaseInvoice({
                           Chassis: {u.chassisNumber}
                           {u.engineNumber ? ` · Engine: ${u.engineNumber}` : ''}
                           {u.motorNumber ? ` · Motor: ${u.motorNumber}` : ''}
+                          {u.color ? ` · Color: ${u.color}` : ''}
                         </p>
                       ))}
                     </div>

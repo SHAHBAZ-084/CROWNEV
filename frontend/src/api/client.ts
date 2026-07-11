@@ -689,6 +689,7 @@ export const branchApi = {
       chassisNumber: string;
       engineNumber?: string | null;
       motorNumber?: string | null;
+      color?: string | null;
       isUsed?: boolean;
       condition?: string | null;
       meterReading?: number | null;
@@ -697,6 +698,12 @@ export const branchApi = {
     }[]>(
       `/branches/${branchId}/chassis/available/${productId}`,
     ),
+  colorOptions: () => api<{ id: number; name: string }[]>('/color-options'),
+  createColorOption: (name: string) =>
+    api<{ id: number; name: string }>('/color-options', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
   validateChassisNumbers: (branchId: number, chassisNumbers: string[]) =>
     api<{ valid: boolean }>(`/branches/${branchId}/chassis/validate`, {
       method: 'POST',
@@ -704,7 +711,7 @@ export const branchApi = {
     }),
   validateBikeUnits: (
     branchId: number,
-    bikeUnits: { chassisNumber: string; engineNumber?: string; motorNumber?: string }[],
+    bikeUnits: { chassisNumber: string; engineNumber?: string; motorNumber?: string; color?: string }[],
   ) =>
     api<{ valid: boolean }>(`/branches/${branchId}/chassis/validate`, {
       method: 'POST',
@@ -733,7 +740,7 @@ export const branchApi = {
       productId: string;
       quantity: number;
       unitCost: number;
-      bikeUnits?: { chassisNumber: string; engineNumber?: string; motorNumber?: string }[];
+      bikeUnits?: { chassisNumber: string; engineNumber?: string; motorNumber?: string; color?: string }[];
     }[];
     notes?: string;
   }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {

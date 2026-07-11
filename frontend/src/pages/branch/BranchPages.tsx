@@ -401,6 +401,7 @@ export function BranchInventoryPage() {
       chassisNumber: string;
       engineNumber?: string | null;
       motorNumber?: string | null;
+      color?: string | null;
       isUsed?: boolean;
       condition?: string | null;
       meterReading?: number | null;
@@ -742,6 +743,9 @@ export function BranchInventoryPage() {
                       <p className="font-mono text-xs text-text-muted">
                         {c.engineNumber ? `Engine: ${c.engineNumber}` : `Motor: ${c.motorNumber}`}
                       </p>
+                    )}
+                    {c.color && (
+                      <p className="text-xs text-text-muted">Color: {c.color}</p>
                     )}
                     {c.isUsed && (c.condition || c.meterReading != null || c.comments) && (
                       <div className="mt-1 space-y-0.5 text-xs text-text-muted">

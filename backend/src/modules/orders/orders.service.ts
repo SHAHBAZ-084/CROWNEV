@@ -146,7 +146,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
               category: true,
             },
           },
-          soldChassis: { select: { engineNumber: true, motorNumber: true } },
+          soldChassis: { select: { engineNumber: true, motorNumber: true, color: true } },
         },
       },
       user: true,
@@ -207,7 +207,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       quantity: i.quantity,
       unitPrice: Number(i.unitPrice),
       total: Number(i.total),
-      color: i.color,
+      color: i.soldChassis?.color ?? i.color,
       chassisNumber: i.chassisNumber,
       engineNumber: i.engineNumber,
       motorNumber: i.motorNumber,
@@ -466,6 +466,7 @@ export async function createOnlineOrder(data: {
           chassisNumber: chassis.chassisNumber,
           engineNumber: chassis.engineNumber ?? null,
           motorNumber: chassis.motorNumber ?? null,
+          color: chassis.color ?? null,
         },
       });
     }
@@ -684,6 +685,7 @@ export async function createSaleInvoice(data: {
             chassisNumber: chassis.chassisNumber,
             engineNumber: chassis.engineNumber,
             motorNumber: chassis.motorNumber,
+            color: chassis.color ?? null,
           },
         });
       }

@@ -134,7 +134,7 @@ export interface InvoiceData {
     quantity: number;
     unitPrice: number;
     total: number;
-    color?: string;
+    color?: string | null;
     chassisNumber?: string;
     engineNumber?: string | null;
     motorNumber?: string | null;
@@ -177,6 +177,7 @@ export interface PurchaseInvoiceData {
       chassisNumber: string;
       engineNumber: string | null;
       motorNumber: string | null;
+      color?: string | null;
       isUsed?: boolean;
       condition?: string | null;
       meterReading?: number | null;
@@ -208,6 +209,7 @@ export interface ServiceInvoiceData {
     quantity: number;
     unitPrice: number;
     total: number;
+    color?: string | null;
   }[];
   labourCost: number;
   partsTotal: number;

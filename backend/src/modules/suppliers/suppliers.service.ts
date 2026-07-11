@@ -271,6 +271,7 @@ async function validatePurchaseItems(
         chassisNumber: normalizeChassisNumber(u.chassisNumber),
         engineNumber: u.engineNumber ? normalizeIdentifierNumber(u.engineNumber) : undefined,
         motorNumber: u.motorNumber ? normalizeIdentifierNumber(u.motorNumber) : undefined,
+        color: u.color?.trim() || undefined,
         isUsed: u.isUsed,
         purchasePrice: u.purchasePrice,
         meterReading: u.meterReading,
@@ -493,6 +494,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
           chassisNumber: true,
           engineNumber: true,
           motorNumber: true,
+          color: true,
           isUsed: true,
           purchasePrice: true,
           meterReading: true,
@@ -512,6 +514,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       chassisNumber: string;
       engineNumber: string | null;
       motorNumber: string | null;
+      color: string | null;
       isUsed: boolean;
       purchasePrice: number | null;
       meterReading: number | null;
@@ -525,6 +528,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       chassisNumber: c.chassisNumber,
       engineNumber: c.engineNumber,
       motorNumber: c.motorNumber,
+      color: c.color,
       isUsed: c.isUsed,
       purchasePrice: c.purchasePrice ? Number(c.purchasePrice) : null,
       meterReading: c.meterReading,

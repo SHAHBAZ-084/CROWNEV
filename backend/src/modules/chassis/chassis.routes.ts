@@ -126,6 +126,7 @@ chassisRouter.post(
             chassisNumber: z.string().trim().min(1),
             engineNumber: z.string().trim().min(1).optional(),
             motorNumber: z.string().trim().min(1).optional(),
+            color: z.string().trim().min(1).optional(),
           }),
         )
         .optional(),

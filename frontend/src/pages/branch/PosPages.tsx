@@ -772,11 +772,15 @@ function newSaleLine(): SaleLine {
 
 /** One bike unit on a purchase invoice line: chassis number is always required,
  * plus a choice of either engine number or motor number (never both). */
+const COLOR_OTHER = '__other__';
+
 type BikeUnit = {
   chassisNumber: string;
   numberType: 'ENGINE' | 'MOTOR';
   engineNumber: string;
   motorNumber: string;
+  colorPick: string;
+  customColor: string;
   purchasePrice?: string;
   meterReading?: string;
   condition?: string;
@@ -789,6 +793,8 @@ function newBikeUnit(): BikeUnit {
     numberType: 'ENGINE',
     engineNumber: '',
     motorNumber: '',
+    colorPick: '',
+    customColor: '',
     purchasePrice: '',
     meterReading: '',
     condition: '',
@@ -1364,6 +1370,7 @@ export function PosPurchaseInvoicePage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<PurchaseInvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [colorOptions, setColorOptions] = useState<{ id: number; name: string }[]>([]);
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
@@ -1383,6 +1390,7 @@ export function PosPurchaseInvoicePage() {
     if (!branchId) return;
     branchApi.branchSuppliers(branchId).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
     branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
+    branchApi.colorOptions().then(setColorOptions).catch(console.error);
     reloadPurchases();
     reloadNextInvoiceNo();
   }, [branchId, reloadPurchases, reloadNextInvoiceNo]);
@@ -1562,6 +1570,33 @@ export function PosPurchaseInvoicePage() {
         return;
       }
     }
+
+    const resolvedUnitColors = new Map<string, string | undefined>();
+    for (const l of lineDetails) {
+      if (l.product?.type !== 'BIKE') continue;
+      const units = resizeBikeUnits(l.bikeUnits, l.qty);
+      for (let idx = 0; idx < units.length; idx++) {
+        const unit = units[idx];
+        const mapKey = `${l.key}-${idx}`;
+        try {
+          if (unit.colorPick === COLOR_OTHER) {
+            const raw = unit.customColor.trim();
+            if (raw) {
+              const created = await branchApi.createColorOption(raw);
+              resolvedUnitColors.set(mapKey, created.name);
+            } else {
+              resolvedUnitColors.set(mapKey, undefined);
+            }
+          } else {
+            resolvedUnitColors.set(mapKey, unit.colorPick.trim() || undefined);
+          }
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'Failed to save custom color', 'error');
+          return;
+        }
+      }
+    }
+
     const items = lineDetails
       .filter((l) => l.product)
       .map((l) => {
@@ -1574,10 +1609,11 @@ export function PosPurchaseInvoicePage() {
             : Number(l.unitCost),
           ...(l.product?.type === 'BIKE'
             ? {
-                bikeUnits: resizeBikeUnits(l.bikeUnits, l.qty).map((u) => ({
+                bikeUnits: resizeBikeUnits(l.bikeUnits, l.qty).map((u, idx) => ({
                   chassisNumber: u.chassisNumber.trim(),
                   engineNumber: u.numberType === 'ENGINE' ? u.engineNumber.trim() : undefined,
                   motorNumber: u.numberType === 'MOTOR' ? u.motorNumber.trim() : undefined,
+                  color: resolvedUnitColors.get(`${l.key}-${idx}`),
                   ...(purchaseType === 'OLD' && {
                     isUsed: true,
                     purchasePrice: parseFloat(u.purchasePrice || '') || 0,
@@ -1830,6 +1866,29 @@ export function PosPurchaseInvoicePage() {
                             required
                             placeholder="Unique motor number"
                             onChange={(e) => updateBikeUnit(line.key, idx, { motorNumber: e.target.value })}
+                          />
+                        )}
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <Select
+                          label="Color"
+                          value={unit.colorPick}
+                          onChange={(e) => updateBikeUnit(line.key, idx, { colorPick: e.target.value })}
+                          placeholder="Select color"
+                        >
+                          {colorOptions.map((c) => (
+                            <option key={c.id} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                          <option value={COLOR_OTHER}>Other</option>
+                        </Select>
+                        {unit.colorPick === COLOR_OTHER && (
+                          <Input
+                            label="Custom color"
+                            placeholder="e.g. Pearl White"
+                            value={unit.customColor}
+                            onChange={(e) => updateBikeUnit(line.key, idx, { customColor: e.target.value })}
                           />
                         )}
                       </div>

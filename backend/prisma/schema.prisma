@@ -369,6 +369,14 @@ model BikeModel {
   createdAt DateTime @default(now())
 }
 
+// ─── 8c. ColorOption (unit color names for purchase/sale tracking) ─────────────
+
+model ColorOption {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 // ─── 9. ProductCategory (hierarchical) ───────────────────────────────────────
 
 model ProductCategory {
@@ -647,6 +655,7 @@ model BikeChassisNumber {
   chassisNumber   String        @unique
   engineNumber    String?       @unique
   motorNumber     String?       @unique
+  color           String?
   productId       String
   branchId        Int
   status          ChassisStatus @default(IN_STOCK)

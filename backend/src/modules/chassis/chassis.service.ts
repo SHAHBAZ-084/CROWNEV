@@ -8,6 +8,7 @@ export type BikeUnitInput = {
   chassisNumber: string;
   engineNumber?: string;
   motorNumber?: string;
+  color?: string;
   isUsed?: boolean;
   purchasePrice?: number;
   meterReading?: number;
@@ -29,6 +30,7 @@ function normalizeBikeUnit(unit: BikeUnitInput): BikeUnitInput {
     chassisNumber: normalizeChassisNumber(unit.chassisNumber),
     engineNumber: unit.engineNumber ? normalizeIdentifierNumber(unit.engineNumber) : undefined,
     motorNumber: unit.motorNumber ? normalizeIdentifierNumber(unit.motorNumber) : undefined,
+    color: unit.color?.trim() || undefined,
     isUsed: unit.isUsed,
     purchasePrice: unit.purchasePrice,
     meterReading: unit.meterReading,
@@ -150,6 +152,7 @@ export async function listAvailableChassis(branchId: number, productId: string) 
       chassisNumber: true,
       engineNumber: true,
       motorNumber: true,
+      color: true,
       productId: true,
       purchaseId: true,
       createdAt: true,
@@ -217,6 +220,7 @@ export async function createChassisRecordsInTx(
         chassisNumber: normalized.chassisNumber,
         engineNumber: normalized.engineNumber ?? null,
         motorNumber: normalized.motorNumber ?? null,
+        color: normalized.color ?? null,
         productId: record.productId,
         branchId: data.branchId,
         purchaseId: data.purchaseId,

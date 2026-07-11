@@ -129,6 +129,7 @@ export function ServiceInvoice({
                   <td className="px-2 py-2">
                     <p className="font-medium text-slate-900">{item.name}</p>
                     <p className={invoiceSubtext}>{item.type}</p>
+                    {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   </td>
                   <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{item.quantity}</td>
                   <td className={`px-2 py-2 text-right tabular-nums ${invoiceTableCell}`}>{formatPKR(item.unitPrice)}</td>
