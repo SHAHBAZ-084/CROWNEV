@@ -222,6 +222,31 @@ ordersRouter.post(
   }),
 );
 
+const orderItemEditSchema = z.object({
+  orderItemId: z.number().int().positive(),
+  unitPrice: z.coerce.number().positive().optional(),
+  color: z.string().nullable().optional(),
+  engineNumber: z.string().nullable().optional(),
+  motorNumber: z.string().nullable().optional(),
+  chassisNumber: z.string().trim().min(1).optional(),
+});
+
+ordersRouter.patch(
+  '/:id/items',
+  requireRoles(Role.BRANCH_OWNER, Role.ADMIN),
+  validateBody(z.object({ items: z.array(orderItemEditSchema).min(1) })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const order = await ordersService.updateOrderItems(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+      req.body,
+    );
+    res.json(order);
+  }),
+);
+
 ordersRouter.patch(
   '/:id/status',
   requireRoles(Role.BRANCH_OWNER),

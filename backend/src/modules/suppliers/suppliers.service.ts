@@ -1,10 +1,12 @@
-import { Prisma, ProductType, SupplierLedgerType, VoucherType } from '@prisma/client';
+import { Prisma, ProductType, SupplierLedgerType, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { addStockInTx } from '../inventory/inventory.service.js';
 import {
   createChassisRecordsInTx,
+  findExistingBikeUnitNumbers,
+  isChassisIdentityLocked,
   normalizeChassisNumber,
   normalizeIdentifierNumber,
   validateBikePurchaseUnits,
@@ -16,6 +18,7 @@ import {
   ensureInventoryAccount,
   ensureSupplierAccount,
   formatPurchaseItemsDescription,
+  updateVoucherAmount,
 } from '../accounting/accounting.service.js';
 import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
 
@@ -583,4 +586,267 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     total: Number(purchase.total),
     notes: purchase.notes,
   };
+}
+
+type PurchaseItemEditInput = {
+  purchaseItemId?: number;
+  chassisId?: number;
+  unitCost?: number;
+  color?: string | null;
+  engineNumber?: string | null;
+  motorNumber?: string | null;
+  chassisNumber?: string;
+};
+
+async function shiftSupplierPurchaseLedgerAmount(
+  tx: Prisma.TransactionClient,
+  purchaseId: number,
+  supplierId: number,
+  newAmount: number,
+) {
+  const entry = await tx.supplierLedger.findFirst({
+    where: { purchaseId, type: SupplierLedgerType.CREDIT },
+    orderBy: { id: 'asc' },
+  });
+  if (!entry) return;
+
+  const oldAmount = Number(entry.amount);
+  const delta = newAmount - oldAmount;
+  if (Math.abs(delta) < 0.005) return;
+
+  await tx.supplierLedger.update({
+    where: { id: entry.id },
+    data: {
+      amount: newAmount,
+      balance: Number(entry.balance) + delta,
+    },
+  });
+  await tx.supplierLedger.updateMany({
+    where: { supplierId, id: { gt: entry.id } },
+    data: { balance: { increment: delta } },
+  });
+  await tx.supplier.update({
+    where: { id: supplierId },
+    data: { balance: { increment: delta } },
+  });
+}
+
+function computeBikeLineTotal(
+  chassisRows: { purchasePrice: Prisma.Decimal | null }[],
+  fallbackUnitCost: number,
+  quantity: number,
+): number {
+  const priced = chassisRows.filter((c) => c.purchasePrice != null);
+  if (priced.length === chassisRows.length && priced.length > 0) {
+    return priced.reduce((sum, c) => sum + Number(c.purchasePrice), 0);
+  }
+  if (priced.length > 0) {
+    throw new AppError(400, 'Enter a price for every unit, or none, on this line');
+  }
+  return fallbackUnitCost * quantity;
+}
+
+function validateSingleBikeUnitFields(unit: BikeUnitInput) {
+  const chassisNumber = unit.chassisNumber?.trim();
+  if (!chassisNumber) throw new AppError(400, 'Chassis number is required');
+  const hasEngine = !!unit.engineNumber?.trim();
+  const hasMotor = !!unit.motorNumber?.trim();
+  if (hasEngine && hasMotor) {
+    throw new AppError(400, 'Enter either engine number or motor number, not both');
+  }
+  if (!hasEngine && !hasMotor) {
+    throw new AppError(400, 'Enter either engine number or motor number');
+  }
+}
+
+export async function updatePurchaseInvoice(
+  id: number,
+  branchId: number | undefined,
+  userId: string,
+  data: { items: PurchaseItemEditInput[] },
+) {
+  if (!data.items.length) throw new AppError(400, 'No items to update');
+
+  const purchase = await prisma.purchase.findFirst({
+    where: { id, ...(branchId != null ? { branchId } : {}) },
+    include: {
+      supplier: true,
+      items: { include: { product: true } },
+      chassis: true,
+    },
+  });
+  if (!purchase) throw new AppError(404, 'Purchase not found');
+
+  const chassisById = new Map(purchase.chassis.map((c) => [c.id, c]));
+  const itemById = new Map(purchase.items.map((i) => [i.id, i]));
+
+  for (const edit of data.items) {
+    if (edit.chassisId != null) {
+      const chassis = chassisById.get(edit.chassisId);
+      if (!chassis || chassis.purchaseId !== purchase.id) {
+        throw new AppError(400, 'Chassis unit not found on this purchase');
+      }
+
+      const identityLocked = isChassisIdentityLocked(chassis);
+      const identityEdit =
+        edit.chassisNumber !== undefined ||
+        edit.engineNumber !== undefined ||
+        edit.motorNumber !== undefined;
+      if (identityLocked && identityEdit) {
+        throw new AppError(
+          409,
+          'Cannot change chassis, engine, or motor number on a unit that is already sold or invoiced — price and color can still be edited',
+        );
+      }
+
+      const proposed: BikeUnitInput = {
+        chassisNumber: edit.chassisNumber ?? chassis.chassisNumber,
+        engineNumber: edit.engineNumber !== undefined ? (edit.engineNumber ?? undefined) : (chassis.engineNumber ?? undefined),
+        motorNumber: edit.motorNumber !== undefined ? (edit.motorNumber ?? undefined) : (chassis.motorNumber ?? undefined),
+      };
+      if (identityEdit) {
+        validateSingleBikeUnitFields(proposed);
+        const conflicts = await findExistingBikeUnitNumbers([proposed], [chassis.id]);
+        if (conflicts.length > 0) {
+          throw new AppError(409, `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`);
+        }
+      }
+
+      if (edit.unitCost !== undefined) {
+        if (edit.unitCost <= 0) throw new AppError(400, 'Unit cost must be greater than zero');
+      }
+    } else if (edit.purchaseItemId != null) {
+      const item = itemById.get(edit.purchaseItemId);
+      if (!item || item.purchaseId !== purchase.id) {
+        throw new AppError(400, 'Purchase line not found on this invoice');
+      }
+      if (item.product?.type === ProductType.BIKE) {
+        throw new AppError(400, 'Use chassisId to edit bike unit fields on this purchase');
+      }
+      if (edit.unitCost !== undefined && edit.unitCost <= 0) {
+        throw new AppError(400, 'Unit cost must be greater than zero');
+      }
+      if (
+        edit.color !== undefined ||
+        edit.engineNumber !== undefined ||
+        edit.motorNumber !== undefined ||
+        edit.chassisNumber !== undefined
+      ) {
+        throw new AppError(400, 'Color and unit numbers apply to bike chassis rows only');
+      }
+    } else {
+      throw new AppError(400, 'Each edit must include chassisId or purchaseItemId');
+    }
+  }
+
+  const reference = purchase.documentRef?.trim();
+  const oldTotal = Number(purchase.total);
+  let voucherId: number | null = null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    for (const edit of data.items) {
+      if (edit.chassisId != null) {
+        const chassis = chassisById.get(edit.chassisId)!;
+        const identityLocked = isChassisIdentityLocked(chassis);
+        const chassisData: Prisma.BikeChassisNumberUpdateInput = {};
+
+        if (edit.color !== undefined) {
+          chassisData.color = edit.color?.trim() || null;
+        }
+        if (!identityLocked) {
+          if (edit.chassisNumber !== undefined) {
+            chassisData.chassisNumber = normalizeChassisNumber(edit.chassisNumber);
+          }
+          if (edit.engineNumber !== undefined) {
+            chassisData.engineNumber = edit.engineNumber ? normalizeIdentifierNumber(edit.engineNumber) : null;
+          }
+          if (edit.motorNumber !== undefined) {
+            chassisData.motorNumber = edit.motorNumber ? normalizeIdentifierNumber(edit.motorNumber) : null;
+          }
+        }
+        if (edit.unitCost !== undefined) {
+          chassisData.purchasePrice = edit.unitCost;
+        }
+
+        if (Object.keys(chassisData).length > 0) {
+          await tx.bikeChassisNumber.update({ where: { id: chassis.id }, data: chassisData });
+        }
+      } else if (edit.purchaseItemId != null && edit.unitCost !== undefined) {
+        await tx.purchaseItem.update({
+          where: { id: edit.purchaseItemId },
+          data: { unitCost: edit.unitCost },
+        });
+      }
+    }
+
+    const refreshed = await tx.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+      include: {
+        items: { include: { product: true } },
+        chassis: true,
+      },
+    });
+
+    for (const item of refreshed.items) {
+      if (item.product?.type !== ProductType.BIKE || !item.productId) continue;
+      const units = refreshed.chassis.filter((c) => c.productId === item.productId);
+      const lineTotal = computeBikeLineTotal(units, Number(item.unitCost), item.quantity);
+      const effectiveUnitCost = lineTotal / item.quantity;
+      await tx.purchaseItem.update({
+        where: { id: item.id },
+        data: { unitCost: effectiveUnitCost },
+      });
+    }
+
+    const finalPurchase = await tx.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+      include: { items: { include: { product: true } }, chassis: true },
+    });
+
+    let newTotal = 0;
+    for (const item of finalPurchase.items) {
+      if (item.product?.type === ProductType.BIKE && item.productId) {
+        const units = finalPurchase.chassis.filter((c) => c.productId === item.productId);
+        newTotal += computeBikeLineTotal(units, Number(item.unitCost), item.quantity);
+      } else {
+        newTotal += Number(item.unitCost) * item.quantity;
+      }
+    }
+
+    if (newTotal <= 0) throw new AppError(400, 'Purchase total must be greater than zero');
+
+    await tx.purchase.update({
+      where: { id: purchase.id },
+      data: { total: newTotal },
+    });
+
+    await shiftSupplierPurchaseLedgerAmount(tx, purchase.id, purchase.supplierId, newTotal);
+
+    if (reference && Math.abs(newTotal - oldTotal) >= 0.005) {
+      const voucher = await tx.voucher.findFirst({
+        where: {
+          branchId: purchase.branchId,
+          reference,
+          status: VoucherStatus.ACTIVE,
+        },
+        orderBy: { id: 'asc' },
+      });
+      voucherId = voucher?.id ?? null;
+    }
+
+    return tx.purchase.findUniqueOrThrow({
+      where: { id: purchase.id },
+      include: {
+        supplier: true,
+        items: { include: { part: true, product: true } },
+        chassis: true,
+      },
+    });
+  });
+
+  if (voucherId != null && Math.abs(Number(updated.total) - oldTotal) >= 0.005) {
+    await updateVoucherAmount(purchase.branchId, voucherId, Number(updated.total), userId);
+  }
+
+  return updated;
 }

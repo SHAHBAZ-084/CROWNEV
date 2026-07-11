@@ -82,19 +82,22 @@ export function assertNoDuplicateBikeUnitsInList(units: BikeUnitInput[]) {
   }
 }
 
-export async function findExistingChassisNumbers(chassisNumbers: string[]) {
+export async function findExistingChassisNumbers(chassisNumbers: string[], excludeChassisIds: number[] = []) {
   const normalized = [...new Set(chassisNumbers.map(normalizeChassisNumber))];
   if (normalized.length === 0) return [];
 
   const existing = await prisma.bikeChassisNumber.findMany({
-    where: { chassisNumber: { in: normalized } },
+    where: {
+      chassisNumber: { in: normalized },
+      ...(excludeChassisIds.length > 0 ? { NOT: { id: { in: excludeChassisIds } } } : {}),
+    },
     select: { chassisNumber: true },
   });
   return existing.map((row: { chassisNumber: string }) => row.chassisNumber);
 }
 
 /** Finds any chassis/engine/motor numbers from the given units that already exist in the system. */
-export async function findExistingBikeUnitNumbers(units: BikeUnitInput[]) {
+export async function findExistingBikeUnitNumbers(units: BikeUnitInput[], excludeChassisIds: number[] = []) {
   const chassisNumbers = [...new Set(units.map((u) => normalizeChassisNumber(u.chassisNumber)))];
   const engineNumbers = [
     ...new Set(units.filter((u) => u.engineNumber).map((u) => normalizeIdentifierNumber(u.engineNumber!))),
@@ -105,11 +108,16 @@ export async function findExistingBikeUnitNumbers(units: BikeUnitInput[]) {
 
   const existing = await prisma.bikeChassisNumber.findMany({
     where: {
-      OR: [
-        chassisNumbers.length > 0 ? { chassisNumber: { in: chassisNumbers } } : undefined,
-        engineNumbers.length > 0 ? { engineNumber: { in: engineNumbers } } : undefined,
-        motorNumbers.length > 0 ? { motorNumber: { in: motorNumbers } } : undefined,
-      ].filter(Boolean) as Prisma.BikeChassisNumberWhereInput[],
+      AND: [
+        {
+          OR: [
+            chassisNumbers.length > 0 ? { chassisNumber: { in: chassisNumbers } } : undefined,
+            engineNumbers.length > 0 ? { engineNumber: { in: engineNumbers } } : undefined,
+            motorNumbers.length > 0 ? { motorNumber: { in: motorNumbers } } : undefined,
+          ].filter(Boolean) as Prisma.BikeChassisNumberWhereInput[],
+        },
+        ...(excludeChassisIds.length > 0 ? [{ NOT: { id: { in: excludeChassisIds } } }] : []),
+      ],
     },
     select: { chassisNumber: true, engineNumber: true, motorNumber: true },
   });
@@ -347,6 +355,14 @@ export function validateBikePurchaseUnits(
       motorNumber: u.motorNumber,
     })),
   );
+}
+
+/** Block chassis/engine/motor edits once a unit is sold or tied to a sale line. */
+export function isChassisIdentityLocked(chassis: {
+  status: ChassisStatus;
+  saleOrderItemId: number | null;
+}): boolean {
+  return chassis.status === ChassisStatus.SOLD || chassis.saleOrderItemId != null;
 }
 
 /** Auto-picks one available chassis for a product/branch and reserves it for an online order item. */

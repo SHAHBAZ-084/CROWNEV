@@ -191,6 +191,32 @@ purchasesRouter.get(
   }),
 );
 
+const purchaseItemEditSchema = z.object({
+  purchaseItemId: z.number().int().positive().optional(),
+  chassisId: z.number().int().positive().optional(),
+  unitCost: z.coerce.number().positive().optional(),
+  color: z.string().nullable().optional(),
+  engineNumber: z.string().nullable().optional(),
+  motorNumber: z.string().nullable().optional(),
+  chassisNumber: z.string().trim().min(1).optional(),
+});
+
+purchasesRouter.patch(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  validateBody(z.object({ items: z.array(purchaseItemEditSchema).min(1) })),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const purchase = await suppliersService.updatePurchaseInvoice(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+      req.body,
+    );
+    res.json(purchase);
+  }),
+);
+
 purchasesRouter.get(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),

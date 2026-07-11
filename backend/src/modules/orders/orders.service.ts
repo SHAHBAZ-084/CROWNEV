@@ -8,6 +8,7 @@ import {
   Prisma,
   ProductType,
   ShippingMethod,
+  VoucherStatus,
   VoucherType,
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
@@ -19,13 +20,18 @@ import {
   ensureCustomerAccount,
   ensureSaleRevenueAccount,
   formatPurchaseItemsDescription,
+  updateVoucherAmount,
 } from '../accounting/accounting.service.js';
 import {
   countInStockChassis,
+  findExistingBikeUnitNumbers,
   markChassisSoldInTx,
+  normalizeChassisNumber,
+  normalizeIdentifierNumber,
   reserveChassisInTx,
   finalizeChassisReservationInTx,
   releaseChassisReservationInTx,
+  type BikeUnitInput,
 } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
@@ -1278,4 +1284,256 @@ export async function listWalkInCustomers(branchId: number, query: { page?: stri
   }));
 
   return paginatedResponse(customers, total, page, limit);
+}
+
+type OrderItemEditInput = {
+  orderItemId: number;
+  unitPrice?: number;
+  color?: string | null;
+  engineNumber?: string | null;
+  motorNumber?: string | null;
+  chassisNumber?: string;
+};
+
+async function shiftCustomerSaleLedgerAmount(
+  tx: Prisma.TransactionClient,
+  orderId: number,
+  customerId: number,
+  newAmount: number,
+) {
+  const entry = await tx.customerLedger.findFirst({
+    where: { orderId, type: CustomerLedgerType.DEBIT },
+    orderBy: { id: 'asc' },
+  });
+  if (!entry) return;
+
+  const oldAmount = Number(entry.amount);
+  const delta = newAmount - oldAmount;
+  if (Math.abs(delta) < 0.005) return;
+
+  await tx.customerLedger.update({
+    where: { id: entry.id },
+    data: {
+      amount: newAmount,
+      balance: Number(entry.balance) + delta,
+    },
+  });
+  await tx.customerLedger.updateMany({
+    where: { customerId, id: { gt: entry.id } },
+    data: { balance: { increment: delta } },
+  });
+  await tx.customer.update({
+    where: { id: customerId },
+    data: { balance: { increment: delta } },
+  });
+}
+
+function validateOrderBikeUnitFields(unit: BikeUnitInput) {
+  const chassisNumber = unit.chassisNumber?.trim();
+  if (!chassisNumber) throw new AppError(400, 'Chassis number is required');
+  const hasEngine = !!unit.engineNumber?.trim();
+  const hasMotor = !!unit.motorNumber?.trim();
+  if (hasEngine && hasMotor) {
+    throw new AppError(400, 'Enter either engine number or motor number, not both');
+  }
+  if (!hasEngine && !hasMotor) {
+    throw new AppError(400, 'Enter either engine number or motor number');
+  }
+}
+
+export async function updateOrderItems(
+  orderId: number,
+  branchId: number | undefined,
+  userId: string,
+  data: { items: OrderItemEditInput[] },
+) {
+  if (!data.items.length) throw new AppError(400, 'No items to update');
+
+  const order = await prisma.order.findFirst({
+    where: {
+      id: orderId,
+      ...(branchId != null ? { branchId } : {}),
+      type: OrderType.POS,
+      invoiceGeneratedAt: { not: null },
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
+          soldChassis: true,
+        },
+      },
+      customer: true,
+    },
+  });
+  if (!order) throw new AppError(404, 'Sale invoice not found');
+  if (!order.customerId) throw new AppError(400, 'Order has no customer ledger to update');
+
+  const itemById = new Map(order.items.map((i) => [i.id, i]));
+
+  for (const edit of data.items) {
+    const orderItem = itemById.get(edit.orderItemId);
+    if (!orderItem) throw new AppError(400, 'Order line not found on this invoice');
+
+    if (orderItem.product.type === ProductType.BIKE) {
+      const chassis = orderItem.soldChassis;
+      if (!chassis) {
+        throw new AppError(400, 'No chassis unit linked to this bike sale line');
+      }
+
+      const invoicedElsewhere =
+        chassis.saleOrderItemId != null && chassis.saleOrderItemId !== orderItem.id;
+      if (invoicedElsewhere) {
+        throw new AppError(
+          409,
+          'Cannot change chassis, engine, or motor number on a unit invoiced on another sale — price and color can still be edited',
+        );
+      }
+
+      const identityEdit =
+        edit.chassisNumber !== undefined ||
+        edit.engineNumber !== undefined ||
+        edit.motorNumber !== undefined;
+
+      const proposed: BikeUnitInput = {
+        chassisNumber: edit.chassisNumber ?? chassis.chassisNumber,
+        engineNumber:
+          edit.engineNumber !== undefined ? (edit.engineNumber ?? undefined) : (chassis.engineNumber ?? undefined),
+        motorNumber:
+          edit.motorNumber !== undefined ? (edit.motorNumber ?? undefined) : (chassis.motorNumber ?? undefined),
+      };
+
+      if (identityEdit) {
+        validateOrderBikeUnitFields(proposed);
+        const conflicts = await findExistingBikeUnitNumbers([proposed], [chassis.id]);
+        if (conflicts.length > 0) {
+          throw new AppError(409, `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`);
+        }
+      }
+    } else if (
+      edit.color !== undefined ||
+      edit.engineNumber !== undefined ||
+      edit.motorNumber !== undefined ||
+      edit.chassisNumber !== undefined
+    ) {
+      throw new AppError(400, 'Color and unit numbers apply to bike sale lines only');
+    }
+
+    if (edit.unitPrice !== undefined && edit.unitPrice <= 0) {
+      throw new AppError(400, 'Unit price must be greater than zero');
+    }
+  }
+
+  const oldSubtotal = Number(order.subtotal);
+  const reference = order.saleReference?.trim();
+  let voucherId: number | null = null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    for (const edit of data.items) {
+      const orderItem = itemById.get(edit.orderItemId)!;
+
+      if (edit.unitPrice !== undefined) {
+        await tx.orderItem.update({
+          where: { id: orderItem.id },
+          data: {
+            unitPrice: edit.unitPrice,
+            total: edit.unitPrice * orderItem.quantity,
+          },
+        });
+      }
+
+      if (orderItem.product.type === ProductType.BIKE && orderItem.soldChassis) {
+        const chassis = orderItem.soldChassis;
+        const invoicedElsewhere =
+          chassis.saleOrderItemId != null && chassis.saleOrderItemId !== orderItem.id;
+
+        const chassisData: Prisma.BikeChassisNumberUpdateInput = {};
+        if (edit.color !== undefined) {
+          chassisData.color = edit.color?.trim() || null;
+        }
+        if (!invoicedElsewhere) {
+          if (edit.chassisNumber !== undefined) {
+            chassisData.chassisNumber = normalizeChassisNumber(edit.chassisNumber);
+          }
+          if (edit.engineNumber !== undefined) {
+            chassisData.engineNumber = edit.engineNumber
+              ? normalizeIdentifierNumber(edit.engineNumber)
+              : null;
+          }
+          if (edit.motorNumber !== undefined) {
+            chassisData.motorNumber = edit.motorNumber
+              ? normalizeIdentifierNumber(edit.motorNumber)
+              : null;
+          }
+        }
+
+        if (Object.keys(chassisData).length > 0) {
+          const updatedChassis = await tx.bikeChassisNumber.update({
+            where: { id: chassis.id },
+            data: chassisData,
+          });
+          await tx.orderItem.update({
+            where: { id: orderItem.id },
+            data: {
+              chassisNumber: updatedChassis.chassisNumber,
+              engineNumber: updatedChassis.engineNumber,
+              motorNumber: updatedChassis.motorNumber,
+              color: updatedChassis.color,
+            },
+          });
+        } else if (edit.color !== undefined) {
+          await tx.orderItem.update({
+            where: { id: orderItem.id },
+            data: { color: edit.color?.trim() || null },
+          });
+        }
+      } else if (edit.color !== undefined) {
+        await tx.orderItem.update({
+          where: { id: orderItem.id },
+          data: { color: edit.color?.trim() || null },
+        });
+      }
+    }
+
+    const refreshedItems = await tx.orderItem.findMany({ where: { orderId: order.id } });
+    const newSubtotal = refreshedItems.reduce((sum, i) => sum + Number(i.total), 0);
+    if (newSubtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
+
+    const bilty = order.biltyCharges != null ? Number(order.biltyCharges) : 0;
+    const newTotal = newSubtotal + bilty;
+
+    await tx.order.update({
+      where: { id: order.id },
+      data: { subtotal: newSubtotal, total: newTotal },
+    });
+
+    await shiftCustomerSaleLedgerAmount(tx, order.id, order.customerId!, newSubtotal);
+
+    if (reference && Math.abs(newSubtotal - oldSubtotal) >= 0.005) {
+      const voucher = await tx.voucher.findFirst({
+        where: {
+          branchId: order.branchId,
+          reference,
+          status: VoucherStatus.ACTIVE,
+        },
+        orderBy: { id: 'asc' },
+      });
+      voucherId = voucher?.id ?? null;
+    }
+
+    return tx.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: {
+        items: { include: { product: { include: { bikePartDetails: true } }, soldChassis: true } },
+        customer: true,
+        branch: true,
+      },
+    });
+  });
+
+  if (voucherId != null && Math.abs(Number(updated.subtotal) - oldSubtotal) >= 0.005) {
+    await updateVoucherAmount(order.branchId, voucherId, Number(updated.subtotal), userId);
+  }
+
+  return updated;
 }
