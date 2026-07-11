@@ -456,6 +456,7 @@ export const adminApi = {
   createDocumentType: (name: string) => api<Record<string, unknown>>('/document-types', { method: 'POST', body: JSON.stringify({ name }) }),
   setDocumentTypeActive: (id: number, isActive: boolean) =>
     api<Record<string, unknown>>(`/document-types/${id}/active`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
+  deleteDocumentType: (id: number) => api<void>(`/document-types/${id}`, { method: 'DELETE' }),
   bikeModels: () => api<{ id: number; name: string }[]>('/products/bike-models'),
   createBikeModel: (name: string) =>
     api<{ id: number; name: string }>('/products/bike-models', { method: 'POST', body: JSON.stringify({ name }) }),

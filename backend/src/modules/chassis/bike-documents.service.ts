@@ -138,3 +138,18 @@ export async function createDocumentType(name: string) {
 export async function setDocumentTypeActive(id: number, isActive: boolean) {
   return prisma.documentType.update({ where: { id }, data: { isActive } });
 }
+
+export async function deleteDocumentType(id: number) {
+  const existing = await prisma.documentType.findUnique({ where: { id }, select: { id: true, name: true } });
+  if (!existing) throw new AppError(404, 'Document type not found');
+
+  const documentsCount = await prisma.bikeDocument.count({ where: { documentTypeId: id } });
+  if (documentsCount > 0) {
+    throw new AppError(
+      409,
+      `${documentsCount} document${documentsCount === 1 ? '' : 's'} use this type — remove/reassign them first, or deactivate instead of deleting`,
+    );
+  }
+
+  await prisma.documentType.delete({ where: { id } });
+}

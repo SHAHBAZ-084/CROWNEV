@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
+import { useDeleteConfirm } from '../crud/CrudHelpers';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { DataTable } from '../ui/DataTable';
@@ -68,6 +69,21 @@ export function DocumentTypesManager({ onChange }: { onChange?: () => void }) {
     }
   }
 
+  const del = useDeleteConfirm<Row>(
+    async (item) => {
+      try {
+        await adminApi.deleteDocumentType(item.id);
+        toast('Document type deleted', 'success');
+        await loadTypes();
+        onChange?.();
+      } catch (err) {
+        toast(err instanceof Error ? err.message : 'Failed to delete', 'error');
+        throw err;
+      }
+    },
+    { message: (row) => `Delete "${row.name}"? This cannot be undone.` },
+  );
+
   const columns = useMemo(
     () => [
       {
@@ -95,23 +111,30 @@ export function DocumentTypesManager({ onChange }: { onChange?: () => void }) {
         render: (r: Row) => {
           const isToggling = togglingId === r.id;
           return (
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={isToggling}
-              onClick={() => handleToggleActive(r.id, r.isActive)}
-            >
-              {r.isActive ? 'Deactivate' : 'Activate'}
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={isToggling}
+                onClick={() => handleToggleActive(r.id, r.isActive)}
+              >
+                {r.isActive ? 'Deactivate' : 'Activate'}
+              </Button>
+              <Button size="sm" variant="danger" onClick={() => del.setTarget(r)}>
+                Delete
+              </Button>
+            </div>
           );
         },
       },
     ],
-    [togglingId]
+    [togglingId, del.setTarget],
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <>
+      {del.modal}
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="rounded-[var(--radius-card)] border border-border bg-white p-4">
         {loading ? (
           <div className="flex h-32 items-center justify-center">
@@ -139,5 +162,6 @@ export function DocumentTypesManager({ onChange }: { onChange?: () => void }) {
         </form>
       </div>
     </div>
+    </>
   );
 }

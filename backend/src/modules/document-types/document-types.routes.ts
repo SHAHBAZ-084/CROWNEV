@@ -31,3 +31,11 @@ documentTypesRouter.patch(
     res.json(await service.setDocumentTypeActive(parseInt(param(req.params.id), 10), req.body.isActive));
   }),
 );
+
+documentTypesRouter.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    await service.deleteDocumentType(parseInt(param(req.params.id), 10));
+    res.status(204).send();
+  }),
+);
