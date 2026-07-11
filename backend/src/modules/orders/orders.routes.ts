@@ -42,6 +42,25 @@ ordersRouter.post(
 );
 
 ordersRouter.get(
+  '/part-orders',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId =
+      req.user!.role === Role.BRANCH_OWNER
+        ? req.user!.branchId ?? undefined
+        : req.query.branchId
+          ? parseInt(req.query.branchId as string, 10)
+          : undefined;
+    if (req.user!.role === Role.BRANCH_OWNER && !branchId) {
+      res.status(403).json({ error: 'Branch not assigned' });
+      return;
+    }
+    const orders = await ordersService.listPartOrders(branchId);
+    res.json(orders);
+  }),
+);
+
+ordersRouter.get(
   '/pending-payments',
   requireRoles(Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
@@ -52,7 +71,7 @@ ordersRouter.get(
     }
     const orders = await ordersService.listPendingBankTransfers(branchId);
     res.json(orders);
-  })
+  }),
 );
 
 ordersRouter.get(
@@ -128,15 +147,6 @@ ordersRouter.post(
       customerName: z.string().optional(),
       customerPhone: z.string().optional(),
       customerAddress: z.string().optional(),
-    }).superRefine((data, ctx) => {
-      if (data.shippingMethod === ShippingMethod.SELF) {
-        if (!data.paymentTransactionId?.trim()) {
-          ctx.addIssue({ code: 'custom', message: 'Transaction ID is required for self pickup', path: ['paymentTransactionId'] });
-        }
-        if (!data.bankTransferScreenshot?.trim()) {
-          ctx.addIssue({ code: 'custom', message: 'Payment proof is required for self pickup', path: ['bankTransferScreenshot'] });
-        }
-      }
     }),
   ),
   asyncHandler(async (req, res) => {
@@ -326,6 +336,30 @@ ordersRouter.patch(
       req.body.biltyId,
     );
     res.json(order);
+  }),
+);
+
+ordersRouter.patch(
+  '/:id/approve-part-order',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    const order = await ordersService.approvePartOrder(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+    );
+    res.json(order);
+  }),
+);
+
+ordersRouter.delete(
+  '/:id/part-order',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    await ordersService.deletePartOrder(parseInt(param(req.params.id), 10), branchId);
+    res.status(204).send();
   }),
 );
 

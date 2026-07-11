@@ -45,10 +45,20 @@ function PaymentAccounts({ channels, amount }: { channels: PaymentChannel[]; amo
   );
 }
 
-function CheckoutStepper({ step, isSelfPickup }: { step: number; isSelfPickup: boolean }) {
-  const labels: readonly string[] = isSelfPickup
-    ? STEP_LABELS.slice(0, 4)
-    : [...STEP_LABELS.slice(0, 3), 'Confirm'];
+function CheckoutStepper({
+  step,
+  isSelfPickup,
+  isPartsOnly,
+}: {
+  step: number;
+  isSelfPickup: boolean;
+  isPartsOnly: boolean;
+}) {
+  const labels: readonly string[] = isPartsOnly
+    ? ['Order', 'Details', 'Confirm']
+    : isSelfPickup
+      ? STEP_LABELS.slice(0, 4)
+      : [...STEP_LABELS.slice(0, 3), 'Confirm'];
 
   return (
     <nav aria-label="Checkout progress" className="mb-8">
@@ -112,19 +122,29 @@ export default function CheckoutPage() {
 
   const hasBikes = useMemo(() => items.some((i) => i.productType === 'BIKE'), [items]);
   const hasParts = useMemo(() => items.some((i) => i.productType === 'PART'), [items]);
+  const isPartsOnly = hasParts && !hasBikes;
 
   const selectedBranch = branches.find((b) => b.id === branchId);
-  const isSelfPickup = shippingMethod === 'SELF';
-  const maxStep = 4;
+  const isSelfPickup = isPartsOnly ? true : shippingMethod === 'SELF';
+  const maxStep = isPartsOnly ? 3 : 4;
 
   const canContinueStep2 = Boolean(
     branchId && customerName.trim() && customerPhone.trim() && customerAddress.trim(),
   );
+  const canSubmitPartsOnly = Boolean(canContinueStep2 && channels.length > 0);
   const canSubmitSelf = Boolean(
     canContinueStep2 && channels.length > 0 && screenshotUrl && transactionId.trim(),
   );
 
   const stepTitle = useMemo(() => {
+    if (isPartsOnly) {
+      switch (step) {
+        case 1: return 'Review your order';
+        case 2: return 'Contact details';
+        case 3: return 'Confirm your order';
+        default: return 'Checkout';
+      }
+    }
     switch (step) {
       case 1: return 'Review your order';
       case 2: return 'Branch & contact details';
@@ -132,7 +152,7 @@ export default function CheckoutPage() {
       case 4: return isSelfPickup ? 'Payment verification' : 'Confirm your order';
       default: return 'Checkout';
     }
-  }, [step, isSelfPickup]);
+  }, [step, isSelfPickup, isPartsOnly]);
 
   useEffect(() => {
     if (!user) { navigate(getLoginUrl('/checkout')); return; }
@@ -165,11 +185,15 @@ export default function CheckoutPage() {
 
   function goNext() {
     if (step === 2 && !canContinueStep2) {
-      toast('Please fill in branch and all contact details', 'error');
+      toast('Please fill in all contact details', 'error');
       return;
     }
-    if (step === 3 && isSelfPickup && channels.length === 0) {
+    if (!isPartsOnly && step === 3 && isSelfPickup && channels.length === 0) {
       toast('This branch has no payment accounts configured yet', 'error');
+      return;
+    }
+    if (isPartsOnly && step === 2 && channels.length === 0) {
+      toast('Payment accounts are not configured yet. Please try again later.', 'error');
       return;
     }
     setStep((s) => Math.min(s + 1, maxStep));
@@ -206,7 +230,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (isSelfPickup) {
+    if (isPartsOnly) {
+      if (channels.length === 0) {
+        toast('Payment accounts are not configured yet. Please try again later.', 'error');
+        return;
+      }
+    } else if (isSelfPickup) {
       if (channels.length === 0) {
         toast('This branch has no payment accounts configured yet', 'error');
         return;
@@ -221,12 +250,12 @@ export default function CheckoutPage() {
     try {
       await customerApi.checkout({
         branchId: branchId!,
-        shippingMethod,
+        shippingMethod: isPartsOnly ? 'SELF' : shippingMethod,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerAddress: customerAddress.trim(),
         notes: notes.trim() || undefined,
-        ...(isSelfPickup
+        ...(!isPartsOnly && isSelfPickup
           ? {
               bankTransferScreenshot: screenshotUrl,
               paymentTransactionId: transactionId.trim(),
@@ -240,9 +269,11 @@ export default function CheckoutPage() {
       });
       clearCart();
       toast(
-        isSelfPickup
-          ? 'Order placed. Payment submitted for verification'
-          : 'Order placed. We will notify you when bilty charges are ready',
+        isPartsOnly
+          ? "Order placed. We'll confirm once payment is received."
+          : isSelfPickup
+            ? 'Order placed. Payment submitted for verification'
+            : 'Order placed. We will notify you when bilty charges are ready',
         'success',
       );
       navigate('/customer/orders');
@@ -277,7 +308,7 @@ export default function CheckoutPage() {
         <h1 className="font-display text-3xl font-bold text-slate-900">Checkout</h1>
         <p className="mt-1 text-sm text-slate-500">Complete your order in a few simple steps</p>
 
-        <CheckoutStepper step={step} isSelfPickup={isSelfPickup} />
+        <CheckoutStepper step={step} isSelfPickup={isSelfPickup} isPartsOnly={isPartsOnly} />
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <section className={orderCard}>
@@ -304,7 +335,7 @@ export default function CheckoutPage() {
 
             {step === 2 && (
               <div className="space-y-4">
-                {hasBikes ? (
+                {hasBikes && (
                   <Select
                     label="Fulfillment Branch"
                     value={branchId ?? ''}
@@ -316,16 +347,8 @@ export default function CheckoutPage() {
                       <option key={b.id} value={b.id}>{b.name}, {b.location}</option>
                     ))}
                   </Select>
-                ) : (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Fulfillment Branch</p>
-                    <p className="text-sm font-medium text-slate-900">
-                      {branches.find((b) => b.id === partsBranchId)?.name || 'Loading parts branch...'}
-                    </p>
-                    <p className="text-xs text-slate-500">Parts orders are automatically fulfilled by this branch.</p>
-                  </div>
                 )}
-                {selectedBranch && (
+                {hasBikes && selectedBranch && (
                   <p className="text-xs text-slate-500">Phone: {selectedBranch.phone}</p>
                 )}
                 <Input label="Full Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
@@ -340,7 +363,7 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 3 && !isPartsOnly && (
               <div className="space-y-3">
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50/40">
                   <input
@@ -373,7 +396,18 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {step === 4 && isSelfPickup && (
+            {step === 3 && isPartsOnly && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  Please arrange payment using one of the accounts below. Once we confirm receipt, your order will be
+                  approved and you&apos;ll get a confirmation email.
+                </p>
+                <PaymentAccounts channels={channels} amount={total} />
+                <Textarea label="Order Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </div>
+            )}
+
+            {step === 4 && !isPartsOnly && isSelfPickup && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">
                   Please make payment and bring your sale invoice to the branch to receive your bike/part.
@@ -397,7 +431,7 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {step === 4 && !isSelfPickup && (
+            {step === 4 && !isPartsOnly && !isSelfPickup && (
               <div className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   Please wait while we calculate your bilty (shipping) charges. You will be notified once charges are ready on your orders page.
@@ -438,10 +472,12 @@ export default function CheckoutPage() {
                 type="submit"
                 variant="accent"
                 loading={loading}
-                disabled={isSelfPickup ? !canSubmitSelf : !canContinueStep2}
+                disabled={
+                  isPartsOnly ? !canSubmitPartsOnly : isSelfPickup ? !canSubmitSelf : !canContinueStep2
+                }
                 className="sm:ml-auto"
               >
-                {isSelfPickup ? `Place Order (${formatPKR(total)})` : 'Submit Order'}
+                {isPartsOnly || isSelfPickup ? `Place Order (${formatPKR(total)})` : 'Submit Order'}
               </Button>
             )}
           </div>

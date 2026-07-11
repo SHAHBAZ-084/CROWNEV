@@ -63,6 +63,12 @@ fi
 echo "==> Frontend install & build"
 run_as_app "cd frontend && rm -rf dist && NODE_ENV=development npm ci && npm run build"
 
+# ffmpeg-static (dev-only video scripts) downloads ~28MB per npm ci into root cache and never prunes it
+rm -rf /root/.cache/ffmpeg-static-nodejs 2>/dev/null || true
+if [[ "$(id -un)" != "root" ]]; then
+  rm -rf "/home/${APP_USER}/.cache/ffmpeg-static-nodejs" 2>/dev/null || true
+fi
+
 echo "==> Frontend dist permissions (nginx runs as www-data)"
 chmod -R a+rX "${APP_DIR}/frontend/dist"
 find "${APP_DIR}/frontend/dist" -type d -exec chmod 755 {} + 2>/dev/null || true

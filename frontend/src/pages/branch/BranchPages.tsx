@@ -1741,6 +1741,8 @@ export function BranchPaymentsPage() {
   const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [channels, setChannels] = useState<Row[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
+  const [partOrders, setPartOrders] = useState<Row[]>([]);
+  const [partDetail, setPartDetail] = useState<Row | null>(null);
   const [channelModal, setChannelModal] = useState<'create' | 'edit' | null>(null);
   const [editChannel, setEditChannel] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1750,11 +1752,35 @@ export function BranchPaymentsPage() {
     branchApi.paymentChannels(branchId).then((r) => setChannels(r as unknown as Row[])).catch(console.error);
   }, [branchId]);
 
-  useEffect(() => {
-    branchApi.pendingPayments().then((r) => setOrders(r as unknown as Row[])).catch(console.error);
+  const reloadPartOrders = useCallback(() => {
+    branchApi.partOrders().then((r) => setPartOrders(r as unknown as Row[])).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    branchApi.pendingPayments().then((r) => setOrders(r as unknown as Row[])).catch(console.error);
+    reloadPartOrders();
+  }, [reloadPartOrders]);
+
   useEffect(() => { reloadChannels(); }, [reloadChannels]);
+
+  const partOrderDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      await branchApi.deletePartOrder(Number(row.id));
+      toast('Part order deleted', 'success');
+      reloadPartOrders();
+    },
+    { message: () => 'Permanently delete this part order? This cannot be undone.' },
+  );
+
+  async function handleApprovePartOrder(id: number) {
+    try {
+      await branchApi.approvePartOrder(id);
+      toast('Order approved. Confirmation email sent.', 'success');
+      reloadPartOrders();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to approve order', 'error');
+    }
+  }
 
   async function handleChannelSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1865,6 +1891,79 @@ export function BranchPaymentsPage() {
         />
       </div>
 
+      <div>
+        <PageHeader title="Part Orders" subtitle="Online parts orders awaiting payment confirmation" />
+        <DataTable
+          columns={[
+            { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
+            { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
+            { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+            { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
+            {
+              key: 'actions',
+              header: 'Actions',
+              render: (r) => (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setPartDetail(r)}>View</Button>
+                  {r.status === 'AWAITING_PAYMENT' && (
+                    <Button
+                      size="sm"
+                      variant="accent"
+                      disabled={!canUpdate}
+                      title={!canUpdate ? restrictedTitle : undefined}
+                      onClick={() => handleApprovePartOrder(Number(r.id))}
+                    >
+                      Approve
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={!canDelete}
+                    title={!canDelete ? restrictedTitle : 'Permanently delete part order'}
+                    onClick={() => partOrderDelete.setTarget(r)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+          data={partOrders}
+          emptyMessage="No part orders"
+        />
+      </div>
+
+      <Modal
+        open={!!partDetail}
+        onClose={() => setPartDetail(null)}
+        title={`Part order ${partDetail ? orderListReference(partDetail as { id: number; publicId?: string; saleReference?: string; type?: string }) : ''}`}
+        size="lg"
+      >
+        {partDetail && (
+          <div className="space-y-3 text-sm text-slate-700">
+            <p><span className="text-slate-500">Customer:</span> {orderRowCustomer(partDetail)}</p>
+            <p><span className="text-slate-500">Phone:</span> {String(partDetail.customerPhone ?? (partDetail.user as { phone?: string })?.phone ?? '')}</p>
+            <p><span className="text-slate-500">Address:</span> {String(partDetail.customerAddress ?? '')}</p>
+            <p><span className="text-slate-500">Status:</span> <StatusBadge status={String(partDetail.status)} /></p>
+            <p><span className="text-slate-500">Total:</span> {formatPKR(Number(partDetail.total))}</p>
+            {partDetail.notes ? (
+              <p><span className="text-slate-500">Notes:</span> {String(partDetail.notes)}</p>
+            ) : null}
+            <div>
+              <p className="mb-1 text-slate-500">Items:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                {((partDetail.items as { quantity: number; product?: { name?: string } }[]) ?? []).map((item, idx) => (
+                  <li key={idx}>
+                    {(item.product?.name ?? 'Part')} × {item.quantity}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <Modal open={!!channelModal} onClose={() => setChannelModal(null)} title={channelModal === 'edit' ? 'Edit Payment Channel' : 'Add Payment Channel'}>
         <form onSubmit={handleChannelSubmit} className="space-y-4">
           <Select name="type" label="Type" defaultValue={String(editChannel?.type ?? 'BANK')} required>
@@ -1877,6 +1976,8 @@ export function BranchPaymentsPage() {
           <FormActions onCancel={() => setChannelModal(null)} loading={saving} />
         </form>
       </Modal>
+
+      {partOrderDelete.modal}
     </div>
   );
 }

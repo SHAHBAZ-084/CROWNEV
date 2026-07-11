@@ -713,3 +713,47 @@ export async function sendPaymentSubmittedEmail(data: PaymentSubmittedEmail) {
     console.error(`[SMTP] Failed to notify sales@ for order #${data.orderId}:`, err instanceof Error ? err.message : err);
   }
 }
+
+export async function sendPartOrderConfirmedEmail(data: {
+  to: string;
+  customerName: string;
+  publicId: string;
+}) {
+  const html = emailShell(`
+    <h2 style="color:${EMAIL_ACCENT};margin:0 0 12px">Your order is confirmed</h2>
+    <p style="margin:0 0 16px">Hi ${escHtml(data.customerName)},</p>
+    <p style="margin:0 0 16px">
+      Your order <strong>#${escHtml(data.publicId)}</strong> has been approved — we've received your payment.
+      Thank you for shopping with Crown EV Center.
+    </p>
+  `);
+
+  const text = [
+    `Hi ${data.customerName},`,
+    '',
+    `Your order #${data.publicId} has been approved — we've received your payment.`,
+    'Thank you for shopping with Crown EV Center.',
+    emailFooterText(),
+  ].join('\n');
+
+  const transport = getTransporter();
+  if (!transport) {
+    console.log(`[DEV] Part order confirmed email for #${data.publicId} → ${data.to}`);
+    return;
+  }
+
+  try {
+    await transport.sendMail({
+      from: formatFrom('Crown Ev'),
+      to: data.to,
+      subject: `Your order #${data.publicId} is confirmed`,
+      html,
+      text,
+    });
+  } catch (err) {
+    console.error(
+      `[SMTP] Failed to send part order confirmed email for #${data.publicId}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+}

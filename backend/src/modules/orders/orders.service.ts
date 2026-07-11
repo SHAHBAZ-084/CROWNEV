@@ -33,7 +33,7 @@ import {
 } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
-import { sendBiltyReadyEmail, sendPaymentSubmittedEmail } from '../../utils/email.js';
+import { sendBiltyReadyEmail, sendPaymentSubmittedEmail, sendPartOrderConfirmedEmail } from '../../utils/email.js';
 import { env } from '../../config/env.js';
 
 function normalizeCnic(cnic: string): string {
@@ -381,6 +381,8 @@ export async function createOnlineOrder(data: {
     select: { id: true, type: true },
   });
   const hasPartItems = productsBrief.some((p) => p.type === ProductType.PART);
+  const hasBikeItems = productsBrief.some((p) => p.type === ProductType.BIKE);
+  const isPartOnlyOrder = hasPartItems && !hasBikeItems;
 
   let partsBranchId: number | null = null;
   if (hasPartItems) {
@@ -412,7 +414,7 @@ export async function createOnlineOrder(data: {
 
   const isSelfPickup = data.shippingMethod === ShippingMethod.SELF;
 
-  if (isSelfPickup) {
+  if (isSelfPickup && !isPartOnlyOrder) {
     if (!data.paymentTransactionId?.trim()) {
       throw new AppError(400, 'Transaction ID (TID) is required for self pickup orders');
     }
@@ -421,6 +423,12 @@ export async function createOnlineOrder(data: {
     }
   }
 
+  const orderStatus = isPartOnlyOrder
+    ? OrderStatus.AWAITING_PAYMENT
+    : isSelfPickup
+      ? OrderStatus.PAYMENT_SUBMITTED
+      : OrderStatus.AWAITING_BILTY_CHARGES;
+
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
@@ -428,14 +436,16 @@ export async function createOnlineOrder(data: {
         userId: data.userId,
         type: OrderType.ONLINE,
         shippingMethod: data.shippingMethod,
-        status: isSelfPickup ? OrderStatus.PAYMENT_SUBMITTED : OrderStatus.AWAITING_BILTY_CHARGES,
+        status: orderStatus,
         paymentMethod: PaymentMethod.BANK_TRANSFER,
         paymentStatus: PaymentStatus.PENDING,
         subtotal,
         total: subtotal,
         notes: data.notes,
-        bankTransferScreenshot: isSelfPickup ? data.bankTransferScreenshot : undefined,
-        paymentTransactionId: isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
+        bankTransferScreenshot:
+          isPartOnlyOrder ? undefined : isSelfPickup ? data.bankTransferScreenshot : undefined,
+        paymentTransactionId:
+          isPartOnlyOrder ? undefined : isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         customerAddress: data.customerAddress,
@@ -1555,6 +1565,102 @@ export async function deleteSaleInvoice(
     }
 
     await removeCustomerLedgerForOrderInTx(tx, order.id, order.customerId!);
+
+    await tx.order.delete({ where: { id: order.id } });
+  });
+}
+
+function isPartOnlyOrder(items: { product: { type: ProductType } }[]) {
+  return items.length > 0 && items.every((item) => item.product.type === ProductType.PART);
+}
+
+export async function listPartOrders(branchId?: number) {
+  const orders = await prisma.order.findMany({
+    where: {
+      type: OrderType.ONLINE,
+      status: { in: [OrderStatus.AWAITING_PAYMENT, OrderStatus.CONFIRMED] },
+      ...(branchId && {
+        OR: [{ branchId }, { items: { some: { branchId } } }],
+      }),
+      items: { every: { product: { type: ProductType.PART } } },
+    },
+    include: {
+      items: { include: { product: { select: { name: true, type: true } } } },
+      user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      branch: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+
+  return orders.filter((order) => isPartOnlyOrder(order.items));
+}
+
+export async function approvePartOrder(
+  orderId: number,
+  branchId: number | undefined,
+  userId: string,
+) {
+  void userId;
+  const order = await getOrder(orderId, branchId);
+  if (order.type !== OrderType.ONLINE) {
+    throw new AppError(400, 'Part order approval only applies to online orders');
+  }
+  if (!isPartOnlyOrder(order.items)) {
+    throw new AppError(400, 'Order cannot be approved in its current state');
+  }
+  if (order.status !== OrderStatus.AWAITING_PAYMENT) {
+    throw new AppError(400, 'Order cannot be approved in its current state');
+  }
+
+  const updated = await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      paymentStatus: PaymentStatus.APPROVED,
+      status: OrderStatus.CONFIRMED,
+      invoiceGeneratedAt: new Date(),
+    },
+    include: {
+      items: { include: { product: { include: { bikePartDetails: true } } } },
+      user: true,
+      branch: true,
+    },
+  });
+
+  await confirmOrder(updated);
+
+  if (updated.user?.email) {
+    await sendPartOrderConfirmedEmail({
+      to: updated.user.email,
+      customerName: `${updated.user.firstName} ${updated.user.lastName}`.trim(),
+      publicId: updated.publicId,
+    });
+  }
+
+  return updated;
+}
+
+export async function deletePartOrder(orderId: number, branchId: number | undefined) {
+  const order = await getOrder(orderId, branchId);
+  if (order.type !== OrderType.ONLINE) {
+    throw new AppError(400, 'Part order delete only applies to online orders');
+  }
+  if (!isPartOnlyOrder(order.items)) {
+    throw new AppError(400, 'This is not a part-only order');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (order.status === OrderStatus.CONFIRMED) {
+      for (const item of order.items) {
+        await restoreBranchProductStockInTx(
+          tx,
+          item.branchId ?? order.branchId,
+          item.productId,
+          item.quantity,
+          item.product.type,
+        );
+      }
+    }
 
     await tx.order.delete({ where: { id: order.id } });
   });

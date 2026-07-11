@@ -637,6 +637,11 @@ export const branchApi = {
       body: JSON.stringify({ quantity }),
     }),
   pendingPayments: () => api<Order[]>('/orders/pending-payments'),
+  partOrders: () => api<Order[]>('/orders/part-orders'),
+  approvePartOrder: (id: number) =>
+    api<Order>(`/orders/${id}/approve-part-order`, { method: 'PATCH', body: '{}' }),
+  deletePartOrder: (id: number) =>
+    api<void>(`/orders/${id}/part-order`, { method: 'DELETE' }),
   approvePayment: (id: number, approved: boolean, biltyId?: string) =>
     api<Order>(`/orders/${id}/verify-payment`, {
       method: 'PATCH',
