@@ -108,6 +108,35 @@ productsRouter.get(
 
 productsRouter.use(authenticate);
 
+productsRouter.post(
+  '/bike-models',
+  requireRoles(Role.ADMIN),
+  validateBody(z.object({ name: z.string().trim().min(1) })),
+  asyncHandler(async (req, res) => {
+    const model = await productsService.createBikeModel(req.body.name);
+    res.status(201).json(model);
+  }),
+);
+
+productsRouter.put(
+  '/bike-models/:id',
+  requireRoles(Role.ADMIN),
+  validateBody(z.object({ name: z.string().trim().min(1) })),
+  asyncHandler(async (req, res) => {
+    const model = await productsService.updateBikeModel(parseInt(param(req.params.id), 10), req.body.name);
+    res.json(model);
+  }),
+);
+
+productsRouter.delete(
+  '/bike-models/:id',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req, res) => {
+    await productsService.deleteBikeModel(parseInt(param(req.params.id), 10));
+    res.status(204).send();
+  }),
+);
+
 productsRouter.get(
   '/',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),

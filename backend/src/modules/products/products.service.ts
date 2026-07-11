@@ -5,6 +5,7 @@ import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.
 import { slugify } from '../../utils/crypto.js';
 import {
   encodeModelCompatibility,
+  modelCompatibilityFilter,
 } from '../../utils/modelCompatibility.js';
 
 /** Treat listingOrder 0 as unset — explicitly ordered products first, then by createdAt. */
@@ -558,6 +559,63 @@ export async function listBikeModels() {
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
+}
+
+async function findBikeModelByNameInsensitive(name: string, excludeId?: number) {
+  return prisma.bikeModel.findFirst({
+    where: {
+      name: { equals: name, mode: 'insensitive' },
+      ...(excludeId != null ? { NOT: { id: excludeId } } : {}),
+    },
+    select: { id: true, name: true },
+  });
+}
+
+export async function createBikeModel(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new AppError(400, 'Model name is required');
+
+  const duplicate = await findBikeModelByNameInsensitive(trimmed);
+  if (duplicate) throw new AppError(409, `A bike model named "${duplicate.name}" already exists`);
+
+  return prisma.bikeModel.create({
+    data: { name: trimmed },
+    select: { id: true, name: true },
+  });
+}
+
+export async function updateBikeModel(id: number, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new AppError(400, 'Model name is required');
+
+  const existing = await prisma.bikeModel.findUnique({ where: { id }, select: { id: true, name: true } });
+  if (!existing) throw new AppError(404, 'Bike model not found');
+
+  const duplicate = await findBikeModelByNameInsensitive(trimmed, id);
+  if (duplicate) throw new AppError(409, `A bike model named "${duplicate.name}" already exists`);
+
+  return prisma.bikeModel.update({
+    where: { id },
+    data: { name: trimmed },
+    select: { id: true, name: true },
+  });
+}
+
+export async function deleteBikeModel(id: number) {
+  const existing = await prisma.bikeModel.findUnique({ where: { id }, select: { id: true, name: true } });
+  if (!existing) throw new AppError(404, 'Bike model not found');
+
+  const partsCount = await prisma.bikePartDetail.count({
+    where: modelCompatibilityFilter(existing.name),
+  });
+  if (partsCount > 0) {
+    throw new AppError(
+      409,
+      `${partsCount} part${partsCount === 1 ? '' : 's'} ${partsCount === 1 ? 'is' : 'are'} tagged with this model — remove those tags first`,
+    );
+  }
+
+  await prisma.bikeModel.delete({ where: { id } });
 }
 
 async function syncPartModelCompatibility(productId: string, models: string[]) {

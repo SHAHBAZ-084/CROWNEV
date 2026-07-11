@@ -1,6 +1,6 @@
 import { type FormEvent, Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
+import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus, Settings } from 'lucide-react';
 import { adminApi, authApi, publicApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LegalSection } from '../../lib/legalTypes';
@@ -18,6 +18,7 @@ import { BranchPhotoField } from '../../components/crud/BranchPhotoField';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields, type ColorRow } from '../../components/crud/EvSpecsFields';
 import { PartDetailFields, parseModelCompatibilityCsv, parsePartDetailFromForm, validatePartDetailFromForm } from '../../components/crud/PartDetailFields';
+import { BikeModelManager } from '../../components/admin/BikeModelManager';
 import {
   parseEvSpecsFromForm,
   validateEvSpecsFromForm,
@@ -648,6 +649,7 @@ export function AdminProductsPage() {
   const [compatibleModels, setCompatibleModels] = useState<string[]>([]);
   const [bikeModelPick, setBikeModelPick] = useState('');
   const [customBikeModel, setCustomBikeModel] = useState('');
+  const [bikeModelsModalOpen, setBikeModelsModalOpen] = useState(false);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
@@ -716,6 +718,10 @@ export function AdminProductsPage() {
     if (!modal) return;
     publicApi.bikeModels().then(setBikeModels).catch(console.error);
   }, [modal]);
+
+  const refreshBikeModels = useCallback(() => {
+    publicApi.bikeModels().then(setBikeModels).catch(console.error);
+  }, []);
 
   function openEditModal(row: Row) {
     resetImageState();
@@ -1074,8 +1080,20 @@ export function AdminProductsPage() {
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
+                    <div className="flex items-end justify-between gap-2">
+                      <span className="text-sm font-medium text-ink">Model</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto px-0 py-0 text-xs text-brand"
+                        onClick={() => setBikeModelsModalOpen(true)}
+                      >
+                        <Settings className="mr-1 h-3.5 w-3.5" />
+                        Manage Models
+                      </Button>
+                    </div>
                     <Select
-                      label="Model"
                       value={bikeModelPick}
                       onChange={(e) => setBikeModelPick(e.target.value)}
                       placeholder="Select a model"
@@ -1122,6 +1140,21 @@ export function AdminProductsPage() {
             <FormActions onCancel={closeModal} loading={saving} />
           </div>
         </form>
+      </Modal>
+      <Modal
+        open={bikeModelsModalOpen}
+        onClose={() => {
+          setBikeModelsModalOpen(false);
+          refreshBikeModels();
+        }}
+        title="Bike Models"
+        size="lg"
+      >
+        <p className="mb-4 text-sm text-gray-500">
+          Manage the list of bike model names used when tagging bikes and part compatibility. Deleting a model is
+          blocked while parts are still tagged with it.
+        </p>
+        <BikeModelManager onChange={refreshBikeModels} />
       </Modal>
     </div>
   );
