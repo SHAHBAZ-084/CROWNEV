@@ -800,7 +800,7 @@ type BikeUnit = {
 function newBikeUnit(): BikeUnit {
   return {
     chassisNumber: '',
-    numberType: 'ENGINE',
+    numberType: 'MOTOR',
     engineNumber: '',
     motorNumber: '',
     colorPick: '',
@@ -1876,18 +1876,18 @@ export function PosPurchaseInvoicePage() {
                             <Button
                               type="button"
                               size="sm"
-                              variant={unit.numberType === 'ENGINE' ? 'accent' : 'secondary'}
-                              onClick={() => updateBikeUnit(line.key, idx, { numberType: 'ENGINE' })}
-                            >
-                              Engine Number
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
                               variant={unit.numberType === 'MOTOR' ? 'accent' : 'secondary'}
                               onClick={() => updateBikeUnit(line.key, idx, { numberType: 'MOTOR' })}
                             >
                               Motor Number
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={unit.numberType === 'ENGINE' ? 'accent' : 'secondary'}
+                              onClick={() => updateBikeUnit(line.key, idx, { numberType: 'ENGINE' })}
+                            >
+                              Engine Number
                             </Button>
                           </div>
                         </div>
