@@ -42,14 +42,3 @@ export async function cancelInvoiceVouchers(branchId: number, reference: string)
     await branchApi.deleteVoucher(branchId, id);
   }
 }
-
-export async function restoreInvoiceVouchers(branchId: number, reference: string) {
-  const map = await loadBranchVoucherRefMap(branchId);
-  const entry = map.get(reference.trim());
-  if (!entry?.cancelledIds.length) {
-    throw new Error('No cancelled voucher found for this invoice');
-  }
-  for (const id of entry.cancelledIds) {
-    await branchApi.restoreVoucher(branchId, id);
-  }
-}

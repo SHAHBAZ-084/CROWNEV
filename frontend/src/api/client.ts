@@ -782,10 +782,6 @@ export const branchApi = {
       items: {
         orderItemId: number;
         unitPrice?: number;
-        color?: string | null;
-        engineNumber?: string | null;
-        motorNumber?: string | null;
-        chassisNumber?: string;
       }[];
     },
   ) => api<unknown>(`/orders/${orderId}/items`, { method: 'PATCH', body: JSON.stringify(data) }),

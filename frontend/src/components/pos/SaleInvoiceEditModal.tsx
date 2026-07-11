@@ -10,13 +10,7 @@ import { Loader2 } from 'lucide-react';
 type LineEdit = {
   orderItemId: number;
   label: string;
-  type: 'BIKE' | 'PART';
   unitPrice: string;
-  color: string;
-  chassisNumber: string;
-  engineNumber: string;
-  motorNumber: string;
-  identityLocked: boolean;
 };
 
 export function SaleInvoiceEditModal({
@@ -47,13 +41,7 @@ export function SaleInvoiceEditModal({
             .map((item) => ({
               orderItemId: item.orderItemId!,
               label: item.name,
-              type: item.type,
               unitPrice: String(item.unitPrice),
-              color: item.color ?? '',
-              chassisNumber: item.chassisNumber ?? '',
-              engineNumber: item.engineNumber ?? '',
-              motorNumber: item.motorNumber ?? '',
-              identityLocked: !!item.identityLocked,
             })),
         );
       })
@@ -73,19 +61,7 @@ export function SaleInvoiceEditModal({
         toast(`Enter a valid price for ${line.label}`, 'error');
         return;
       }
-      const payload: (typeof items)[number] = {
-        orderItemId: line.orderItemId,
-        unitPrice: price,
-      };
-      if (line.type === 'BIKE') {
-        payload.color = line.color.trim() || null;
-        if (!line.identityLocked) {
-          if (line.chassisNumber.trim()) payload.chassisNumber = line.chassisNumber.trim();
-          payload.engineNumber = line.engineNumber.trim() || null;
-          payload.motorNumber = line.motorNumber.trim() || null;
-        }
-      }
-      items.push(payload);
+      items.push({ orderItemId: line.orderItemId, unitPrice: price });
     }
 
     setSaving(true);
@@ -110,76 +86,19 @@ export function SaleInvoiceEditModal({
       ) : (
         <div className="space-y-6">
           {lines.map((line) => (
-            <div key={line.orderItemId} className="space-y-3 rounded-lg border border-border bg-surface-alt/40 p-4">
-              <p className="font-semibold text-ink">{line.label}</p>
-              {line.type === 'BIKE' && line.identityLocked && (
-                <p className="text-xs text-warning">
-                  This unit is invoiced elsewhere — only price and color can be changed.
-                </p>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Unit price (PKR)"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={line.unitPrice}
-                  onChange={(e) =>
-                    setLines((rows) =>
-                      rows.map((r) => (r.orderItemId === line.orderItemId ? { ...r, unitPrice: e.target.value } : r)),
-                    )
-                  }
-                />
-                {line.type === 'BIKE' && (
-                  <>
-                    <Input
-                      label="Color"
-                      value={line.color}
-                      onChange={(e) =>
-                        setLines((rows) =>
-                          rows.map((r) => (r.orderItemId === line.orderItemId ? { ...r, color: e.target.value } : r)),
-                        )
-                      }
-                    />
-                    <Input
-                      label="Chassis number"
-                      value={line.chassisNumber}
-                      disabled={line.identityLocked}
-                      onChange={(e) =>
-                        setLines((rows) =>
-                          rows.map((r) =>
-                            r.orderItemId === line.orderItemId ? { ...r, chassisNumber: e.target.value } : r,
-                          ),
-                        )
-                      }
-                    />
-                    <Input
-                      label="Engine number"
-                      value={line.engineNumber}
-                      disabled={line.identityLocked}
-                      onChange={(e) =>
-                        setLines((rows) =>
-                          rows.map((r) =>
-                            r.orderItemId === line.orderItemId ? { ...r, engineNumber: e.target.value } : r,
-                          ),
-                        )
-                      }
-                    />
-                    <Input
-                      label="Motor number"
-                      value={line.motorNumber}
-                      disabled={line.identityLocked}
-                      onChange={(e) =>
-                        setLines((rows) =>
-                          rows.map((r) =>
-                            r.orderItemId === line.orderItemId ? { ...r, motorNumber: e.target.value } : r,
-                          ),
-                        )
-                      }
-                    />
-                  </>
-                )}
-              </div>
+            <div key={line.orderItemId} className="rounded-lg border border-border bg-surface-alt/40 p-4">
+              <Input
+                label={`${line.label} — unit price (PKR)`}
+                type="number"
+                min={0}
+                step={0.01}
+                value={line.unitPrice}
+                onChange={(e) =>
+                  setLines((rows) =>
+                    rows.map((r) => (r.orderItemId === line.orderItemId ? { ...r, unitPrice: e.target.value } : r)),
+                  )
+                }
+              />
             </div>
           ))}
 

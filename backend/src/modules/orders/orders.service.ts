@@ -24,14 +24,10 @@ import {
 } from '../accounting/accounting.service.js';
 import {
   countInStockChassis,
-  findExistingBikeUnitNumbers,
   markChassisSoldInTx,
-  normalizeChassisNumber,
-  normalizeIdentifierNumber,
   reserveChassisInTx,
   finalizeChassisReservationInTx,
   releaseChassisReservationInTx,
-  type BikeUnitInput,
 } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
@@ -1311,6 +1307,17 @@ type OrderItemEditInput = {
   chassisNumber?: string;
 };
 
+function assertSaleInvoicePriceOnlyEdit(edit: OrderItemEditInput) {
+  if (
+    edit.color !== undefined ||
+    edit.engineNumber !== undefined ||
+    edit.motorNumber !== undefined ||
+    edit.chassisNumber !== undefined
+  ) {
+    throw new AppError(400, 'Only price can be edited on a sale invoice');
+  }
+}
+
 async function shiftCustomerSaleLedgerAmount(
   tx: Prisma.TransactionClient,
   orderId: number,
@@ -1344,19 +1351,6 @@ async function shiftCustomerSaleLedgerAmount(
   });
 }
 
-function validateOrderBikeUnitFields(unit: BikeUnitInput) {
-  const chassisNumber = unit.chassisNumber?.trim();
-  if (!chassisNumber) throw new AppError(400, 'Chassis number is required');
-  const hasEngine = !!unit.engineNumber?.trim();
-  const hasMotor = !!unit.motorNumber?.trim();
-  if (hasEngine && hasMotor) {
-    throw new AppError(400, 'Enter either engine number or motor number, not both');
-  }
-  if (!hasEngine && !hasMotor) {
-    throw new AppError(400, 'Enter either engine number or motor number');
-  }
-}
-
 export async function updateOrderItems(
   orderId: number,
   branchId: number | undefined,
@@ -1388,52 +1382,10 @@ export async function updateOrderItems(
   const itemById = new Map(order.items.map((i) => [i.id, i]));
 
   for (const edit of data.items) {
+    assertSaleInvoicePriceOnlyEdit(edit);
+
     const orderItem = itemById.get(edit.orderItemId);
     if (!orderItem) throw new AppError(400, 'Order line not found on this invoice');
-
-    if (orderItem.product.type === ProductType.BIKE) {
-      const chassis = orderItem.soldChassis;
-      if (!chassis) {
-        throw new AppError(400, 'No chassis unit linked to this bike sale line');
-      }
-
-      const invoicedElsewhere =
-        chassis.saleOrderItemId != null && chassis.saleOrderItemId !== orderItem.id;
-      if (invoicedElsewhere) {
-        throw new AppError(
-          409,
-          'Cannot change chassis, engine, or motor number on a unit invoiced on another sale — price and color can still be edited',
-        );
-      }
-
-      const identityEdit =
-        edit.chassisNumber !== undefined ||
-        edit.engineNumber !== undefined ||
-        edit.motorNumber !== undefined;
-
-      const proposed: BikeUnitInput = {
-        chassisNumber: edit.chassisNumber ?? chassis.chassisNumber,
-        engineNumber:
-          edit.engineNumber !== undefined ? (edit.engineNumber ?? undefined) : (chassis.engineNumber ?? undefined),
-        motorNumber:
-          edit.motorNumber !== undefined ? (edit.motorNumber ?? undefined) : (chassis.motorNumber ?? undefined),
-      };
-
-      if (identityEdit) {
-        validateOrderBikeUnitFields(proposed);
-        const conflicts = await findExistingBikeUnitNumbers([proposed], [chassis.id]);
-        if (conflicts.length > 0) {
-          throw new AppError(409, `Chassis/engine/motor number(s) already exist: ${conflicts.join(', ')}`);
-        }
-      }
-    } else if (
-      edit.color !== undefined ||
-      edit.engineNumber !== undefined ||
-      edit.motorNumber !== undefined ||
-      edit.chassisNumber !== undefined
-    ) {
-      throw new AppError(400, 'Color and unit numbers apply to bike sale lines only');
-    }
 
     if (edit.unitPrice !== undefined && edit.unitPrice <= 0) {
       throw new AppError(400, 'Unit price must be greater than zero');
@@ -1455,58 +1407,6 @@ export async function updateOrderItems(
             unitPrice: edit.unitPrice,
             total: edit.unitPrice * orderItem.quantity,
           },
-        });
-      }
-
-      if (orderItem.product.type === ProductType.BIKE && orderItem.soldChassis) {
-        const chassis = orderItem.soldChassis;
-        const invoicedElsewhere =
-          chassis.saleOrderItemId != null && chassis.saleOrderItemId !== orderItem.id;
-
-        const chassisData: Prisma.BikeChassisNumberUpdateInput = {};
-        if (edit.color !== undefined) {
-          chassisData.color = edit.color?.trim() || null;
-        }
-        if (!invoicedElsewhere) {
-          if (edit.chassisNumber !== undefined) {
-            chassisData.chassisNumber = normalizeChassisNumber(edit.chassisNumber);
-          }
-          if (edit.engineNumber !== undefined) {
-            chassisData.engineNumber = edit.engineNumber
-              ? normalizeIdentifierNumber(edit.engineNumber)
-              : null;
-          }
-          if (edit.motorNumber !== undefined) {
-            chassisData.motorNumber = edit.motorNumber
-              ? normalizeIdentifierNumber(edit.motorNumber)
-              : null;
-          }
-        }
-
-        if (Object.keys(chassisData).length > 0) {
-          const updatedChassis = await tx.bikeChassisNumber.update({
-            where: { id: chassis.id },
-            data: chassisData,
-          });
-          await tx.orderItem.update({
-            where: { id: orderItem.id },
-            data: {
-              chassisNumber: updatedChassis.chassisNumber,
-              engineNumber: updatedChassis.engineNumber,
-              motorNumber: updatedChassis.motorNumber,
-              color: updatedChassis.color,
-            },
-          });
-        } else if (edit.color !== undefined) {
-          await tx.orderItem.update({
-            where: { id: orderItem.id },
-            data: { color: edit.color?.trim() || null },
-          });
-        }
-      } else if (edit.color !== undefined) {
-        await tx.orderItem.update({
-          where: { id: orderItem.id },
-          data: { color: edit.color?.trim() || null },
         });
       }
     }

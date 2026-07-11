@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { useToast } from '../../contexts/ToastContext';
-import { cancelInvoiceVouchers, restoreInvoiceVouchers, type VoucherRefState } from '../../lib/invoiceVouchers';
+import { cancelInvoiceVouchers, type VoucherRefState } from '../../lib/invoiceVouchers';
 
 type Props = {
   branchId: number;
@@ -27,10 +27,8 @@ export function PosInvoiceRowActions({
   const { toast } = useToast();
   const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [cancelling, setCancelling] = useState(false);
-  const [restoring, setRestoring] = useState(false);
 
   const hasActive = (voucherState?.activeIds.length ?? 0) > 0;
-  const hasCancelled = (voucherState?.cancelledIds.length ?? 0) > 0;
 
   async function handleCancel() {
     if (!window.confirm(`Cancel invoice #${reference}? Linked accounting vouchers will be reversed.`)) return;
@@ -43,20 +41,6 @@ export function PosInvoiceRowActions({
       toast(err instanceof Error ? err.message : 'Failed to cancel invoice', 'error');
     } finally {
       setCancelling(false);
-    }
-  }
-
-  async function handleRestore() {
-    if (!window.confirm(`Restore invoice #${reference}? Linked vouchers will be re-posted.`)) return;
-    setRestoring(true);
-    try {
-      await restoreInvoiceVouchers(branchId, reference);
-      toast('Invoice restored', 'success');
-      onChanged();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to restore invoice', 'error');
-    } finally {
-      setRestoring(false);
     }
   }
 
@@ -88,19 +72,6 @@ export function PosInvoiceRowActions({
         >
           <Trash2 className="mr-1 h-3.5 w-3.5" />
           Cancel
-        </Button>
-      )}
-      {hasCancelled && !hasActive && (
-        <Button
-          size="sm"
-          variant="secondary"
-          loading={restoring}
-          onClick={handleRestore}
-          disabled={!canUpdate}
-          title={!canUpdate ? restrictedTitle : 'Restore cancelled vouchers'}
-        >
-          <RotateCcw className="mr-1 h-3.5 w-3.5" />
-          Restore
         </Button>
       )}
     </div>

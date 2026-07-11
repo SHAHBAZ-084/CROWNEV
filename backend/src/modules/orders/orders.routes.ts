@@ -225,10 +225,6 @@ ordersRouter.post(
 const orderItemEditSchema = z.object({
   orderItemId: z.number().int().positive(),
   unitPrice: z.coerce.number().positive().optional(),
-  color: z.string().nullable().optional(),
-  engineNumber: z.string().nullable().optional(),
-  motorNumber: z.string().nullable().optional(),
-  chassisNumber: z.string().trim().min(1).optional(),
 });
 
 ordersRouter.patch(
