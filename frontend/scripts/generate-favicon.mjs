@@ -6,12 +6,41 @@
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import toIco from 'to-ico';
 import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const logoPath = path.join(root, 'public/images/logo.webp');
 const publicDir = path.join(root, 'public');
+
+/** Pack PNG buffers into a multi-size .ico (PNG-embedded, Vista+ format). */
+function encodeIco(pngBuffers) {
+  const count = pngBuffers.length;
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(count, 4);
+
+  const entries = [];
+  let dataOffset = 6 + count * 16;
+
+  for (const buf of pngBuffers) {
+    const width = buf.readUInt32BE(16);
+    const height = buf.readUInt32BE(20);
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(width >= 256 ? 0 : width, 0);
+    entry.writeUInt8(height >= 256 ? 0 : height, 1);
+    entry.writeUInt8(0, 2);
+    entry.writeUInt8(0, 3);
+    entry.writeUInt16LE(1, 4);
+    entry.writeUInt16LE(32, 6);
+    entry.writeUInt32LE(buf.length, 8);
+    entry.writeUInt32LE(dataOffset, 12);
+    entries.push(entry);
+    dataOffset += buf.length;
+  }
+
+  return Buffer.concat([header, ...entries, ...pngBuffers]);
+}
 
 const trimmed = await sharp(logoPath).trim({ threshold: 15 }).toBuffer({ resolveWithObject: true });
 const { data, info } = trimmed;
@@ -61,6 +90,6 @@ for (const { name, size } of pngSizes) {
 await sharp(square).resize(512, 512, { fit: 'cover' }).png().toFile(path.join(publicDir, 'favicon-512.png'));
 console.log('Wrote public/favicon-512.png');
 
-const ico = await toIco(icoBuffers);
+const ico = encodeIco(icoBuffers);
 await fs.promises.writeFile(path.join(publicDir, 'favicon.ico'), ico);
 console.log('Wrote public/favicon.ico');

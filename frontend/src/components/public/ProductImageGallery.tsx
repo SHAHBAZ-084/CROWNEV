@@ -17,6 +17,12 @@ export function getPrimaryProductImage(images?: ProductImage[]) {
   return sortProductImages(images)[0]?.url;
 }
 
+function sameImageUrl(a?: string | null, b?: string | null) {
+  if (!a || !b) return a === b;
+  if (a === b) return true;
+  return resolveUploadUrl(a) === resolveUploadUrl(b);
+}
+
 export function ProductImageGallery({
   images,
   alt,
@@ -30,7 +36,7 @@ export function ProductImageGallery({
 }) {
   const sorted = useMemo(() => {
     const list = sortProductImages(images);
-    if (activeOverrideUrl && !list.some((img) => img.url === activeOverrideUrl)) {
+    if (activeOverrideUrl && !list.some((img) => sameImageUrl(img.url, activeOverrideUrl))) {
       list.push({ url: activeOverrideUrl, isPrimary: false });
     }
     return list;
@@ -43,27 +49,25 @@ export function ProductImageGallery({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Reset to first image when product changes
+  // Reset when the product's image set changes — not when a color override updates sorted.
   useEffect(() => {
     setActive(0);
-  }, [sorted]);
+  }, [images]);
 
-  // Synchronize with activeOverrideUrl if set
+  // Follow parent-driven color selection without feeding back via onImageChange.
   useEffect(() => {
-    if (activeOverrideUrl) {
-      const idx = sorted.findIndex((img) => img.url === activeOverrideUrl);
-      if (idx !== -1) {
-        setActive(idx);
-      }
+    if (!activeOverrideUrl) return;
+    const idx = sorted.findIndex((img) => sameImageUrl(img.url, activeOverrideUrl));
+    if (idx !== -1) {
+      setActive(idx);
     }
   }, [activeOverrideUrl, sorted]);
 
-  // Trigger callback when active changes
-  useEffect(() => {
-    if (sorted[active] && onImageChange) {
-      onImageChange(sorted[active].url);
-    }
-  }, [active, sorted, onImageChange]);
+  function selectImage(index: number) {
+    setActive(index);
+    const url = sorted[index]?.url;
+    if (url) onImageChange?.(url);
+  }
 
   // Auto-scroll active thumbnail into center view
   useEffect(() => {
@@ -112,12 +116,12 @@ export function ProductImageGallery({
   }
 
   function goPrev() {
-    setActive((i) => (i - 1 + sorted.length) % sorted.length);
+    selectImage((active - 1 + sorted.length) % sorted.length);
   }
 
   // Touch swipe handlers for main image
   function goNext() {
-    setActive((i) => (i + 1) % sorted.length);
+    selectImage((active + 1) % sorted.length);
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -208,7 +212,7 @@ export function ProductImageGallery({
               <button
                 key={img.id ?? img.url}
                 type="button"
-                onClick={() => setActive(index)}
+                onClick={() => selectImage(index)}
                 aria-label={`View image ${index + 1}`}
                 aria-current={selected}
                 className={[
