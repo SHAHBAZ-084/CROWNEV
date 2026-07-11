@@ -85,13 +85,13 @@ export function SaleInvoice({
           <div className="flex items-start gap-4">
             <Logo size={invoiceLogoSize} className={invoiceLogoClass} />
             <div>
-              <p className="font-semibold text-slate-900">{data.branch.name}</p>
+              <p className="font-semibold text-black">{data.branch.name}</p>
               <p className={invoiceMetaText}>{data.branch.location}</p>
               <p className={invoiceMetaText}>Phone: {data.branch.phone}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-orange-500">SALE INVOICE</p>
+            <p className="text-lg font-bold text-black">SALE INVOICE</p>
             <p className={`font-mono ${invoiceMetaText}`}>{data.invoiceNumber}</p>
             <p className={invoiceMetaText}>{formatDate(data.date)}</p>
           </div>
@@ -100,7 +100,7 @@ export function SaleInvoice({
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <p className={invoiceSectionLabel}>Billed To</p>
-            <p className="font-medium text-slate-900">{data.customer.name}</p>
+            <p className="font-medium text-black">{data.customer.name}</p>
             {data.customer.phone && <p className={invoiceFieldLabel}>{data.customer.phone}</p>}
             {data.customer.email && <p className={invoiceFieldLabel}>{data.customer.email}</p>}
             {data.customer.address && <p className={invoiceFieldLabel}>{data.customer.address}</p>}
@@ -137,7 +137,7 @@ export function SaleInvoice({
               <tr key={idx} className="border-b border-slate-200 align-top">
                 <td className={`px-2 py-2 ${invoiceTableCell}`}>{idx + 1}</td>
                 <td className="px-2 py-2">
-                  <p className="font-medium text-slate-900">{item.name}</p>
+                  <p className="font-medium text-black">{item.name}</p>
                   <ProductItemMetaLines item={item} subtextClassName={invoiceSubtext} />
                   {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   {item.chassisNumber && (
@@ -170,9 +170,9 @@ export function SaleInvoice({
                 <span className={`tabular-nums ${invoiceFieldValue}`}>{formatPKR(data.biltyCharges)}</span>
               </div>
             )}
-            <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-slate-900">
+            <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-black">
               <span>Total</span>
-              <span className="tabular-nums text-orange-500">{formatPKR(data.total)}</span>
+              <span className="tabular-nums text-black">{formatPKR(data.total)}</span>
             </div>
           </div>
         </div>
@@ -191,12 +191,12 @@ export function InvoiceModalContent({
   invoice: InvoiceData | null;
   error?: string;
 }) {
-  if (loading) return <p className="py-8 text-center text-slate-500">Loading invoice…</p>;
+  if (loading) return <p className="py-8 text-center text-black">Loading invoice…</p>;
   if (error) return <p className="py-8 text-center text-warning">{error}</p>;
   if (!invoice) return null;
   if (!invoice.invoiceAvailable) {
     return (
-      <p className="py-8 text-center text-slate-500">
+      <p className="py-8 text-center text-black">
         Invoice pending. Available once payment is verified and the order is confirmed.
       </p>
     );
