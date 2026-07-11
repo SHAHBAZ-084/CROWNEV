@@ -858,7 +858,7 @@ export function PosSaleInvoicePage() {
   const [voucherRefreshKey, setVoucherRefreshKey] = useState(0);
   const { voucherByRef, reloadVoucherRefs } = useBranchVoucherRefs(branchId ?? undefined, voucherRefreshKey);
   const [chassisOptions, setChassisOptions] = useState<
-    Record<string, { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null }[]>
+    Record<string, { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null; color?: string | null }[]>
   >({});
 
   const reloadOrders = useCallback(() => {
@@ -1249,14 +1249,17 @@ export function PosSaleInvoicePage() {
                   label="Chassis number (in stock)"
                   value={line.bikeChassisNumberId ? String(line.bikeChassisNumberId) : ''}
                   onChange={(id) => updateLine(line.key, { bikeChassisNumberId: id ? parseInt(id, 10) : undefined })}
-                  options={(chassisOptions[line.key] ?? []).map((c) => ({
-                    value: String(c.id),
-                    label: c.engineNumber
-                      ? `${c.chassisNumber} · Engine: ${c.engineNumber}`
+                  options={(chassisOptions[line.key] ?? []).map((c) => {
+                    const idParts = c.engineNumber
+                      ? `Engine: ${c.engineNumber}`
                       : c.motorNumber
-                        ? `${c.chassisNumber} · Motor: ${c.motorNumber}`
-                        : c.chassisNumber,
-                  }))}
+                        ? `Motor: ${c.motorNumber}`
+                        : null;
+                    const label = [c.chassisNumber, idParts, c.color ? `Color: ${c.color}` : null]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return { value: String(c.id), label };
+                  })}
                   placeholder={
                     (chassisOptions[line.key]?.length ?? 0) === 0
                       ? 'No chassis numbers in stock for this model'
