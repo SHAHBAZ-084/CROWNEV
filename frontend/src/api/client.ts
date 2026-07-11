@@ -492,6 +492,9 @@ export const branchApi = {
       alertAt: number;
       isLowStock: boolean;
       isSelected: boolean;
+      brand?: string | null;
+      category?: string | null;
+      model?: string | null;
     }[];
     lowStock: {
       type: 'BIKE' | 'PART';
@@ -503,6 +506,9 @@ export const branchApi = {
       alertAt: number;
       isLowStock: boolean;
       isSelected: boolean;
+      brand?: string | null;
+      category?: string | null;
+      model?: string | null;
     }[];
   }>(`/inventory/${branchId}/stock`),
   searchBranchCatalog: (branchId: number, q: string, limit = 10) =>
@@ -517,6 +523,9 @@ export const branchApi = {
         alertAt: number;
         isLowStock: boolean;
         isSelected: boolean;
+        brand?: string | null;
+        category?: string | null;
+        model?: string | null;
       }[]
     >(`/inventory/${branchId}/catalog-search?q=${encodeURIComponent(q)}&limit=${limit}`),
   setStock: (branchId: number, partId: number, quantity: number) =>
@@ -549,7 +558,9 @@ export const branchApi = {
     type: 'BIKE' | 'PART';
     stockAtBranch: number;
     unitPrice: number;
+    model?: string | null;
     brand?: { name: string } | null;
+    category?: { name: string } | null;
   }[]>(`/branches/${branchId}/sale-products`),
   nextDocumentNumbers: (branchId: number) =>
     api<{ sale: string; purchase: string; service: string }>(
@@ -648,7 +659,14 @@ export const branchApi = {
     api<unknown>(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteSupplier: (branchId: number, id: number) =>
     api<unknown>(`/suppliers/${id}`, { method: 'DELETE', body: JSON.stringify({ branchId }) }),
-  purchaseProducts: (branchId: number) => api<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>(
+  purchaseProducts: (branchId: number) => api<{
+    id: string;
+    name: string;
+    type: 'BIKE' | 'PART';
+    model?: string | null;
+    brand?: { name: string } | null;
+    category?: { name: string } | null;
+  }[]>(
     `/branches/${branchId}/purchase-products`,
   ),
   availableChassis: (branchId: number, productId: string) =>

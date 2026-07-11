@@ -28,6 +28,8 @@ const productCreateSchema = z.object({
   type: z.nativeEnum(ProductType),
   brandId: z.number().int().optional(),
   categoryId: z.number().int().optional(),
+  brandName: z.string().optional(),
+  categoryName: z.string().optional(),
   model: z.string().optional(),
   listingOrder: z.number().int().min(0).optional(),
   price: priceField,

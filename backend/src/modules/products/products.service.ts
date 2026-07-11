@@ -290,6 +290,8 @@ export async function createProduct(
     type: ProductType;
     brandId?: number;
     categoryId?: number;
+    brandName?: string;
+    categoryName?: string;
     model?: string;
     listingOrder?: number;
     price: number;
@@ -303,14 +305,16 @@ export async function createProduct(
   const slug = slugify(data.name);
   const existing = await prisma.product.findUnique({ where: { slug } });
   const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
+  const brandId = await resolveBrandId(data);
+  const categoryId = await resolveCategoryId(data);
 
   const product = await prisma.product.create({
     data: {
       name: data.name,
       slug: finalSlug,
       type: data.type,
-      brandId: data.brandId,
-      categoryId: data.categoryId,
+      brandId,
+      categoryId,
       model: data.model,
       listingOrder: data.listingOrder ?? 0,
       price: data.price,
@@ -339,9 +343,26 @@ export async function branchOwnsProduct(branchId: number, productId: string) {
 }
 
 export async function updateProduct(id: string, data: Record<string, unknown>) {
+  const update: Record<string, unknown> = { ...data };
+
+  if ('brandName' in data || 'brandId' in data) {
+    update.brandId = await resolveBrandId({
+      brandId: typeof data.brandId === 'number' ? data.brandId : undefined,
+      brandName: typeof data.brandName === 'string' ? data.brandName : undefined,
+    });
+    delete update.brandName;
+  }
+  if ('categoryName' in data || 'categoryId' in data) {
+    update.categoryId = await resolveCategoryId({
+      categoryId: typeof data.categoryId === 'number' ? data.categoryId : undefined,
+      categoryName: typeof data.categoryName === 'string' ? data.categoryName : undefined,
+    });
+    delete update.categoryName;
+  }
+
   return prisma.product.update({
     where: { id },
-    data,
+    data: update,
     include: { brand: true, category: true, images: true },
   });
 }
@@ -404,6 +425,7 @@ async function listBranchSelectedProductRows(branchId: number) {
         include: {
           images: { where: { isPrimary: true }, take: 1 },
           brand: true,
+          category: true,
         },
       },
     },
@@ -442,12 +464,12 @@ export async function listSaleableBranchProducts(branchId: number) {
       id: product.id,
       name: product.name,
       type: product.type,
-      model: (product as any).model,
+      model: product.model,
       stockAtBranch,
       unitPrice: Number(product.salePrice ?? product.price),
       brand: product.brand,
-      category: (product as any).category,
-      colorOptions: (product as any).colorOptions,
+      category: product.category,
+      colorOptions: product.colorOptions,
       images: product.images,
     });
   }
@@ -459,7 +481,14 @@ export async function listSaleableBranchProducts(branchId: number) {
 export async function listBranchPurchaseProducts(branchId: number) {
   const rows = await listBranchSelectedProductRows(branchId);
 
-  const purchasable: { id: string; name: string; type: ProductType }[] = [];
+  const purchasable: {
+    id: string;
+    name: string;
+    type: ProductType;
+    model?: string | null;
+    brand?: { name: string } | null;
+    category?: { name: string } | null;
+  }[] = [];
 
   for (const row of rows) {
     const product = row.product;
@@ -469,6 +498,9 @@ export async function listBranchPurchaseProducts(branchId: number) {
       id: product.id,
       name: product.name,
       type: product.type,
+      model: product.model,
+      brand: product.brand,
+      category: product.category,
     });
   }
 
@@ -494,6 +526,82 @@ export async function setBranchProductStock(branchId: number, productId: string,
 }
 
 // Categories & Brands
+export async function findOrCreateBrand(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new AppError(400, 'Brand name is required');
+
+  const existing = await prisma.brand.findFirst({
+    where: { name: { equals: trimmed, mode: 'insensitive' } },
+    orderBy: { isActive: 'desc' },
+  });
+  if (existing) {
+    if (!existing.isActive) {
+      return prisma.brand.update({
+        where: { id: existing.id },
+        data: { isActive: true, name: trimmed, slug: slugify(trimmed) },
+      });
+    }
+    return existing;
+  }
+
+  const slug = slugify(trimmed);
+  const bySlug = await prisma.brand.findUnique({ where: { slug } });
+  if (bySlug) return bySlug;
+
+  return prisma.brand.create({
+    data: { name: trimmed, slug },
+  });
+}
+
+export async function findOrCreateCategory(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new AppError(400, 'Category name is required');
+
+  const existing = await prisma.productCategory.findFirst({
+    where: { name: { equals: trimmed, mode: 'insensitive' } },
+    orderBy: { isActive: 'desc' },
+  });
+  if (existing) {
+    if (!existing.isActive) {
+      return prisma.productCategory.update({
+        where: { id: existing.id },
+        data: { isActive: true, name: trimmed, slug: slugify(trimmed) },
+      });
+    }
+    return existing;
+  }
+
+  const slug = slugify(trimmed);
+  const bySlug = await prisma.productCategory.findUnique({ where: { slug } });
+  if (bySlug) return bySlug;
+
+  return prisma.productCategory.create({
+    data: { name: trimmed, slug },
+  });
+}
+
+async function resolveBrandId(input: {
+  brandId?: number;
+  brandName?: string;
+}): Promise<number | null | undefined> {
+  if (input.brandId !== undefined) return input.brandId;
+  if (input.brandName === undefined) return undefined;
+  const trimmed = input.brandName.trim();
+  if (!trimmed) return null;
+  return (await findOrCreateBrand(trimmed)).id;
+}
+
+async function resolveCategoryId(input: {
+  categoryId?: number;
+  categoryName?: string;
+}): Promise<number | null | undefined> {
+  if (input.categoryId !== undefined) return input.categoryId;
+  if (input.categoryName === undefined) return undefined;
+  const trimmed = input.categoryName.trim();
+  if (!trimmed) return null;
+  return (await findOrCreateCategory(trimmed)).id;
+}
+
 export async function listCategories() {
   return prisma.productCategory.findMany({
     where: { isActive: true },

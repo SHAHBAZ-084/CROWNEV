@@ -18,6 +18,7 @@ import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
+import { formatProductMetaLine } from '../../lib/productMeta';
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
 import {
   filterManualAccountCategories,
@@ -737,7 +738,25 @@ type SaleProduct = {
   type: 'BIKE' | 'PART';
   stockAtBranch: number;
   unitPrice: number;
+  model?: string | null;
+  brand?: { name: string } | null;
+  category?: { name: string } | null;
 };
+
+type PurchaseProduct = {
+  id: string;
+  name: string;
+  type: 'BIKE' | 'PART';
+  model?: string | null;
+  brand?: { name: string } | null;
+  category?: { name: string } | null;
+};
+
+function ProductMetaHint({ product }: { product?: SaleProduct | PurchaseProduct | null }) {
+  const meta = product ? formatProductMetaLine(product) : null;
+  if (!meta) return null;
+  return <p className="text-xs text-text-muted">{meta}</p>;
+}
 
 type SaleLine = {
   key: string;
@@ -1151,14 +1170,17 @@ export function PosSaleInvoicePage() {
               }}
             >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
-              <SearchSelect
-                label="Product"
-                value={line.productId}
-                onChange={(id) => selectProductForLine(line.key, id)}
-                options={productOptionsForLine(line.key)}
-                placeholder="Search bike or part…"
-                autoFocus={idx === lines.length - 1 && lines.length > 1}
-              />
+              <div>
+                <SearchSelect
+                  label="Product"
+                  value={line.productId}
+                  onChange={(id) => selectProductForLine(line.key, id)}
+                  options={productOptionsForLine(line.key)}
+                  placeholder="Search bike or part…"
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                />
+                <ProductMetaHint product={line.product} />
+              </div>
               <Input
                 label="Unit price (PKR)"
                 type="number"
@@ -1325,7 +1347,7 @@ export function PosPurchaseInvoicePage() {
   const branchId = useBranchId();
   const { toast } = useToast();
   const [suppliers, setSuppliers] = useState<Row[]>([]);
-  const [products, setProducts] = useState<{ id: string; name: string; type: 'BIKE' | 'PART' }[]>([]);
+  const [products, setProducts] = useState<PurchaseProduct[]>([]);
   const [purchases, setPurchases] = useState<Row[]>([]);
   const [supplierId, setSupplierId] = useState('');
   const [lines, setLines] = useState<PurchaseLine[]>([newPurchaseLine()]);
@@ -1704,14 +1726,17 @@ export function PosPurchaseInvoicePage() {
               }}
             >
               <div className="grid gap-3 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end">
-              <SearchSelect
-                label="Product"
-                value={line.productId}
-                onChange={(id) => selectProductForLine(line.key, id)}
-                options={productOptionsForLine(line.key)}
-                placeholder="Search bike or part…"
-                autoFocus={idx === lines.length - 1 && lines.length > 1}
-              />
+              <div>
+                <SearchSelect
+                  label="Product"
+                  value={line.productId}
+                  onChange={(id) => selectProductForLine(line.key, id)}
+                  options={productOptionsForLine(line.key)}
+                  placeholder="Search bike or part…"
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                />
+                <ProductMetaHint product={line.product} />
+              </div>
               {purchaseType === 'OLD' && line.product?.type === 'BIKE' ? (
                 <div className="w-[140px]" />
               ) : (
@@ -2233,14 +2258,17 @@ export function PosServiceInvoicePage() {
                 }
               }}
             >
-              <SearchSelect
-                label="Product"
-                value={line.productId}
-                onChange={(id) => selectProductForLine(line.key, id)}
-                options={productOptionsForLine(line.key)}
-                placeholder="Search bike or part…"
-                autoFocus={idx === lines.length - 1 && lines.length > 1}
-              />
+              <div>
+                <SearchSelect
+                  label="Product"
+                  value={line.productId}
+                  onChange={(id) => selectProductForLine(line.key, id)}
+                  options={productOptionsForLine(line.key)}
+                  placeholder="Search bike or part…"
+                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                />
+                <ProductMetaHint product={line.product} />
+              </div>
               <Input
                 label="Unit price (PKR)"
                 type="number"

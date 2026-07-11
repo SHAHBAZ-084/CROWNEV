@@ -176,6 +176,9 @@ export type BranchStockItem = {
   alertAt: number;
   isLowStock: boolean;
   isSelected: boolean;
+  brand?: string | null;
+  category?: string | null;
+  model?: string | null;
 };
 
 export async function getBranchStock(branchId: number) {
@@ -186,7 +189,7 @@ export async function getBranchStock(branchId: number) {
         type: { in: ['BIKE', 'PART'] },
         branchProducts: { some: { branchId, isListed: true } },
       },
-      include: { branchProducts: { where: { branchId } } },
+      include: { branchProducts: { where: { branchId } }, brand: true, category: true },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
     }),
     prisma.inventory.findMany({
@@ -213,6 +216,9 @@ export async function getBranchStock(branchId: number) {
       alertAt,
       isLowStock: quantity <= alertAt,
       isSelected: true,
+      brand: product.brand?.name ?? null,
+      category: product.category?.name ?? null,
+      model: product.model ?? null,
     });
   }
 
@@ -271,7 +277,15 @@ export async function searchBranchCatalog(branchId: number, search: string, limi
       },
       take: limit,
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, slug: true, type: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+        model: true,
+        brand: { select: { name: true } },
+        category: { select: { name: true } },
+      },
     }),
     prisma.part.findMany({
       where: {
@@ -299,6 +313,9 @@ export async function searchBranchCatalog(branchId: number, search: string, limi
     alertAt: p.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5,
     isLowStock: false,
     isSelected: false,
+    brand: p.brand?.name ?? null,
+    category: p.category?.name ?? null,
+    model: p.model ?? null,
   }));
 
   const serviceRows: BranchStockItem[] = serviceParts.map((part) => ({

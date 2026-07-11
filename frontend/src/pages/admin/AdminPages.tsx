@@ -1,7 +1,7 @@
 import { type FormEvent, Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
-import { adminApi, authApi, publicApi } from '../../api/client';
+import { adminApi, authApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LegalSection } from '../../lib/legalTypes';
 import type { FaqItem } from '../../lib/faqContent';
@@ -642,15 +642,6 @@ export function AdminProductsPage() {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
   const [colorRows, setColorRows] = useState<ColorRow[]>([]);
-  const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-
-  useEffect(() => {
-    if (modal) {
-      publicApi.brands().then((res) => setBrands(res)).catch(console.error);
-      publicApi.categories().then((res) => setCategories(res)).catch(console.error);
-    }
-  }, [modal]);
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
@@ -822,10 +813,8 @@ export function AdminProductsPage() {
         }))
         .filter((r) => r.name !== '');
 
-      const brandIdRaw = fd.get('brandId');
-      const brandId = brandIdRaw ? parseInt(String(brandIdRaw), 10) : undefined;
-      const categoryIdRaw = fd.get('categoryId');
-      const categoryId = categoryIdRaw ? parseInt(String(categoryIdRaw), 10) : undefined;
+      const brandName = String(fd.get('brandName') ?? '').trim();
+      const categoryName = String(fd.get('categoryName') ?? '').trim();
       const model = String(fd.get('model') ?? '').trim() || undefined;
       const listingOrderRaw = fd.get('listingOrder');
       const listingOrder = listingOrderRaw ? parseInt(String(listingOrderRaw), 10) : undefined;
@@ -839,8 +828,8 @@ export function AdminProductsPage() {
         ...(tab === 'bikes' && {
           specs: parseEvSpecsFromForm(fd),
           colorOptions: colorOptionsPayload,
-          brandId: brandId || null,
-          categoryId: categoryId || null,
+          brandName: brandName || null,
+          categoryName: categoryName || null,
           model: model || null,
           listingOrder: listingOrder ?? 0,
         }),
@@ -1016,22 +1005,18 @@ export function AdminProductsPage() {
             {tab === 'bikes' && (
               <Fragment key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}`}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Select name="brandId" label="Brand" defaultValue={String(edit?.brandId ?? '')}>
-                    <option value="">Select Brand...</option>
-                    {brands.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select name="categoryId" label="Category" defaultValue={String(edit?.categoryId ?? '')}>
-                    <option value="">Select Category...</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
+                  <Input
+                    name="brandName"
+                    label="Brand"
+                    placeholder="e.g. Crown"
+                    defaultValue={String((edit?.brand as { name?: string } | undefined)?.name ?? '')}
+                  />
+                  <Input
+                    name="categoryName"
+                    label="Category"
+                    placeholder="e.g. Electric Scooter"
+                    defaultValue={String((edit?.category as { name?: string } | undefined)?.name ?? '')}
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Input name="model" label="Model" placeholder="e.g. CR-V2" defaultValue={String(edit?.model ?? '')} />

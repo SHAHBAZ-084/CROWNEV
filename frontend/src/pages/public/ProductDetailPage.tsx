@@ -112,26 +112,6 @@ export default function ProductDetailPage() {
               <p className="mt-4 max-w-xl leading-relaxed text-ink-muted">{product.description}</p>
             )}
 
-            {(product.brand?.name || product.category?.name || product.model) && (
-              <div className="mt-5 border-t border-border-light pt-4 space-y-2 text-sm text-ink-muted">
-                {product.brand?.name && (
-                  <p>
-                    <span className="font-semibold text-ink">Brand:</span> {product.brand.name}
-                  </p>
-                )}
-                {product.category?.name && (
-                  <p>
-                    <span className="font-semibold text-ink">Category:</span> {product.category.name}
-                  </p>
-                )}
-                {product.model && (
-                  <p>
-                    <span className="font-semibold text-ink">Model:</span> {product.model}
-                  </p>
-                )}
-              </div>
-            )}
-
             {colors.length > 0 && (
               <div className="mt-6">
                 <p className="mb-2 text-sm font-semibold text-ink">Color</p>

@@ -19,6 +19,7 @@ import { SHIPPING_PROVIDERS } from '../../lib/constants';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
+import { formatProductMetaLine } from '../../lib/productMeta';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
 import {
@@ -374,6 +375,9 @@ type StockRow = {
   alertAt: number;
   isLowStock: boolean;
   isSelected: boolean;
+  brand?: string | null;
+  category?: string | null;
+  model?: string | null;
 };
 
 type StockFilter = 'ALL' | 'BIKE' | 'PART' | 'LOW';
@@ -582,6 +586,9 @@ export function BranchInventoryPage() {
                       <li key={key} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{row.name}</p>
+                          {formatProductMetaLine(row) && (
+                            <p className="text-xs text-text-muted truncate">{formatProductMetaLine(row)}</p>
+                          )}
                           <p className="text-xs text-text-muted font-mono truncate">{row.code}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -640,7 +647,16 @@ export function BranchInventoryPage() {
                 </span>
               ),
             },
-            { key: 'name', header: 'Name', render: (r) => String(r.name) },
+            { key: 'name', header: 'Name', render: (r) => {
+              const row = r as unknown as StockRow;
+              const meta = formatProductMetaLine(row);
+              return (
+                <div>
+                  <p>{String(row.name)}</p>
+                  {meta && <p className="text-xs text-text-muted">{meta}</p>}
+                </div>
+              );
+            } },
             { key: 'code', header: 'Code', render: (r) => <span className="font-mono text-xs">{String(r.code)}</span> },
             {
               key: 'quantity',

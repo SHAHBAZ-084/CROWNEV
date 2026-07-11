@@ -140,21 +140,6 @@ const COMPARISON_ROWS: ComparisonRowDef[] = [
     compare: 'none',
   },
   {
-    label: 'Category',
-    getDisplay: (p) => p.category?.name ?? '—',
-    compare: 'none',
-  },
-  {
-    label: 'Brand',
-    getDisplay: (p) => p.brand?.name ?? '—',
-    compare: 'none',
-  },
-  {
-    label: 'Model',
-    getDisplay: (p) => p.model ?? '—',
-    compare: 'none',
-  },
-  {
     label: 'Colors',
     getDisplay: (p) => {
       const opts = p.colorOptions as any[] | null;
