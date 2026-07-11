@@ -29,6 +29,8 @@ export function PosInvoiceRowActions({
   const [cancelling, setCancelling] = useState(false);
 
   const hasActive = (voucherState?.activeIds.length ?? 0) > 0;
+  const hasCancelled = (voucherState?.cancelledIds.length ?? 0) > 0;
+  const isCancelledOnly = hasCancelled && !hasActive;
 
   async function handleCancel() {
     if (!window.confirm(`Cancel invoice #${reference}? Linked accounting vouchers will be reversed.`)) return;
@@ -42,6 +44,14 @@ export function PosInvoiceRowActions({
     } finally {
       setCancelling(false);
     }
+  }
+
+  if (isCancelledOnly) {
+    return (
+      <div className="flex flex-wrap justify-end gap-1.5">
+        <span className="text-xs font-medium text-text-muted">Cancelled</span>
+      </div>
+    );
   }
 
   return (
