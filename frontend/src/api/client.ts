@@ -170,6 +170,20 @@ export const publicApi = {
   product: (id: string) => api<Product>(`/products/shop/${id}`),
   categories: () => api<{ id: number; name: string; slug: string; children?: unknown[] }[]>('/products/categories'),
   brands: () => api<{ id: number; name: string; slug: string }[]>('/products/brands'),
+  bikeModels: () => api<{ id: number; name: string }[]>('/products/bike-models'),
+  partsByModel: (model: string) =>
+    api<
+      {
+        id: string;
+        slug: string;
+        name: string;
+        price: string;
+        salePrice?: string | null;
+        type: 'PART';
+        image: string | null;
+        images?: { url: string; isPrimary: boolean }[];
+      }[]
+    >(`/public/parts-by-model?model=${encodeURIComponent(model)}`),
   branches: () => api<Branch[]>('/branches/public'),
   paymentChannels: (branchId: number) =>
     api<PaymentChannel[]>(`/branches/public/${branchId}/payment-channels`),

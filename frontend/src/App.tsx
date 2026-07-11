@@ -54,6 +54,7 @@ const lazyNamed = (loader: () => Promise<Record<string, unknown>>, name: string)
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const ShopPage = lazy(() => import('./pages/public/ShopPage'));
 const ModelComparisonPage = lazy(() => import('./pages/public/ModelComparisonPage'));
+const SearchPartsByModelPage = lazy(() => import('./pages/public/SearchPartsByModelPage'));
 const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage'));
 const TrackOrderPage = lazy(() => import('./pages/public/TrackOrderPage'));
 const ServiceTicketPage = lazy(() => import('./pages/public/ServiceTicketPage'));
@@ -142,6 +143,7 @@ export default function App() {
               <Route path="/" element={<PublicWrap><LandingPage /></PublicWrap>} />
               <Route path="/shop" element={<CustomerOrPublicWrap><ShopPage /></CustomerOrPublicWrap>} />
               <Route path="/compare" element={<CustomerOrPublicWrap><ModelComparisonPage /></CustomerOrPublicWrap>} />
+              <Route path="/search-parts-by-model" element={<CustomerOrPublicWrap><SearchPartsByModelPage /></CustomerOrPublicWrap>} />
               <Route path="/shop/:id" element={<CustomerOrPublicWrap><ProductDetailPage /></CustomerOrPublicWrap>} />
               <Route path="/track" element={<PublicWrap><TrackOrderPage /></PublicWrap>} />
               <Route path="/service-ticket/:id" element={<PublicWrap><ServiceTicketPage /></PublicWrap>} />

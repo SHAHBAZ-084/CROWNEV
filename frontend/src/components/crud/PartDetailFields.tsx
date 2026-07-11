@@ -1,3 +1,5 @@
+export type BikeModelOption = { id: number; name: string };
+
 export type PartCatalogDetail = {
   serial_no?: string;
   item_code?: string;
@@ -7,11 +9,35 @@ export type PartCatalogDetail = {
   unit?: string;
 };
 
+export function parseModelCompatibilityCsv(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export function PartDetailFields({
   detail,
+  bikeModels = [],
+  compatibleModels,
+  onCompatibleModelsChange,
 }: {
   detail?: PartCatalogDetail | null;
+  bikeModels?: BikeModelOption[];
+  compatibleModels?: string[];
+  onCompatibleModelsChange?: (models: string[]) => void;
 }) {
+  const selected = compatibleModels ?? detail?.compatible_models ?? [];
+
+  function toggleModel(name: string) {
+    if (!onCompatibleModelsChange) return;
+    const next = selected.includes(name)
+      ? selected.filter((m) => m !== name)
+      : [...selected, name];
+    onCompatibleModelsChange(next);
+  }
+
   return (
     <fieldset className="space-y-3">
       <legend className="font-display text-sm font-semibold text-brand">Part Details</legend>
@@ -91,18 +117,36 @@ export function PartDetailFields({
           </select>
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <label htmlFor="part_compatible_models" className="block text-sm font-medium text-text">
-            Compatible Models
-          </label>
-          <input
-            id="part_compatible_models"
-            name="part_compatible_models"
-            type="text"
-            placeholder="e.g. SPARK RD, ROBIN S-16"
-            defaultValue={(detail?.compatible_models ?? []).join(', ')}
-            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20"
-          />
-          <p className="text-xs text-text-muted">Optional. Separate model names with commas.</p>
+          <span className="block text-sm font-medium text-text">Compatible Models</span>
+          {bikeModels.length === 0 ? (
+            <p className="text-xs text-text-muted">
+              No bike models in catalog yet. Seed bike models first, or save without compatibility tags.
+            </p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-white p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {bikeModels.map((m) => (
+                  <label
+                    key={m.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-subtle"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(m.name)}
+                      onChange={() => toggleModel(m.name)}
+                      className="h-4 w-4 rounded border-border text-accent focus:ring-accent/30"
+                    />
+                    <span>{m.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {selected.length > 0 && (
+            <p className="text-xs text-text-muted">
+              {selected.length} model{selected.length === 1 ? '' : 's'} selected
+            </p>
+          )}
         </div>
       </div>
     </fieldset>
@@ -133,12 +177,8 @@ export function parsePartDetailFromForm(fd: FormData): Record<string, unknown> |
   const cp_price_raw = String(fd.get('part_cp_price') ?? '').trim();
   const cp_price = cp_price_raw ? parseFloat(cp_price_raw) : undefined;
   const unit = String(fd.get('part_unit') ?? '').trim() || undefined;
-  const compatible_raw = String(fd.get('part_compatible_models') ?? '').trim();
-  const compatible_models = compatible_raw
-    ? compatible_raw.split(',').map((s) => s.trim()).filter(Boolean)
-    : undefined;
 
-  const detail = { serial_no, item_code, model, cp_price, unit, compatible_models };
+  const detail = { serial_no, item_code, model, cp_price, unit };
   const hasAny = Object.values(detail).some((v) => v !== undefined);
   return hasAny ? detail : undefined;
 }

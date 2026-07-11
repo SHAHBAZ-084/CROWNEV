@@ -12,6 +12,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-parts": "tsx scripts/seed-parts-catalog.ts",
+    "extract:models": "tsx scripts/extract-model-list.ts",
+    "db:seed-bike-models": "tsx scripts/seed-bike-models.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

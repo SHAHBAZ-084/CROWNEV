@@ -145,6 +145,7 @@ export function PublicFooter() {
               <FooterLink to="/contact" label="Contact Us" />
               <FooterLink to="/shop" label="Shop" />
               <FooterLink to="/compare" label="Compare Models" />
+              <FooterLink to="/search-parts-by-model" label="Parts by Model" />
               <FooterLink to="/book-service" label="Book Service" />
             </ul>
           </div>

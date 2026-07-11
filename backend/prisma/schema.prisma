@@ -361,6 +361,14 @@ model BikePartDetail {
   @@index([productId])
 }
 
+// ─── 8b. BikeModel (catalog of bike model names for parts tagging) ───────────
+
+model BikeModel {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 // ─── 9. ProductCategory (hierarchical) ───────────────────────────────────────
 
 model ProductCategory {

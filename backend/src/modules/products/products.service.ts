@@ -3,6 +3,9 @@ import { prisma } from '../../config/database.js';
 import { countInStockChassis } from '../chassis/chassis.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { slugify } from '../../utils/crypto.js';
+import {
+  encodeModelCompatibility,
+} from '../../utils/modelCompatibility.js';
 
 /** Treat listingOrder 0 as unset — explicitly ordered products first, then by createdAt. */
 export async function findManyWithListingOrder<T extends Omit<Prisma.ProductFindManyArgs, 'orderBy'>>(
@@ -299,6 +302,7 @@ export async function createProduct(
     description?: string;
     specs?: object;
     colorOptions?: any;
+    compatibleModels?: string[];
   },
   linkBranchId?: number
 ) {
@@ -332,7 +336,14 @@ export async function createProduct(
     });
   }
 
-  return product;
+  if (data.type === ProductType.PART && data.compatibleModels !== undefined) {
+    await syncPartModelCompatibility(product.id, data.compatibleModels);
+  }
+
+  return prisma.product.findUnique({
+    where: { id: product.id },
+    include: { brand: true, category: true, images: true, bikePartDetails: true },
+  });
 }
 
 export async function branchOwnsProduct(branchId: number, productId: string) {
@@ -344,6 +355,8 @@ export async function branchOwnsProduct(branchId: number, productId: string) {
 
 export async function updateProduct(id: string, data: Record<string, unknown>) {
   const update: Record<string, unknown> = { ...data };
+  const compatibleModels = update.compatibleModels as string[] | undefined;
+  delete update.compatibleModels;
 
   if ('brandName' in data || 'brandId' in data) {
     update.brandId = await resolveBrandId({
@@ -360,11 +373,21 @@ export async function updateProduct(id: string, data: Record<string, unknown>) {
     delete update.categoryName;
   }
 
-  return prisma.product.update({
+  const product = await prisma.product.update({
     where: { id },
     data: update,
-    include: { brand: true, category: true, images: true },
+    include: { brand: true, category: true, images: true, bikePartDetails: true },
   });
+
+  if (compatibleModels !== undefined && product.type === ProductType.PART) {
+    await syncPartModelCompatibility(id, compatibleModels);
+    return prisma.product.findUnique({
+      where: { id },
+      include: { brand: true, category: true, images: true, bikePartDetails: true },
+    });
+  }
+
+  return product;
 }
 
 export async function deleteProduct(id: string) {
@@ -526,6 +549,30 @@ export async function setBranchProductStock(branchId: number, productId: string,
 }
 
 // Categories & Brands
+export async function listBikeModels() {
+  return prisma.bikeModel.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
+async function syncPartModelCompatibility(productId: string, models: string[]) {
+  const value = encodeModelCompatibility(models);
+  const existing = await prisma.bikePartDetail.findFirst({ where: { productId } });
+  if (existing) {
+    await prisma.bikePartDetail.update({
+      where: { id: existing.id },
+      data: { modelCompatibility: value },
+    });
+    return;
+  }
+  if (value) {
+    await prisma.bikePartDetail.create({
+      data: { productId, modelCompatibility: value },
+    });
+  }
+}
+
 export async function findOrCreateBrand(name: string) {
   const trimmed = name.trim();
   if (!trimmed) throw new AppError(400, 'Brand name is required');

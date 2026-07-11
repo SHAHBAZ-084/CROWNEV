@@ -37,6 +37,7 @@ const productCreateSchema = z.object({
   description: z.string().optional(),
   specs: z.record(z.unknown()).optional(),
   colorOptions: z.array(colorOptionSchema).optional(),
+  compatibleModels: z.array(z.string()).optional(),
 });
 
 const productUpdateSchema = productCreateSchema.partial().extend({
@@ -93,6 +94,15 @@ productsRouter.get(
   asyncHandler(async (_req, res) => {
     const brands = await productsService.listBrands();
     res.json(brands);
+  })
+);
+
+productsRouter.get(
+  '/bike-models',
+  cachePublicJson(300),
+  asyncHandler(async (_req, res) => {
+    const models = await productsService.listBikeModels();
+    res.json(models);
   })
 );
 

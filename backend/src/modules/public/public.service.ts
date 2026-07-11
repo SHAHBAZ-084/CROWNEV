@@ -1,6 +1,8 @@
 import { prisma } from '../../config/database.js';
+import { ProductType } from '@prisma/client';
 import { findManyWithListingOrder } from '../products/products.service.js';
 import { AppError } from '../../utils/helpers.js';
+import { modelCompatibilityFilter } from '../../utils/modelCompatibility.js';
 export async function getLandingData() {
   const [testimonials, branches, categories, brands, featuredProducts, stats] = await Promise.all([
     prisma.testimonial.findMany({
@@ -730,3 +732,42 @@ export const DEFAULT_FAQ_ITEMS: FaqItem[] = [
       'Crown electric bikes come with the manufacturer warranty stated on the product page and your purchase receipt. As an authorized dealer, we help you process warranty claims at our branches with proof of purchase. Electric bikes need less routine maintenance than petrol bikes, and you can book periodic checks at any branch for brakes, tyres, battery health, and safety inspections.',
   },
 ];
+
+export async function listPartsByModel(modelName: string) {
+  const name = modelName.trim();
+  if (!name) throw new AppError(400, 'model query parameter is required');
+
+  const products = await prisma.product.findMany({
+    where: {
+      type: ProductType.PART,
+      isActive: true,
+      branchProducts: { some: { isListed: true } },
+      bikePartDetails: { some: modelCompatibilityFilter(name) },
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      price: true,
+      salePrice: true,
+      type: true,
+      images: {
+        orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+        take: 1,
+        select: { url: true, isPrimary: true },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  return products.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    price: p.price,
+    salePrice: p.salePrice,
+    type: p.type,
+    image: p.images[0]?.url ?? null,
+    images: p.images,
+  }));
+}

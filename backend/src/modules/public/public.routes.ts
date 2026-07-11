@@ -87,6 +87,16 @@ publicRouter.get(
 );
 
 publicRouter.get(
+  '/parts-by-model',
+  cachePublicJson(60),
+  asyncHandler(async (req, res) => {
+    const model = typeof req.query.model === 'string' ? req.query.model : '';
+    const parts = await publicService.listPartsByModel(model);
+    res.json(parts);
+  })
+);
+
+publicRouter.get(
   '/pages',
   cachePublicJson(600),
   asyncHandler(async (_req, res) => {

@@ -1,7 +1,7 @@
 import { type FormEvent, Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Receipt, ShoppingCart, Users, Info, Layers, Phone, Package, FileText, ShieldCheck, HelpCircle, Trash2, Plus } from 'lucide-react';
-import { adminApi, authApi } from '../../api/client';
+import { adminApi, authApi, publicApi } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { LegalSection } from '../../lib/legalTypes';
 import type { FaqItem } from '../../lib/faqContent';
@@ -17,7 +17,7 @@ import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud
 import { BranchPhotoField } from '../../components/crud/BranchPhotoField';
 import { clearPendingImages, primaryFromImages, ProductImageUpload, type ExistingImage, type PendingImage, type PrimarySelection } from '../../components/crud/ProductImageUpload';
 import { EvSpecsFields, type ColorRow } from '../../components/crud/EvSpecsFields';
-import { PartDetailFields, parsePartDetailFromForm, validatePartDetailFromForm } from '../../components/crud/PartDetailFields';
+import { PartDetailFields, parseModelCompatibilityCsv, parsePartDetailFromForm, validatePartDetailFromForm } from '../../components/crud/PartDetailFields';
 import {
   parseEvSpecsFromForm,
   validateEvSpecsFromForm,
@@ -40,6 +40,8 @@ import { useToast } from '../../contexts/ToastContext';
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 type Row = Record<string, unknown>;
+
+const BIKE_MODEL_OTHER = '__other__';
 
 function CatalogActiveBadge({ active }: { active: boolean }) {
   return (
@@ -642,6 +644,10 @@ export function AdminProductsPage() {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [primarySelection, setPrimarySelection] = useState<PrimarySelection | null>(null);
   const [colorRows, setColorRows] = useState<ColorRow[]>([]);
+  const [bikeModels, setBikeModels] = useState<{ id: number; name: string }[]>([]);
+  const [compatibleModels, setCompatibleModels] = useState<string[]>([]);
+  const [bikeModelPick, setBikeModelPick] = useState('');
+  const [customBikeModel, setCustomBikeModel] = useState('');
   const del = useDeleteConfirm<Row>(
     async (item) => {
       await adminApi.deleteProduct(String(item.id));
@@ -664,6 +670,24 @@ export function AdminProductsPage() {
       }
     });
     setColorRows([]);
+    setCompatibleModels([]);
+    setBikeModelPick('');
+    setCustomBikeModel('');
+  }
+
+  function setBikeModelFields(model: string | null | undefined, models: { id: number; name: string }[]) {
+    const value = String(model ?? '').trim();
+    const known = models.some((m) => m.name === value);
+    if (!value) {
+      setBikeModelPick('');
+      setCustomBikeModel('');
+    } else if (known) {
+      setBikeModelPick(value);
+      setCustomBikeModel('');
+    } else {
+      setBikeModelPick(BIKE_MODEL_OTHER);
+      setCustomBikeModel(value);
+    }
   }
 
   function closeModal() {
@@ -683,13 +707,22 @@ export function AdminProductsPage() {
     setEdit(null);
     setModal('create');
     setColorRows([]);
+    setCompatibleModels([]);
+    setBikeModelPick('');
+    setCustomBikeModel('');
   }
+
+  useEffect(() => {
+    if (!modal) return;
+    publicApi.bikeModels().then(setBikeModels).catch(console.error);
+  }, [modal]);
 
   function openEditModal(row: Row) {
     resetImageState();
     setEdit(row);
     setModal('edit');
     setColorRows([]);
+    setCompatibleModels([]);
     adminApi
       .getProduct(String(row.id))
       .then((full) => {
@@ -697,6 +730,14 @@ export function AdminProductsPage() {
         const imgs = (full.images as ExistingImage[] | undefined) ?? [];
         setExistingImages(imgs);
         setPrimarySelection(primaryFromImages(imgs, []));
+
+        const details = (full as { bikePartDetails?: { modelCompatibility?: string | null }[] }).bikePartDetails;
+        setCompatibleModels(parseModelCompatibilityCsv(details?.[0]?.modelCompatibility));
+
+        publicApi.bikeModels().then((models) => {
+          setBikeModels(models);
+          setBikeModelFields((full as { model?: string | null }).model, models);
+        }).catch(console.error);
 
         // Load & normalize color options
         const rawColors = (full.colorOptions as any[] | null) ?? [];
@@ -815,9 +856,14 @@ export function AdminProductsPage() {
 
       const brandName = String(fd.get('brandName') ?? '').trim();
       const categoryName = String(fd.get('categoryName') ?? '').trim();
-      const model = String(fd.get('model') ?? '').trim() || undefined;
       const listingOrderRaw = fd.get('listingOrder');
       const listingOrder = listingOrderRaw ? parseInt(String(listingOrderRaw), 10) : undefined;
+      const resolvedBikeModel =
+        tab === 'bikes'
+          ? bikeModelPick === BIKE_MODEL_OTHER
+            ? customBikeModel.trim()
+            : bikeModelPick.trim()
+          : '';
 
       body = {
         name: String(fd.get('name')).trim(),
@@ -830,10 +876,13 @@ export function AdminProductsPage() {
           colorOptions: colorOptionsPayload,
           brandName: brandName || null,
           categoryName: categoryName || null,
-          model: model || null,
+          model: resolvedBikeModel || null,
           listingOrder: listingOrder ?? 0,
         }),
-        ...(tab === 'parts' && { specs: parsePartDetailFromForm(fd) }),
+        ...(tab === 'parts' && {
+          specs: parsePartDetailFromForm(fd),
+          compatibleModels,
+        }),
         ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
       };
     } catch (err) {
@@ -1000,7 +1049,12 @@ export function AdminProductsPage() {
             />
             <Textarea name="description" label="Description" rows={3} defaultValue={String(edit?.description ?? '')} />
             {tab === 'parts' && (
-              <PartDetailFields detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']} />
+              <PartDetailFields
+                detail={edit?.specs as Parameters<typeof PartDetailFields>[0]['detail']}
+                bikeModels={bikeModels}
+                compatibleModels={compatibleModels}
+                onCompatibleModelsChange={setCompatibleModels}
+              />
             )}
             {tab === 'bikes' && (
               <Fragment key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}`}>
@@ -1019,7 +1073,29 @@ export function AdminProductsPage() {
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Input name="model" label="Model" placeholder="e.g. CR-V2" defaultValue={String(edit?.model ?? '')} />
+                  <div className="space-y-1.5">
+                    <Select
+                      label="Model"
+                      value={bikeModelPick}
+                      onChange={(e) => setBikeModelPick(e.target.value)}
+                      placeholder="Select a model"
+                    >
+                      {bikeModels.map((m) => (
+                        <option key={m.id} value={m.name}>
+                          {m.name}
+                        </option>
+                      ))}
+                      <option value={BIKE_MODEL_OTHER}>Other</option>
+                    </Select>
+                    {bikeModelPick === BIKE_MODEL_OTHER && (
+                      <Input
+                        label="Custom model name"
+                        placeholder="e.g. CR-V2"
+                        value={customBikeModel}
+                        onChange={(e) => setCustomBikeModel(e.target.value)}
+                      />
+                    )}
+                  </div>
                   <Input
                     name="listingOrder"
                     label="Listing Order (Position in Shop)"

@@ -45,9 +45,6 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (colors.length > 0) {
       setColor(colors[0].name);
-      if (colors[0].imageUrl) {
-        setActiveImageUrl(colors[0].imageUrl);
-      }
     }
   }, [colors]);
 
