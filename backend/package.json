@@ -14,6 +14,7 @@
     "db:seed-parts": "tsx scripts/seed-parts-catalog.ts",
     "extract:models": "tsx scripts/extract-model-list.ts",
     "db:seed-bike-models": "tsx scripts/seed-bike-models.ts",
+    "db:fix-firefly-name": "tsx scripts/fix-firefly-name.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
