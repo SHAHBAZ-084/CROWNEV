@@ -1,8 +1,8 @@
-import { Prisma, ProductType, SupplierLedgerType, VoucherStatus, VoucherType } from '@prisma/client';
+import { ChassisStatus, Prisma, ProductType, SupplierLedgerType, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
-import { addStockInTx } from '../inventory/inventory.service.js';
+import { addStockInTx, deductPartInventoryInTx } from '../inventory/inventory.service.js';
 import {
   createChassisRecordsInTx,
   findExistingBikeUnitNumbers,
@@ -19,6 +19,7 @@ import {
   ensureSupplierAccount,
   formatPurchaseItemsDescription,
   updateVoucherAmount,
+  cancelActiveVouchersByReferenceInTx,
 } from '../accounting/accounting.service.js';
 import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
 
@@ -857,4 +858,96 @@ export async function updatePurchaseInvoice(
   }
 
   return updated;
+}
+
+async function removeSupplierLedgerForPurchaseInTx(
+  tx: Prisma.TransactionClient,
+  purchaseId: number,
+  supplierId: number,
+) {
+  const entries = await tx.supplierLedger.findMany({
+    where: { purchaseId },
+    orderBy: { id: 'asc' },
+  });
+  if (entries.length === 0) return;
+
+  let balanceDelta = 0;
+  for (const entry of entries) {
+    const amount = Number(entry.amount);
+    if (entry.type === SupplierLedgerType.CREDIT) balanceDelta -= amount;
+    else balanceDelta += amount;
+  }
+
+  const lastId = entries[entries.length - 1].id;
+  await tx.supplierLedger.deleteMany({ where: { purchaseId } });
+
+  if (Math.abs(balanceDelta) < 0.005) return;
+
+  await tx.supplierLedger.updateMany({
+    where: { supplierId, id: { gt: lastId } },
+    data: { balance: { increment: balanceDelta } },
+  });
+  await tx.supplier.update({
+    where: { id: supplierId },
+    data: { balance: { increment: balanceDelta } },
+  });
+}
+
+export async function deletePurchaseInvoice(
+  purchaseId: number,
+  branchId: number | undefined,
+  userId: string,
+) {
+  const purchase = await prisma.purchase.findFirst({
+    where: {
+      id: purchaseId,
+      ...(branchId != null ? { branchId } : {}),
+    },
+    include: {
+      items: { include: { product: true } },
+      chassis: true,
+      supplier: true,
+    },
+  });
+  if (!purchase) throw new AppError(404, 'Purchase invoice not found');
+
+  const soldUnits = purchase.chassis.filter((c) => c.status === ChassisStatus.SOLD);
+  if (soldUnits.length > 0) {
+    throw new AppError(
+      409,
+      `Cannot delete — chassis number(s) already sold: ${soldUnits.map((c) => c.chassisNumber).join(', ')}`,
+    );
+  }
+
+  const reference = purchase.documentRef?.trim();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.bikeChassisNumber.deleteMany({ where: { purchaseId: purchase.id } });
+
+    for (const item of purchase.items) {
+      if (item.partId) {
+        await deductPartInventoryInTx(tx, purchase.branchId, item.partId, item.quantity);
+      }
+      if (item.productId && item.product?.type) {
+        if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
+          await tx.branchProduct.updateMany({
+            where: {
+              branchId: purchase.branchId,
+              productId: item.productId,
+              stock: { gte: item.quantity },
+            },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
+      }
+    }
+
+    if (reference) {
+      await cancelActiveVouchersByReferenceInTx(tx, purchase.branchId, reference, userId);
+    }
+
+    await removeSupplierLedgerForPurchaseInTx(tx, purchase.id, purchase.supplierId);
+
+    await tx.purchase.delete({ where: { id: purchase.id } });
+  });
 }

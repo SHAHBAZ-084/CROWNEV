@@ -1,10 +1,11 @@
-import { CustomerLedgerType, CustomerType, VoucherType } from '@prisma/client';
+import { CustomerLedgerType, CustomerType, Prisma, ProductType, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import {
   createVoucherInTx,
   ensureCustomerAccount,
   ensureServiceRevenueAccount,
+  cancelActiveVouchersByReferenceInTx,
 } from '../accounting/accounting.service.js';
 import { deductStockForOrder, validateAndPriceItems } from '../orders/orders.service.js';
 import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
@@ -183,4 +184,69 @@ export async function getServiceInvoiceFormatted(id: number, branchId?: number) 
     total: Number(invoice.total),
     notes: invoice.notes ?? undefined,
   };
+}
+
+async function removeCustomerLedgerForServiceInvoiceInTx(
+  tx: Prisma.TransactionClient,
+  serviceInvoiceId: number,
+  customerId: number,
+) {
+  const entries = await tx.customerLedger.findMany({
+    where: { serviceInvoiceId },
+    orderBy: { id: 'asc' },
+  });
+  if (entries.length === 0) return;
+
+  let balanceDelta = 0;
+  for (const entry of entries) {
+    const amount = Number(entry.amount);
+    if (entry.type === CustomerLedgerType.DEBIT) balanceDelta -= amount;
+    else balanceDelta += amount;
+  }
+
+  const lastId = entries[entries.length - 1].id;
+  await tx.customerLedger.deleteMany({ where: { serviceInvoiceId } });
+
+  if (Math.abs(balanceDelta) < 0.005) return;
+
+  await tx.customerLedger.updateMany({
+    where: { customerId, id: { gt: lastId } },
+    data: { balance: { increment: balanceDelta } },
+  });
+  await tx.customer.update({
+    where: { id: customerId },
+    data: { balance: { increment: balanceDelta } },
+  });
+}
+
+export async function deleteServiceInvoice(
+  id: number,
+  branchId: number | undefined,
+  userId: string,
+) {
+  const invoice = await prisma.serviceInvoice.findFirst({
+    where: { id, ...(branchId != null ? { branchId } : {}) },
+    include: {
+      items: { include: { product: true } },
+      customer: true,
+    },
+  });
+  if (!invoice) throw new AppError(404, 'Service invoice not found');
+
+  const reference = invoice.reference.trim();
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of invoice.items) {
+      if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
+        await tx.branchProduct.updateMany({
+          where: { branchId: invoice.branchId, productId: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+
+    await cancelActiveVouchersByReferenceInTx(tx, invoice.branchId, reference, userId);
+    await removeCustomerLedgerForServiceInvoiceInTx(tx, invoice.id, invoice.customerId);
+    await tx.serviceInvoice.delete({ where: { id: invoice.id } });
+  });
 }

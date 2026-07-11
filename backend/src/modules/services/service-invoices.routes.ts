@@ -81,3 +81,17 @@ serviceInvoicesRouter.get(
     res.json(invoice);
   }),
 );
+
+serviceInvoicesRouter.delete(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    await serviceInvoicesService.deleteServiceInvoice(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+    );
+    res.status(204).send();
+  }),
+);

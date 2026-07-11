@@ -243,6 +243,20 @@ ordersRouter.patch(
   }),
 );
 
+ordersRouter.delete(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    await ordersService.deleteSaleInvoice(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+    );
+    res.status(204).send();
+  }),
+);
+
 ordersRouter.patch(
   '/:id/status',
   requireRoles(Role.BRANCH_OWNER),

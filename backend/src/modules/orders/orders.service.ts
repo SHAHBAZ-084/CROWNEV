@@ -7,6 +7,7 @@ import {
   PaymentStatus,
   Prisma,
   ProductType,
+  ChassisStatus,
   ShippingMethod,
   VoucherStatus,
   VoucherType,
@@ -21,6 +22,7 @@ import {
   ensureSaleRevenueAccount,
   formatPurchaseItemsDescription,
   updateVoucherAmount,
+  cancelActiveVouchersByReferenceInTx,
 } from '../accounting/accounting.service.js';
 import {
   countInStockChassis,
@@ -1452,4 +1454,108 @@ export async function updateOrderItems(
   }
 
   return updated;
+}
+
+async function removeCustomerLedgerForOrderInTx(
+  tx: Prisma.TransactionClient,
+  orderId: number,
+  customerId: number,
+) {
+  const entries = await tx.customerLedger.findMany({
+    where: { orderId },
+    orderBy: { id: 'asc' },
+  });
+  if (entries.length === 0) return;
+
+  let balanceDelta = 0;
+  for (const entry of entries) {
+    const amount = Number(entry.amount);
+    if (entry.type === CustomerLedgerType.DEBIT) balanceDelta -= amount;
+    else balanceDelta += amount;
+  }
+
+  const lastId = entries[entries.length - 1].id;
+  await tx.customerLedger.deleteMany({ where: { orderId } });
+
+  if (Math.abs(balanceDelta) < 0.005) return;
+
+  await tx.customerLedger.updateMany({
+    where: { customerId, id: { gt: lastId } },
+    data: { balance: { increment: balanceDelta } },
+  });
+  await tx.customer.update({
+    where: { id: customerId },
+    data: { balance: { increment: balanceDelta } },
+  });
+}
+
+async function restoreBranchProductStockInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  productId: string,
+  quantity: number,
+  productType: ProductType,
+) {
+  if (productType !== ProductType.BIKE && productType !== ProductType.PART) return;
+  await tx.branchProduct.updateMany({
+    where: { branchId, productId },
+    data: { stock: { increment: quantity } },
+  });
+}
+
+export async function deleteSaleInvoice(
+  orderId: number,
+  branchId: number | undefined,
+  userId: string,
+) {
+  const order = await prisma.order.findFirst({
+    where: {
+      id: orderId,
+      ...(branchId != null ? { branchId } : {}),
+      type: OrderType.POS,
+      invoiceGeneratedAt: { not: null },
+    },
+    include: {
+      items: {
+        include: {
+          product: true,
+          soldChassis: true,
+        },
+      },
+      customer: true,
+    },
+  });
+  if (!order) throw new AppError(404, 'Sale invoice not found');
+  if (!order.customerId) throw new AppError(400, 'Order has no customer ledger to update');
+
+  const reference = order.saleReference?.trim();
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of order.items) {
+      if (item.soldChassis) {
+        await tx.bikeChassisNumber.update({
+          where: { id: item.soldChassis.id },
+          data: {
+            status: ChassisStatus.IN_STOCK,
+            saleOrderItemId: null,
+          },
+        });
+      }
+      await restoreBranchProductStockInTx(
+        tx,
+        item.branchId ?? order.branchId,
+        item.productId,
+        item.quantity,
+        item.product.type,
+      );
+    }
+
+    if (reference) {
+      await cancelActiveVouchersByReferenceInTx(tx, order.branchId, reference, userId);
+    }
+
+    await removeCustomerLedgerForOrderInTx(tx, order.id, order.customerId!);
+
+    await tx.order.delete({ where: { id: order.id } });
+  });
 }

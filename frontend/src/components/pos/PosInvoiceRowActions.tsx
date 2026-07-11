@@ -3,55 +3,40 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { useToast } from '../../contexts/ToastContext';
-import { cancelInvoiceVouchers, type VoucherRefState } from '../../lib/invoiceVouchers';
 
 type Props = {
-  branchId: number;
   reference: string;
-  voucherState?: VoucherRefState;
   canEdit?: boolean;
   onView: () => void;
   onEdit?: () => void;
+  onDelete: () => Promise<void>;
   onChanged: () => void;
 };
 
 export function PosInvoiceRowActions({
-  branchId,
   reference,
-  voucherState,
   canEdit = true,
   onView,
   onEdit,
+  onDelete,
   onChanged,
 }: Props) {
   const { toast } = useToast();
   const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
-  const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const hasActive = (voucherState?.activeIds.length ?? 0) > 0;
-  const hasCancelled = (voucherState?.cancelledIds.length ?? 0) > 0;
-  const isCancelledOnly = hasCancelled && !hasActive;
-
-  async function handleCancel() {
-    if (!window.confirm(`Cancel invoice #${reference}? Linked accounting vouchers will be reversed.`)) return;
-    setCancelling(true);
+  async function handleDelete() {
+    if (!window.confirm(`Permanently delete invoice #${reference}? This cannot be undone.`)) return;
+    setDeleting(true);
     try {
-      await cancelInvoiceVouchers(branchId, reference);
-      toast('Invoice cancelled', 'success');
+      await onDelete();
+      toast('Invoice deleted', 'success');
       onChanged();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to cancel invoice', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to delete invoice', 'error');
     } finally {
-      setCancelling(false);
+      setDeleting(false);
     }
-  }
-
-  if (isCancelledOnly) {
-    return (
-      <div className="flex flex-wrap justify-end gap-1.5">
-        <span className="text-xs font-medium text-text-muted">Cancelled</span>
-      </div>
-    );
   }
 
   return (
@@ -71,19 +56,17 @@ export function PosInvoiceRowActions({
           Edit
         </Button>
       )}
-      {hasActive && (
-        <Button
-          size="sm"
-          variant="danger"
-          loading={cancelling}
-          onClick={handleCancel}
-          disabled={!canDelete}
-          title={!canDelete ? restrictedTitle : 'Cancel invoice vouchers'}
-        >
-          <Trash2 className="mr-1 h-3.5 w-3.5" />
-          Cancel
-        </Button>
-      )}
+      <Button
+        size="sm"
+        variant="danger"
+        loading={deleting}
+        onClick={handleDelete}
+        disabled={!canDelete}
+        title={!canDelete ? restrictedTitle : 'Permanently delete invoice'}
+      >
+        <Trash2 className="mr-1 h-3.5 w-3.5" />
+        Delete
+      </Button>
     </div>
   );
 }

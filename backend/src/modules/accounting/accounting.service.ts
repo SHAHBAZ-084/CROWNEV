@@ -1320,32 +1320,60 @@ export async function updateVoucherAmount(
 
 export async function cancelVoucher(branchId: number, voucherId: number, userId: string) {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const voucher = await tx.voucher.findFirst({
-      where: { id: voucherId, branchId },
-    });
-    if (!voucher) throw new AppError(404, 'Voucher not found');
-    if (voucher.status === VoucherStatus.CANCELLED) {
-      throw new AppError(400, 'Voucher is already cancelled');
-    }
-
-    await reverseVoucherLedgerEntries(
-      tx,
-      voucher,
-      `Reversal — cancelled voucher #${voucher.number}`,
-    );
-
-    const now = new Date();
-    return tx.voucher.update({
-      where: { id: voucher.id },
-      data: {
-        status: VoucherStatus.CANCELLED,
-        deletedById: userId,
-        deletedAt: now,
-        modifiedById: userId,
-      },
-      include: voucherInclude,
-    });
+    return cancelVoucherInTx(tx, branchId, voucherId, userId);
   });
+}
+
+export async function cancelVoucherInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  voucherId: number,
+  userId: string,
+) {
+  const voucher = await tx.voucher.findFirst({
+    where: { id: voucherId, branchId },
+  });
+  if (!voucher) throw new AppError(404, 'Voucher not found');
+  if (voucher.status === VoucherStatus.CANCELLED) {
+    throw new AppError(400, 'Voucher is already cancelled');
+  }
+
+  await reverseVoucherLedgerEntries(
+    tx,
+    voucher,
+    `Reversal — cancelled voucher #${voucher.number}`,
+  );
+
+  const now = new Date();
+  return tx.voucher.update({
+    where: { id: voucher.id },
+    data: {
+      status: VoucherStatus.CANCELLED,
+      deletedById: userId,
+      deletedAt: now,
+      modifiedById: userId,
+    },
+    include: voucherInclude,
+  });
+}
+
+export async function cancelActiveVouchersByReferenceInTx(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  reference: string,
+  userId: string,
+) {
+  const trimmed = reference.trim();
+  if (!trimmed) return;
+
+  const vouchers = await tx.voucher.findMany({
+    where: { branchId, reference: trimmed, status: VoucherStatus.ACTIVE },
+    orderBy: { id: 'asc' },
+  });
+
+  for (const voucher of vouchers) {
+    await cancelVoucherInTx(tx, branchId, voucher.id, userId);
+  }
 }
 
 export async function restoreVoucher(branchId: number, voucherId: number, userId: string) {

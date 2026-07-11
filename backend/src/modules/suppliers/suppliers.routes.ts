@@ -217,6 +217,20 @@ purchasesRouter.patch(
   }),
 );
 
+purchasesRouter.delete(
+  '/:id',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
+    await suppliersService.deletePurchaseInvoice(
+      parseInt(param(req.params.id), 10),
+      branchId,
+      req.user!.userId,
+    );
+    res.status(204).send();
+  }),
+);
+
 purchasesRouter.get(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),

@@ -776,6 +776,8 @@ export const branchApi = {
       }[];
     },
   ) => api<unknown>(`/purchases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePurchaseInvoice: (id: number) =>
+    api<void>(`/purchases/${id}`, { method: 'DELETE' }),
   updateOrderItems: (
     orderId: number,
     data: {
@@ -785,6 +787,8 @@ export const branchApi = {
       }[];
     },
   ) => api<unknown>(`/orders/${orderId}/items`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSaleInvoice: (orderId: number) =>
+    api<void>(`/orders/${orderId}`, { method: 'DELETE' }),
   createServiceInvoice: (data: {
     branchId: number;
     customerId: number;
@@ -801,6 +805,8 @@ export const branchApi = {
     return api<Paginated<unknown>>(`/service-invoices?${q}`);
   },
   serviceInvoice: (id: number) => api<ServiceInvoiceData>(`/service-invoices/${id}/invoice`),
+  deleteServiceInvoice: (id: number) =>
+    api<void>(`/service-invoices/${id}`, { method: 'DELETE' }),
   accountingCategories: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/categories`),
   createAccountCategory: (branchId: number, name: string) =>
     api<unknown>(`/accounting/${branchId}/categories`, { method: 'POST', body: JSON.stringify({ name }) }),

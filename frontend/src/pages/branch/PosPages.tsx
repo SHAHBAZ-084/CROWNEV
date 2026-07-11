@@ -33,7 +33,11 @@ import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvo
 import { PosInvoiceRowActions } from '../../components/pos/PosInvoiceRowActions';
 import { PurchaseInvoiceEditModal } from '../../components/pos/PurchaseInvoiceEditModal';
 import { SaleInvoiceEditModal } from '../../components/pos/SaleInvoiceEditModal';
-import { useBranchVoucherRefs } from '../../hooks/useBranchVoucherRefs';
+import {
+  deletePurchaseInvoiceCompletely,
+  deleteSaleInvoiceCompletely,
+  deleteServiceInvoiceCompletely,
+} from '../../lib/invoiceVouchers';
 import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData } from '../../types';
 
 type Row = Record<string, unknown>;
@@ -855,8 +859,6 @@ export function PosSaleInvoicePage() {
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
-  const [voucherRefreshKey, setVoucherRefreshKey] = useState(0);
-  const { voucherByRef, reloadVoucherRefs } = useBranchVoucherRefs(branchId ?? undefined, voucherRefreshKey);
   const [chassisOptions, setChassisOptions] = useState<
     Record<string, { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null; color?: string | null }[]>
   >({});
@@ -1111,8 +1113,6 @@ export function PosSaleInvoicePage() {
 
   function bumpInvoiceLists() {
     reloadOrders();
-    reloadVoucherRefs();
-    setVoucherRefreshKey((k) => k + 1);
     if (customerId && branchId) {
       branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
     }
@@ -1348,11 +1348,10 @@ export function PosSaleInvoicePage() {
                 const ref = String(r.saleReference ?? r.id);
                 return (
                   <PosInvoiceRowActions
-                    branchId={branchId!}
                     reference={ref}
-                    voucherState={voucherByRef.get(ref)}
                     onView={() => openInvoice(Number(r.id))}
                     onEdit={() => setEditOrderId(Number(r.id))}
+                    onDelete={() => deleteSaleInvoiceCompletely(Number(r.id))}
                     onChanged={bumpInvoiceLists}
                   />
                 );
@@ -1407,8 +1406,6 @@ export function PosPurchaseInvoicePage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [colorOptions, setColorOptions] = useState<{ id: number; name: string }[]>([]);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
-  const [voucherRefreshKey, setVoucherRefreshKey] = useState(0);
-  const { voucherByRef, reloadVoucherRefs } = useBranchVoucherRefs(branchId ?? undefined, voucherRefreshKey);
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
@@ -1723,8 +1720,6 @@ export function PosPurchaseInvoicePage() {
 
   function bumpInvoiceLists() {
     reloadPurchases();
-    reloadVoucherRefs();
-    setVoucherRefreshKey((k) => k + 1);
     if (supplierId && branchId) {
       branchApi.supplierLedger(branchId, parseInt(supplierId, 10)).then(setSupplierLedger).catch(console.error);
     }
@@ -2056,11 +2051,10 @@ export function PosPurchaseInvoicePage() {
                 const ref = String(r.documentRef ?? r.invoiceNumber ?? r.id);
                 return (
                   <PosInvoiceRowActions
-                    branchId={branchId!}
                     reference={ref}
-                    voucherState={voucherByRef.get(ref)}
                     onView={() => openInvoice(Number(r.id))}
                     onEdit={() => setEditPurchaseId(Number(r.id))}
+                    onDelete={() => deletePurchaseInvoiceCompletely(Number(r.id))}
                     onChanged={bumpInvoiceLists}
                   />
                 );
@@ -2113,8 +2107,6 @@ export function PosServiceInvoicePage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<ServiceInvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [voucherRefreshKey, setVoucherRefreshKey] = useState(0);
-  const { voucherByRef, reloadVoucherRefs } = useBranchVoucherRefs(branchId ?? undefined, voucherRefreshKey);
 
   const reloadInvoices = useCallback(() => {
     if (!branchId) return;
@@ -2252,8 +2244,6 @@ export function PosServiceInvoicePage() {
 
   function bumpInvoiceLists() {
     reloadInvoices();
-    reloadVoucherRefs();
-    setVoucherRefreshKey((k) => k + 1);
     if (customerId && branchId) {
       branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
     }
@@ -2527,11 +2517,10 @@ export function PosServiceInvoicePage() {
                 const ref = String(r.reference ?? r.id);
                 return (
                   <PosInvoiceRowActions
-                    branchId={branchId!}
                     reference={ref}
-                    voucherState={voucherByRef.get(ref)}
                     canEdit={false}
                     onView={() => openInvoice(Number(r.id))}
+                    onDelete={() => deleteServiceInvoiceCompletely(Number(r.id))}
                     onChanged={bumpInvoiceLists}
                   />
                 );
