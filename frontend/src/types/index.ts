@@ -100,6 +100,7 @@ export interface Order {
   paymentTransactionId?: string;
   customerName?: string;
   customerPhone?: string;
+  customerWhatsapp?: string;
   customerAddress?: string;
   subtotal?: string;
   total: string;

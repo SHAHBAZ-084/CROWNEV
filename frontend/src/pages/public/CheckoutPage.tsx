@@ -1,10 +1,10 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import { customerApi, publicApi } from '../../api/client';
-import type { Branch, PaymentChannel, ShippingMethod } from '../../types';
+import type { PaymentChannel } from '../../types';
 import { formatPKR } from '../../lib/format';
 import { getLoginUrl, defaultDashboardForRole } from '../../lib/authRedirect';
 import { Button } from '../../components/ui/Button';
@@ -17,12 +17,13 @@ const BASE = import.meta.env.VITE_API_URL?.replace('/api', '') ?? '';
 const orderCard =
   'rounded-[var(--radius-card)] border border-slate-200 bg-white p-6 shadow-[var(--shadow-elevated)]';
 
-const STEP_LABELS = ['Order', 'Details', 'Delivery', 'Finish', 'Confirm'] as const;
+const STEP_LABELS = ['Order', 'Details', 'Confirm'] as const;
+const MAX_STEP = 3;
 
 function PaymentAccounts({ channels, amount }: { channels: PaymentChannel[]; amount: number }) {
   if (channels.length === 0) {
     return (
-      <p className="text-sm text-warning">No payment accounts set up for this branch yet. Please choose another branch or contact the branch.</p>
+      <p className="text-sm text-warning">No payment accounts set up for this branch yet. Please try again later.</p>
     );
   }
 
@@ -45,25 +46,11 @@ function PaymentAccounts({ channels, amount }: { channels: PaymentChannel[]; amo
   );
 }
 
-function CheckoutStepper({
-  step,
-  isSelfPickup,
-  isPartsOnly,
-}: {
-  step: number;
-  isSelfPickup: boolean;
-  isPartsOnly: boolean;
-}) {
-  const labels: readonly string[] = isPartsOnly
-    ? ['Order', 'Details', 'Confirm']
-    : isSelfPickup
-      ? STEP_LABELS.slice(0, 4)
-      : [...STEP_LABELS.slice(0, 3), 'Confirm'];
-
+function CheckoutStepper({ step }: { step: number }) {
   return (
     <nav aria-label="Checkout progress" className="mb-8">
       <ol className="flex items-center justify-between gap-1">
-        {labels.map((label, idx) => {
+        {STEP_LABELS.map((label, idx) => {
           const n = idx + 1;
           const done = step > n;
           const active = step === n;
@@ -80,7 +67,7 @@ function CheckoutStepper({
                 >
                   {done ? '✓' : n}
                 </div>
-                {idx < labels.length - 1 && (
+                {idx < STEP_LABELS.length - 1 && (
                   <div className={`h-0.5 flex-1 ${done ? 'bg-orange-500' : 'bg-slate-200'}`} />
                 )}
               </div>
@@ -92,7 +79,7 @@ function CheckoutStepper({
         })}
       </ol>
       <p className="mt-3 text-center text-sm text-slate-500 sm:hidden">
-        Step {step} of {labels.length}: <span className="font-medium text-slate-700">{labels[step - 1]}</span>
+        Step {step} of {STEP_LABELS.length}: <span className="font-medium text-slate-700">{STEP_LABELS[step - 1]}</span>
       </p>
     </nav>
   );
@@ -100,17 +87,16 @@ function CheckoutStepper({
 
 export default function CheckoutPage() {
   const { user } = useAuth();
-  const { items, total, branchId, setBranchId, clearCart } = useCart();
+  const { items, total, branchId, setBranchId, updateItemColor, clearCart } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [channels, setChannels] = useState<PaymentChannel[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerWhatsapp, setCustomerWhatsapp] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('SELF');
   const [notes, setNotes] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [screenshotUrl, setScreenshotUrl] = useState('');
@@ -119,40 +105,51 @@ export default function CheckoutPage() {
 
   const [partsBranchId, setPartsBranchId] = useState<number | null>(null);
   const [partsSettingLoaded, setPartsSettingLoaded] = useState(false);
+  const [bikeColors, setBikeColors] = useState<Record<string, string[]>>({});
 
-  const hasBikes = useMemo(() => items.some((i) => i.productType === 'BIKE'), [items]);
-  const hasParts = useMemo(() => items.some((i) => i.productType === 'PART'), [items]);
-  const isPartsOnly = hasParts && !hasBikes;
+  const bikeItems = useMemo(() => items.filter((i) => i.productType === 'BIKE'), [items]);
 
-  const selectedBranch = branches.find((b) => b.id === branchId);
-  const isSelfPickup = isPartsOnly ? true : shippingMethod === 'SELF';
-  const maxStep = isPartsOnly ? 3 : 4;
+  const canContinueStep1 = useMemo(() => {
+    return bikeItems.every((item) => {
+      const colors = bikeColors[item.productId];
+      if (!colors || colors.length === 0) return true;
+      return Boolean(item.color?.trim());
+    });
+  }, [bikeItems, bikeColors]);
 
   const canContinueStep2 = Boolean(
-    branchId && customerName.trim() && customerPhone.trim() && customerAddress.trim(),
+    branchId
+      && customerName.trim()
+      && customerPhone.trim()
+      && customerWhatsapp.trim()
+      && customerAddress.trim(),
   );
-  const canSubmitPartsOnly = Boolean(canContinueStep2 && channels.length > 0);
-  const canSubmitSelf = Boolean(
+  const canSubmit = Boolean(
     canContinueStep2 && channels.length > 0 && screenshotUrl && transactionId.trim(),
   );
 
   const stepTitle = useMemo(() => {
-    if (isPartsOnly) {
-      switch (step) {
-        case 1: return 'Review your order';
-        case 2: return 'Contact details';
-        case 3: return 'Confirm your order';
-        default: return 'Checkout';
-      }
-    }
     switch (step) {
       case 1: return 'Review your order';
-      case 2: return 'Branch & contact details';
-      case 3: return 'How will you receive your order?';
-      case 4: return isSelfPickup ? 'Payment verification' : 'Confirm your order';
+      case 2: return 'Contact details';
+      case 3: return 'Confirm your order';
       default: return 'Checkout';
     }
-  }, [step, isSelfPickup, isPartsOnly]);
+  }, [step]);
+
+  const loadBikeColors = useCallback(async (branch: number, bikes: typeof bikeItems) => {
+    const entries = await Promise.all(
+      bikes.map(async (item) => {
+        try {
+          const colors = await publicApi.availableBikeColors(item.productId, branch);
+          return [item.productId, colors] as const;
+        } catch {
+          return [item.productId, []] as const;
+        }
+      }),
+    );
+    setBikeColors(Object.fromEntries(entries));
+  }, []);
 
   useEffect(() => {
     if (!user) { navigate(getLoginUrl('/checkout')); return; }
@@ -161,19 +158,27 @@ export default function CheckoutPage() {
       return;
     }
     if (items.length === 0) { navigate('/shop'); return; }
-    publicApi.branches().then(setBranches).catch(console.error);
     publicApi.partsFulfillmentBranch()
       .then((s) => setPartsBranchId(s.branchId))
       .finally(() => setPartsSettingLoaded(true));
     setCustomerName(`${user.firstName} ${user.lastName}`.trim());
     setCustomerPhone(user.phone ?? '');
+    setCustomerWhatsapp(user.phone ?? '');
   }, [user, items, navigate]);
 
   useEffect(() => {
-    if (!hasBikes && partsBranchId) {
+    if (partsBranchId) {
       setBranchId(partsBranchId);
     }
-  }, [hasBikes, partsBranchId, setBranchId]);
+  }, [partsBranchId, setBranchId]);
+
+  useEffect(() => {
+    if (!partsBranchId || bikeItems.length === 0) {
+      setBikeColors({});
+      return;
+    }
+    loadBikeColors(partsBranchId, bikeItems);
+  }, [partsBranchId, bikeItems, loadBikeColors]);
 
   useEffect(() => {
     if (!branchId) {
@@ -184,19 +189,19 @@ export default function CheckoutPage() {
   }, [branchId]);
 
   function goNext() {
+    if (step === 1 && !canContinueStep1) {
+      toast('Please select a color for each bike in your order', 'error');
+      return;
+    }
     if (step === 2 && !canContinueStep2) {
       toast('Please fill in all contact details', 'error');
       return;
     }
-    if (!isPartsOnly && step === 3 && isSelfPickup && channels.length === 0) {
-      toast('This branch has no payment accounts configured yet', 'error');
-      return;
-    }
-    if (isPartsOnly && step === 2 && channels.length === 0) {
+    if (step === 2 && channels.length === 0) {
       toast('Payment accounts are not configured yet. Please try again later.', 'error');
       return;
     }
-    setStep((s) => Math.min(s + 1, maxStep));
+    setStep((s) => Math.min(s + 1, MAX_STEP));
   }
 
   function goBack() {
@@ -219,7 +224,7 @@ export default function CheckoutPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (step !== maxStep) {
+    if (step !== MAX_STEP) {
       goNext();
       return;
     }
@@ -230,37 +235,27 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (isPartsOnly) {
-      if (channels.length === 0) {
-        toast('Payment accounts are not configured yet. Please try again later.', 'error');
-        return;
-      }
-    } else if (isSelfPickup) {
-      if (channels.length === 0) {
-        toast('This branch has no payment accounts configured yet', 'error');
-        return;
-      }
-      if (!transactionId.trim() || !screenshotUrl) {
-        toast('TID and payment screenshot are required', 'error');
-        return;
-      }
+    if (channels.length === 0) {
+      toast('Payment accounts are not configured yet. Please try again later.', 'error');
+      return;
+    }
+    if (!transactionId.trim() || !screenshotUrl) {
+      toast('TID and payment screenshot are required', 'error');
+      return;
     }
 
     setLoading(true);
     try {
       await customerApi.checkout({
         branchId: branchId!,
-        shippingMethod: isPartsOnly ? 'SELF' : shippingMethod,
+        shippingMethod: 'SELF',
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
+        customerWhatsapp: customerWhatsapp.trim(),
         customerAddress: customerAddress.trim(),
         notes: notes.trim() || undefined,
-        ...(!isPartsOnly && isSelfPickup
-          ? {
-              bankTransferScreenshot: screenshotUrl,
-              paymentTransactionId: transactionId.trim(),
-            }
-          : {}),
+        bankTransferScreenshot: screenshotUrl,
+        paymentTransactionId: transactionId.trim(),
         items: items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
@@ -268,14 +263,7 @@ export default function CheckoutPage() {
         })),
       });
       clearCart();
-      toast(
-        isPartsOnly
-          ? "Order placed. We'll confirm once payment is received."
-          : isSelfPickup
-            ? 'Order placed. Payment submitted for verification'
-            : 'Order placed. We will notify you when bilty charges are ready',
-        'success',
-      );
+      toast("Order placed. We'll confirm once payment is received.", 'success');
       navigate('/customer/orders');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Checkout failed', 'error');
@@ -286,13 +274,13 @@ export default function CheckoutPage() {
 
   if (!user || items.length === 0) return null;
 
-  if (partsSettingLoaded && hasParts && !partsBranchId) {
+  if (partsSettingLoaded && !partsBranchId) {
     return (
       <div className="min-h-full w-full bg-slate-50 flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full rounded-2xl border border-orange-200 bg-orange-50 p-6 text-center text-sm text-orange-950 shadow-sm space-y-4">
-          <p className="font-semibold text-base text-orange-800">Parts Ordering Unavailable</p>
+          <p className="font-semibold text-base text-orange-800">Online Ordering Unavailable</p>
           <p className="text-orange-900/90 leading-relaxed">
-            Online parts ordering is temporarily unavailable. Please remove parts from your cart or try again later.
+            Online ordering is temporarily unavailable. Please try again later.
           </p>
           <Link to="/shop" className="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold hover:bg-orange-700 transition-colors">
             Go to Shop
@@ -308,7 +296,7 @@ export default function CheckoutPage() {
         <h1 className="font-display text-3xl font-bold text-slate-900">Checkout</h1>
         <p className="mt-1 text-sm text-slate-500">Complete your order in a few simple steps</p>
 
-        <CheckoutStepper step={step} isSelfPickup={isSelfPickup} isPartsOnly={isPartsOnly} />
+        <CheckoutStepper step={step} />
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <section className={orderCard}>
@@ -316,14 +304,37 @@ export default function CheckoutPage() {
 
             {step === 1 && (
               <>
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                   {items.map((i) => (
-                    <li key={`${i.productId}-${i.color ?? ''}`} className="flex justify-between text-sm text-slate-700">
-                      <span>
-                        {i.name} × {i.quantity}
-                        {i.color && <span className="text-slate-500"> ({i.color})</span>}
-                      </span>
-                      <span className="tabular-nums text-slate-900">{formatPKR(i.price * i.quantity)}</span>
+                    <li key={`${i.productId}-${i.color ?? ''}`} className="space-y-2 text-sm text-slate-700">
+                      <div className="flex justify-between">
+                        <span>
+                          {i.name} × {i.quantity}
+                          {i.color && i.productType !== 'BIKE' && (
+                            <span className="text-slate-500"> ({i.color})</span>
+                          )}
+                        </span>
+                        <span className="tabular-nums text-slate-900">{formatPKR(i.price * i.quantity)}</span>
+                      </div>
+                      {i.productType === 'BIKE' && (
+                        <div>
+                          {(bikeColors[i.productId]?.length ?? 0) > 0 ? (
+                            <Select
+                              label="Color"
+                              value={i.color ?? ''}
+                              onChange={(e) => updateItemColor(i.productId, e.target.value)}
+                              required
+                            >
+                              <option value="">Select color</option>
+                              {bikeColors[i.productId].map((color) => (
+                                <option key={color} value={color}>{color}</option>
+                              ))}
+                            </Select>
+                          ) : (
+                            <p className="text-xs text-amber-700">No colors currently in stock for this model.</p>
+                          )}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -335,24 +346,9 @@ export default function CheckoutPage() {
 
             {step === 2 && (
               <div className="space-y-4">
-                {hasBikes && (
-                  <Select
-                    label="Fulfillment Branch"
-                    value={branchId ?? ''}
-                    onChange={(e) => setBranchId(parseInt(e.target.value, 10))}
-                    required
-                  >
-                    <option value="">Select branch</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}, {b.location}</option>
-                    ))}
-                  </Select>
-                )}
-                {hasBikes && selectedBranch && (
-                  <p className="text-xs text-slate-500">Phone: {selectedBranch.phone}</p>
-                )}
                 <Input label="Full Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
                 <Input label="Phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} required />
+                <Input label="WhatsApp Number" value={customerWhatsapp} onChange={(e) => setCustomerWhatsapp(e.target.value)} required />
                 <Input
                   label="Delivery Location / Address"
                   value={customerAddress}
@@ -363,54 +359,11 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {step === 3 && !isPartsOnly && (
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50/40">
-                  <input
-                    type="radio"
-                    name="shippingMethod"
-                    value="SELF"
-                    checked={shippingMethod === 'SELF'}
-                    onChange={() => setShippingMethod('SELF')}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="font-medium text-slate-900">By Yourself (self pickup)</span>
-                    <span className="mt-1 block text-sm text-slate-500">Pay now and collect your bike/part from the branch with your sale invoice.</span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50/40">
-                  <input
-                    type="radio"
-                    name="shippingMethod"
-                    value="BILTY"
-                    checked={shippingMethod === 'BILTY'}
-                    onChange={() => setShippingMethod('BILTY')}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="font-medium text-slate-900">By Bilty (shipping via courier)</span>
-                    <span className="mt-1 block text-sm text-slate-500">We will calculate shipping charges first. Payment is requested after charges are confirmed.</span>
-                  </span>
-                </label>
-              </div>
-            )}
-
-            {step === 3 && isPartsOnly && (
+            {step === 3 && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">
                   Please arrange payment using one of the accounts below. Once we confirm receipt, your order will be
                   approved and you&apos;ll get a confirmation email.
-                </p>
-                <PaymentAccounts channels={channels} amount={total} />
-                <Textarea label="Order Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-              </div>
-            )}
-
-            {step === 4 && !isPartsOnly && isSelfPickup && (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-600">
-                  Please make payment and bring your sale invoice to the branch to receive your bike/part.
                 </p>
                 <PaymentAccounts channels={channels} amount={total} />
                 <Input
@@ -430,20 +383,6 @@ export default function CheckoutPage() {
                 <Textarea label="Order Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </div>
             )}
-
-            {step === 4 && !isPartsOnly && !isSelfPickup && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  Please wait while we calculate your bilty (shipping) charges. You will be notified once charges are ready on your orders page.
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <p><span className="text-slate-500">Branch:</span> {selectedBranch?.name}</p>
-                  <p><span className="text-slate-500">Product total:</span> {formatPKR(total)}</p>
-                  <p className="mt-2 text-xs italic text-slate-500">No payment is required at this step.</p>
-                </div>
-                <Textarea label="Order Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-              </div>
-            )}
           </section>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
@@ -457,12 +396,12 @@ export default function CheckoutPage() {
               </Link>
             )}
 
-            {step < maxStep ? (
+            {step < MAX_STEP ? (
               <Button
                 type="button"
                 variant="accent"
                 onClick={goNext}
-                disabled={step === 2 && !canContinueStep2}
+                disabled={(step === 1 && !canContinueStep1) || (step === 2 && !canContinueStep2)}
                 className="sm:ml-auto"
               >
                 Continue
@@ -472,12 +411,10 @@ export default function CheckoutPage() {
                 type="submit"
                 variant="accent"
                 loading={loading}
-                disabled={
-                  isPartsOnly ? !canSubmitPartsOnly : isSelfPickup ? !canSubmitSelf : !canContinueStep2
-                }
+                disabled={!canSubmit}
                 className="sm:ml-auto"
               >
-                {isPartsOnly || isSelfPickup ? `Place Order (${formatPKR(total)})` : 'Submit Order'}
+                {`Place Order (${formatPKR(total)})`}
               </Button>
             )}
           </div>

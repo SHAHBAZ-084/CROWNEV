@@ -186,6 +186,20 @@ publicRouter.get(
   })
 );
 
+publicRouter.get(
+  '/products/:id/available-colors',
+  cachePublicJson(30),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(String(req.query.branchId ?? ''), 10);
+    if (!Number.isFinite(branchId)) {
+      res.status(400).json({ error: 'branchId query parameter is required' });
+      return;
+    }
+    const colors = await publicService.getAvailableBikeColors(param(req.params.id), branchId);
+    res.json(colors);
+  }),
+);
+
 publicRouter.put(
   '/customization/parts-fulfillment-branch',
   authenticate,

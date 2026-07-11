@@ -146,6 +146,7 @@ ordersRouter.post(
       paymentTransactionId: z.string().optional(),
       customerName: z.string().optional(),
       customerPhone: z.string().optional(),
+      customerWhatsapp: z.string().optional(),
       customerAddress: z.string().optional(),
     }),
   ),

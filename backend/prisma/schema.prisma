@@ -443,6 +443,7 @@ model Order {
   shippingProvider       String?
   customerName           String?
   customerPhone          String?
+  customerWhatsapp       String?
   customerAddress        String?
   invoiceGeneratedAt     DateTime?
   subtotal               Decimal         @db.Decimal(12, 2)

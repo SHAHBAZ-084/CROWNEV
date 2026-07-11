@@ -218,6 +218,8 @@ export const publicApi = {
       address: string;
     }>('/public/footer-contact'),
   partsFulfillmentBranch: () => api<{ branchId: number | null }>('/public/parts-fulfillment-branch'),
+  availableBikeColors: (productId: string, branchId: number) =>
+    api<string[]>(`/public/products/${productId}/available-colors?branchId=${branchId}`),
   aboutHero: () => api<AboutHeroSection>('/public/about-hero'),
   homeHero: () => api<HomeHeroSection>('/public/home-hero'),
   terms: () => api<LegalSection[]>('/public/terms'),
@@ -243,6 +245,7 @@ export const customerApi = {
     paymentTransactionId?: string;
     customerName?: string;
     customerPhone?: string;
+    customerWhatsapp?: string;
     customerAddress?: string;
   }) =>
     api<Order>('/orders/online', { method: 'POST', body: JSON.stringify({ ...data, paymentMethod: 'BANK_TRANSFER' }) }),

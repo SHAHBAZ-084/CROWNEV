@@ -17,6 +17,7 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, 'quantity'>, qty?: number) => void;
   removeItem: (productId: string) => void;
   updateQty: (productId: string, quantity: number) => void;
+  updateItemColor: (productId: string, color: string) => void;
   clearCart: () => void;
   total: number;
   count: number;
@@ -65,14 +66,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateItemColor = useCallback((productId: string, color: string) => {
+    setItems((prev) => prev.map((i) => (i.productId === productId ? { ...i, color } : i)));
+  }, []);
+
   const clearCart = useCallback(() => setItems([]), []);
 
   const total = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
   const count = useMemo(() => items.reduce((s, i) => s + i.quantity, 0), [items]);
 
   const value = useMemo(
-    () => ({ items, branchId, setBranchId, addItem, removeItem, updateQty, clearCart, total, count }),
-    [items, branchId, setBranchId, addItem, removeItem, updateQty, clearCart, total, count]
+    () => ({ items, branchId, setBranchId, addItem, removeItem, updateQty, updateItemColor, clearCart, total, count }),
+    [items, branchId, setBranchId, addItem, removeItem, updateQty, updateItemColor, clearCart, total, count]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

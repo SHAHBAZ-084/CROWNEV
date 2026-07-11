@@ -25,6 +25,7 @@ import {
   cancelActiveVouchersByReferenceInTx,
 } from '../accounting/accounting.service.js';
 import {
+  claimChassisByColorInTx,
   countInStockChassis,
   markChassisSoldInTx,
   reserveChassisInTx,
@@ -33,7 +34,12 @@ import {
 } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
-import { sendBiltyReadyEmail, sendPaymentSubmittedEmail, sendPartOrderConfirmedEmail } from '../../utils/email.js';
+import {
+  sendBiltyReadyEmail,
+  sendPaymentSubmittedEmail,
+  sendPartOrderConfirmedEmail,
+  sendOrderRejectedEmail,
+} from '../../utils/email.js';
 import { env } from '../../config/env.js';
 
 function normalizeCnic(cnic: string): string {
@@ -373,6 +379,7 @@ export async function createOnlineOrder(data: {
   paymentTransactionId?: string;
   customerName?: string;
   customerPhone?: string;
+  customerWhatsapp?: string;
   customerAddress?: string;
 }) {
   const itemProductIds = data.items.map((i) => i.productId);
@@ -380,74 +387,58 @@ export async function createOnlineOrder(data: {
     where: { id: { in: itemProductIds } },
     select: { id: true, type: true },
   });
-  const hasPartItems = productsBrief.some((p) => p.type === ProductType.PART);
-  const hasBikeItems = productsBrief.some((p) => p.type === ProductType.BIKE);
-  const isPartOnlyOrder = hasPartItems && !hasBikeItems;
 
-  let partsBranchId: number | null = null;
-  if (hasPartItems) {
-    const setting = await getPartsFulfillmentBranch();
-    if (!setting.branchId) {
-      throw new AppError(400, 'Online parts ordering is temporarily unavailable. Please try again later.');
-    }
-    partsBranchId = setting.branchId;
+  const setting = await getPartsFulfillmentBranch();
+  if (!setting.branchId) {
+    throw new AppError(400, 'Online ordering is temporarily unavailable. Please try again later.');
   }
+  const fulfillmentBranchId = setting.branchId;
 
-  const resolveBranch = (item: { productId: string }, product: { type: ProductType }) =>
-    product.type === ProductType.PART ? partsBranchId! : data.branchId;
+  const resolveBranch = (_item: { productId: string }, _product: { type: ProductType }) =>
+    fulfillmentBranchId;
 
   const pricedItems = await validateAndPriceItems(resolveBranch, data.items);
 
-  // NEW — expand bike lines with quantity > 1 into individual quantity-1 units,
-  // exactly mirroring how POS Sale Invoice treats bikes (one chassis per line).
+  // Expand bike lines with quantity > 1 into individual quantity-1 units.
   const expandedItems = pricedItems.flatMap((item) => {
     if (item.product.type !== ProductType.BIKE) return [item];
     return Array.from({ length: item.quantity }, () => ({
       ...item,
       quantity: 1,
       unitPrice: item.unitPrice,
-      total: item.unitPrice, // per-unit total now that quantity is 1
+      total: item.unitPrice,
     }));
   });
 
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
 
-  const isSelfPickup = data.shippingMethod === ShippingMethod.SELF;
-
-  if (isSelfPickup && !isPartOnlyOrder) {
-    if (!data.paymentTransactionId?.trim()) {
-      throw new AppError(400, 'Transaction ID (TID) is required for self pickup orders');
-    }
-    if (!data.bankTransferScreenshot?.trim()) {
-      throw new AppError(400, 'Payment proof is required for self pickup orders');
-    }
+  if (!data.paymentTransactionId?.trim()) {
+    throw new AppError(400, 'Transaction ID (TID) is required');
+  }
+  if (!data.bankTransferScreenshot?.trim()) {
+    throw new AppError(400, 'Payment proof is required');
   }
 
-  const orderStatus = isPartOnlyOrder
-    ? OrderStatus.AWAITING_PAYMENT
-    : isSelfPickup
-      ? OrderStatus.PAYMENT_SUBMITTED
-      : OrderStatus.AWAITING_BILTY_CHARGES;
+  const paymentTransactionId = data.paymentTransactionId.trim();
 
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
-        branchId: data.branchId,
+        branchId: fulfillmentBranchId,
         userId: data.userId,
         type: OrderType.ONLINE,
-        shippingMethod: data.shippingMethod,
-        status: orderStatus,
+        shippingMethod: ShippingMethod.SELF,
+        status: OrderStatus.AWAITING_PAYMENT,
         paymentMethod: PaymentMethod.BANK_TRANSFER,
         paymentStatus: PaymentStatus.PENDING,
         subtotal,
         total: subtotal,
         notes: data.notes,
-        bankTransferScreenshot:
-          isPartOnlyOrder ? undefined : isSelfPickup ? data.bankTransferScreenshot : undefined,
-        paymentTransactionId:
-          isPartOnlyOrder ? undefined : isSelfPickup ? data.paymentTransactionId?.trim() : undefined,
+        bankTransferScreenshot: data.bankTransferScreenshot,
+        paymentTransactionId,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
+        customerWhatsapp: data.customerWhatsapp,
         customerAddress: data.customerAddress,
         items: {
           create: expandedItems.map((i) => ({
@@ -456,52 +447,12 @@ export async function createOnlineOrder(data: {
             unitPrice: i.unitPrice,
             total: i.total,
             color: i.color,
-            chassisNumber: i.chassisNumber,
-            branchId: i.effectiveBranchId === data.branchId ? null : i.effectiveBranchId,
+            branchId: i.effectiveBranchId === fulfillmentBranchId ? null : i.effectiveBranchId,
           })),
         },
       },
       include: { items: { include: { product: true } }, branch: true },
     });
-
-    const orderItems = await tx.orderItem.findMany({
-      where: { orderId: order.id },
-      orderBy: { id: 'asc' },
-    });
-
-    const bikeExpandedItems = expandedItems.filter(i => i.product.type === ProductType.BIKE);
-    const bikeOrderItems = orderItems.filter(oi => {
-      const product = pricedItems.find(pi => pi.productId === oi.productId)?.product;
-      return product?.type === ProductType.BIKE;
-    });
-
-    for (let idx = 0; idx < bikeOrderItems.length; idx++) {
-      const item = bikeExpandedItems[idx];
-      const orderItem = bikeOrderItems[idx];
-      let chassis;
-      try {
-        chassis = await reserveChassisInTx(tx, {
-          branchId: item.effectiveBranchId ?? data.branchId,
-          productId: item.productId,
-          saleOrderItemId: orderItem.id,
-        });
-      } catch {
-        chassis = await reserveChassisInTx(tx, {
-          branchId: item.effectiveBranchId ?? data.branchId,
-          productId: item.productId,
-          saleOrderItemId: orderItem.id,
-        });
-      }
-      await tx.orderItem.update({
-        where: { id: orderItem.id },
-        data: {
-          chassisNumber: chassis.chassisNumber,
-          engineNumber: chassis.engineNumber ?? null,
-          motorNumber: chassis.motorNumber ?? null,
-          color: chassis.color ?? null,
-        },
-      });
-    }
 
     return tx.order.findUniqueOrThrow({
       where: { id: order.id },
@@ -1570,10 +1521,6 @@ export async function deleteSaleInvoice(
   });
 }
 
-function isPartOnlyOrder(items: { product: { type: ProductType } }[]) {
-  return items.length > 0 && items.every((item) => item.product.type === ProductType.PART);
-}
-
 export async function listPartOrders(branchId?: number) {
   const orders = await prisma.order.findMany({
     where: {
@@ -1582,7 +1529,6 @@ export async function listPartOrders(branchId?: number) {
       ...(branchId && {
         OR: [{ branchId }, { items: { some: { branchId } } }],
       }),
-      items: { every: { product: { type: ProductType.PART } } },
     },
     include: {
       items: { include: { product: { select: { name: true, type: true } } } },
@@ -1593,7 +1539,7 @@ export async function listPartOrders(branchId?: number) {
     take: 200,
   });
 
-  return orders.filter((order) => isPartOnlyOrder(order.items));
+  return orders;
 }
 
 export async function approvePartOrder(
@@ -1604,30 +1550,64 @@ export async function approvePartOrder(
   void userId;
   const order = await getOrder(orderId, branchId);
   if (order.type !== OrderType.ONLINE) {
-    throw new AppError(400, 'Part order approval only applies to online orders');
-  }
-  if (!isPartOnlyOrder(order.items)) {
-    throw new AppError(400, 'Order cannot be approved in its current state');
+    throw new AppError(400, 'Order approval only applies to online orders');
   }
   if (order.status !== OrderStatus.AWAITING_PAYMENT) {
     throw new AppError(400, 'Order cannot be approved in its current state');
   }
 
-  const updated = await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      paymentStatus: PaymentStatus.APPROVED,
-      status: OrderStatus.CONFIRMED,
-      invoiceGeneratedAt: new Date(),
-    },
-    include: {
-      items: { include: { product: { include: { bikePartDetails: true } } } },
-      user: true,
-      branch: true,
-    },
-  });
+  const fulfillmentBranchId = order.branchId;
 
-  await confirmOrder(updated);
+  const updated = await prisma.$transaction(async (tx) => {
+    const itemsWithDetails = await tx.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { product: { include: { bikePartDetails: true } } },
+      orderBy: { id: 'asc' },
+    });
+
+    for (const item of itemsWithDetails) {
+      if (item.product.type !== ProductType.BIKE) continue;
+      if (!item.color?.trim()) {
+        throw new AppError(400, 'Bike order item is missing a color selection');
+      }
+      const chassis = await claimChassisByColorInTx(tx, {
+        branchId: item.branchId ?? fulfillmentBranchId,
+        productId: item.productId,
+        color: item.color.trim(),
+        saleOrderItemId: item.id,
+      });
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: {
+          chassisNumber: chassis.chassisNumber,
+          engineNumber: chassis.engineNumber ?? null,
+          motorNumber: chassis.motorNumber ?? null,
+        },
+      });
+    }
+
+    const confirmed = await tx.order.update({
+      where: { id: order.id },
+      data: {
+        paymentStatus: PaymentStatus.APPROVED,
+        status: OrderStatus.CONFIRMED,
+        invoiceGeneratedAt: new Date(),
+      },
+      include: {
+        items: { include: { product: { include: { bikePartDetails: true } } } },
+        user: true,
+        branch: true,
+      },
+    });
+
+    const confirmedItems = await tx.orderItem.findMany({
+      where: { orderId: order.id },
+      include: { product: { include: { bikePartDetails: true } } },
+    });
+    await deductStockForOrder(confirmedItems, fulfillmentBranchId, tx);
+
+    return confirmed;
+  });
 
   if (updated.user?.email) {
     await sendPartOrderConfirmedEmail({
@@ -1643,15 +1623,28 @@ export async function approvePartOrder(
 export async function deletePartOrder(orderId: number, branchId: number | undefined) {
   const order = await getOrder(orderId, branchId);
   if (order.type !== OrderType.ONLINE) {
-    throw new AppError(400, 'Part order delete only applies to online orders');
+    throw new AppError(400, 'Order delete only applies to online orders');
   }
-  if (!isPartOnlyOrder(order.items)) {
-    throw new AppError(400, 'This is not a part-only order');
-  }
+
+  const customerEmail = order.user?.email ?? order.customer?.email ?? null;
+  const customerName = order.user
+    ? `${order.user.firstName} ${order.user.lastName}`.trim()
+    : order.customerName ?? order.customer?.name ?? 'Customer';
+  const emailItems = order.items.map((item) => ({
+    name: item.product.name,
+    quantity: item.quantity,
+    color: item.color,
+  }));
 
   await prisma.$transaction(async (tx) => {
     if (order.status === OrderStatus.CONFIRMED) {
       for (const item of order.items) {
+        if (item.product.type === ProductType.BIKE) {
+          await tx.bikeChassisNumber.updateMany({
+            where: { saleOrderItemId: item.id, status: ChassisStatus.SOLD },
+            data: { status: ChassisStatus.IN_STOCK, saleOrderItemId: null },
+          });
+        }
         await restoreBranchProductStockInTx(
           tx,
           item.branchId ?? order.branchId,
@@ -1660,8 +1653,23 @@ export async function deletePartOrder(orderId: number, branchId: number | undefi
           item.product.type,
         );
       }
+    } else {
+      for (const item of order.items) {
+        if (item.product.type === ProductType.BIKE) {
+          await releaseChassisReservationInTx(tx, item.id);
+        }
+      }
     }
 
     await tx.order.delete({ where: { id: order.id } });
   });
+
+  if (customerEmail) {
+    await sendOrderRejectedEmail({
+      to: customerEmail,
+      customerName,
+      publicId: order.publicId,
+      items: emailItems,
+    });
+  }
 }

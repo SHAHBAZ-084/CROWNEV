@@ -365,6 +365,38 @@ export function isChassisIdentityLocked(chassis: {
   return chassis.status === ChassisStatus.SOLD || chassis.saleOrderItemId != null;
 }
 
+/** Claims one IN_STOCK chassis matching product, branch, and color for online order approval. */
+export async function claimChassisByColorInTx(
+  tx: Prisma.TransactionClient,
+  data: { branchId: number; productId: string; color: string; saleOrderItemId: number },
+) {
+  const candidate = await tx.bikeChassisNumber.findFirst({
+    where: {
+      branchId: data.branchId,
+      productId: data.productId,
+      color: data.color,
+      status: ChassisStatus.IN_STOCK,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (!candidate) {
+    throw new AppError(
+      409,
+      `No ${data.color} unit available for this bike — stock may have sold out since checkout`,
+    );
+  }
+
+  const claimed = await tx.bikeChassisNumber.updateMany({
+    where: { id: candidate.id, status: ChassisStatus.IN_STOCK },
+    data: { status: ChassisStatus.SOLD, saleOrderItemId: data.saleOrderItemId },
+  });
+  if (claimed.count !== 1) {
+    throw new AppError(409, 'Selected unit was just sold by another order — please retry approval');
+  }
+
+  return tx.bikeChassisNumber.findUniqueOrThrow({ where: { id: candidate.id } });
+}
+
 /** Auto-picks one available chassis for a product/branch and reserves it for an online order item. */
 export async function reserveChassisInTx(
   tx: Prisma.TransactionClient,

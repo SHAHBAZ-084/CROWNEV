@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.js';
-import { ProductType } from '@prisma/client';
+import { ChassisStatus, ProductType } from '@prisma/client';
 import { findManyWithListingOrder } from '../products/products.service.js';
 import { AppError } from '../../utils/helpers.js';
 import { modelCompatibilityFilter } from '../../utils/modelCompatibility.js';
@@ -322,6 +322,21 @@ export async function setPartsFulfillmentBranch(branchId: number | null): Promis
   const content = JSON.stringify({ branchId });
   await upsertContentPage(PARTS_FULFILLMENT_SLUG, 'Parts Fulfillment Branch', content);
   return { branchId };
+}
+
+export async function getAvailableBikeColors(productId: string, branchId: number): Promise<string[]> {
+  const rows = await prisma.bikeChassisNumber.findMany({
+    where: {
+      productId,
+      branchId,
+      status: ChassisStatus.IN_STOCK,
+      color: { not: null },
+    },
+    select: { color: true },
+    distinct: ['color'],
+    orderBy: { color: 'asc' },
+  });
+  return rows.map((r) => r.color!).filter(Boolean);
 }
 
 const HOME_HERO_SLUG = 'home-hero';

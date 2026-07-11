@@ -757,3 +757,68 @@ export async function sendPartOrderConfirmedEmail(data: {
     );
   }
 }
+
+export async function sendOrderRejectedEmail(data: {
+  to: string;
+  customerName: string;
+  publicId: string;
+  items: { name: string; quantity: number; color?: string | null }[];
+}) {
+  const itemLines = data.items
+    .map((item) => {
+      const colorSuffix = item.color ? ` (${item.color})` : '';
+      return `• ${item.name}${colorSuffix} × ${item.quantity}`;
+    })
+    .join('<br/>');
+
+  const html = emailShell(`
+    <h2 style="color:${EMAIL_ACCENT};margin:0 0 12px">Your order has been rejected</h2>
+    <p style="margin:0 0 16px">Hi ${escHtml(data.customerName)},</p>
+    <p style="margin:0 0 16px">
+      Your order <strong>#${escHtml(data.publicId)}</strong> has been rejected and will not be fulfilled.
+    </p>
+    <p style="margin:0 0 8px;font-weight:600">Items:</p>
+    <p style="margin:0 0 16px;line-height:1.6">${itemLines}</p>
+    <p style="margin:0">If you have questions, please contact Crown EV Center.</p>
+  `);
+
+  const textItems = data.items
+    .map((item) => {
+      const colorSuffix = item.color ? ` (${item.color})` : '';
+      return `- ${item.name}${colorSuffix} x${item.quantity}`;
+    })
+    .join('\n');
+
+  const text = [
+    `Hi ${data.customerName},`,
+    '',
+    `Your order #${data.publicId} has been rejected and will not be fulfilled.`,
+    '',
+    'Items:',
+    textItems,
+    '',
+    'If you have questions, please contact Crown EV Center.',
+    emailFooterText(),
+  ].join('\n');
+
+  const transport = getTransporter();
+  if (!transport) {
+    console.log(`[DEV] Order rejected email for #${data.publicId} → ${data.to}`);
+    return;
+  }
+
+  try {
+    await transport.sendMail({
+      from: formatFrom('Crown Ev'),
+      to: data.to,
+      subject: `Your order #${data.publicId} has been rejected`,
+      html,
+      text,
+    });
+  } catch (err) {
+    console.error(
+      `[SMTP] Failed to send order rejected email for #${data.publicId}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
