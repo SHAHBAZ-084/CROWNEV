@@ -494,6 +494,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       items: { include: { product: { include: { brand: true, category: true } }, part: true } },
       chassis: {
         select: {
+          id: true,
           productId: true,
           chassisNumber: true,
           engineNumber: true,
@@ -504,6 +505,8 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
           meterReading: true,
           condition: true,
           comments: true,
+          status: true,
+          saleOrderItemId: true,
         },
       },
     },
@@ -515,6 +518,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
   const unitsByProduct = new Map<
     string,
     {
+      chassisId: number;
       chassisNumber: string;
       engineNumber: string | null;
       motorNumber: string | null;
@@ -524,11 +528,13 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       meterReading: number | null;
       condition: string | null;
       comments: string | null;
+      identityLocked: boolean;
     }[]
   >();
   for (const c of purchase.chassis) {
     const list = unitsByProduct.get(c.productId) ?? [];
     list.push({
+      chassisId: c.id,
       chassisNumber: c.chassisNumber,
       engineNumber: c.engineNumber,
       motorNumber: c.motorNumber,
@@ -538,6 +544,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       meterReading: c.meterReading,
       condition: c.condition,
       comments: c.comments,
+      identityLocked: c.status === 'SOLD' || c.saleOrderItemId != null,
     });
     unitsByProduct.set(c.productId, list);
   }
@@ -568,6 +575,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       const unitCost = Number(i.unitCost);
       const bikeUnits = i.productId ? unitsByProduct.get(i.productId) : undefined;
       return {
+        purchaseItemId: i.id,
         name,
         type,
         quantity: i.quantity,

@@ -153,7 +153,17 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
               category: true,
             },
           },
-          soldChassis: { select: { engineNumber: true, motorNumber: true, color: true } },
+          soldChassis: {
+            select: {
+              id: true,
+              chassisNumber: true,
+              engineNumber: true,
+              motorNumber: true,
+              color: true,
+              status: true,
+              saleOrderItemId: true,
+            },
+          },
         },
       },
       user: true,
@@ -209,15 +219,21 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
             address: order.customerAddress,
           },
     items: order.items.map((i) => ({
+      orderItemId: i.id,
       name: i.product.name,
       type: i.product.type,
       quantity: i.quantity,
       unitPrice: Number(i.unitPrice),
       total: Number(i.total),
       color: i.soldChassis?.color ?? i.color,
-      chassisNumber: i.chassisNumber,
-      engineNumber: i.engineNumber,
-      motorNumber: i.motorNumber,
+      chassisNumber: i.chassisNumber ?? i.soldChassis?.chassisNumber,
+      engineNumber: i.engineNumber ?? i.soldChassis?.engineNumber,
+      motorNumber: i.motorNumber ?? i.soldChassis?.motorNumber,
+      chassisId: i.soldChassis?.id,
+      identityLocked:
+        i.soldChassis != null &&
+        i.soldChassis.saleOrderItemId != null &&
+        i.soldChassis.saleOrderItemId !== i.id,
       brand: i.product.brand ? i.product.brand.name : undefined,
       category: i.product.category ? i.product.category.name : undefined,
       model: (i.product as any).model ?? undefined,

@@ -129,6 +129,7 @@ export interface InvoiceData {
   branch: { name: string; location: string; phone: string; whatsapp?: string | null };
   customer: { name: string; email?: string; phone?: string; address?: string };
   items: {
+    orderItemId?: number;
     name: string;
     type: 'BIKE' | 'PART';
     quantity: number;
@@ -138,6 +139,8 @@ export interface InvoiceData {
     chassisNumber?: string;
     engineNumber?: string | null;
     motorNumber?: string | null;
+    chassisId?: number;
+    identityLocked?: boolean;
     brand?: string;
     category?: string;
     model?: string;
@@ -169,6 +172,7 @@ export interface PurchaseInvoiceData {
     address?: string | null;
   };
   items: {
+    purchaseItemId?: number;
     name: string;
     type: 'BIKE' | 'PART';
     quantity: number;
@@ -176,6 +180,7 @@ export interface PurchaseInvoiceData {
     total: number;
     chassisNumber?: string | null;
     bikeUnits?: {
+      chassisId?: number;
       chassisNumber: string;
       engineNumber: string | null;
       motorNumber: string | null;
@@ -185,6 +190,7 @@ export interface PurchaseInvoiceData {
       meterReading?: number | null;
       comments?: string | null;
       purchasePrice?: number | null;
+      identityLocked?: boolean;
     }[];
     brand?: string;
     category?: string;

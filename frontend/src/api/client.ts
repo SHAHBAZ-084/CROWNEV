@@ -762,6 +762,33 @@ export const branchApi = {
     api<unknown>('/purchases', { method: 'POST', body: JSON.stringify(data) }),
   purchase: (id: number) => api<unknown>(`/purchases/${id}`),
   purchaseInvoice: (id: number) => api<PurchaseInvoiceData>(`/purchases/${id}/invoice`),
+  updatePurchaseInvoice: (
+    id: number,
+    data: {
+      items: {
+        purchaseItemId?: number;
+        chassisId?: number;
+        unitCost?: number;
+        color?: string | null;
+        engineNumber?: string | null;
+        motorNumber?: string | null;
+        chassisNumber?: string;
+      }[];
+    },
+  ) => api<unknown>(`/purchases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateOrderItems: (
+    orderId: number,
+    data: {
+      items: {
+        orderItemId: number;
+        unitPrice?: number;
+        color?: string | null;
+        engineNumber?: string | null;
+        motorNumber?: string | null;
+        chassisNumber?: string;
+      }[];
+    },
+  ) => api<unknown>(`/orders/${orderId}/items`, { method: 'PATCH', body: JSON.stringify(data) }),
   createServiceInvoice: (data: {
     branchId: number;
     customerId: number;
