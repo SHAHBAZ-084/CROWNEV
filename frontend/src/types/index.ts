@@ -141,6 +141,8 @@ export interface InvoiceData {
     brand?: string;
     category?: string;
     model?: string;
+    batteryVoltage?: string;
+    batteryCapacityAh?: string;
     colorOptions?: (string | ColorOption)[] | null;
   }[];
   subtotal: number;
@@ -187,6 +189,8 @@ export interface PurchaseInvoiceData {
     brand?: string;
     category?: string;
     model?: string;
+    batteryVoltage?: string;
+    batteryCapacityAh?: string;
     colorOptions?: (string | ColorOption)[] | null;
   }[];
   subtotal: number;

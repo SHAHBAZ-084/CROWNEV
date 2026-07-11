@@ -471,6 +471,7 @@ export async function listSaleableBranchProducts(branchId: number) {
     category?: { name: string } | null;
     colorOptions?: any;
     images?: { url: string }[];
+    specs?: Record<string, unknown> | null;
   }[] = [];
 
   for (const row of rows) {
@@ -494,6 +495,7 @@ export async function listSaleableBranchProducts(branchId: number) {
       category: product.category,
       colorOptions: product.colorOptions,
       images: product.images,
+      specs: product.specs as Record<string, unknown> | null,
     });
   }
 
@@ -511,6 +513,7 @@ export async function listBranchPurchaseProducts(branchId: number) {
     model?: string | null;
     brand?: { name: string } | null;
     category?: { name: string } | null;
+    specs?: Record<string, unknown> | null;
   }[] = [];
 
   for (const row of rows) {
@@ -524,6 +527,7 @@ export async function listBranchPurchaseProducts(branchId: number) {
       model: product.model,
       brand: product.brand,
       category: product.category,
+      specs: product.specs as Record<string, unknown> | null,
     });
   }
 

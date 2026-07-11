@@ -1,6 +1,7 @@
 import { Prisma, ProductType, SupplierLedgerType, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { addStockInTx } from '../inventory/inventory.service.js';
 import {
   createChassisRecordsInTx,
@@ -574,6 +575,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
         brand: i.product?.brand ? (i.product.brand as any).name : undefined,
         category: i.product?.category ? (i.product.category as any).name : undefined,
         model: i.product ? (i.product as any).model ?? undefined : undefined,
+        ...(i.product ? batterySpecsFromProduct(i.product) : {}),
         colorOptions: i.product ? (i.product as any).colorOptions ?? undefined : undefined,
       };
     }),

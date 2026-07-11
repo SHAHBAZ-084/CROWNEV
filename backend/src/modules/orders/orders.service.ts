@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import {
   createVoucherInTx,
@@ -214,6 +215,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
       brand: i.product.brand ? i.product.brand.name : undefined,
       category: i.product.category ? i.product.category.name : undefined,
       model: (i.product as any).model ?? undefined,
+      ...batterySpecsFromProduct(i.product),
       colorOptions: (i.product as any).colorOptions ?? undefined,
     })),
     subtotal: Number(order.subtotal),

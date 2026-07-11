@@ -18,7 +18,7 @@ import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
-import { formatProductMetaLine } from '../../lib/productMeta';
+import { ProductItemMetaLines, productItemMetaFromProduct } from '../../lib/productItemMeta';
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
 import {
   filterManualAccountCategories,
@@ -741,6 +741,7 @@ type SaleProduct = {
   model?: string | null;
   brand?: { name: string } | null;
   category?: { name: string } | null;
+  specs?: Record<string, unknown> | null;
 };
 
 type PurchaseProduct = {
@@ -750,12 +751,13 @@ type PurchaseProduct = {
   model?: string | null;
   brand?: { name: string } | null;
   category?: { name: string } | null;
+  specs?: Record<string, unknown> | null;
 };
 
 function ProductMetaHint({ product }: { product?: SaleProduct | PurchaseProduct | null }) {
-  const meta = product ? formatProductMetaLine(product) : null;
-  if (!meta) return null;
-  return <p className="text-xs text-text-muted">{meta}</p>;
+  if (!product) return null;
+  const meta = productItemMetaFromProduct(product);
+  return <ProductItemMetaLines item={meta} subtextClassName="text-xs text-text-muted" />;
 }
 
 type SaleLine = {
