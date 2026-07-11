@@ -7,9 +7,8 @@ import type { Order } from '../../types';
 import { formatPKR, formatDate } from '../../lib/format';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { StatusBadge } from '../../components/ui/DataTable';
 import { PageHero } from '../../components/public/PageHero';
-import { OrderStatusTimeline, orderReference } from '../../lib/orderHelpers';
+import { OrderStatusTimeline, OrderStatusBadge, orderReference } from '../../lib/orderHelpers';
 
 export default function TrackOrderPage() {
   const [searchParams] = useSearchParams();
@@ -77,7 +76,7 @@ export default function TrackOrderPage() {
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-mono text-sm text-orange-500 break-all">{orderReference(order)}</p>
-              <StatusBadge status={order.status} />
+              <OrderStatusBadge status={order.status} />
             </div>
 
             <OrderStatusTimeline status={order.status} shippingMethod={order.shippingMethod} />

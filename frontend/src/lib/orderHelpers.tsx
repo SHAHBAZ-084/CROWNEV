@@ -15,8 +15,44 @@ const STEP_LABELS: Record<(typeof STEPS)[number], string> = {
   CONFIRMED: 'Confirmed',
 };
 
+export function orderStatusDisplayLabel(status: string): string {
+  if (status === 'CONFIRMED') return 'Approved';
+  if (status === 'CANCELLED') return 'Cancelled';
+  if (
+    status === 'AWAITING_PAYMENT'
+    || status === 'AWAITING_BILTY_CHARGES'
+    || status === 'PAYMENT_SUBMITTED'
+  ) {
+    return 'Pending';
+  }
+  return status.replace(/_/g, ' ').toLowerCase();
+}
+
+export function orderStatusDisplayVariant(
+  status: string,
+): 'success' | 'warning' | 'info' | 'danger' | 'default' {
+  if (status === 'CONFIRMED') return 'success';
+  if (status === 'CANCELLED') return 'danger';
+  if (
+    status === 'AWAITING_PAYMENT'
+    || status === 'AWAITING_BILTY_CHARGES'
+    || status === 'PAYMENT_SUBMITTED'
+  ) {
+    return 'warning';
+  }
+  return 'default';
+}
+
+export function OrderStatusBadge({ status }: { status: string }) {
+  return (
+    <Badge variant={orderStatusDisplayVariant(status)}>
+      {orderStatusDisplayLabel(status)}
+    </Badge>
+  );
+}
+
 export function orderStatusLabel(status: string): string {
-  return STEP_LABELS[status as (typeof STEPS)[number]] ?? status.replace(/_/g, ' ').toLowerCase();
+  return orderStatusDisplayLabel(status);
 }
 
 function useTimelineSteps(status: string, shippingMethod?: string | null) {

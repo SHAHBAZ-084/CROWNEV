@@ -10,12 +10,9 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
-import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import type { Order } from '../../types';
-import { isAwaitingPaymentVerification, PaymentStatusBadge } from '../../lib/orderHelpers';
+import { OrderStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime, orderListReference } from '../../lib/format';
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
-import { SHIPPING_PROVIDERS } from '../../lib/constants';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -33,7 +30,6 @@ import {
 
 type Row = Record<string, unknown>;
 
-const ORDER_STATUSES = ['AWAITING_BILTY_CHARGES', 'AWAITING_PAYMENT', 'PAYMENT_SUBMITTED', 'CONFIRMED', 'CANCELLED'];
 const BOOKING_STATUSES = ['PENDING', 'SCHEDULED'];
 const BOOKING_STATUS_ORDER: Record<string, number> = {
   PENDING: 0,
@@ -113,91 +109,32 @@ function orderRowCustomer(r: Row): string {
 
 export function BranchOrdersPage() {
   const { toast } = useToast();
-  const { canUpdate, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [orders, setOrders] = useState<Row[]>([]);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
-  const [paymentModal, setPaymentModal] = useState<Row | null>(null);
-  const [biltyChargesModal, setBiltyChargesModal] = useState<Row | null>(null);
-  const [invoiceModal, setInvoiceModal] = useState<Row | null>(null);
-  const [invoiceData, setInvoiceData] = useState<import('../../types').InvoiceData | null>(null);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [biltyId, setBiltyId] = useState('');
-  const [biltyCharges, setBiltyCharges] = useState('');
-  const [shippingProvider, setShippingProvider] = useState('');
-  const [shippingProviderOther, setShippingProviderOther] = useState('');
-  const [saving, setSaving] = useState(false);
 
-  const reload = useCallback(() => {
-    const params: Record<string, string> = { type: 'ONLINE' };
-    if (statusFilter) params.status = statusFilter;
-    if (paymentFilter) params.paymentStatus = paymentFilter;
-    branchApi.orders(params).then((r) => setOrders(r.data as unknown as Row[])).catch(console.error);
-  }, [statusFilter, paymentFilter]);
+  const reloadOrders = useCallback(() => {
+    branchApi.partOrders().then((r) => setOrders(r as unknown as Row[])).catch(console.error);
+  }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => { reloadOrders(); }, [reloadOrders]);
 
-  async function handleApprove(approved: boolean) {
-    if (!paymentModal) return;
-    if (approved && paymentModal.shippingMethod === 'BILTY' && !biltyId.trim()) {
-      toast('Bilty ID is required for bilty shipping orders', 'error');
-      return;
-    }
-    setSaving(true);
+  const orderDelete = useDeleteConfirm<Row>(
+    async (row) => {
+      await branchApi.deletePartOrder(Number(row.id));
+      toast('Order rejected. Customer notified by email.', 'success');
+      reloadOrders();
+    },
+    { message: () => 'Permanently delete this order? This cannot be undone.' },
+  );
+
+  async function handleApproveOrder(id: number) {
     try {
-      await branchApi.approvePayment(Number(paymentModal.id), approved, approved ? biltyId.trim() : undefined);
-      toast(approved ? 'Payment verified. Order confirmed' : 'Payment rejected', approved ? 'success' : 'error');
-      setPaymentModal(null);
-      setBiltyId('');
-      reload();
+      await branchApi.approvePartOrder(id);
+      toast('Order approved. Confirmation email sent.', 'success');
+      reloadOrders();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleBiltyCharges(e: FormEvent) {
-    e.preventDefault();
-    if (!biltyChargesModal) return;
-    const amount = parseFloat(biltyCharges);
-    if (!Number.isFinite(amount) || amount < 0) {
-      toast('Enter a valid bilty charges amount', 'error');
-      return;
-    }
-    const provider = shippingProvider === 'Other' ? shippingProviderOther.trim() : shippingProvider;
-    if (!provider) {
-      toast('Select a courier / shipping provider', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      await branchApi.setBiltyCharges(Number(biltyChargesModal.id), amount, provider);
-      toast('Bilty charges set. Customer can now pay', 'success');
-      setBiltyChargesModal(null);
-      setBiltyCharges('');
-      setShippingProvider('');
-      setShippingProviderOther('');
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function openInvoice(row: Row) {
-    setInvoiceModal(row);
-    setInvoiceLoading(true);
-    setInvoiceData(null);
-    try {
-      const data = await branchApi.orderInvoice(Number(row.id));
-      setInvoiceData(data);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to load invoice', 'error');
-    } finally {
-      setInvoiceLoading(false);
+      toast(err instanceof Error ? err.message : 'Failed to approve order', 'error');
     }
   }
 
@@ -205,160 +142,94 @@ export function BranchOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Branch Orders" subtitle="Online orders. Set bilty charges, verify payment, and assign bilty ID" />
-
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
-        <Select label="" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
-          <option value="">All statuses</option>
-          {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <Select label="" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="w-full sm:min-w-[140px] sm:w-auto">
-          <option value="">All payments</option>
-          <option value="PENDING">PENDING</option>
-          <option value="APPROVED">APPROVED</option>
-          <option value="PAID">PAID</option>
-          <option value="REJECTED">REJECTED</option>
-        </Select>
-      </div>
+      <PageHeader title="Orders" subtitle="Online orders awaiting approval or already approved" />
 
       <DataTable
         columns={[
           { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
-          { key: 'shippingMethod', header: 'Shipping', render: (r) => (r.shippingMethod === 'BILTY' ? 'Bilty' : r.shippingMethod === 'SELF' ? 'Self' : '—') },
           { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
-          { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-          { key: 'paymentStatus', header: 'Payment', render: (r) => <PaymentStatusBadge order={r as unknown as Order} /> },
-          { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
+          { key: 'status', header: 'Status', render: (r) => <OrderStatusBadge status={String(r.status)} /> },
+          { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
           {
             key: 'actions',
-            header: '',
+            header: 'Actions',
             render: (r) => (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
-                {r.status === 'AWAITING_BILTY_CHARGES' && (
-                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setBiltyChargesModal(r); setBiltyCharges(''); setShippingProvider(''); setShippingProviderOther(''); }}>Bilty charges</Button>
+                {r.status === 'AWAITING_PAYMENT' && (
+                  <Button
+                    size="sm"
+                    variant="accent"
+                    disabled={!canUpdate}
+                    title={!canUpdate ? restrictedTitle : undefined}
+                    onClick={() => handleApproveOrder(Number(r.id))}
+                  >
+                    Approve
+                  </Button>
                 )}
-                {r.status === 'PAYMENT_SUBMITTED' && r.paymentStatus === 'PENDING' && (
-                  <Button size="sm" variant="secondary" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => { setPaymentModal(r); setBiltyId(''); }}>Verify</Button>
-                )}
-                <Button size="sm" variant="ghost" onClick={() => openInvoice(r)}>Invoice</Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={!canDelete}
+                  title={!canDelete ? restrictedTitle : 'Permanently delete order'}
+                  onClick={() => orderDelete.setTarget(r)}
+                >
+                  Delete
+                </Button>
               </div>
             ),
           },
         ]}
         data={orders}
-        emptyMessage="No online orders yet"
+        emptyMessage="No orders yet"
       />
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Order ${detail ? orderListReference(detail as { id: number; publicId?: string; saleReference?: string; type?: string }) : ''}`} size="lg">
+      <Modal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={`Order ${detail ? orderListReference(detail as { id: number; publicId?: string; saleReference?: string; type?: string }) : ''}`}
+        size="lg"
+      >
         {detail && (
           <div className="space-y-3 text-sm text-slate-700">
             <p><span className="text-slate-500">Customer:</span> {orderRowCustomer(detail)}</p>
             <p><span className="text-slate-500">Phone:</span> {String(detail.customerPhone ?? (detail.user as { phone?: string })?.phone ?? '')}</p>
+            <p><span className="text-slate-500">WhatsApp:</span> {String(detail.customerWhatsapp ?? '')}</p>
             <p><span className="text-slate-500">Address:</span> {String(detail.customerAddress ?? '')}</p>
-            <p><span className="text-slate-500">Shipping:</span> {String(detail.shippingMethod ?? '—')}</p>
-            <p><span className="text-slate-500">Status:</span> <StatusBadge status={String(detail.status)} /></p>
-            <p><span className="text-slate-500">Payment:</span> {String(detail.paymentMethod)} <PaymentStatusBadge order={detail as unknown as Order} /></p>
-            {isAwaitingPaymentVerification(detail as unknown as Order) && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                Payment proof submitted. Use Verify to approve or reject after checking TID and screenshot.
-              </div>
-            )}
-            <p><span className="text-slate-500">Subtotal:</span> {formatPKR(Number(detail.subtotal ?? detail.total))}</p>
-            {detail.biltyCharges != null && (
-              <p><span className="text-slate-500">Bilty charges:</span> {formatPKR(Number(detail.biltyCharges))}</p>
-            )}
-            {detail.shippingProvider ? (
-              <p><span className="text-slate-500">Courier:</span> {String(detail.shippingProvider)}</p>
-            ) : null}
+            <p><span className="text-slate-500">Status:</span> <OrderStatusBadge status={String(detail.status)} /></p>
             <p><span className="text-slate-500">Total:</span> {formatPKR(Number(detail.total))}</p>
-            {detail.biltyId ? (
-              <p><span className="text-slate-500">Bilty ID:</span> {String(detail.biltyId)}</p>
+            {detail.paymentTransactionId ? (
+              <p><span className="text-slate-500">TID:</span> <span className="font-mono">{String(detail.paymentTransactionId)}</span></p>
             ) : null}
-          </div>
-        )}
-      </Modal>
-
-      <Modal open={!!biltyChargesModal} onClose={() => setBiltyChargesModal(null)} title="Set Bilty Charges">
-        <form onSubmit={handleBiltyCharges} className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Enter shipping (bilty) charges and select a courier. The customer will be prompted to pay product price + bilty charges.
-          </p>
-          <Select
-            label="Shipping / courier provider"
-            placeholder="Select a courier"
-            value={shippingProvider}
-            onChange={(e) => setShippingProvider(e.target.value)}
-            required
-          >
-            {SHIPPING_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
-          </Select>
-          {shippingProvider === 'Other' && (
-            <Input
-              label="Courier name"
-              value={shippingProviderOther}
-              onChange={(e) => setShippingProviderOther(e.target.value)}
-              placeholder="e.g. Swift Couriers"
-              required
-            />
-          )}
-          <Input
-            label="Bilty charges (PKR)"
-            type="number"
-            min="0"
-            step="any"
-            value={biltyCharges}
-            onChange={(e) => setBiltyCharges(e.target.value)}
-            required
-          />
-          {biltyChargesModal && (
-            <p className="text-sm text-slate-600">
-              Total after charges:{' '}
-              <strong>
-                {formatPKR(Number(biltyChargesModal.subtotal ?? biltyChargesModal.total) + (parseFloat(biltyCharges) || 0))}
-              </strong>
-            </p>
-          )}
-          <FormActions onCancel={() => setBiltyChargesModal(null)} loading={saving} submitDisabled={!canUpdate} submitTitle={!canUpdate ? restrictedTitle : undefined} />
-        </form>
-      </Modal>
-
-      <Modal open={!!paymentModal} onClose={() => { setPaymentModal(null); setBiltyId(''); }} title="Verify Payment" size="lg">
-        {paymentModal && (
-          <div className="space-y-4 text-sm text-slate-700">
-            <p>Customer: <strong className="text-slate-900">{orderRowCustomer(paymentModal)}</strong></p>
-            <p>Total: <strong className="text-slate-900">{formatPKR(Number(paymentModal.total))}</strong></p>
-            {paymentModal.shippingProvider ? (
-              <p>Courier: <strong className="text-slate-900">{String(paymentModal.shippingProvider)}</strong></p>
+            {detail.bankTransferScreenshot ? (
+              <div>
+                <p className="mb-1 text-slate-500">Payment screenshot:</p>
+                <img
+                  src={`${BASE}${String(detail.bankTransferScreenshot)}`}
+                  alt="Payment screenshot"
+                  className="max-h-64 rounded-lg border border-slate-200 object-contain"
+                />
+              </div>
             ) : null}
-            <p>TID: <strong className="font-mono text-slate-900">{String(paymentModal.paymentTransactionId ?? '')}</strong></p>
-            {paymentModal.bankTransferScreenshot ? (
-              <img
-                src={`${BASE}${String(paymentModal.bankTransferScreenshot)}`}
-                alt="Payment screenshot"
-                className="max-h-64 rounded-lg border border-slate-200 object-contain"
-              />
+            {detail.notes ? (
+              <p><span className="text-slate-500">Notes:</span> {String(detail.notes)}</p>
             ) : null}
-            {paymentModal.shippingMethod === 'BILTY' && (
-              <Input
-                label="Bilty ID (required for bilty orders)"
-                value={biltyId}
-                onChange={(e) => setBiltyId(e.target.value)}
-                placeholder="e.g. TCS-12345678"
-                required
-              />
-            )}
-            <div className="flex gap-2">
-              <Button variant="accent" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(true)}>Verify Payment</Button>
-              <Button variant="danger" loading={saving} disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(false)}>Reject</Button>
+            <div>
+              <p className="mb-1 text-slate-500">Items:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                {((detail.items as { quantity: number; color?: string; product?: { name?: string } }[]) ?? []).map((item, idx) => (
+                  <li key={idx}>
+                    {(item.product?.name ?? 'Item')} × {item.quantity}
+                    {item.color ? ` (${item.color})` : ''}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal open={!!invoiceModal} onClose={() => { setInvoiceModal(null); setInvoiceData(null); }} title="Sale Invoice" size="lg" tallContent>
-        <InvoiceModalContent loading={invoiceLoading} invoice={invoiceData} />
-      </Modal>
+      {orderDelete.modal}
     </div>
   );
 }
@@ -1740,9 +1611,6 @@ export function BranchPaymentsPage() {
   const { toast } = useToast();
   const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
   const [channels, setChannels] = useState<Row[]>([]);
-  const [orders, setOrders] = useState<Row[]>([]);
-  const [partOrders, setPartOrders] = useState<Row[]>([]);
-  const [partDetail, setPartDetail] = useState<Row | null>(null);
   const [channelModal, setChannelModal] = useState<'create' | 'edit' | null>(null);
   const [editChannel, setEditChannel] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1752,35 +1620,7 @@ export function BranchPaymentsPage() {
     branchApi.paymentChannels(branchId).then((r) => setChannels(r as unknown as Row[])).catch(console.error);
   }, [branchId]);
 
-  const reloadPartOrders = useCallback(() => {
-    branchApi.partOrders().then((r) => setPartOrders(r as unknown as Row[])).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    branchApi.pendingPayments().then((r) => setOrders(r as unknown as Row[])).catch(console.error);
-    reloadPartOrders();
-  }, [reloadPartOrders]);
-
   useEffect(() => { reloadChannels(); }, [reloadChannels]);
-
-  const partOrderDelete = useDeleteConfirm<Row>(
-    async (row) => {
-      await branchApi.deletePartOrder(Number(row.id));
-      toast('Part order deleted', 'success');
-      reloadPartOrders();
-    },
-    { message: () => 'Permanently delete this part order? This cannot be undone.' },
-  );
-
-  async function handleApprovePartOrder(id: number) {
-    try {
-      await branchApi.approvePartOrder(id);
-      toast('Order approved. Confirmation email sent.', 'success');
-      reloadPartOrders();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to approve order', 'error');
-    }
-  }
 
   async function handleChannelSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1821,20 +1661,9 @@ export function BranchPaymentsPage() {
     }
   }
 
-  async function handleApprove(id: number, approved: boolean) {
-    try {
-      await branchApi.approvePayment(id, approved);
-      toast(approved ? 'Approved' : 'Rejected', approved ? 'success' : 'info');
-      setOrders((o) => o.filter((x) => x.id !== id));
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed', 'error');
-    }
-  }
-
   return (
-    <div className="space-y-10">
-      <div>
-        <PageHeader
+    <div>
+      <PageHeader
           title="Payment Channels"
           subtitle="Bank accounts & wallets shown to customers at checkout"
           action={
@@ -1866,103 +1695,6 @@ export function BranchPaymentsPage() {
           data={channels}
           emptyMessage="No payment channels. Add one for online checkout"
         />
-      </div>
-
-      <div>
-        <PageHeader title="Pending Payments" subtitle="Approve bank transfer orders" />
-        <DataTable
-          columns={[
-            { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
-            { key: 'paymentTransactionId', header: 'TID', render: (r) => String(r.paymentTransactionId ?? '') },
-            { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (r) => (
-                <div className="flex gap-2">
-                  <Button size="sm" variant="accent" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(Number(r.id), true)}>Approve</Button>
-                  <Button size="sm" variant="danger" disabled={!canUpdate} title={!canUpdate ? restrictedTitle : undefined} onClick={() => handleApprove(Number(r.id), false)}>Reject</Button>
-                </div>
-              ),
-            },
-          ]}
-          data={orders}
-          emptyMessage="No pending payments"
-        />
-      </div>
-
-      <div>
-        <PageHeader title="Part Orders" subtitle="Online parts orders awaiting payment confirmation" />
-        <DataTable
-          columns={[
-            { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderListReference(r as { id: number; publicId?: string; saleReference?: string; type?: string })}</span> },
-            { key: 'customer', header: 'Customer', render: (r) => orderRowCustomer(r) },
-            { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
-            { key: 'total', header: 'Amount', render: (r) => formatPKR(Number(r.total)) },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (r) => (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setPartDetail(r)}>View</Button>
-                  {r.status === 'AWAITING_PAYMENT' && (
-                    <Button
-                      size="sm"
-                      variant="accent"
-                      disabled={!canUpdate}
-                      title={!canUpdate ? restrictedTitle : undefined}
-                      onClick={() => handleApprovePartOrder(Number(r.id))}
-                    >
-                      Approve
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={!canDelete}
-                    title={!canDelete ? restrictedTitle : 'Permanently delete part order'}
-                    onClick={() => partOrderDelete.setTarget(r)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              ),
-            },
-          ]}
-          data={partOrders}
-          emptyMessage="No part orders"
-        />
-      </div>
-
-      <Modal
-        open={!!partDetail}
-        onClose={() => setPartDetail(null)}
-        title={`Part order ${partDetail ? orderListReference(partDetail as { id: number; publicId?: string; saleReference?: string; type?: string }) : ''}`}
-        size="lg"
-      >
-        {partDetail && (
-          <div className="space-y-3 text-sm text-slate-700">
-            <p><span className="text-slate-500">Customer:</span> {orderRowCustomer(partDetail)}</p>
-            <p><span className="text-slate-500">Phone:</span> {String(partDetail.customerPhone ?? (partDetail.user as { phone?: string })?.phone ?? '')}</p>
-            <p><span className="text-slate-500">Address:</span> {String(partDetail.customerAddress ?? '')}</p>
-            <p><span className="text-slate-500">Status:</span> <StatusBadge status={String(partDetail.status)} /></p>
-            <p><span className="text-slate-500">Total:</span> {formatPKR(Number(partDetail.total))}</p>
-            {partDetail.notes ? (
-              <p><span className="text-slate-500">Notes:</span> {String(partDetail.notes)}</p>
-            ) : null}
-            <div>
-              <p className="mb-1 text-slate-500">Items:</p>
-              <ul className="list-disc space-y-1 pl-5">
-                {((partDetail.items as { quantity: number; product?: { name?: string } }[]) ?? []).map((item, idx) => (
-                  <li key={idx}>
-                    {(item.product?.name ?? 'Part')} × {item.quantity}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </Modal>
 
       <Modal open={!!channelModal} onClose={() => setChannelModal(null)} title={channelModal === 'edit' ? 'Edit Payment Channel' : 'Add Payment Channel'}>
         <form onSubmit={handleChannelSubmit} className="space-y-4">
@@ -1976,8 +1708,6 @@ export function BranchPaymentsPage() {
           <FormActions onCancel={() => setChannelModal(null)} loading={saving} />
         </form>
       </Modal>
-
-      {partOrderDelete.modal}
     </div>
   );
 }

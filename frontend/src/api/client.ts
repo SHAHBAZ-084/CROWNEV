@@ -639,7 +639,6 @@ export const branchApi = {
       method: 'PATCH',
       body: JSON.stringify({ quantity }),
     }),
-  pendingPayments: () => api<Order[]>('/orders/pending-payments'),
   partOrders: () => api<Order[]>('/orders/part-orders'),
   approvePartOrder: (id: number) =>
     api<Order>(`/orders/${id}/approve-part-order`, { method: 'PATCH', body: '{}' }),

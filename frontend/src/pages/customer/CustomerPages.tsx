@@ -13,7 +13,7 @@ import { Input } from '../../components/ui/Input';
 import { ScreenshotUpload } from '../../components/ui/ScreenshotUpload';
 import { FormActions } from '../../components/crud/CrudHelpers';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
-import { OrderStatusTimeline, isInvoiceAvailable, isAwaitingPaymentVerification, needsCustomerPayment, orderItemsSummary, orderReference, PaymentStatusBadge } from '../../lib/orderHelpers';
+import { OrderStatusTimeline, OrderStatusBadge, isInvoiceAvailable, isAwaitingPaymentVerification, needsCustomerPayment, orderItemsSummary, orderReference, PaymentStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatDate, formatTime } from '../../lib/format';
 import { downloadBookingReceipt } from '../../lib/receiptDownload';
 import { useToast } from '../../contexts/ToastContext';
@@ -78,7 +78,7 @@ export function CustomerDashboard() {
           <DataTable
             columns={[
               { key: 'product', header: 'Product', render: (r) => orderItemsSummary(r as unknown as Order) || '—' },
-              { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+              { key: 'status', header: 'Status', render: (r) => <OrderStatusBadge status={String(r.status)} /> },
               { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
               {
                 key: 'actions',
@@ -277,7 +277,7 @@ export function CustomerOrdersPage() {
           { key: 'id', header: 'Order', render: (r) => <span className="font-mono text-xs">{orderReference(r as unknown as Order)}</span> },
           { key: 'items', header: 'Items', render: (r) => orderItemsSummary(r as unknown as Order) },
           { key: 'branch', header: 'Branch', render: (r) => (r.branch as { name?: string })?.name ?? '' },
-          { key: 'status', header: 'Status', render: (r) => <StatusBadge status={String(r.status)} /> },
+          { key: 'status', header: 'Status', render: (r) => <OrderStatusBadge status={String(r.status)} /> },
           { key: 'paymentStatus', header: 'Payment', render: (r) => <PaymentStatusBadge order={r as unknown as Order} /> },
           { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
           { key: 'createdAt', header: 'Date', render: (r) => formatDate(String(r.createdAt)) },

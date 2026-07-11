@@ -90,30 +90,6 @@ export async function listOrders(query: {
   return paginatedResponse(orders, total, page, limit);
 }
 
-export async function listPendingBankTransfers(branchId?: number) {
-  return prisma.order.findMany({
-    where: {
-      ...(branchId && {
-        OR: [
-          { branchId },
-          { items: { some: { branchId } } },
-        ],
-      }),
-      type: OrderType.ONLINE,
-      status: OrderStatus.PAYMENT_SUBMITTED,
-      paymentMethod: PaymentMethod.BANK_TRANSFER,
-      paymentStatus: PaymentStatus.PENDING,
-    },
-    include: {
-      items: { include: { product: { select: { name: true } } } },
-      user: { select: { firstName: true, lastName: true, email: true } },
-      branch: { select: { name: true } },
-    },
-    orderBy: { createdAt: 'asc' },
-    take: 200,
-  });
-}
-
 export async function getOrder(id: number, branchId?: number) {
   const order = await prisma.order.findFirst({
     where: {

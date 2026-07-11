@@ -61,20 +61,6 @@ ordersRouter.get(
 );
 
 ordersRouter.get(
-  '/pending-payments',
-  requireRoles(Role.BRANCH_OWNER),
-  asyncHandler(async (req, res) => {
-    const branchId = req.user!.branchId;
-    if (!branchId) {
-      res.status(403).json({ error: 'Branch not assigned' });
-      return;
-    }
-    const orders = await ordersService.listPendingBankTransfers(branchId);
-    res.json(orders);
-  }),
-);
-
-ordersRouter.get(
   '/',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER, Role.CUSTOMER),
   asyncHandler(async (req, res) => {
