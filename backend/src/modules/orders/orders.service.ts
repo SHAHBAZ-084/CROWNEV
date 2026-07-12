@@ -1501,7 +1501,14 @@ export async function listPartOrders(branchId?: number) {
   const orders = await prisma.order.findMany({
     where: {
       type: OrderType.ONLINE,
-      status: { in: [OrderStatus.AWAITING_PAYMENT, OrderStatus.CONFIRMED] },
+      status: {
+        in: [
+          OrderStatus.AWAITING_PAYMENT,
+          OrderStatus.PAYMENT_SUBMITTED,
+          OrderStatus.AWAITING_BILTY_CHARGES,
+          OrderStatus.CONFIRMED,
+        ],
+      },
       ...(branchId && {
         OR: [{ branchId }, { items: { some: { branchId } } }],
       }),
