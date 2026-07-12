@@ -49,11 +49,11 @@ async function getOpeningBalanceSnapshot(
   branchId: number,
   accountId: number,
   financialYearId: number,
-): Promise<number> {
+): Promise<{ balance: number; priorYearLabel: string | null }> {
   const currentYear = await db.financialYear.findFirst({
     where: { id: financialYearId, branchId },
   });
-  if (!currentYear) return 0;
+  if (!currentYear) return { balance: 0, priorYearLabel: null };
 
   const priorYear = await db.financialYear.findFirst({
     where: {
@@ -61,9 +61,9 @@ async function getOpeningBalanceSnapshot(
       startDate: { lt: currentYear.startDate },
     },
     orderBy: { startDate: 'desc' },
-    select: { id: true },
+    select: { id: true, label: true },
   });
-  if (!priorYear) return 0;
+  if (!priorYear) return { balance: 0, priorYearLabel: null };
 
   const snapshot = await db.financialYearClosingBalance.findUnique({
     where: {
@@ -73,7 +73,10 @@ async function getOpeningBalanceSnapshot(
       },
     },
   });
-  return snapshot ? Number(snapshot.balance) : 0;
+  return {
+    balance: snapshot ? Number(snapshot.balance) : 0,
+    priorYearLabel: priorYear.label,
+  };
 }
 
 export async function listFinancialYears(branchId: number) {
@@ -1666,7 +1669,17 @@ async function buildLedgerEntriesReport(
 
   if (!ledger) throw new AppError(404, 'Ledger not found');
 
-  const baseOpening = await getOpeningBalanceSnapshot(prisma, branchId, accountId, financialYearId);
+  const { balance: baseOpening, priorYearLabel } = await getOpeningBalanceSnapshot(
+    prisma,
+    branchId,
+    accountId,
+    financialYearId,
+  );
+
+  const currentYear = await prisma.financialYear.findFirst({
+    where: { id: financialYearId, branchId },
+    select: { startDate: true },
+  });
 
   const yearEntries = await prisma.ledgerEntry.findMany({
     where: {
@@ -1732,19 +1745,24 @@ async function buildLedgerEntriesReport(
   let totalDebit = 0;
   let totalCredit = 0;
 
-  if (from) {
+  const openingLabel = priorYearLabel
+    ? `Closing Balance of ${priorYearLabel}`
+    : 'Opening Balance';
+
+  if (priorYearLabel || from) {
     rows.push({
-      date: fromDate!,
+      date: from
+        ? fromDate!
+        : (currentYear?.startDate.toISOString() ?? new Date().toISOString()),
       voucherNo: '0',
       ref: null,
-      type: 'Opening Balance',
-      description: 'Opening Balance',
+      type: openingLabel,
+      description: openingLabel,
       debit: 0,
       credit: 0,
-      balance: periodOpening,
+      balance: from ? periodOpening : baseOpening,
       isOpeningRow: true,
     });
-    running = periodOpening;
   }
 
   for (const e of periodEntries) {
