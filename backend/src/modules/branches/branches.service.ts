@@ -249,6 +249,7 @@ export async function getBranchClearPreview(branchId: number) {
     services,
     stockAdjustments,
     accounts,
+    financialYears,
   ] = await Promise.all([
     prisma.order.count({ where: { branchId } }),
     prisma.customer.count({ where: { branchId } }),
@@ -262,6 +263,7 @@ export async function getBranchClearPreview(branchId: number) {
     prisma.service.count({ where: { branchId } }),
     prisma.stockAdjustment.count({ where: { branchId } }),
     prisma.account.count({ where: { branchId } }),
+    prisma.financialYear.count({ where: { branchId } }),
   ]);
 
   return {
@@ -280,6 +282,7 @@ export async function getBranchClearPreview(branchId: number) {
       services,
       stockAdjustments,
       accounts,
+      financialYears,
     },
   };
 }
@@ -313,6 +316,8 @@ async function purgeBranchOperationalData(tx: Prisma.TransactionClient, branchId
     paymentChannels: 0,
     trialBalanceApprovals: 0,
     contactMessages: 0,
+    financialYearClosingBalances: 0,
+    financialYears: 0,
   };
 
   const r1 = await tx.customerLedger.deleteMany({
@@ -383,6 +388,14 @@ async function purgeBranchOperationalData(tx: Prisma.TransactionClient, branchId
   const r16 = await tx.voucher.deleteMany({ where: { branchId } });
   counts.vouchers = r16.count;
 
+  const rFYCB = await tx.financialYearClosingBalance.deleteMany({
+    where: { financialYear: { branchId } },
+  });
+  counts.financialYearClosingBalances = rFYCB.count;
+
+  const rFY = await tx.financialYear.deleteMany({ where: { branchId } });
+  counts.financialYears = rFY.count;
+
   const r17 = await tx.customer.deleteMany({ where: { branchId } });
   counts.customers = r17.count;
 
@@ -433,6 +446,9 @@ export async function clearBranchData(branchId: number, confirmName: string) {
   );
 
   await bootstrapBranchChartOfAccounts(branchId);
+
+  const { label, startDate } = fiscalYearLabelForDate(new Date());
+  await prisma.financialYear.create({ data: { branchId, label, startDate } });
 
   return { branchId, branchName: branch.name, deleted };
 }

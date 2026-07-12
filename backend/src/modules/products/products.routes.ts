@@ -10,6 +10,7 @@ import {
   saveProductImageAsWebp,
 } from '../../utils/imageProcessing.js';
 import * as productsService from './products.service.js';
+import { getPartsFulfillmentBranch } from '../public/public.service.js';
 
 export const productsRouter = Router();
 
@@ -49,6 +50,13 @@ productsRouter.get(
   cachePublicJson(60),
   optionalAuth,
   asyncHandler(async (req, res) => {
+    const { branchId } = await getPartsFulfillmentBranch();
+    if (!branchId) {
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const limit = parseInt((req.query.limit as string) || '20', 10);
+      res.json({ data: [], pagination: { total: 0, page, limit, totalPages: 0 } });
+      return;
+    }
     const result = await productsService.listShopProducts({
       page: req.query.page as string,
       limit: req.query.limit as string,
@@ -56,7 +64,7 @@ productsRouter.get(
       brandId: req.query.brandId ? parseInt(req.query.brandId as string, 10) : undefined,
       categoryId: req.query.categoryId ? parseInt(req.query.categoryId as string, 10) : undefined,
       search: req.query.search as string,
-      branchId: req.query.branchId ? parseInt(req.query.branchId as string, 10) : undefined,
+      branchId,
     });
     res.json(result);
   })
@@ -74,7 +82,12 @@ productsRouter.get(
 productsRouter.get(
   '/shop/:id',
   asyncHandler(async (req, res) => {
-    const product = await productsService.getProduct(param(req.params.id));
+    const { branchId } = await getPartsFulfillmentBranch();
+    if (!branchId) {
+      res.status(404).json({ error: 'Product not found' });
+      return;
+    }
+    const product = await productsService.getPublicShopProduct(param(req.params.id), branchId);
     res.json(product);
   })
 );

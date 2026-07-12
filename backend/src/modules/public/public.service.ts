@@ -4,6 +4,7 @@ import { findManyWithListingOrder } from '../products/products.service.js';
 import { AppError } from '../../utils/helpers.js';
 import { modelCompatibilityFilter } from '../../utils/modelCompatibility.js';
 export async function getLandingData() {
+  const { branchId: fulfillmentBranchId } = await getPartsFulfillmentBranch();
   const [testimonials, branches, categories, brands, featuredProducts, stats] = await Promise.all([
     prisma.testimonial.findMany({
       where: { status: 'APPROVED', isActive: true },
@@ -34,16 +35,29 @@ export async function getLandingData() {
       take: 10,
     }),
     prisma.brand.findMany({ where: { isActive: true }, take: 12 }),
-    findManyWithListingOrder({
-      where: { isActive: true, type: 'BIKE' },
-      include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
-      take: 8,
-    }),
+    fulfillmentBranchId
+      ? findManyWithListingOrder({
+          where: {
+            isActive: true,
+            type: 'BIKE',
+            branchProducts: { some: { branchId: fulfillmentBranchId, isListed: true } },
+          },
+          include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
+          take: 8,
+        })
+      : Promise.resolve([]),
     Promise.all([
       prisma.branch.count({
         where: { isActive: true, NOT: { name: { startsWith: 'Accounting Test' } } },
       }),
-      prisma.product.count({ where: { isActive: true } }),
+      prisma.product.count({
+        where: {
+          isActive: true,
+          ...(fulfillmentBranchId && {
+            branchProducts: { some: { branchId: fulfillmentBranchId, isListed: true } },
+          }),
+        },
+      }),
       prisma.order.count({ where: { status: 'CONFIRMED' } }),
     ]),
   ]);
@@ -752,11 +766,14 @@ export async function listPartsByModel(modelName: string) {
   const name = modelName.trim();
   if (!name) throw new AppError(400, 'model query parameter is required');
 
+  const { branchId } = await getPartsFulfillmentBranch();
+  if (!branchId) return [];
+
   const products = await prisma.product.findMany({
     where: {
       type: ProductType.PART,
       isActive: true,
-      branchProducts: { some: { isListed: true } },
+      branchProducts: { some: { branchId, isListed: true } },
       bikePartDetails: { some: modelCompatibilityFilter(name) },
     },
     select: {

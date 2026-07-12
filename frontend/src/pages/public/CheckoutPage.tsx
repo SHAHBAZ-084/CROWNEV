@@ -137,11 +137,11 @@ export default function CheckoutPage() {
     }
   }, [step]);
 
-  const loadBikeColors = useCallback(async (branch: number, bikes: typeof bikeItems) => {
+  const loadBikeColors = useCallback(async (bikes: typeof bikeItems) => {
     const entries = await Promise.all(
       bikes.map(async (item) => {
         try {
-          const colors = await publicApi.availableBikeColors(item.productId, branch);
+          const colors = await publicApi.availableBikeColors(item.productId);
           return [item.productId, colors] as const;
         } catch {
           return [item.productId, []] as const;
@@ -177,8 +177,8 @@ export default function CheckoutPage() {
       setBikeColors({});
       return;
     }
-    loadBikeColors(partsBranchId, bikeItems);
-  }, [partsBranchId, bikeItems, loadBikeColors]);
+    loadBikeColors(bikeItems);
+  }, [bikeItems, loadBikeColors]);
 
   useEffect(() => {
     if (!branchId) {

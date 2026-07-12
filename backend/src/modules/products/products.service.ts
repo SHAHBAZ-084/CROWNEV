@@ -288,6 +288,26 @@ export async function getProduct(id: string) {
   return product;
 }
 
+export async function getPublicShopProduct(id: string, branchId: number) {
+  const product = await prisma.product.findFirst({
+    where: {
+      id,
+      isActive: true,
+      branchProducts: { some: { branchId, isListed: true } },
+    },
+    include: {
+      brand: true,
+      category: true,
+      images: { orderBy: { sortOrder: 'asc' } },
+      bikePartDetails: true,
+      branchProducts: { where: { branchId }, select: { stock: true } },
+    },
+  });
+  if (!product) throw new AppError(404, 'Product not found');
+  const { branchProducts, ...rest } = product;
+  return { ...rest, stockAtBranch: branchProducts[0]?.stock ?? 0 };
+}
+
 export async function createProduct(
   data: {
     name: string;
