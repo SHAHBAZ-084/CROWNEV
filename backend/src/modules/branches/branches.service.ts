@@ -8,12 +8,14 @@ import { deleteBranchImageFile } from '../../utils/imageProcessing.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { previewNextDocumentNumbers } from '../../utils/documentNumbers.js';
 
-export async function listBranches(activeOnly = false) {
+export async function listBranches(activeOnly = false, visibleOnly = false) {
   const excludeTestBranches = { NOT: { name: { startsWith: 'Accounting Test' } } };
   return prisma.branch.findMany({
-    where: activeOnly
-      ? { isActive: true, ...excludeTestBranches }
-      : excludeTestBranches,
+    where: {
+      ...(activeOnly ? { isActive: true } : {}),
+      ...(visibleOnly ? { showOnPublicSite: true } : {}),
+      ...excludeTestBranches,
+    },
     include: {
       _count: { select: { orders: true, inventory: true } },
     },
@@ -38,8 +40,11 @@ export async function createBranch(data: {
   imageUrl?: string;
   latitude?: number;
   longitude?: number;
+  showOnPublicSite?: boolean;
 }) {
-  const branch = await prisma.branch.create({ data });
+  const branch = await prisma.branch.create({
+    data: { ...data, showOnPublicSite: data.showOnPublicSite ?? false },
+  });
   await bootstrapBranchChartOfAccounts(branch.id);
   const { label, startDate } = fiscalYearLabelForDate(new Date());
   await prisma.financialYear.create({
@@ -60,6 +65,7 @@ export async function updateBranch(
     latitude: number | null;
     longitude: number | null;
     isActive: boolean;
+    showOnPublicSite: boolean;
   }>
 ) {
   if (data.imageUrl !== undefined) {
@@ -79,6 +85,7 @@ export async function updateBranch(
   if (data.latitude !== undefined) updateData.latitude = data.latitude;
   if (data.longitude !== undefined) updateData.longitude = data.longitude;
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
+  if (data.showOnPublicSite !== undefined) updateData.showOnPublicSite = data.showOnPublicSite;
 
   return prisma.branch.update({ where: { id }, data: updateData });
 }

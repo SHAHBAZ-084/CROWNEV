@@ -14,6 +14,7 @@ export async function getLandingData() {
     prisma.branch.findMany({
       where: {
         isActive: true,
+        showOnPublicSite: true,
         NOT: { name: { startsWith: 'Accounting Test' } },
       },
       select: {

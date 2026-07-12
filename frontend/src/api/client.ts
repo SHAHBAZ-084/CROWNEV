@@ -184,7 +184,8 @@ export const publicApi = {
         images?: { url: string; isPrimary: boolean }[];
       }[]
     >(`/public/parts-by-model?model=${encodeURIComponent(model)}`),
-  branches: () => api<Branch[]>('/branches/public'),
+  branches: (opts?: { visibleOnly?: boolean }) =>
+    api<Branch[]>(`/branches/public${opts?.visibleOnly ? '?visibleOnly=1' : ''}`),
   paymentChannels: (branchId: number) =>
     api<PaymentChannel[]>(`/branches/public/${branchId}/payment-channels`),
   services: (branchId: number) => api<{ id: number; name: string; basePrice: string; duration: number }[]>(`/services/public/${branchId}`),
@@ -273,6 +274,7 @@ export const adminApi = {
     whatsapp?: string;
     description?: string;
     imageUrl?: string;
+    showOnPublicSite?: boolean;
   }) => api<unknown>('/branches', { method: 'POST', body: JSON.stringify(data) }),
   uploadBranchImage: (file: File) => {
     const form = new FormData();

@@ -14,8 +14,9 @@ export const branchesRouter = Router();
 branchesRouter.get(
   '/public',
   cachePublicJson(30),
-  asyncHandler(async (_req, res) => {
-    const branches = await branchesService.listBranches(true);
+  asyncHandler(async (req, res) => {
+    const visibleOnly = req.query.visibleOnly === '1' || req.query.visibleOnly === 'true';
+    const branches = await branchesService.listBranches(true, visibleOnly);
     res.json(branches);
   })
 );
@@ -129,6 +130,7 @@ branchesRouter.post(
         .optional(),
       latitude: z.number().min(-90).max(90).optional(),
       longitude: z.number().min(-180).max(180).optional(),
+      showOnPublicSite: z.boolean().optional(),
     })
   ),
   asyncHandler(async (req, res) => {
@@ -154,6 +156,7 @@ branchesRouter.patch(
       latitude: z.number().min(-90).max(90).nullable().optional(),
       longitude: z.number().min(-180).max(180).nullable().optional(),
       isActive: z.boolean().optional(),
+      showOnPublicSite: z.boolean().optional(),
     })
   ),
   asyncHandler(async (req, res) => {

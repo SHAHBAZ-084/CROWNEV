@@ -205,7 +205,8 @@ model Branch {
   imageUrl    String?
   latitude    Float?
   longitude   Float?
-  isActive    Boolean  @default(true)
+  isActive          Boolean  @default(true)
+  showOnPublicSite  Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -49,6 +49,7 @@ export interface Branch {
   imageUrl?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  showOnPublicSite?: boolean;
 }
 
 export interface PaymentChannel {

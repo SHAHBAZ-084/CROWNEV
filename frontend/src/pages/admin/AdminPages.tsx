@@ -329,6 +329,7 @@ export function AdminBranchesPage() {
       ...(modal === 'edit' ? { description: description || null } : description ? { description } : {}),
       ...coordFields(fd, modal === 'edit' ? 'edit' : 'create'),
       ...(modal === 'edit' && { isActive: fd.get('isActive') === 'true' }),
+      showOnPublicSite: fd.get('showOnPublicSite') === 'true',
     };
     setSaving(true);
     try {
@@ -352,6 +353,7 @@ export function AdminBranchesPage() {
           imageUrl?: string;
           latitude?: number | null;
           longitude?: number | null;
+          showOnPublicSite?: boolean;
         });
       }
       await reload();
@@ -411,6 +413,15 @@ export function AdminBranchesPage() {
             },
           },
           { key: 'isActive', header: 'Status', render: (r) => <StatusBadge status={r.isActive ? 'CONFIRMED' : 'CANCELLED'} /> },
+          {
+            key: 'showOnPublicSite',
+            header: 'Public site',
+            render: (r) => (
+              <Badge variant={r.showOnPublicSite ? 'success' : 'default'}>
+                {r.showOnPublicSite ? 'Public' : 'Hidden'}
+              </Badge>
+            ),
+          },
           { key: 'actions', header: 'Actions', className: 'whitespace-nowrap w-40', render: (r) => (
             <RowActions
               onEdit={() => { setEdit(r); setModal('edit'); }}
@@ -478,6 +489,14 @@ export function AdminBranchesPage() {
             onPendingFileChange={setPendingBranchPhoto}
           />
           <Textarea name="description" label="About-page description (shown on About Us)" rows={3} defaultValue={String(edit?.description ?? '')} />
+          <Select
+            name="showOnPublicSite"
+            label="Show on public Home & About pages"
+            defaultValue={String(edit?.showOnPublicSite ?? false)}
+          >
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </Select>
           {modal === 'edit' && (
             <Select name="isActive" label="Active" defaultValue={String(edit?.isActive ?? true)}>
               <option value="true">Active</option>

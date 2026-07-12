@@ -20,7 +20,7 @@ export function AboutPage() {
   const [heroSection, setHeroSection] = useState<AboutHeroSection>(DEFAULT_ABOUT_HERO_SECTION);
 
   useEffect(() => {
-    publicApi.branches().then(setBranches).catch(console.error);
+    publicApi.branches({ visibleOnly: true }).then(setBranches).catch(console.error);
     publicApi.founders().then(setFoundersSection).catch(console.error);
     publicApi.aboutHero().then(setHeroSection).catch(console.error);
   }, []);
