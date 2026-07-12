@@ -1618,6 +1618,7 @@ export async function deletePartOrder(orderId: number, branchId: number | undefi
     quantity: item.quantity,
     color: item.color,
   }));
+  const wasAlreadyApproved = order.status === OrderStatus.CONFIRMED;
 
   await prisma.$transaction(async (tx) => {
     if (order.status === OrderStatus.CONFIRMED) {
@@ -1647,7 +1648,7 @@ export async function deletePartOrder(orderId: number, branchId: number | undefi
     await tx.order.delete({ where: { id: order.id } });
   });
 
-  if (customerEmail) {
+  if (customerEmail && !wasAlreadyApproved) {
     await sendOrderRejectedEmail({
       to: customerEmail,
       customerName,
