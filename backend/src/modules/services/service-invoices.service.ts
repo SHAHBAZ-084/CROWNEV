@@ -6,13 +6,24 @@ import {
   ensureCustomerAccount,
   ensureServiceRevenueAccount,
   cancelActiveVouchersByReferenceInTx,
+  getActiveFinancialYearId,
+  assertActiveFinancialYear,
 } from '../accounting/accounting.service.js';
 import { deductStockForOrder, validateAndPriceItems } from '../orders/orders.service.js';
 import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
 
 export async function listServiceInvoices(branchId: number, query: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query);
-  const where = { branchId };
+  let financialYearId: number | undefined;
+  try {
+    financialYearId = await getActiveFinancialYearId(prisma, branchId);
+  } catch {
+    financialYearId = undefined;
+  }
+  const where = {
+    branchId,
+    ...(financialYearId != null && { financialYearId }),
+  };
 
   const [invoices, total] = await Promise.all([
     prisma.serviceInvoice.findMany({
@@ -71,10 +82,12 @@ export async function createServiceInvoice(data: {
   return prisma.$transaction(async (tx) => {
     const reference =
       data.reference?.trim() || (await allocateServiceInvoiceNumber(tx, data.branchId));
+    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
 
     const invoice = await tx.serviceInvoice.create({
       data: {
         branchId: data.branchId,
+        financialYearId,
         customerId: data.customerId,
         reference,
         labourCost,
@@ -232,6 +245,7 @@ export async function deleteServiceInvoice(
     },
   });
   if (!invoice) throw new AppError(404, 'Service invoice not found');
+  await assertActiveFinancialYear(prisma, invoice.branchId, invoice.financialYearId);
 
   const reference = invoice.reference.trim();
 

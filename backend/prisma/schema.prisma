@@ -131,6 +131,11 @@ enum ContactStatus {
   REPLIED
 }
 
+enum FinancialYearStatus {
+  ACTIVE
+  CLOSED
+}
+
 enum BranchPermission {
   WRITE_ONLY
   WRITE_UPDATE
@@ -157,7 +162,6 @@ model User {
   updatedAt        DateTime         @updatedAt
 
   branch                Branch?                @relation("BranchOwner", fields: [branchId], references: [id])
-  ownedBranch           Branch?                @relation("BranchOwnerUser")
   orders                Order[]
   customer              Customer?
   serviceBookings       ServiceBooking[]
@@ -166,6 +170,7 @@ model User {
   vouchersModified      Voucher[]              @relation("VoucherModifiedBy")
   vouchersDeleted       Voucher[]              @relation("VoucherDeletedBy")
   trialBalanceApprovals TrialBalanceApproval[]
+  closedFinancialYears  FinancialYear[]        @relation("FinancialYearClosedBy")
 
   @@index([email])
   @@index([branchId])
@@ -201,11 +206,9 @@ model Branch {
   latitude    Float?
   longitude   Float?
   isActive    Boolean  @default(true)
-  ownerId     String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner                 User?                  @relation("BranchOwnerUser", fields: [ownerId], references: [id])
   staff                 User[]                 @relation("BranchOwner")
   inventory             Inventory[]
   branchProducts        BranchProduct[]
@@ -228,6 +231,7 @@ model Branch {
   paymentChannels       BranchPaymentChannel[]
   bikeChassisNumbers    BikeChassisNumber[]
   orderItems            OrderItem[]
+  financialYears        FinancialYear[]
 
   @@index([isActive])
 }
@@ -450,16 +454,19 @@ model Order {
   total                  Decimal         @db.Decimal(12, 2)
   notes                  String?
   saleReference          String?
+  financialYearId        Int?
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
 
   branch         Branch           @relation(fields: [branchId], references: [id])
+  financialYear  FinancialYear?   @relation(fields: [financialYearId], references: [id])
   user           User?            @relation(fields: [userId], references: [id])
   customer       Customer?        @relation(fields: [customerId], references: [id])
   items          OrderItem[]
   customerLedger CustomerLedger[]
 
   @@index([branchId])
+  @@index([branchId, financialYearId])
   @@index([status])
   @@index([createdAt])
   @@index([userId])
@@ -617,16 +624,19 @@ model Purchase {
   documentRef   String?
   total         Decimal  @db.Decimal(12, 2)
   notes         String?
+  financialYearId Int?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   branch   Branch              @relation(fields: [branchId], references: [id])
+  financialYear FinancialYear?   @relation(fields: [financialYearId], references: [id])
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   items    PurchaseItem[]
   ledger   SupplierLedger[]
   chassis  BikeChassisNumber[]
 
   @@index([branchId])
+  @@index([branchId, financialYearId])
   @@index([createdAt])
 }
 
@@ -764,15 +774,18 @@ model ServiceInvoice {
   total       Decimal  @db.Decimal(12, 2)
   notes       String?
   createdById String?
+  financialYearId Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   branch   Branch               @relation(fields: [branchId], references: [id])
+  financialYear FinancialYear?  @relation(fields: [financialYearId], references: [id])
   customer Customer             @relation(fields: [customerId], references: [id])
   items    ServiceInvoiceItem[]
   ledger   CustomerLedger[]
 
   @@index([branchId])
+  @@index([branchId, financialYearId])
   @@index([customerId])
   @@index([createdAt])
 }
@@ -841,6 +854,7 @@ model Account {
   ledger         Ledger?
   debitVouchers  Voucher[]       @relation("DebitAccount")
   creditVouchers Voucher[]       @relation("CreditAccount")
+  closingBalances FinancialYearClosingBalance[]
 
   @@unique([branchId, code])
   @@index([branchId])
@@ -902,8 +916,10 @@ model Voucher {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
   deletedAt       DateTime?
+  financialYearId Int?
 
   branch        Branch        @relation(fields: [branchId], references: [id])
+  financialYear FinancialYear? @relation(fields: [financialYearId], references: [id])
   debitAccount  Account       @relation("DebitAccount", fields: [debitAccountId], references: [id])
   creditAccount Account       @relation("CreditAccount", fields: [creditAccountId], references: [id])
   createdBy     User          @relation("VoucherCreatedBy", fields: [createdById], references: [id])
@@ -911,10 +927,47 @@ model Voucher {
   deletedBy     User?         @relation("VoucherDeletedBy", fields: [deletedById], references: [id])
   ledgerEntries LedgerEntry[]
 
-  @@unique([branchId, type, number])
+  @@unique([branchId, financialYearId, type, number])
   @@index([branchId])
+  @@index([branchId, financialYearId, type])
   @@index([createdAt])
   @@index([status])
+}
+
+// ─── 29b. Financial Year ─────────────────────────────────────────────────────
+
+model FinancialYear {
+  id           Int                 @id @default(autoincrement())
+  branchId     Int
+  label        String
+  startDate    DateTime
+  endDate      DateTime?
+  status       FinancialYearStatus @default(ACTIVE)
+  closedAt     DateTime?
+  closedById   String?
+
+  branch          Branch                        @relation(fields: [branchId], references: [id])
+  closedBy        User?                         @relation("FinancialYearClosedBy", fields: [closedById], references: [id])
+  closingBalances FinancialYearClosingBalance[]
+  vouchers        Voucher[]
+  orders          Order[]
+  purchases       Purchase[]
+  serviceInvoices ServiceInvoice[]
+
+  @@unique([branchId, label])
+  @@index([branchId, status])
+}
+
+model FinancialYearClosingBalance {
+  id              Int     @id @default(autoincrement())
+  financialYearId Int
+  accountId       Int
+  balance         Decimal @db.Decimal(12, 2)
+
+  financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
+  account       Account       @relation(fields: [accountId], references: [id])
+
+  @@unique([financialYearId, accountId])
 }
 
 // ─── 30. Testimonial ─────────────────────────────────────────────────────────

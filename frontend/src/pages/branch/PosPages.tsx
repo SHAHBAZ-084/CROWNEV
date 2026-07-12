@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
@@ -26,7 +26,7 @@ import {
   isProtectedCategory,
   isSuppliersCategory,
 } from '../../lib/accountingCategories';
-import { FileSpreadsheet, FileText, Plus, Trash2, Search } from 'lucide-react';
+import { FileSpreadsheet, FileText, Plus, Trash2, Search, CalendarClock } from 'lucide-react';
 import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
@@ -2921,6 +2921,438 @@ export function PosDetailTrialBalancePage() {
         </div>
       )}
       <WorkspaceCloseBar className="mt-8" />
+    </div>
+  );
+}
+
+type FinancialYearRow = {
+  id: number;
+  label: string;
+  startDate: string;
+  endDate: string | null;
+  status: 'ACTIVE' | 'CLOSED';
+  closedAt: string | null;
+};
+
+function nextFiscalYearLabel(label: string): string {
+  const startYear = parseInt(label.split('-')[0] ?? '', 10);
+  return `${startYear + 1}-${startYear + 2}`;
+}
+
+export function FinancialYearPage() {
+  const { user } = useAuth();
+  const { canDelete, restrictedTitle } = useBranchPermission();
+  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const branchId = useBranchId();
+  const { toast } = useToast();
+  const [years, setYears] = useState<FinancialYearRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [closing, setClosing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const activeYear = years.find((y) => y.status === 'ACTIVE');
+
+  const loadYears = useCallback(async () => {
+    if (!branchId || !canManageFinancialYear) return;
+    setLoading(true);
+    try {
+      const data = await branchApi.financialYears(branchId);
+      setYears(data as FinancialYearRow[]);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load financial years', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [branchId, toast, canManageFinancialYear]);
+
+  useEffect(() => {
+    loadYears();
+  }, [loadYears]);
+
+  if (!canManageFinancialYear) {
+    return (
+      <div>
+        <PageHeader title="Financial Year" />
+        <p className="text-sm text-text-muted">{restrictedTitle}</p>
+        <WorkspaceCloseBar className="mt-8" />
+      </div>
+    );
+  }
+
+  async function handleCloseYear() {
+    if (!branchId || !activeYear) return;
+    setClosing(true);
+    try {
+      const result = await branchApi.closeFinancialYear(branchId);
+      toast(
+        `Closed ${result.closedYear.label}. New year ${result.newYear.label} is now active.`,
+        'success',
+      );
+      setConfirmOpen(false);
+      await loadYears();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to close financial year', 'error');
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  const nextLabel = activeYear ? nextFiscalYearLabel(activeYear.label) : '';
+
+  return (
+    <div>
+      <PageHeader
+        title="Financial Year"
+        subtitle="Close the current year to snapshot balances and start fresh invoice numbering"
+      />
+
+      {loading ? (
+        <p className="text-sm text-text-muted">Loading…</p>
+      ) : activeYear ? (
+        <div className="mb-8 rounded-xl border border-border bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Current active year</p>
+              <p className="mt-1 font-display text-2xl font-bold text-brand">{activeYear.label}</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Started {formatDate(activeYear.startDate)}
+              </p>
+            </div>
+            <Button type="button" variant="accent" onClick={() => setConfirmOpen(true)}>
+              <CalendarClock className="h-4 w-4" />
+              Save Financial Year
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="mb-8 text-sm text-warning">No active financial year found for this branch.</p>
+      )}
+
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">All years</h2>
+      <div className="overflow-hidden rounded-xl border border-border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-alt/60 text-left text-xs uppercase tracking-wide text-text-muted">
+              <th className="px-4 py-3">Label</th>
+              <th className="px-4 py-3">Start</th>
+              <th className="px-4 py-3">End</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {years.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-text-muted">No financial years yet</td>
+              </tr>
+            ) : (
+              years.map((y) => (
+                <tr key={y.id} className="border-b border-border/40">
+                  <td className="px-4 py-3 font-medium">{y.label}</td>
+                  <td className="px-4 py-3 text-text-muted">{formatDate(y.startDate)}</td>
+                  <td className="px-4 py-3 text-text-muted">{y.endDate ? formatDate(y.endDate) : '—'}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${
+                        y.status === 'ACTIVE'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-surface-alt text-text-muted'
+                      }`}
+                    >
+                      {y.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {y.status === 'CLOSED' && (
+                      <Link
+                        to={`/branch/workspace/financial-year/${y.id}/ledger`}
+                        className="text-sm font-medium text-brand hover:underline"
+                      >
+                        View Ledger Report
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal
+        open={confirmOpen}
+        onClose={() => !closing && setConfirmOpen(false)}
+        title="Save Financial Year"
+      >
+        <p className="text-sm text-text-muted leading-relaxed">
+          This will permanently close <strong>{activeYear?.label}</strong>. No voucher or invoice from
+          this year can be edited or deleted afterward. A new year, <strong>{nextLabel}</strong>, will
+          begin immediately with all voucher and invoice numbers restarting from 1. Account balances are
+          not changed — this only saves a record and starts fresh counting. This cannot be undone.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button type="button" variant="secondary" disabled={closing} onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="button" variant="accent" disabled={closing} onClick={handleCloseYear}>
+            {closing ? 'Saving…' : 'Confirm — close year'}
+          </Button>
+        </div>
+      </Modal>
+
+      <WorkspaceCloseBar className="mt-8" />
+    </div>
+  );
+}
+
+export function FinancialYearLedgerReportPage() {
+  const { user } = useAuth();
+  const { canDelete, restrictedTitle } = useBranchPermission();
+  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const branchId = useBranchId();
+  const { financialYearId } = useParams<{ financialYearId: string }>();
+  const { toast } = useToast();
+  const [yearMeta, setYearMeta] = useState<FinancialYearRow | null>(null);
+  const [categories, setCategories] = useState<Row[]>([]);
+  const [accounts, setAccounts] = useState<Row[]>([]);
+  const [categoryId, setCategoryId] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [ledger, setLedger] = useState<Row | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const yearId = financialYearId ? parseInt(financialYearId, 10) : NaN;
+
+  useEffect(() => {
+    if (!branchId || !Number.isFinite(yearId) || !canManageFinancialYear) return;
+    branchApi.financialYears(branchId).then((years) => {
+      const match = (years as FinancialYearRow[]).find((y) => y.id === yearId) ?? null;
+      setYearMeta(match);
+    }).catch(console.error);
+    Promise.all([
+      branchApi.accountingCategories(branchId),
+      branchApi.accounts(branchId),
+    ])
+      .then(([cats, accts]) => {
+        setCategories(cats as Row[]);
+        setAccounts(accts as Row[]);
+      })
+      .catch(console.error);
+  }, [branchId, yearId, canManageFinancialYear]);
+
+  const categoryOptions: SearchSelectOption[] = useMemo(
+    () => categories.map((c) => ({ value: String(c.id), label: String(c.name) })),
+    [categories],
+  );
+
+  const filteredAccounts = useMemo(
+    () => (categoryId ? accounts.filter((a) => String(a.categoryId) === categoryId) : []),
+    [accounts, categoryId],
+  );
+
+  const accountOptions: SearchSelectOption[] = useMemo(
+    () => filteredAccounts.map((a) => ({
+      value: String(a.id),
+      label: String(a.name),
+    })),
+    [filteredAccounts],
+  );
+
+  async function loadLedger() {
+    if (!branchId || !accountId || !Number.isFinite(yearId)) {
+      setLedger(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const params: { fromDate?: string; toDate?: string; financialYearId: string } = {
+        financialYearId: String(yearId),
+      };
+      if (fromDate) params.fromDate = fromDate;
+      if (toDate) params.toDate = toDate;
+      const data = await branchApi.ledger(branchId, parseInt(accountId, 10), params);
+      setLedger(data as Row);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load ledger', 'error');
+      setLedger(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const rows = useMemo(() => (ledger?.rows as LedgerRow[]) ?? [], [ledger]);
+  const summary = ledger?.summary as {
+    periodOpening?: number;
+    totalDebit?: number;
+    totalCredit?: number;
+    closingBalance?: number;
+  } | undefined;
+  const account = ledger?.account as { code?: string; name?: string; type?: string } | undefined;
+  const accountLabel = account ? String(account.name) : 'Account';
+
+  async function handleExport(format: 'excel' | 'pdf') {
+    if (!ledger || rows.length === 0) return;
+    await exportLedgerReport(
+      format,
+      `${yearMeta?.label ?? 'FY'} — ${accountLabel}`,
+      rows,
+      {
+        totalDebit: summary?.totalDebit ?? 0,
+        totalCredit: summary?.totalCredit ?? 0,
+        closingBalance: summary?.closingBalance ?? Number(ledger.balance ?? 0),
+      },
+      { from: fromDate || undefined, to: toDate || undefined },
+    );
+  }
+
+  if (!canManageFinancialYear) {
+    return (
+      <div>
+        <PageHeader title="Financial Year Ledger Report" />
+        <p className="text-sm text-text-muted">{restrictedTitle}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {yearMeta && (
+        <div className="mb-6 rounded-xl border border-border bg-surface-alt/40 px-4 py-3 text-sm text-text-muted">
+          Viewing <strong className="text-brand">{yearMeta.label}</strong>
+          {yearMeta.closedAt && (
+            <> — Closed {formatDate(yearMeta.closedAt)}</>
+          )}
+          {' '}— Read-only historical record.
+        </div>
+      )}
+
+      <PageHeader
+        title="Financial Year Ledger Report"
+        subtitle="Read-only ledger entries for a closed financial year"
+      />
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_auto_auto_auto] lg:items-end">
+        <SearchSelect
+          label="Category"
+          value={categoryId}
+          onChange={(id) => {
+            setCategoryId(id);
+            setAccountId('');
+            setLedger(null);
+          }}
+          options={categoryOptions}
+          placeholder="Search category…"
+        />
+        <SearchSelect
+          label="Account"
+          value={accountId}
+          onChange={(id) => {
+            setAccountId(id);
+            setLedger(null);
+          }}
+          options={accountOptions}
+          placeholder={categoryId ? 'Search account…' : 'Choose category first'}
+          disabled={!categoryId}
+        />
+        <Input label="From date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <Input label="To date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <Button type="button" variant="accent" size="sm" disabled={!accountId || loading} onClick={loadLedger}>
+          Load report
+        </Button>
+      </div>
+
+      {loading && <p className="text-sm text-text-muted">Loading ledger…</p>}
+
+      {!loading && ledger && (
+        <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            {account && (
+              <p className="text-sm text-text-muted">
+                {String(account.name)}
+                {summary?.periodOpening != null && (
+                  <span className="ml-3">
+                    Opening: {formatLedgerBalance(summary.periodOpening)}
+                  </span>
+                )}
+              </p>
+            )}
+            {rows.length > 0 && (
+              <div className="flex gap-2">
+                <Button type="button" variant="secondary" size="sm" onClick={() => handleExport('excel')}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Excel
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={() => handleExport('pdf')}>
+                  <FileText className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface-alt/60 text-left text-xs uppercase tracking-wide text-text-muted">
+                    <th className="px-3 py-3">Date</th>
+                    <th className="px-3 py-3">Voucher#</th>
+                    <th className="px-3 py-3">Ref#</th>
+                    <th className="px-3 py-3">Type</th>
+                    <th className="px-3 py-3">Description</th>
+                    <th className="px-3 py-3 text-right">Debit</th>
+                    <th className="px-3 py-3 text-right">Credit</th>
+                    <th className="px-3 py-3 text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-text-muted">No entries in this period</td>
+                    </tr>
+                  ) : (
+                    rows.map((r, i) => (
+                      <tr
+                        key={`${r.voucherNo}-${r.date}-${r.description}-${i}`}
+                        className={`border-b border-border/40 ${r.isOpeningRow ? 'bg-surface-alt/20 font-medium' : ''}`}
+                      >
+                        <td className="px-3 py-2.5 whitespace-nowrap">{r.date ? formatDate(r.date) : ''}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs">{r.voucherNo}</td>
+                        <td className="px-3 py-2.5 text-text-muted">{r.ref || ''}</td>
+                        <td className="px-3 py-2.5">{r.type}</td>
+                        <td className="px-3 py-2.5 text-text-muted">{r.description || ''}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{r.debit > 0 ? formatLedgerAmount(r.debit) : ''}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{r.credit > 0 ? formatLedgerAmount(r.credit) : ''}</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular-nums text-brand">
+                          {formatLedgerBalance(r.balance)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                {rows.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-border bg-surface-alt/40 font-semibold">
+                      <td className="px-3 py-3" colSpan={5}>Total / Closing</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{formatLedgerAmount(summary?.totalDebit ?? 0)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{formatLedgerAmount(summary?.totalCredit ?? 0)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-brand">
+                        {formatLedgerBalance(summary?.closingBalance ?? Number(ledger.balance ?? 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="mt-8">
+        <Link to="/branch/workspace/financial-year" className="text-sm font-medium text-brand hover:underline">
+          ← Back to Financial Year
+        </Link>
+      </div>
     </div>
   );
 }

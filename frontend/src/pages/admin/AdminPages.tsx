@@ -1341,18 +1341,11 @@ export function AdminUsersPage() {
               defaultValue={String(edit?.branchId ?? '')}
             >
               <option value="">Select branch…</option>
-              {branches.map((b) => {
-                const owner = b.owner as { email?: string } | null | undefined;
-                const isCurrentOwner =
-                  modal === 'edit' && owner?.email && String(edit?.email) === owner.email;
-                const unavailable = !!owner && !isCurrentOwner;
-                return (
-                  <option key={String(b.id)} value={String(b.id)} disabled={unavailable}>
-                    {String(b.name)}
-                    {owner?.email ? ` (owner: ${owner.email})` : ' (no owner)'}
-                  </option>
-                );
-              })}
+              {branches.map((b) => (
+                <option key={String(b.id)} value={String(b.id)}>
+                  {String(b.name)}
+                </option>
+              ))}
             </Select>
           )}
           <Select

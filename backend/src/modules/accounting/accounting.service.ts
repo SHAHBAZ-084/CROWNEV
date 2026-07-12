@@ -1,6 +1,141 @@
-import { AccountType, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
+import { AccountType, FinancialYearStatus, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError } from '../../utils/helpers.js';
+
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
+export function fiscalYearLabelForDate(date: Date): { label: string; startDate: Date } {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  if (month >= 6) {
+    return { label: `${year}-${year + 1}`, startDate: new Date(year, 6, 1) };
+  }
+  return { label: `${year - 1}-${year}`, startDate: new Date(year - 1, 6, 1) };
+}
+
+function nextFiscalYearLabel(label: string): string {
+  const startYear = parseInt(label.split('-')[0] ?? '', 10);
+  if (!Number.isFinite(startYear)) {
+    throw new AppError(500, 'Invalid financial year label');
+  }
+  return `${startYear + 1}-${startYear + 2}`;
+}
+
+export async function getActiveFinancialYearId(db: DbClient, branchId: number): Promise<number> {
+  const year = await db.financialYear.findFirst({
+    where: { branchId, status: FinancialYearStatus.ACTIVE },
+    select: { id: true },
+  });
+  if (!year) throw new AppError(400, 'No active financial year for this branch');
+  return year.id;
+}
+
+export async function assertActiveFinancialYear(
+  db: DbClient,
+  branchId: number,
+  financialYearId: number | null | undefined,
+): Promise<void> {
+  const activeId = await getActiveFinancialYearId(db, branchId);
+  if (financialYearId == null || financialYearId !== activeId) {
+    throw new AppError(
+      403,
+      'This record belongs to a closed financial year and can no longer be edited or deleted.',
+    );
+  }
+}
+
+async function getOpeningBalanceSnapshot(
+  db: DbClient,
+  branchId: number,
+  accountId: number,
+  financialYearId: number,
+): Promise<number> {
+  const currentYear = await db.financialYear.findFirst({
+    where: { id: financialYearId, branchId },
+  });
+  if (!currentYear) return 0;
+
+  const priorYear = await db.financialYear.findFirst({
+    where: {
+      branchId,
+      startDate: { lt: currentYear.startDate },
+    },
+    orderBy: { startDate: 'desc' },
+    select: { id: true },
+  });
+  if (!priorYear) return 0;
+
+  const snapshot = await db.financialYearClosingBalance.findUnique({
+    where: {
+      financialYearId_accountId: {
+        financialYearId: priorYear.id,
+        accountId,
+      },
+    },
+  });
+  return snapshot ? Number(snapshot.balance) : 0;
+}
+
+export async function listFinancialYears(branchId: number) {
+  return prisma.financialYear.findMany({
+    where: { branchId },
+    orderBy: { startDate: 'desc' },
+    include: {
+      closedBy: { select: { firstName: true, lastName: true } },
+    },
+  });
+}
+
+export async function closeFinancialYear(branchId: number, userId: string) {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const activeYear = await tx.financialYear.findFirst({
+      where: { branchId, status: FinancialYearStatus.ACTIVE },
+    });
+    if (!activeYear) throw new AppError(400, 'No active financial year to close');
+
+    const accounts = await tx.account.findMany({
+      where: { branchId },
+      include: { ledger: true },
+    });
+
+    for (const account of accounts) {
+      const balance = account.ledger ? Number(account.ledger.balance) : 0;
+      await tx.financialYearClosingBalance.create({
+        data: {
+          financialYearId: activeYear.id,
+          accountId: account.id,
+          balance,
+        },
+      });
+    }
+
+    const endDate = new Date();
+    const closedYear = await tx.financialYear.update({
+      where: { id: activeYear.id },
+      data: {
+        status: FinancialYearStatus.CLOSED,
+        closedAt: endDate,
+        closedById: userId,
+        endDate,
+      },
+    });
+
+    const nextStart = new Date(endDate);
+    nextStart.setDate(nextStart.getDate() + 1);
+    nextStart.setHours(0, 0, 0, 0);
+
+    const newYear = await tx.financialYear.create({
+      data: {
+        branchId,
+        label: nextFiscalYearLabel(activeYear.label),
+        startDate: nextStart,
+        status: FinancialYearStatus.ACTIVE,
+      },
+    });
+
+    return { closedYear, newYear };
+  });
+}
 
 function isBankOrCashCategory(name: string) {
   const n = name.trim().toLowerCase();
@@ -587,9 +722,10 @@ async function nextVoucherNumber(
   tx: Prisma.TransactionClient,
   branchId: number,
   type: VoucherType,
+  financialYearId: number,
 ): Promise<number> {
   const { _max } = await tx.voucher.aggregate({
-    where: { branchId, type },
+    where: { branchId, type, financialYearId },
     _max: { number: true },
   });
   return (_max.number ?? 0) + 1;
@@ -1094,10 +1230,11 @@ export async function createVoucherInTx(
   );
   assertVoucherAccountRules(data.type, debitAccount, creditAccount);
 
-  const number = await nextVoucherNumber(tx, data.branchId, data.type);
+  const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
+  const number = await nextVoucherNumber(tx, data.branchId, data.type, financialYearId);
 
   const voucher = await tx.voucher.create({
-    data: { ...data, number, status: VoucherStatus.ACTIVE },
+    data: { ...data, number, financialYearId, status: VoucherStatus.ACTIVE },
   });
 
   await postVoucherLedgerEntries(
@@ -1223,8 +1360,18 @@ const voucherInclude = {
 } as const;
 
 export async function listVouchers(branchId: number) {
+  let financialYearId: number | undefined;
+  try {
+    financialYearId = await getActiveFinancialYearId(prisma, branchId);
+  } catch {
+    financialYearId = undefined;
+  }
+
   return prisma.voucher.findMany({
-    where: { branchId },
+    where: {
+      branchId,
+      ...(financialYearId != null && { financialYearId }),
+    },
     include: voucherInclude,
     orderBy: { createdAt: 'desc' },
   });
@@ -1261,6 +1408,7 @@ export async function updateVoucherAmount(
     if (voucher.status === VoucherStatus.CANCELLED) {
       throw new AppError(400, 'Cannot update amount on a cancelled voucher');
     }
+    await assertActiveFinancialYear(tx, branchId, voucher.financialYearId);
 
     const oldAmount = Number(voucher.amount);
     const delta = newAmount - oldAmount;
@@ -1337,6 +1485,7 @@ export async function cancelVoucherInTx(
   if (voucher.status === VoucherStatus.CANCELLED) {
     throw new AppError(400, 'Voucher is already cancelled');
   }
+  await assertActiveFinancialYear(tx, branchId, voucher.financialYearId);
 
   await reverseVoucherLedgerEntries(
     tx,
@@ -1385,6 +1534,7 @@ export async function restoreVoucher(branchId: number, voucherId: number, userId
     if (voucher.status !== VoucherStatus.CANCELLED) {
       throw new AppError(400, 'Only cancelled vouchers can be restored');
     }
+    await assertActiveFinancialYear(tx, branchId, voucher.financialYearId);
 
     await postVoucherLedgerEntries(
       tx,
@@ -1472,17 +1622,34 @@ export async function getLedgerEntries(
   fromDate?: string,
   toDate?: string,
 ) {
+  const financialYearId = await getActiveFinancialYearId(prisma, branchId);
+  return buildLedgerEntriesReport(accountId, branchId, financialYearId, fromDate, toDate);
+}
+
+export async function getLedgerEntriesForYear(
+  accountId: number,
+  branchId: number,
+  financialYearId: number,
+  fromDate?: string,
+  toDate?: string,
+) {
+  const year = await prisma.financialYear.findFirst({
+    where: { id: financialYearId, branchId },
+  });
+  if (!year) throw new AppError(404, 'Financial year not found');
+  return buildLedgerEntriesReport(accountId, branchId, financialYearId, fromDate, toDate);
+}
+
+async function buildLedgerEntriesReport(
+  accountId: number,
+  branchId: number,
+  financialYearId: number,
+  fromDate?: string,
+  toDate?: string,
+) {
   let ledger = await prisma.ledger.findFirst({
     where: { accountId, branchId },
-    include: {
-      entries: {
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        include: {
-          voucher: { include: { debitAccount: true, creditAccount: true } },
-        },
-      },
-      account: true,
-    },
+    include: { account: true },
   });
 
   if (!ledger) {
@@ -1493,29 +1660,36 @@ export async function getLedgerEntries(
     await prisma.ledger.create({ data: { branchId, accountId, balance: 0 } });
     ledger = await prisma.ledger.findFirst({
       where: { accountId, branchId },
-      include: {
-        entries: {
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          include: {
-            voucher: { include: { debitAccount: true, creditAccount: true } },
-          },
-        },
-        account: true,
-      },
+      include: { account: true },
     });
   }
 
   if (!ledger) throw new AppError(404, 'Ledger not found');
 
+  const baseOpening = await getOpeningBalanceSnapshot(prisma, branchId, accountId, financialYearId);
+
+  const yearEntries = await prisma.ledgerEntry.findMany({
+    where: {
+      ledgerId: ledger.id,
+      isReversal: false,
+      voucher: {
+        financialYearId,
+        status: VoucherStatus.ACTIVE,
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    include: {
+      voucher: { include: { debitAccount: true, creditAccount: true } },
+    },
+  });
+
   const from = fromDate ? parseDateStart(fromDate) : null;
   const to = toDate ? parseDateEnd(toDate) : null;
 
-  let periodOpening = 0;
-  const periodEntries: typeof ledger.entries = [];
+  let periodOpening = baseOpening;
+  const periodEntries: typeof yearEntries = [];
 
-  for (const e of ledger.entries) {
-    if (!isReportableLedgerEntry(e)) continue;
-
+  for (const e of yearEntries) {
     const { debit, credit } = entryDebitCredit(e.type, Number(e.amount));
     const at = new Date(e.createdAt);
 
@@ -1554,7 +1728,7 @@ export async function getLedgerEntries(
   };
 
   const rows: LedgerRow[] = [];
-  let running = periodOpening;
+  let running = from ? periodOpening : baseOpening;
   let totalDebit = 0;
   let totalCredit = 0;
 
@@ -1602,14 +1776,19 @@ export async function getLedgerEntries(
     });
   }
 
-  const closingBalance = from || to ? running : reportBalanceFromEntries(ledger.entries);
+  const closingBalance = from || to
+    ? running
+    : baseOpening + yearEntries.reduce((sum, e) => {
+        const { debit, credit } = entryDebitCredit(e.type, Number(e.amount));
+        return sum + debit - credit;
+      }, 0);
 
   return {
     account: ledger.account,
     balance: closingBalance,
     rows,
     summary: {
-      periodOpening,
+      periodOpening: from ? periodOpening : baseOpening,
       totalDebit,
       totalCredit,
       closingBalance,

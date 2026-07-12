@@ -20,6 +20,8 @@ import {
   formatPurchaseItemsDescription,
   updateVoucherAmount,
   cancelActiveVouchersByReferenceInTx,
+  getActiveFinancialYearId,
+  assertActiveFinancialYear,
 } from '../accounting/accounting.service.js';
 import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
 
@@ -192,7 +194,18 @@ export async function softDeleteSupplier(id: number, branchId: number) {
 
 export async function listPurchases(branchId?: number, query?: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query ?? {});
-  const where = branchId ? { branchId } : {};
+  let financialYearId: number | undefined;
+  if (branchId) {
+    try {
+      financialYearId = await getActiveFinancialYearId(prisma, branchId);
+    } catch {
+      financialYearId = undefined;
+    }
+  }
+  const where = {
+    ...(branchId ? { branchId } : {}),
+    ...(financialYearId != null && { financialYearId }),
+  };
 
   const [purchases, total] = await Promise.all([
     prisma.purchase.findMany({
@@ -320,10 +333,12 @@ export async function createPurchaseInvoice(data: {
   return prisma.$transaction(async (tx) => {
     const reference =
       data.reference?.trim() || (await allocatePurchaseInvoiceNumber(tx, data.branchId));
+    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
 
     const purchase = await tx.purchase.create({
       data: {
         branchId: data.branchId,
+        financialYearId,
         supplierId: data.supplierId,
         documentRef: reference,
         notes: data.notes,
@@ -434,9 +449,11 @@ export async function createPurchase(data: {
   const total = data.items.reduce((sum, i) => sum + i.unitCost * i.quantity, 0);
 
   const purchase = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
     const created = await tx.purchase.create({
       data: {
         branchId: data.branchId,
+        financialYearId,
         supplierId: data.supplierId,
         invoiceNumber: data.invoiceNumber,
         documentRef: data.documentRef,
@@ -685,6 +702,7 @@ export async function updatePurchaseInvoice(
     },
   });
   if (!purchase) throw new AppError(404, 'Purchase not found');
+  await assertActiveFinancialYear(prisma, purchase.branchId, purchase.financialYearId);
 
   const chassisById = new Map(purchase.chassis.map((c) => [c.id, c]));
   const itemById = new Map(purchase.items.map((i) => [i.id, i]));
@@ -910,6 +928,7 @@ export async function deletePurchaseInvoice(
     },
   });
   if (!purchase) throw new AppError(404, 'Purchase invoice not found');
+  await assertActiveFinancialYear(prisma, purchase.branchId, purchase.financialYearId);
 
   const soldUnits = purchase.chassis.filter((c) => c.status === ChassisStatus.SOLD);
   if (soldUnits.length > 0) {

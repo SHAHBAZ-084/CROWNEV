@@ -199,7 +199,7 @@ branchesRouter.post(
   validateBody(z.object({ ownerId: z.string().uuid() })),
   asyncHandler(async (req, res) => {
     await branchesService.assignOwner(parseInt(param(req.params.id), 10), req.body.ownerId);
-    res.json({ message: 'Owner assigned' });
+    res.json({ message: 'User assigned to branch' });
   })
 );
 

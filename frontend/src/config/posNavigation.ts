@@ -11,6 +11,7 @@ import {
   BarChart3,
   Handshake,
   Wrench,
+  CalendarClock,
 } from 'lucide-react';
 import type { SidebarNavSection } from '../components/layout/DashboardSidebar';
 
@@ -45,6 +46,12 @@ export const posSections: SidebarNavSection[] = [
     items: [
       { to: '/branch/workspace/reports/ledger', label: 'Account Ledger', icon: ScrollText },
       { to: '/branch/workspace/reports/trial-balance', label: 'Detail Trial Balance', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Financial Year',
+    items: [
+      { to: '/branch/workspace/financial-year', label: 'Financial Year', icon: CalendarClock },
     ],
   },
 ];

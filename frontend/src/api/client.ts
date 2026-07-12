@@ -844,10 +844,26 @@ export const branchApi = {
   updateBank: (branchId: number, id: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/banks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   trialBalance: (branchId: number) => api<unknown>(`/accounting/${branchId}/trial-balance`),
-  ledger: (branchId: number, accountId: number, params?: { fromDate?: string; toDate?: string }) => {
+  ledger: (branchId: number, accountId: number, params?: { fromDate?: string; toDate?: string; financialYearId?: string }) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<unknown>(`/accounting/${branchId}/ledger/${accountId}${q}`);
   },
+  financialYears: (branchId: number) =>
+    api<
+      {
+        id: number;
+        label: string;
+        startDate: string;
+        endDate: string | null;
+        status: 'ACTIVE' | 'CLOSED';
+        closedAt: string | null;
+      }[]
+    >(`/accounting/${branchId}/financial-years`),
+  closeFinancialYear: (branchId: number) =>
+    api<{ closedYear: { label: string }; newYear: { label: string } }>(
+      `/accounting/${branchId}/financial-year/close`,
+      { method: 'POST' },
+    ),
   branchSuppliers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/suppliers`),
   branchCustomers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/customers`),
   walkInCustomers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {

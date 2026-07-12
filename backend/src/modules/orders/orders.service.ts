@@ -23,6 +23,8 @@ import {
   formatPurchaseItemsDescription,
   updateVoucherAmount,
   cancelActiveVouchersByReferenceInTx,
+  getActiveFinancialYearId,
+  assertActiveFinancialYear,
 } from '../accounting/accounting.service.js';
 import {
   claimChassisByColorInTx,
@@ -57,6 +59,14 @@ export async function listOrders(query: {
   paymentMethod?: PaymentMethod;
 }) {
   const { page, limit, skip } = getPagination(query);
+  let financialYearId: number | undefined;
+  if (query.branchId) {
+    try {
+      financialYearId = await getActiveFinancialYearId(prisma, query.branchId);
+    } catch {
+      financialYearId = undefined;
+    }
+  }
   const where = {
     ...(query.branchId && {
       OR: [
@@ -64,6 +74,7 @@ export async function listOrders(query: {
         { items: { some: { branchId: query.branchId } } },
       ],
     }),
+    ...(financialYearId != null && { financialYearId }),
     ...(query.status && { status: query.status }),
     ...(query.type && { type: query.type }),
     ...(query.userId && { userId: query.userId }),
@@ -398,9 +409,11 @@ export async function createOnlineOrder(data: {
   const paymentTransactionId = data.paymentTransactionId.trim();
 
   return prisma.$transaction(async (tx) => {
+    const financialYearId = await getActiveFinancialYearId(tx, fulfillmentBranchId);
     const order = await tx.order.create({
       data: {
         branchId: fulfillmentBranchId,
+        financialYearId,
         userId: data.userId,
         type: OrderType.ONLINE,
         shippingMethod: ShippingMethod.SELF,
@@ -450,9 +463,11 @@ export async function createPosOrder(data: {
   const isPaid = data.isPaid !== false;
 
   const order = await prisma.$transaction(async (tx) => {
+    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
     const created = await tx.order.create({
       data: {
         branchId: data.branchId,
+        financialYearId,
         customerId: data.customerId,
         type: OrderType.POS,
         status: OrderStatus.CONFIRMED,
@@ -597,10 +612,12 @@ export async function createSaleInvoice(data: {
   return prisma.$transaction(async (tx) => {
     const reference =
       data.reference?.trim() || (await allocateSaleInvoiceNumber(tx, data.branchId));
+    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
 
     const order = await tx.order.create({
       data: {
         branchId: data.branchId,
+        financialYearId,
         customerId: data.customerId,
         type: OrderType.POS,
         status: OrderStatus.CONFIRMED,
@@ -1317,6 +1334,7 @@ export async function updateOrderItems(
   });
   if (!order) throw new AppError(404, 'Sale invoice not found');
   if (!order.customerId) throw new AppError(400, 'Order has no customer ledger to update');
+  await assertActiveFinancialYear(prisma, order.branchId, order.financialYearId);
 
   const itemById = new Map(order.items.map((i) => [i.id, i]));
 
@@ -1464,6 +1482,7 @@ export async function deleteSaleInvoice(
   });
   if (!order) throw new AppError(404, 'Sale invoice not found');
   if (!order.customerId) throw new AppError(400, 'Order has no customer ledger to update');
+  await assertActiveFinancialYear(prisma, order.branchId, order.financialYearId);
 
   const reference = order.saleReference?.trim();
 
@@ -1538,6 +1557,7 @@ export async function approvePartOrder(
   if (order.status !== OrderStatus.AWAITING_PAYMENT) {
     throw new AppError(400, 'Order cannot be approved in its current state');
   }
+  await assertActiveFinancialYear(prisma, order.branchId, order.financialYearId);
 
   const fulfillmentBranchId = order.branchId;
 
@@ -1608,6 +1628,7 @@ export async function deletePartOrder(orderId: number, branchId: number | undefi
   if (order.type !== OrderType.ONLINE) {
     throw new AppError(400, 'Order delete only applies to online orders');
   }
+  await assertActiveFinancialYear(prisma, order.branchId, order.financialYearId);
 
   const customerEmail = order.user?.email ?? order.customer?.email ?? null;
   const customerName = order.user

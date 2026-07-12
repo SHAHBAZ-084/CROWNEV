@@ -64,11 +64,10 @@ export async function createUser(data: {
     if (!data.branchId) throw new AppError(400, 'Branch required for BRANCH_OWNER');
     const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
     if (!branch) throw new AppError(404, 'Branch not found');
-    if (branch.ownerId) throw new AppError(409, 'Branch already has an owner');
   }
 
   const passwordHash = await hashPassword(data.password);
-  const user = await prisma.user.create({
+  return prisma.user.create({
     data: {
       email: data.email,
       passwordHash,
@@ -85,15 +84,6 @@ export async function createUser(data: {
       isVerified: true,
     },
   });
-
-  if (data.role === Role.BRANCH_OWNER && data.branchId) {
-    await prisma.branch.update({
-      where: { id: data.branchId },
-      data: { ownerId: user.id },
-    });
-  }
-
-  return user;
 }
 
 export async function updateUser(
@@ -121,41 +111,22 @@ export async function updateUser(
   if (data.branchId) {
     const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
     if (!branch) throw new AppError(404, 'Branch not found');
-    if (branch.ownerId && branch.ownerId !== id) {
-      throw new AppError(409, 'Branch already has an owner');
-    }
   }
 
-  return prisma.$transaction(async (tx) => {
-    if (user.branchId) {
-      await tx.branch.updateMany({
-        where: { ownerId: id },
-        data: { ownerId: null },
-      });
-    }
+  const nextBranchId = data.branchId ?? user.branchId;
+  if (!nextBranchId) throw new AppError(400, 'Branch is required for branch owner');
 
-    const nextBranchId = data.branchId ?? user.branchId;
-    if (!nextBranchId) throw new AppError(400, 'Branch is required for branch owner');
-
-    const updated = await tx.user.update({
-      where: { id },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
-        city: data.city,
-        branchId: nextBranchId,
-        isActive: data.isActive,
-        ...(data.branchPermission !== undefined && { branchPermission: data.branchPermission }),
-      },
-    });
-
-    await tx.branch.update({
-      where: { id: nextBranchId },
-      data: { ownerId: id },
-    });
-
-    return updated;
+  return prisma.user.update({
+    where: { id },
+    data: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      city: data.city,
+      branchId: nextBranchId,
+      isActive: data.isActive,
+      ...(data.branchPermission !== undefined && { branchPermission: data.branchPermission }),
+    },
   });
 }
 
@@ -180,13 +151,5 @@ export async function deleteUser(id: string) {
     throw new AppError(403, 'This account type cannot be deleted');
   }
 
-  return prisma.$transaction(async (tx) => {
-    if (user.role === Role.BRANCH_OWNER) {
-      await tx.branch.updateMany({
-        where: { ownerId: id },
-        data: { ownerId: null },
-      });
-    }
-    return tx.user.update({ where: { id }, data: { isActive: false } });
-  });
+  return prisma.user.update({ where: { id }, data: { isActive: false } });
 }

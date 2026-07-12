@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { AccountType, Role, VoucherType } from '@prisma/client';
+import { AccountType, BranchPermission, Role, VoucherType } from '@prisma/client';
 import { z } from 'zod';
-import { asyncHandler, param, validateBody } from '../../utils/helpers.js';
+import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
 import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as accountingService from './accounting.service.js';
 
@@ -15,6 +15,13 @@ function assertBranch(req: import('express').Request, branchId: number) {
   }
   if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
     throw Object.assign(new Error('Cross-branch access denied'), { statusCode: 403 });
+  }
+}
+
+function assertFinancialYearManagePermission(req: import('express').Request) {
+  if (req.user!.role === Role.ADMIN) return;
+  if (req.user!.branchPermission !== BranchPermission.WRITE_UPDATE_DELETE) {
+    throw new AppError(403, 'Only a full-access account can manage financial years.');
   }
 }
 
@@ -234,13 +241,47 @@ accountingRouter.get(
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
-    const ledger = await accountingService.getLedgerEntries(
-      parseInt(param(req.params.accountId), 10),
-      branchId,
-      req.query.fromDate as string | undefined,
-      req.query.toDate as string | undefined,
-    );
+    const accountId = parseInt(param(req.params.accountId), 10);
+    const fromDate = req.query.fromDate as string | undefined;
+    const toDate = req.query.toDate as string | undefined;
+    const financialYearIdParam = req.query.financialYearId as string | undefined;
+
+    if (financialYearIdParam) {
+      assertFinancialYearManagePermission(req);
+    }
+
+    const ledger = financialYearIdParam
+      ? await accountingService.getLedgerEntriesForYear(
+          accountId,
+          branchId,
+          parseInt(financialYearIdParam, 10),
+          fromDate,
+          toDate,
+        )
+      : await accountingService.getLedgerEntries(accountId, branchId, fromDate, toDate);
     res.json(ledger);
+  })
+);
+
+accountingRouter.get(
+  '/:branchId/financial-years',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    assertFinancialYearManagePermission(req);
+    const years = await accountingService.listFinancialYears(branchId);
+    res.json(years);
+  })
+);
+
+accountingRouter.post(
+  '/:branchId/financial-year/close',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    assertFinancialYearManagePermission(req);
+    const result = await accountingService.closeFinancialYear(branchId, req.user!.userId);
+    res.status(201).json(result);
   })
 );
 

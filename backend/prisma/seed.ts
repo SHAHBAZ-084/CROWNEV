@@ -410,11 +410,6 @@ async function main() {
     },
   });
 
-  await prisma.branch.update({
-    where: { id: hadiBranch.id },
-    data: { ownerId: owner.id },
-  });
-
   const brand = await prisma.brand.upsert({
     where: { slug: 'crown-eve' },
     update: {},

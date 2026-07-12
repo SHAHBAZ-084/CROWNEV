@@ -1,11 +1,26 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
 import { posSections } from '../../config/posNavigation';
+import { useAuth } from '../../contexts/AuthContext';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 
 export function PosNavGrid() {
+  const { user } = useAuth();
+  const { canDelete } = useBranchPermission();
+  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+
+  const sections = useMemo(
+    () =>
+      canManageFinancialYear
+        ? posSections
+        : posSections.filter((section) => section.title !== 'Financial Year'),
+    [canManageFinancialYear],
+  );
+
   return (
     <div className="grid gap-5 md:grid-cols-2">
-      {posSections.map((section) => (
+      {sections.map((section) => (
         <section
           key={section.title}
           className="overflow-hidden rounded-[var(--radius-card)] border border-border-light bg-elevated shadow-[var(--shadow-elevated)]"

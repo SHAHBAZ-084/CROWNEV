@@ -2,6 +2,7 @@ import { OrderStatus, Role, VoucherStatus, type Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import {
   bootstrapBranchChartOfAccounts,
+  fiscalYearLabelForDate,
 } from '../accounting/accounting.service.js';
 import { deleteBranchImageFile } from '../../utils/imageProcessing.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
@@ -14,7 +15,6 @@ export async function listBranches(activeOnly = false) {
       ? { isActive: true, ...excludeTestBranches }
       : excludeTestBranches,
     include: {
-      owner: { select: { id: true, firstName: true, lastName: true, email: true } },
       _count: { select: { orders: true, inventory: true } },
     },
     orderBy: { name: 'asc' },
@@ -24,9 +24,6 @@ export async function listBranches(activeOnly = false) {
 export async function getBranch(id: number) {
   const branch = await prisma.branch.findUnique({
     where: { id },
-    include: {
-      owner: { select: { id: true, firstName: true, lastName: true, email: true } },
-    },
   });
   if (!branch) throw new AppError(404, 'Branch not found');
   return branch;
@@ -44,6 +41,10 @@ export async function createBranch(data: {
 }) {
   const branch = await prisma.branch.create({ data });
   await bootstrapBranchChartOfAccounts(branch.id);
+  const { label, startDate } = fiscalYearLabelForDate(new Date());
+  await prisma.financialYear.create({
+    data: { branchId: branch.id, label, startDate },
+  });
   return branch;
 }
 
@@ -116,9 +117,6 @@ export async function deleteBranch(id: number) {
     async (tx) => {
       await purgeBranchOperationalData(tx, id);
       await tx.user.updateMany({ where: { branchId: id }, data: { branchId: null } });
-      if (branch.ownerId) {
-        await tx.branch.update({ where: { id }, data: { ownerId: null } });
-      }
       await tx.branch.delete({ where: { id } });
     },
     { timeout: 120_000 },
@@ -131,23 +129,17 @@ export async function deleteBranch(id: number) {
   return { deleted: true as const };
 }
 
-export async function assignOwner(branchId: number, ownerId: string) {
+export async function assignOwner(branchId: number, userId: string) {
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) throw new AppError(404, 'Branch not found');
 
-  const user = await prisma.user.findUnique({ where: { id: ownerId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError(404, 'User not found');
 
-  return prisma.$transaction([
-    prisma.user.update({
-      where: { id: ownerId },
-      data: { role: Role.BRANCH_OWNER, branchId },
-    }),
-    prisma.branch.update({
-      where: { id: branchId },
-      data: { ownerId },
-    }),
-  ]);
+  return prisma.user.update({
+    where: { id: userId },
+    data: { role: Role.BRANCH_OWNER, branchId },
+  });
 }
 
 export async function assignStaff(branchId: number, userId: string) {
@@ -166,11 +158,6 @@ export async function assignStaff(branchId: number, userId: string) {
 export async function removeStaff(branchId: number, userId: string) {
   const user = await prisma.user.findFirst({ where: { id: userId, branchId } });
   if (!user) throw new AppError(404, 'Staff member not found at this branch');
-
-  const branch = await prisma.branch.findUnique({ where: { id: branchId } });
-  if (branch?.ownerId === userId) {
-    throw new AppError(400, 'Cannot remove branch owner — reassign owner first');
-  }
 
   return prisma.user.update({
     where: { id: userId },

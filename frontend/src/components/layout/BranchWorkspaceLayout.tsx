@@ -1,9 +1,11 @@
 import { Outlet } from 'react-router-dom';
+import { useMemo } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardShell } from './DashboardShell';
 import { useAuth } from '../../contexts/AuthContext';
 import { posSections } from '../../config/posNavigation';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 
 export { posSections };
 
@@ -18,12 +20,22 @@ export function openBranchWorkspace(path = '/branch/workspace/pos') {
 
 export function BranchWorkspaceLayout() {
   const { user, logout } = useAuth();
+  const { canDelete } = useBranchPermission();
+  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+
+  const sections = useMemo(
+    () =>
+      canManageFinancialYear
+        ? posSections
+        : posSections.filter((section) => section.title !== 'Financial Year'),
+    [canManageFinancialYear],
+  );
 
   return (
     <DashboardShell
       sidebar={({ mobileOpen, onNavigate }) => (
         <DashboardSidebar
-          sections={posSections}
+          sections={sections}
           role="BRANCH_OWNER"
           showBadge={false}
           userName={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
