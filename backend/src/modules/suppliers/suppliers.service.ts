@@ -431,69 +431,6 @@ export async function createPurchaseInvoice(data: {
   });
 }
 
-export async function createPurchase(data: {
-  branchId: number;
-  supplierId: number;
-  invoiceNumber?: string;
-  documentRef?: string;
-  notes?: string;
-  items: {
-    partId?: number;
-    productId?: string;
-    quantity: number;
-    unitCost: number;
-    engineNumber?: string;
-    chassisNumber?: string;
-  }[];
-}) {
-  const total = data.items.reduce((sum, i) => sum + i.unitCost * i.quantity, 0);
-
-  const purchase = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
-    const created = await tx.purchase.create({
-      data: {
-        branchId: data.branchId,
-        financialYearId,
-        supplierId: data.supplierId,
-        invoiceNumber: data.invoiceNumber,
-        documentRef: data.documentRef,
-        notes: data.notes,
-        total,
-        items: { create: data.items },
-      },
-      include: { items: true, supplier: true },
-    });
-
-    const partItems = data.items.filter((i) => i.partId).map((i) => ({
-      partId: i.partId!,
-      quantity: i.quantity,
-    }));
-    if (partItems.length) {
-      await addStockInTx(tx, data.branchId, partItems);
-    }
-
-    for (const item of data.items) {
-      if (!item.productId) continue;
-      await tx.branchProduct.upsert({
-        where: {
-          branchId_productId: { branchId: data.branchId, productId: item.productId },
-        },
-        create: {
-          branchId: data.branchId,
-          productId: item.productId,
-          stock: item.quantity,
-          isListed: true,
-        },
-        update: { stock: { increment: item.quantity } },
-      });
-    }
-
-    return created;
-  });
-
-  return purchase;
-}
-
 export async function getPurchase(id: number, branchId?: number) {
   const purchase = await prisma.purchase.findFirst({
     where: { id, ...(branchId && { branchId }) },

@@ -561,15 +561,6 @@ export const branchApi = {
   adjustStock: (branchId: number, data: { partId: number; quantityChange: number; reason: string; notes?: string }) =>
     api<unknown>(`/inventory/${branchId}/adjust`, { method: 'POST', body: JSON.stringify(data) }),
   lowStock: (branchId: number) => api<unknown[]>(`/inventory/${branchId}/low-stock`),
-  posOrder: (data: {
-    branchId: number;
-    paymentMethod: 'CASH' | 'BANK_TRANSFER';
-    items: { productId: string; quantity: number }[];
-    walkInCustomerId?: number;
-    customerId?: number;
-    isPaid?: boolean;
-    notes?: string;
-  }) => api<Order>('/orders/pos', { method: 'POST', body: JSON.stringify(data) }),
   services: (branchId: number) => api<unknown[]>(`/services/${branchId}`),
   createService: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/services/${branchId}`, { method: 'POST', body: JSON.stringify(data) }),
@@ -767,8 +758,6 @@ export const branchApi = {
     const q = new URLSearchParams({ branchId: String(branchId), ...(params?.limit ? { limit: params.limit } : {}) });
     return api<Paginated<unknown>>(`/purchases?${q}`);
   },
-  createPurchase: (data: Record<string, unknown>) =>
-    api<unknown>('/purchases', { method: 'POST', body: JSON.stringify(data) }),
   purchase: (id: number) => api<unknown>(`/purchases/${id}`),
   purchaseInvoice: (id: number) => api<PurchaseInvoiceData>(`/purchases/${id}/invoice`),
   updatePurchaseInvoice: (

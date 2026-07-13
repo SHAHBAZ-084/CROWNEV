@@ -166,33 +166,6 @@ ordersRouter.patch(
 );
 
 ordersRouter.post(
-  '/pos',
-  requireRoles(Role.BRANCH_OWNER, Role.ADMIN),
-  validateBody(
-    z.object({
-      branchId: z.number().int(),
-      paymentMethod: z.nativeEnum(PaymentMethod),
-      walkInCustomerId: z.number().int().optional(),
-      customerId: z.number().int().optional(),
-      items: z.array(orderItemSchema).min(1),
-      notes: z.string().optional(),
-      isPaid: z.boolean().optional(),
-    })
-  ),
-  asyncHandler(async (req, res) => {
-    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== req.body.branchId) {
-      res.status(403).json({ error: 'Cross-branch access denied' });
-      return;
-    }
-    const order = await ordersService.createPosOrder({
-      ...req.body,
-      customerId: req.body.customerId ?? req.body.walkInCustomerId,
-    });
-    res.status(201).json(order);
-  })
-);
-
-ordersRouter.post(
   '/sale-invoice',
   requireRoles(Role.BRANCH_OWNER, Role.ADMIN),
   validateBody(

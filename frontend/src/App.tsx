@@ -86,7 +86,6 @@ const BranchInventory = lazyNamed(() => import('./pages/branch/BranchPages'), 'B
 const BranchBikes = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBikesPage');
 const BranchBookings = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchBookingsPage');
 const BranchReports = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchReportsPage');
-const BranchPurchases = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPurchasesPage');
 const BranchPayments = lazyNamed(() => import('./pages/branch/BranchPages'), 'BranchPaymentsPage');
 
 const PosReceiptVoucher = lazyNamed(() => import('./pages/branch/PosPages'), 'PosReceiptVoucherPage');
@@ -190,7 +189,6 @@ export default function App() {
                   <Route path="/branch/bookings" element={<DashWrap><BranchBookings /></DashWrap>} />
                   <Route path="/branch/services" element={<Navigate to="/branch/bookings" replace />} />
                   <Route path="/branch/suppliers" element={<Navigate to="/branch/workspace/suppliers" replace />} />
-                  <Route path="/branch/purchases" element={<DashWrap><BranchPurchases /></DashWrap>} />
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
                   <Route path="/branch/bike-documents" element={<DashWrap><PosBikeDocumentsPage /></DashWrap>} />
                   <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
@@ -219,7 +217,7 @@ export default function App() {
                 <Route path="/branch/workspace/bikes" element={<Navigate to="/branch/bikes" replace />} />
                 <Route path="/branch/workspace/bookings" element={<Navigate to="/branch/bookings" replace />} />
                 <Route path="/branch/workspace/services" element={<Navigate to="/branch/bookings" replace />} />
-                <Route path="/branch/workspace/purchases" element={<Navigate to="/branch/purchases" replace />} />
+                <Route path="/branch/workspace/purchases" element={<Navigate to="/branch/workspace/invoices/purchase" replace />} />
                 <Route path="/branch/workspace/payments" element={<Navigate to="/branch/payments" replace />} />
                 <Route path="/branch/workspace/reports" element={<Navigate to="/branch/reports" replace />} />
                 <Route path="/branch/workspace/accounting" element={<Navigate to="/branch" replace />} />

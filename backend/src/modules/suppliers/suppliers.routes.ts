@@ -240,37 +240,3 @@ purchasesRouter.get(
     res.json(purchase);
   })
 );
-
-purchasesRouter.post(
-  '/',
-  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
-  validateBody(
-    z.object({
-      branchId: z.number().int(),
-      supplierId: z.number().int(),
-      invoiceNumber: z.string().optional(),
-      documentRef: z.string().optional(),
-      notes: z.string().optional(),
-      items: z
-        .array(
-          z.object({
-            partId: z.number().int().optional(),
-            productId: z.string().uuid().optional(),
-            quantity: z.number().int().positive(),
-            unitCost: z.number().nonnegative(),
-            engineNumber: z.string().optional(),
-            chassisNumber: z.string().optional(),
-          })
-        )
-        .min(1),
-    })
-  ),
-  asyncHandler(async (req, res) => {
-    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== req.body.branchId) {
-      res.status(403).json({ error: 'Cross-branch access denied' });
-      return;
-    }
-    const purchase = await suppliersService.createPurchase(req.body);
-    res.status(201).json(purchase);
-  })
-);
