@@ -84,7 +84,7 @@ export function ServiceInvoice({
           <div className="flex items-start gap-4">
             <Logo size={invoiceLogoSize} className={invoiceLogoClass} />
             <div>
-              <p className="font-semibold text-black">{data.branch.name}</p>
+              <p className="text-base font-semibold text-black">{data.branch.name}</p>
               <p className={invoiceMetaText}>{data.branch.location}</p>
               <p className={invoiceMetaText}>Phone: {data.branch.phone}</p>
             </div>
@@ -99,7 +99,7 @@ export function ServiceInvoice({
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <p className={invoiceSectionLabel}>Billed To</p>
-            <p className="font-medium text-black">{data.customer.name}</p>
+            <p className="text-base font-medium text-black">{data.customer.name}</p>
             {data.customer.phone && <p className={invoiceFieldLabel}>{data.customer.phone}</p>}
             {data.customer.email && <p className={invoiceFieldLabel}>{data.customer.email}</p>}
             {data.customer.address && <p className={invoiceFieldLabel}>{data.customer.address}</p>}
@@ -127,7 +127,7 @@ export function ServiceInvoice({
                 <tr key={idx} className="border-b border-slate-200 align-top">
                   <td className={`px-2 py-2 ${invoiceTableCell}`}>{idx + 1}</td>
                   <td className="px-2 py-2">
-                    <p className="font-medium text-black">{item.name}</p>
+                    <p className="text-base font-medium text-black">{item.name}</p>
                     <p className={invoiceSubtext}>{item.type}</p>
                     {item.color && <p className={invoiceSubtext}>Color: {item.color}</p>}
                   </td>
@@ -157,6 +157,13 @@ export function ServiceInvoice({
             <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-black">
               <span>Total</span>
               <span className="tabular-nums text-black">{formatPKR(data.total)}</span>
+            </div>
+
+            <div className="mt-4 border-t border-slate-200 pt-3 text-center text-xs">
+              Visit us on{' '}
+              <a href="https://www.crownevcenter.com" className="font-semibold text-accent">
+                www.crownevcenter.com
+              </a>
             </div>
           </div>
         </div>
