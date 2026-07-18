@@ -72,12 +72,14 @@ function buildProductListWhere(query: {
   search?: string;
   includeInactive?: boolean;
   branchId?: number;
+  onSale?: boolean;
 }) {
   return {
     ...(query.type && { type: query.type }),
     ...(query.brandId && { brandId: query.brandId }),
     ...(query.categoryId && { categoryId: query.categoryId }),
     ...(!query.includeInactive && { isActive: true }),
+    ...(query.onSale && { salePrice: { not: null } }),
     ...(query.search && {
       OR: [
         { name: { contains: query.search, mode: 'insensitive' as const } },
@@ -207,6 +209,7 @@ export async function listShopProducts(query: {
   categoryId?: number;
   search?: string;
   branchId?: number;
+  onSale?: boolean;
 }) {
   const { page, limit, skip } = getPagination(query);
   const listedAtBranch = {

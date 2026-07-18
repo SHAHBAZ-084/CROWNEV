@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Bike, Package, Search, SlidersHorizontal, Wrench, X } from 'lucide-react';
+import { Bike, Package, Percent, Search, SlidersHorizontal, Wrench, X } from 'lucide-react';
 import { publicApi } from '../../api/client';
 import type { Product } from '../../types';
 import { ProductCard } from '../../components/public/ProductCard';
@@ -27,19 +27,22 @@ export default function ShopPage() {
   const debouncedSearch = useDebounce(search);
 
   const type = params.get('type') ?? '';
+  const onSale = params.get('sale') === 'true';
 
   const activeFilters = useMemo(() => {
     const filters: { key: string; label: string }[] = [];
     if (type) filters.push({ key: 'type', label: type === 'BIKE' ? 'Bikes' : 'Parts' });
+    if (onSale) filters.push({ key: 'sale', label: 'On Sale' });
     if (debouncedSearch) filters.push({ key: 'search', label: `"${debouncedSearch}"` });
     return filters;
-  }, [type, debouncedSearch]);
+  }, [type, onSale, debouncedSearch]);
 
   useEffect(() => {
     setLoading(true);
     const q: Record<string, string> = {};
     if (debouncedSearch) q.search = debouncedSearch;
     if (type) q.type = type;
+    if (onSale) q.onSale = 'true';
 
     publicApi
       .shop(q)
@@ -55,12 +58,19 @@ export default function ShopPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [debouncedSearch, type]);
+  }, [debouncedSearch, type, onSale]);
 
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
+    setParams(next);
+  }
+
+  function toggleSaleFilter() {
+    const next = new URLSearchParams(params);
+    if (onSale) next.delete('sale');
+    else next.set('sale', 'true');
     setParams(next);
   }
 
@@ -72,6 +82,10 @@ export default function ShopPage() {
   function removeFilter(key: string) {
     if (key === 'search') {
       setSearch('');
+      return;
+    }
+    if (key === 'sale') {
+      toggleSaleFilter();
       return;
     }
     setFilter(key, '');
@@ -132,6 +146,18 @@ export default function ShopPage() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={toggleSaleFilter}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
+                  onSale
+                    ? 'bg-brand text-white shadow-sm'
+                    : 'bg-subtle text-ink-muted hover:bg-border-light/40 hover:text-brand'
+                }`}
+              >
+                <Percent className="h-4 w-4" />
+                Sale
+              </button>
             </div>
           </div>
 

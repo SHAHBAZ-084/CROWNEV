@@ -65,6 +65,7 @@ productsRouter.get(
       categoryId: req.query.categoryId ? parseInt(req.query.categoryId as string, 10) : undefined,
       search: req.query.search as string,
       branchId,
+      onSale: req.query.onSale === 'true',
     });
     res.json(result);
   })

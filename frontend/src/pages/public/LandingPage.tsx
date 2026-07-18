@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { publicApi } from '../../api/client';
-import type { LandingData } from '../../types';
+import type { LandingData, Product } from '../../types';
 import { HeroCta, HeroHeadline, HomeHeroVideo } from '../../components/public/HomeHeroVideo';
 import { MotionItem, MotionSection, MotionStagger } from '../../components/public/MotionSection';
 import { ProductCard, FeatureGrid } from '../../components/public/ProductCard';
@@ -31,10 +31,15 @@ function SectionFallback({ className = 'py-16' }: { className?: string }) {
 export default function LandingPage() {
   const [data, setData] = useState<LandingData | null>(null);
   const [homeHero, setHomeHero] = useState<HomeHeroSection>(DEFAULT_HOME_HERO_SECTION);
+  const [saleProducts, setSaleProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     publicApi.landing().then(setData).catch(console.error);
     publicApi.homeHero().then(setHomeHero).catch(console.error);
+    publicApi
+      .shop({ onSale: 'true', limit: '3' })
+      .then((result) => setSaleProducts(result.data))
+      .catch(() => setSaleProducts([]));
   }, []);
 
   return (
@@ -81,6 +86,31 @@ export default function LandingPage() {
       </HomeHeroVideo>
 
       <FeatureGrid />
+
+      {saleProducts.length > 0 && (
+        <MotionSection className="border-y border-border-light bg-elevated py-12 lg:py-20">
+          <div className="mx-auto max-w-7xl px-4 lg:px-8">
+            <div className="mb-8 flex flex-col gap-3 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">Today&apos;s Discounted Items</h2>
+                <p className="mt-2 text-ink-muted">Limited-time deals on bikes and parts</p>
+              </div>
+              <Link
+                to="/shop?sale=true"
+                className="group inline-flex items-center gap-1 text-sm font-medium text-brand hover:text-brand-light hover:underline"
+              >
+                View all
+                <ArrowRight className={`h-3.5 w-3.5 ${ctaArrowClass}`} aria-hidden />
+              </Link>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+              {saleProducts.map((p, i) => (
+                <ProductCard key={p.id} product={p} index={i} size="lg" />
+              ))}
+            </div>
+          </div>
+        </MotionSection>
+      )}
 
       <MotionSection className="bg-subtle py-12 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
