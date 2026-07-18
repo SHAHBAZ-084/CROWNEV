@@ -60,13 +60,7 @@ export function buildAccountSelectOptions(
   return accounts.map((a) => {
     const parsed = parseAccountCode(String(a.code ?? ''));
     if (!parsed) {
-      const name = String(a.name);
-      const category = a.category?.trim() || 'Account';
-      const code = String(a.code ?? '').trim();
-      return {
-        value: String(a.id),
-        label: code ? `${name} — (${category} · ${code})` : `${name} — (${category})`,
-      };
+      return { value: String(a.id), label: String(a.name) };
     }
     const labelMap = parsed.kind === 'customer' ? customerLabels : supplierLabels;
     return {
