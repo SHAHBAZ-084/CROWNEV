@@ -763,6 +763,7 @@ export const branchApi = {
   updatePurchaseInvoice: (
     id: number,
     data: {
+      supplierId?: number;
       items: {
         purchaseItemId?: number;
         chassisId?: number;

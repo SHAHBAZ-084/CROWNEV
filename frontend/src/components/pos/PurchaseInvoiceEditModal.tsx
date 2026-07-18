@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import type { PurchaseInvoiceData } from '../../types';
+import { buildDedupedLabels } from '../../lib/dedupeLabel';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
 import { Loader2 } from 'lucide-react';
+
+type Row = Record<string, unknown>;
 
 type BikeUnitEdit = {
   chassisId: number;
@@ -38,18 +42,55 @@ export function PurchaseInvoiceEditModal({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [supplierId, setSupplierId] = useState('');
+  const [initialSupplierId, setInitialSupplierId] = useState('');
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [bikeUnits, setBikeUnits] = useState<BikeUnitEdit[]>([]);
   const [partLines, setPartLines] = useState<PartLineEdit[]>([]);
+
+  const supplierLabels = useMemo(
+    () => buildDedupedLabels(
+      suppliers.map((s) => ({
+        id: String(s.id),
+        name: String(s.name),
+        phone: s.phone,
+        contactPerson: s.contactPerson,
+      })),
+      (s) => [
+        s.phone ? String(s.phone) : '',
+        s.contactPerson ? `(${s.contactPerson})` : '',
+      ],
+    ),
+    [suppliers],
+  );
+
+  const supplierOptions: SearchSelectOption[] = useMemo(
+    () => suppliers.map((s) => ({
+      value: String(s.id),
+      label: supplierLabels.get(String(s.id)) ?? String(s.name),
+    })),
+    [suppliers, supplierLabels],
+  );
 
   useEffect(() => {
     if (!open || purchaseId == null) return;
     setLoading(true);
-    branchApi
-      .purchaseInvoice(purchaseId)
-      .then((inv: PurchaseInvoiceData) => {
+    Promise.all([
+      branchApi.purchaseInvoice(purchaseId),
+      branchApi.purchase(purchaseId),
+    ])
+      .then(async ([inv, rawPurchase]) => {
+        const purchase = rawPurchase as { supplierId: number; branchId: number };
+        const currentSupplierId = String(purchase.supplierId);
+        setSupplierId(currentSupplierId);
+        setInitialSupplierId(currentSupplierId);
+
+        const supplierResult = await branchApi.branchSuppliers(purchase.branchId, { limit: '500' });
+        setSuppliers(supplierResult.data as Row[]);
+
         const bikes: BikeUnitEdit[] = [];
         const parts: PartLineEdit[] = [];
-        for (const item of inv.items) {
+        for (const item of (inv as PurchaseInvoiceData).items) {
           if (item.type === 'BIKE' && item.bikeUnits?.length) {
             for (const unit of item.bikeUnits) {
               bikes.push({
@@ -83,6 +124,11 @@ export function PurchaseInvoiceEditModal({
 
   async function handleSave() {
     if (purchaseId == null) return;
+    if (!supplierId) {
+      toast('Select a supplier', 'error');
+      return;
+    }
+
     const items: Parameters<typeof branchApi.updatePurchaseInvoice>[1]['items'] = [];
 
     for (const unit of bikeUnits) {
@@ -112,9 +158,14 @@ export function PurchaseInvoiceEditModal({
       return;
     }
 
+    const payload: Parameters<typeof branchApi.updatePurchaseInvoice>[1] = { items };
+    if (Number(supplierId) !== Number(initialSupplierId)) {
+      payload.supplierId = Number(supplierId);
+    }
+
     setSaving(true);
     try {
-      await branchApi.updatePurchaseInvoice(purchaseId, { items });
+      await branchApi.updatePurchaseInvoice(purchaseId, payload);
       toast('Purchase invoice updated', 'success');
       onSaved();
       onClose();
@@ -133,6 +184,14 @@ export function PurchaseInvoiceEditModal({
         </div>
       ) : (
         <div className="space-y-6">
+          <SearchSelect
+            label="Supplier account"
+            value={supplierId}
+            onChange={setSupplierId}
+            options={supplierOptions}
+            placeholder="Search supplier…"
+          />
+
           {bikeUnits.map((unit) => (
             <div key={unit.chassisId} className="space-y-3 rounded-lg border border-border bg-surface-alt/40 p-4">
               <p className="font-semibold text-ink">{unit.label}</p>

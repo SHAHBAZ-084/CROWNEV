@@ -626,7 +626,7 @@ export async function updatePurchaseInvoice(
   id: number,
   branchId: number | undefined,
   userId: string,
-  data: { items: PurchaseItemEditInput[] },
+  data: { supplierId?: number; items: PurchaseItemEditInput[] },
 ) {
   if (!data.items.length) throw new AppError(400, 'No items to update');
 
@@ -640,6 +640,15 @@ export async function updatePurchaseInvoice(
   });
   if (!purchase) throw new AppError(404, 'Purchase not found');
   await assertActiveFinancialYear(prisma, purchase.branchId, purchase.financialYearId);
+
+  let newSupplier: Awaited<ReturnType<typeof prisma.supplier.findFirst>> = null;
+  const supplierChanged = data.supplierId != null && data.supplierId !== purchase.supplierId;
+  if (supplierChanged) {
+    newSupplier = await prisma.supplier.findFirst({
+      where: { id: data.supplierId, branchId: purchase.branchId },
+    });
+    if (!newSupplier) throw new AppError(404, 'Supplier not found in this branch');
+  }
 
   const chassisById = new Map(purchase.chassis.map((c) => [c.id, c]));
   const itemById = new Map(purchase.items.map((i) => [i.id, i]));
@@ -798,6 +807,52 @@ export async function updatePurchaseInvoice(
       voucherId = voucher?.id ?? null;
     }
 
+    if (supplierChanged && newSupplier) {
+      const total = newTotal;
+
+      await removeSupplierLedgerForPurchaseInTx(tx, purchase.id, purchase.supplierId);
+
+      if (reference) {
+        await cancelActiveVouchersByReferenceInTx(tx, purchase.branchId, reference, userId);
+      }
+
+      const inventoryAccount = await ensureInventoryAccount(tx, purchase.branchId);
+      const supplierAccount = await ensureSupplierAccount(tx, purchase.branchId, newSupplier);
+
+      const newBalance = Number(newSupplier.balance) + total;
+      await tx.supplier.update({
+        where: { id: newSupplier.id },
+        data: { balance: newBalance },
+      });
+      await tx.supplierLedger.create({
+        data: {
+          supplierId: newSupplier.id,
+          purchaseId: purchase.id,
+          type: SupplierLedgerType.CREDIT,
+          amount: total,
+          balance: newBalance,
+          notes: `From ${newSupplier.name} to inventory — transferred from ${purchase.supplier.name}`,
+        },
+      });
+      await createVoucherInTx(tx, {
+        branchId: purchase.branchId,
+        type: VoucherType.JOURNAL,
+        debitAccountId: inventoryAccount.id,
+        creditAccountId: supplierAccount.id,
+        amount: total,
+        reference,
+        description: `Purchase supplier changed: ${purchase.supplier.name} → ${newSupplier.name}`,
+        createdById: userId,
+      });
+
+      await tx.purchase.update({
+        where: { id: purchase.id },
+        data: { supplierId: newSupplier.id },
+      });
+
+      voucherId = null;
+    }
+
     return tx.purchase.findUniqueOrThrow({
       where: { id: purchase.id },
       include: {
@@ -808,7 +863,7 @@ export async function updatePurchaseInvoice(
     });
   });
 
-  if (voucherId != null && Math.abs(Number(updated.total) - oldTotal) >= 0.005) {
+  if (!supplierChanged && voucherId != null && Math.abs(Number(updated.total) - oldTotal) >= 0.005) {
     await updateVoucherAmount(purchase.branchId, voucherId, Number(updated.total), userId);
   }
 

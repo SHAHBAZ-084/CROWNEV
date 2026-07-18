@@ -204,7 +204,10 @@ const purchaseItemEditSchema = z.object({
 purchasesRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
-  validateBody(z.object({ items: z.array(purchaseItemEditSchema).min(1) })),
+  validateBody(z.object({
+    supplierId: z.number().int().positive().optional(),
+    items: z.array(purchaseItemEditSchema).min(1),
+  })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;
     const purchase = await suppliersService.updatePurchaseInvoice(
