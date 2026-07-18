@@ -171,14 +171,14 @@ export function PurchaseInvoice({
               <span>Total</span>
               <span className="tabular-nums text-black">{formatPKR(data.total)}</span>
             </div>
-
-            <div className="mt-4 border-t border-slate-200 pt-3 text-center text-xs">
-              Visit us on{' '}
-              <a href="https://www.crownevcenter.com" className="font-semibold text-accent">
-                www.crownevcenter.com
-              </a>
-            </div>
           </div>
+        </div>
+
+        <div className="mt-4 border-t border-slate-200 pt-3 text-center text-xs">
+          Visit us on{' '}
+          <a href="https://www.crownevcenter.com" className="font-semibold text-accent">
+            www.crownevcenter.com
+          </a>
         </div>
 
       </div>
