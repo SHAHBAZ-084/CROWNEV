@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
@@ -29,25 +29,19 @@ function userName(user: { firstName?: string; lastName?: string } | undefined) {
 export function VoucherDetailCard({
   voucher,
   deleting,
-  restoring,
   updating,
   onCancel,
-  onRestore,
   onUpdateAmount,
   cancelDisabled,
-  restoreDisabled,
   updateDisabled,
   disabledTitle,
 }: {
   voucher: Row;
   deleting: boolean;
-  restoring: boolean;
   updating?: boolean;
   onCancel: () => void;
-  onRestore: () => void;
   onUpdateAmount?: (amount: number) => void | Promise<void>;
   cancelDisabled?: boolean;
-  restoreDisabled?: boolean;
   updateDisabled?: boolean;
   disabledTitle?: string;
 }) {
@@ -133,20 +127,7 @@ export function VoucherDetailCard({
           </div>
           <p className="mt-0.5 text-sm text-text-muted">{formatDate(String(voucher.createdAt))}</p>
         </div>
-        {isCancelled ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            loading={restoring}
-            disabled={restoreDisabled}
-            title={restoreDisabled ? disabledTitle : undefined}
-            onClick={onRestore}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Restore
-          </Button>
-        ) : (
+        {!isCancelled && (
           <div className="flex flex-wrap items-center gap-2">
             {onUpdateAmount && !editingAmount ? (
               <Button
@@ -253,7 +234,6 @@ export function ViewVoucherPanel({
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [restoring, setRestoring] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchType, setSearchType] = useState<VoucherType | ''>(defaultType);
@@ -310,25 +290,6 @@ export function ViewVoucherPanel({
       toast(err instanceof Error ? err.message : 'Cancel failed', 'error');
     } finally {
       setDeleting(false);
-    }
-  }
-
-  async function handleRestore() {
-    if (!branchId || !result || result === 'notfound') return;
-    const label = TYPE_LABELS[result.type as VoucherType] ?? 'Voucher';
-    const voucherNo = String(result.number ?? result.id);
-    if (!window.confirm(`Restore ${label} #${voucherNo}? Original entries will be re-posted.`)) return;
-
-    setRestoring(true);
-    try {
-      const updated = await branchApi.restoreVoucher(branchId, Number(result.id));
-      setResult(updated as Row);
-      toast('Voucher restored', 'success');
-      loadVouchers();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Restore failed', 'error');
-    } finally {
-      setRestoring(false);
     }
   }
 
@@ -399,13 +360,10 @@ export function ViewVoucherPanel({
         <VoucherDetailCard
           voucher={voucher}
           deleting={deleting}
-          restoring={restoring}
           updating={updating}
           onCancel={handleCancel}
-          onRestore={handleRestore}
           onUpdateAmount={handleUpdateAmount}
           cancelDisabled={!canDelete}
-          restoreDisabled={!canUpdate}
           updateDisabled={!canUpdate}
           disabledTitle={restrictedTitle}
         />

@@ -913,7 +913,9 @@ export function PosSaleInvoicePage() {
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: String(c.name),
+      label: c.cnic
+        ? `${c.name} — ${c.cnic}${c.fatherName ? ` (S/O ${c.fatherName})` : ''}`
+        : String(c.name),
     })),
     [customers],
   );
@@ -2155,7 +2157,9 @@ export function PosServiceInvoicePage() {
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: String(c.name),
+      label: c.cnic
+        ? `${c.name} — ${c.cnic}${c.fatherName ? ` (S/O ${c.fatherName})` : ''}`
+        : String(c.name),
     })),
     [customers],
   );

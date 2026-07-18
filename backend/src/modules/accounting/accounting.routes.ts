@@ -184,21 +184,6 @@ accountingRouter.delete(
   })
 );
 
-accountingRouter.post(
-  '/:branchId/vouchers/:voucherId/restore',
-  requireBranchUpdatePermission,
-  asyncHandler(async (req, res) => {
-    const branchId = parseInt(param(req.params.branchId), 10);
-    assertBranch(req, branchId);
-    const voucher = await accountingService.restoreVoucher(
-      branchId,
-      parseInt(param(req.params.voucherId), 10),
-      req.user!.userId,
-    );
-    res.json(voucher);
-  })
-);
-
 accountingRouter.get(
   '/:branchId/trial-balance',
   asyncHandler(async (req, res) => {

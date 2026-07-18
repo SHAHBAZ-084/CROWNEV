@@ -133,7 +133,6 @@ export function LegacyVoucherScreen({
   const [saving, setSaving] = useState(false);
   const [viewVoucher, setViewVoucher] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [restoring, setRestoring] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   const [voucherDate, setVoucherDate] = useState(todayInputValue());
@@ -265,25 +264,6 @@ export function LegacyVoucherScreen({
       toast(err instanceof Error ? err.message : 'Cancel failed', 'error');
     } finally {
       setDeleting(false);
-    }
-  }
-
-  async function handleRestoreVoucher() {
-    if (!branchId || !viewVoucher) return;
-    const label = TYPE_LABELS[viewVoucher.type as VoucherType] ?? 'Voucher';
-    const voucherNo = String(viewVoucher.number ?? viewVoucher.id);
-    if (!window.confirm(`Restore ${label} #${voucherNo}? Original entries will be re-posted.`)) return;
-
-    setRestoring(true);
-    try {
-      const updated = await branchApi.restoreVoucher(branchId, Number(viewVoucher.id));
-      setViewVoucher(updated as Row);
-      toast('Voucher restored', 'success');
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Restore failed', 'error');
-    } finally {
-      setRestoring(false);
     }
   }
 
@@ -439,13 +419,10 @@ export function LegacyVoucherScreen({
           <VoucherDetailCard
             voucher={viewVoucher}
             deleting={deleting}
-            restoring={restoring}
             updating={updating}
             onCancel={handleCancelVoucher}
-            onRestore={handleRestoreVoucher}
             onUpdateAmount={handleUpdateVoucherAmount}
             cancelDisabled={!canDelete}
-            restoreDisabled={!canUpdate}
             updateDisabled={!canUpdate}
             disabledTitle={restrictedTitle}
           />

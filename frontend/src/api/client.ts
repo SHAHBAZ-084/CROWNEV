@@ -827,8 +827,6 @@ export const branchApi = {
       method: 'PATCH',
       body: JSON.stringify({ amount }),
     }),
-  restoreVoucher: (branchId: number, voucherId: number) =>
-    api<unknown>(`/accounting/${branchId}/vouchers/${voucherId}/restore`, { method: 'POST' }),
   banks: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/banks`),
   createBank: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/banks`, { method: 'POST', body: JSON.stringify(data) }),
