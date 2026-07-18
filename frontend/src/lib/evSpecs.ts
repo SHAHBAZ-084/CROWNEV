@@ -71,6 +71,8 @@ function formatSpecValue(value: unknown): string {
   return String(value).trim();
 }
 
+const PUBLIC_HIDDEN_SPEC_KEYS = new Set(['cp_price']);
+
 export function orderedSpecEntries(
   specs: Record<string, unknown> | null | undefined,
 ): { key: string; label: string; value: string }[] {
@@ -84,7 +86,7 @@ export function orderedSpecEntries(
   }));
 
   const legacy = Object.entries(specs)
-    .filter(([key, value]) => !knownKeys.has(key) && formatSpecValue(value))
+    .filter(([key, value]) => !knownKeys.has(key) && !PUBLIC_HIDDEN_SPEC_KEYS.has(key) && formatSpecValue(value))
     .map(([key, value]) => ({
       key,
       label: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),

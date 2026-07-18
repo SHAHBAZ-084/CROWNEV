@@ -8,6 +8,19 @@ import {
   modelCompatibilityFilter,
 } from '../../utils/modelCompatibility.js';
 
+const PUBLIC_HIDDEN_SPEC_KEYS = ['cp_price'] as const;
+
+function sanitizePublicSpecs(
+  specs: Prisma.JsonValue | Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!specs || typeof specs !== 'object' || Array.isArray(specs)) return null;
+  const cleaned = { ...(specs as Record<string, unknown>) };
+  for (const key of PUBLIC_HIDDEN_SPEC_KEYS) {
+    delete cleaned[key];
+  }
+  return cleaned;
+}
+
 /** Treat listingOrder 0 as unset — explicitly ordered products first, then by createdAt. */
 export async function findManyWithListingOrder<T extends Omit<Prisma.ProductFindManyArgs, 'orderBy'>>(
   args: T,
@@ -169,14 +182,19 @@ function shopProductSelect(branchId?: number) {
   };
 }
 
-function mapShopListItem<T extends { branchProducts?: { stock: number }[] }>(
+function mapShopListItem<T extends {
+  branchProducts?: { stock: number }[];
+  specs?: Prisma.JsonValue | null;
+}>(
   product: T,
   branchId?: number,
 ) {
-  if (!branchId) return product;
+  const specs = sanitizePublicSpecs(product.specs);
+  if (!branchId) return { ...product, specs };
   const { branchProducts, ...rest } = product;
   return {
     ...rest,
+    specs,
     stockAtBranch: branchProducts?.[0]?.stock ?? 0,
   };
 }
@@ -305,7 +323,11 @@ export async function getPublicShopProduct(id: string, branchId: number) {
   });
   if (!product) throw new AppError(404, 'Product not found');
   const { branchProducts, ...rest } = product;
-  return { ...rest, stockAtBranch: branchProducts[0]?.stock ?? 0 };
+  return {
+    ...rest,
+    specs: sanitizePublicSpecs(rest.specs),
+    stockAtBranch: branchProducts[0]?.stock ?? 0,
+  };
 }
 
 export async function createProduct(
