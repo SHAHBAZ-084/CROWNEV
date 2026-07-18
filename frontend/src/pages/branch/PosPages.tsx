@@ -912,16 +912,24 @@ export function PosSaleInvoicePage() {
   }, [branchId, customerId, toast]);
 
   const customerLabels = useMemo(
-    () => buildDedupedLabels(customers, (c) => [
-      c.cnic ? String(c.cnic) : '',
-      c.fatherName ? `(S/O ${c.fatherName})` : '',
-    ]),
+    () => buildDedupedLabels(
+      customers.map((c) => ({
+        id: String(c.id),
+        name: String(c.name),
+        cnic: c.cnic,
+        fatherName: c.fatherName,
+      })),
+      (c) => [
+        c.cnic ? String(c.cnic) : '',
+        c.fatherName ? `(S/O ${c.fatherName})` : '',
+      ],
+    ),
     [customers],
   );
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: customerLabels.get(c.id) ?? String(c.name),
+      label: customerLabels.get(String(c.id)) ?? String(c.name),
     })),
     [customers, customerLabels],
   );
@@ -1454,16 +1462,24 @@ export function PosPurchaseInvoicePage() {
   }, [branchId, supplierId, toast]);
 
   const supplierLabels = useMemo(
-    () => buildDedupedLabels(suppliers, (s) => [
-      s.phone ? String(s.phone) : '',
-      s.contactPerson ? `(${s.contactPerson})` : '',
-    ]),
+    () => buildDedupedLabels(
+      suppliers.map((s) => ({
+        id: String(s.id),
+        name: String(s.name),
+        phone: s.phone,
+        contactPerson: s.contactPerson,
+      })),
+      (s) => [
+        s.phone ? String(s.phone) : '',
+        s.contactPerson ? `(${s.contactPerson})` : '',
+      ],
+    ),
     [suppliers],
   );
   const supplierOptions: SearchSelectOption[] = useMemo(
     () => suppliers.map((s) => ({
       value: String(s.id),
-      label: supplierLabels.get(s.id) ?? String(s.name),
+      label: supplierLabels.get(String(s.id)) ?? String(s.name),
     })),
     [suppliers, supplierLabels],
   );
@@ -2171,16 +2187,24 @@ export function PosServiceInvoicePage() {
   }, [branchId, customerId, toast]);
 
   const customerLabels = useMemo(
-    () => buildDedupedLabels(customers, (c) => [
-      c.cnic ? String(c.cnic) : '',
-      c.fatherName ? `(S/O ${c.fatherName})` : '',
-    ]),
+    () => buildDedupedLabels(
+      customers.map((c) => ({
+        id: String(c.id),
+        name: String(c.name),
+        cnic: c.cnic,
+        fatherName: c.fatherName,
+      })),
+      (c) => [
+        c.cnic ? String(c.cnic) : '',
+        c.fatherName ? `(S/O ${c.fatherName})` : '',
+      ],
+    ),
     [customers],
   );
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: customerLabels.get(c.id) ?? String(c.name),
+      label: customerLabels.get(String(c.id)) ?? String(c.name),
     })),
     [customers, customerLabels],
   );
