@@ -51,7 +51,7 @@ export async function exportToPdf<T>(
   filename: string,
   columns: ReportColumn<T>[],
   rows: T[],
-  meta?: { title?: string; subtitle?: string },
+  meta?: { title?: string; subtitle?: string; boldRows?: number[] },
 ) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
@@ -80,8 +80,13 @@ export async function exportToPdf<T>(
     startY,
     head: [columns.map((c) => c.header)],
     body: rows.map((row) => columns.map((c) => String(c.value(row)))),
-    styles: { fontSize: 8, cellPadding: 4 },
-    headStyles: { fillColor: [234, 88, 12], textColor: 255 },
+    styles: { font: 'helvetica', fontStyle: 'normal', fontSize: 8, cellPadding: 4 },
+    headStyles: { font: 'helvetica', fontStyle: 'bold', fillColor: [234, 88, 12], textColor: 255 },
+    didParseCell: (data) => {
+      if (data.section === 'body' && meta?.boldRows?.includes(data.row.index)) {
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
     margin: { left: 40, right: 40 },
   });
 
@@ -303,7 +308,9 @@ export async function exportProfitLossReport(
       { modelName: 'Expense', chassisNumber: '', salePrice: formatPKR(summary.expense), purchasePrice: '', profit: '' },
       { modelName: 'Net Profit', chassisNumber: '', salePrice: '', purchasePrice: '', profit: formatPKR(summary.netProfit) },
     ];
-    await exportToPdf(filename, PROFIT_LOSS_SALE_COLUMNS, exportRows, meta);
+    const dataRowCount = items.length;
+    const boldRows = [dataRowCount, dataRowCount + 1, dataRowCount + 2, dataRowCount + 3];
+    await exportToPdf(filename, PROFIT_LOSS_SALE_COLUMNS, exportRows, { ...meta, boldRows });
     return;
   }
 

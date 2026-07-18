@@ -366,12 +366,15 @@ export async function getProfitLossReport(
       include: {
         product: { select: { name: true, model: true } },
         saleOrderItem: { select: { unitPrice: true, order: { select: { createdAt: true } } } },
+        purchase: { select: { items: { select: { productId: true, unitCost: true } } } },
       },
     });
 
     const items = chassisRows.map((c) => {
       const salePrice = Number(c.saleOrderItem?.unitPrice ?? 0);
-      const purchasePrice = Number(c.purchasePrice ?? 0);
+      // If purchase has two lines for the same product, .find() uses the first match — acceptable approximation.
+      const fallbackUnitCost = c.purchase.items.find((i) => i.productId === c.productId)?.unitCost;
+      const purchasePrice = Number(c.purchasePrice ?? fallbackUnitCost ?? 0);
       return {
         modelName: c.product.model ? `${c.product.name} (${c.product.model})` : c.product.name,
         chassisNumber: c.chassisNumber,
