@@ -51,7 +51,12 @@ export async function exportToPdf<T>(
   filename: string,
   columns: ReportColumn<T>[],
   rows: T[],
-  meta?: { title?: string; subtitle?: string; boldRows?: number[] },
+  meta?: {
+    title?: string;
+    subtitle?: string;
+    boldRows?: number[];
+    summaryTable?: { label: string; value: string; bold?: boolean }[];
+  },
 ) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
@@ -89,6 +94,24 @@ export async function exportToPdf<T>(
     },
     margin: { left: 40, right: 40 },
   });
+
+  if (meta?.summaryTable?.length) {
+    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+    autoTable(doc, {
+      startY: finalY + 16,
+      body: meta.summaryTable.map((r) => [r.label, r.value]),
+      styles: { font: 'helvetica', fontStyle: 'normal', fontSize: 9, cellPadding: 5 },
+      columnStyles: { 0: { cellWidth: 150 }, 1: { halign: 'right' } },
+      didParseCell: (data) => {
+        if (meta.summaryTable![data.row.index]?.bold) {
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      theme: 'plain',
+      margin: { left: 40, right: 40 },
+      tableWidth: 260,
+    });
+  }
 
   doc.save(`${sanitizeFilename(filename)}.pdf`);
 }
@@ -295,22 +318,20 @@ export async function exportProfitLossReport(
   const filename = `profit_loss_${revenueType}${rangeText ? `_${dateRange?.from ?? ''}_${dateRange?.to ?? ''}` : ''}`;
 
   if (revenueType === 'sale') {
-    const exportRows: ProfitLossSaleExportRow[] = [
-      ...items.map((i) => ({
-        modelName: i.modelName,
-        chassisNumber: i.chassisNumber,
-        salePrice: formatPKR(i.salePrice),
-        purchasePrice: formatPKR(i.purchasePrice),
-        profit: formatPKR(i.profit),
-      })),
-      { modelName: 'Total Revenue', chassisNumber: '', salePrice: formatPKR(summary.totalRevenue), purchasePrice: '', profit: '' },
-      { modelName: 'Total Profit', chassisNumber: '', salePrice: '', purchasePrice: '', profit: formatPKR(summary.totalProfit) },
-      { modelName: 'Expense', chassisNumber: '', salePrice: formatPKR(summary.expense), purchasePrice: '', profit: '' },
-      { modelName: 'Net Profit', chassisNumber: '', salePrice: '', purchasePrice: '', profit: formatPKR(summary.netProfit) },
+    const exportRows: ProfitLossSaleExportRow[] = items.map((i) => ({
+      modelName: i.modelName,
+      chassisNumber: i.chassisNumber,
+      salePrice: formatPKR(i.salePrice),
+      purchasePrice: formatPKR(i.purchasePrice),
+      profit: formatPKR(i.profit),
+    }));
+    const summaryTable = [
+      { label: 'Total Revenue', value: formatPKR(summary.totalRevenue) },
+      { label: 'Total Profit', value: formatPKR(summary.totalProfit) },
+      { label: 'Expense', value: formatPKR(summary.expense) },
+      { label: 'Net Profit', value: formatPKR(summary.netProfit), bold: true },
     ];
-    const dataRowCount = items.length;
-    const boldRows = [dataRowCount, dataRowCount + 1, dataRowCount + 2, dataRowCount + 3];
-    await exportToPdf(filename, PROFIT_LOSS_SALE_COLUMNS, exportRows, { ...meta, boldRows });
+    await exportToPdf(filename, PROFIT_LOSS_SALE_COLUMNS, exportRows, { ...meta, summaryTable });
     return;
   }
 
