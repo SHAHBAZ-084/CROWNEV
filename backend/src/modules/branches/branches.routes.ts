@@ -168,8 +168,13 @@ branchesRouter.patch(
 branchesRouter.delete(
   '/:id',
   requireRoles(Role.ADMIN),
+  validateBody(z.object({ password: z.string().min(1) })),
   asyncHandler(async (req, res) => {
-    const result = await branchesService.deleteBranch(parseInt(param(req.params.id), 10));
+    const result = await branchesService.deleteBranch(
+      parseInt(param(req.params.id), 10),
+      req.user!.userId,
+      req.body.password,
+    );
     res.json(result);
   })
 );
@@ -186,11 +191,13 @@ branchesRouter.get(
 branchesRouter.post(
   '/:id/clear-data',
   requireRoles(Role.ADMIN),
-  validateBody(z.object({ confirmName: z.string().min(1) })),
+  validateBody(z.object({ confirmName: z.string().min(1), password: z.string().min(1) })),
   asyncHandler(async (req, res) => {
     const result = await branchesService.clearBranchData(
       parseInt(param(req.params.id), 10),
       req.body.confirmName,
+      req.user!.userId,
+      req.body.password,
     );
     res.json(result);
   })

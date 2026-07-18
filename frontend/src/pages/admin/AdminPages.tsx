@@ -139,12 +139,14 @@ function ClearBranchDataModal({
   const [preview, setPreview] = useState<{ branchName: string; counts: Record<string, number> } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirmName, setConfirmName] = useState('');
+  const [password, setPassword] = useState('');
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (!open || !branch) {
       setPreview(null);
       setConfirmName('');
+      setPassword('');
       return;
     }
     setLoadingPreview(true);
@@ -156,13 +158,13 @@ function ClearBranchDataModal({
   }, [open, branch, toast]);
 
   const branchName = String(preview?.branchName ?? branch?.name ?? '');
-  const canConfirm = confirmName.trim() === branchName.trim() && !clearing;
+  const canConfirm = confirmName.trim() === branchName.trim() && password.trim().length > 0 && !clearing;
 
   async function handleClear() {
     if (!branch || !canConfirm) return;
     setClearing(true);
     try {
-      const result = await adminApi.clearBranchData(Number(branch.id), confirmName.trim());
+      const result = await adminApi.clearBranchData(Number(branch.id), confirmName.trim(), password);
       const total = Object.values(result.deleted).reduce((sum, n) => sum + n, 0);
       toast(`Branch data cleared (${total} records removed). Catalog parts/bikes were kept.`, 'success');
       onClose();
@@ -218,6 +220,13 @@ function ClearBranchDataModal({
           placeholder={branchName}
           autoComplete="off"
         />
+        <Input
+          label="Your admin password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose} disabled={clearing}>
             Cancel
@@ -244,22 +253,24 @@ function DeleteBranchModal({
 }) {
   const { toast } = useToast();
   const [confirmName, setConfirmName] = useState('');
+  const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open || !branch) {
       setConfirmName('');
+      setPassword('');
     }
   }, [open, branch]);
 
   const branchName = String(branch?.name ?? '');
-  const canConfirm = confirmName.trim() === branchName.trim() && !deleting;
+  const canConfirm = confirmName.trim() === branchName.trim() && password.trim().length > 0 && !deleting;
 
   async function handleDelete() {
     if (!branch || !canConfirm) return;
     setDeleting(true);
     try {
-      await adminApi.deleteBranch(Number(branch.id));
+      await adminApi.deleteBranch(Number(branch.id), password);
       toast('Branch deleted permanently', 'success');
       onClose();
       onDeleted();
@@ -283,6 +294,13 @@ function DeleteBranchModal({
           onChange={(e) => setConfirmName(e.target.value)}
           placeholder={branchName}
           autoComplete="off"
+        />
+        <Input
+          label="Your admin password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
         />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose} disabled={deleting}>

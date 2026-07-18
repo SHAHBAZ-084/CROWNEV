@@ -283,18 +283,18 @@ export const adminApi = {
   },
   updateBranch: (id: number, data: Record<string, unknown>) =>
     api<unknown>(`/branches/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deleteBranch: (id: number) =>
-    api<{ deleted: boolean }>(`/branches/${id}`, { method: 'DELETE' }),
+  deleteBranch: (id: number, password: string) =>
+    api<{ deleted: boolean }>(`/branches/${id}`, { method: 'DELETE', body: JSON.stringify({ password }) }),
   branchClearPreview: (id: number) =>
     api<{
       branchId: number;
       branchName: string;
       counts: Record<string, number>;
     }>(`/branches/${id}/clear-preview`),
-  clearBranchData: (id: number, confirmName: string) =>
+  clearBranchData: (id: number, confirmName: string, password: string) =>
     api<{ branchId: number; branchName: string; deleted: Record<string, number> }>(
       `/branches/${id}/clear-data`,
-      { method: 'POST', body: JSON.stringify({ confirmName }) },
+      { method: 'POST', body: JSON.stringify({ confirmName, password }) },
     ),
   products: (params?: Record<string, string>, init?: RequestInit) => {
     const q = params ? `?${new URLSearchParams(params)}` : '';

@@ -6,6 +6,7 @@ import {
 } from '../accounting/accounting.service.js';
 import { deleteBranchImageFile } from '../../utils/imageProcessing.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { comparePassword } from '../../utils/crypto.js';
 import { previewNextDocumentNumbers } from '../../utils/documentNumbers.js';
 
 export async function listBranches(activeOnly = false, visibleOnly = false) {
@@ -108,7 +109,14 @@ function hasUnclearedOperationalData(counts: Record<string, number>) {
   return UNCLEARED_OPERATIONAL_KEYS.some((key) => (counts[key] ?? 0) > 0);
 }
 
-export async function deleteBranch(id: number) {
+export async function deleteBranch(id: number, adminUserId: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { id: adminUserId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, 'Password verification is not available for this account');
+  }
+  const valid = await comparePassword(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
   const branch = await prisma.branch.findUnique({ where: { id } });
   if (!branch) throw new AppError(404, 'Branch not found');
 
@@ -439,7 +447,19 @@ async function purgeBranchOperationalData(tx: Prisma.TransactionClient, branchId
   return counts;
 }
 
-export async function clearBranchData(branchId: number, confirmName: string) {
+export async function clearBranchData(
+  branchId: number,
+  confirmName: string,
+  adminUserId: string,
+  password: string,
+) {
+  const user = await prisma.user.findUnique({ where: { id: adminUserId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, 'Password verification is not available for this account');
+  }
+  const valid = await comparePassword(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
   const branch = await prisma.branch.findUnique({ where: { id: branchId } });
   if (!branch) throw new AppError(404, 'Branch not found');
 
