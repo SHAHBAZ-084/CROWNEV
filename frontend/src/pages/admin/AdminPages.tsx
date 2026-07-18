@@ -223,6 +223,7 @@ function ClearBranchDataModal({
         <Input
           label="Your admin password"
           type="password"
+          passwordToggle
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
@@ -298,6 +299,7 @@ function DeleteBranchModal({
         <Input
           label="Your admin password"
           type="password"
+          passwordToggle
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
