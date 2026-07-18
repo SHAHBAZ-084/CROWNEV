@@ -3,6 +3,7 @@ import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { formatLedgerBalance, formatPKR } from '../../lib/format';
+import { buildAccountSelectOptions } from '../../lib/dedupeLabel';
 import { Button } from '../ui/Button';
 import { WorkspaceCloseBar, WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
 import { DataTable } from '../ui/DataTable';
@@ -59,6 +60,8 @@ function SideFields({
   balance,
   categories,
   accounts,
+  customers,
+  suppliers,
   onCategoryChange,
   onAccountChange,
   accountRequired,
@@ -69,6 +72,8 @@ function SideFields({
   balance: string;
   categories: Row[];
   accounts: Row[];
+  customers: Row[];
+  suppliers: Row[];
   onCategoryChange: (id: string) => void;
   onAccountChange: (id: string) => void;
   accountRequired?: boolean;
@@ -79,11 +84,16 @@ function SideFields({
   );
 
   const accountOptions: SearchSelectOption[] = useMemo(
-    () => accounts.map((a) => ({
-      value: String(a.id),
-      label: String(a.name),
-    })),
-    [accounts],
+    () => buildAccountSelectOptions(
+      accounts.map((a) => ({
+        id: Number(a.id),
+        name: String(a.name),
+        code: a.code,
+      })),
+      customers,
+      suppliers,
+    ),
+    [accounts, customers, suppliers],
   );
 
   return (
@@ -129,6 +139,8 @@ export function LegacyVoucherScreen({
 
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
   const [viewVoucher, setViewVoucher] = useState<Row | null>(null);
@@ -149,6 +161,8 @@ export function LegacyVoucherScreen({
     branchApi.accounts(branchId).then((r) => setAccounts(r as Row[])).catch(console.error);
     branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
     branchApi.vouchers(branchId).then((r) => setVouchers(r as Row[])).catch(console.error);
+    branchApi.branchCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
+    branchApi.branchSuppliers(branchId, { limit: '100' }).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
   }, [branchId]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -320,6 +334,8 @@ export function LegacyVoucherScreen({
               }
               categories={variant === 'journal' ? debitCategories : creditCategories}
               accounts={variant === 'journal' ? debitAccounts : creditAccounts}
+              customers={customers}
+              suppliers={suppliers}
               onCategoryChange={(id) => {
                 if (variant === 'journal') { setDebitCategoryId(id); setDebitAccountId(''); }
                 else { setCreditCategoryId(id); setCreditAccountId(''); }
@@ -338,6 +354,8 @@ export function LegacyVoucherScreen({
               }
               categories={variant === 'journal' ? creditCategories : debitCategories}
               accounts={variant === 'journal' ? creditAccounts : debitAccounts}
+              customers={customers}
+              suppliers={suppliers}
               onCategoryChange={(id) => {
                 if (variant === 'journal') { setCreditCategoryId(id); setCreditAccountId(''); }
                 else { setDebitCategoryId(id); setDebitAccountId(''); }

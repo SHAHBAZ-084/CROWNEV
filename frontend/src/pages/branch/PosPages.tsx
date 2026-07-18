@@ -18,6 +18,7 @@ import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
+import { buildAccountSelectOptions, buildDedupedLabels } from '../../lib/dedupeLabel';
 import { ProductItemMetaLines, productItemMetaFromProduct } from '../../lib/productItemMeta';
 import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
 import {
@@ -910,14 +911,19 @@ export function PosSaleInvoicePage() {
     return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
 
+  const customerLabels = useMemo(
+    () => buildDedupedLabels(customers, (c) => [
+      c.cnic ? String(c.cnic) : '',
+      c.fatherName ? `(S/O ${c.fatherName})` : '',
+    ]),
+    [customers],
+  );
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: c.cnic
-        ? `${c.name} — ${c.cnic}${c.fatherName ? ` (S/O ${c.fatherName})` : ''}`
-        : String(c.name),
+      label: customerLabels.get(c.id) ?? String(c.name),
     })),
-    [customers],
+    [customers, customerLabels],
   );
 
   const productById = useMemo(
@@ -1447,9 +1453,19 @@ export function PosPurchaseInvoicePage() {
       .finally(() => setLoadingLedger(false));
   }, [branchId, supplierId, toast]);
 
-  const supplierOptions: SearchSelectOption[] = useMemo(
-    () => suppliers.map((s) => ({ value: String(s.id), label: String(s.name) })),
+  const supplierLabels = useMemo(
+    () => buildDedupedLabels(suppliers, (s) => [
+      s.phone ? String(s.phone) : '',
+      s.contactPerson ? `(${s.contactPerson})` : '',
+    ]),
     [suppliers],
+  );
+  const supplierOptions: SearchSelectOption[] = useMemo(
+    () => suppliers.map((s) => ({
+      value: String(s.id),
+      label: supplierLabels.get(s.id) ?? String(s.name),
+    })),
+    [suppliers, supplierLabels],
   );
 
   const productById = useMemo(
@@ -2154,14 +2170,19 @@ export function PosServiceInvoicePage() {
     return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
 
+  const customerLabels = useMemo(
+    () => buildDedupedLabels(customers, (c) => [
+      c.cnic ? String(c.cnic) : '',
+      c.fatherName ? `(S/O ${c.fatherName})` : '',
+    ]),
+    [customers],
+  );
   const customerOptions: SearchSelectOption[] = useMemo(
     () => customers.map((c) => ({
       value: String(c.id),
-      label: c.cnic
-        ? `${c.name} — ${c.cnic}${c.fatherName ? ` (S/O ${c.fatherName})` : ''}`
-        : String(c.name),
+      label: customerLabels.get(c.id) ?? String(c.name),
     })),
-    [customers],
+    [customers, customerLabels],
   );
 
   const productById = useMemo(
@@ -2567,6 +2588,8 @@ export function PosAccountLedgerPage() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Row[]>([]);
   const [accounts, setAccounts] = useState<Row[]>([]);
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -2579,10 +2602,14 @@ export function PosAccountLedgerPage() {
     Promise.all([
       branchApi.accountingCategories(branchId),
       branchApi.accounts(branchId),
+      branchApi.branchCustomers(branchId, { limit: '100' }),
+      branchApi.branchSuppliers(branchId, { limit: '100' }),
     ])
-      .then(([cats, accts]) => {
+      .then(([cats, accts, custs, sups]) => {
         setCategories(cats as Row[]);
         setAccounts(accts as Row[]);
+        setCustomers(custs.data as Row[]);
+        setSuppliers(sups.data as Row[]);
       })
       .catch(console.error);
   }, [branchId]);
@@ -2598,11 +2625,16 @@ export function PosAccountLedgerPage() {
   );
 
   const accountOptions: SearchSelectOption[] = useMemo(
-    () => filteredAccounts.map((a) => ({
-      value: String(a.id),
-      label: String(a.name),
-    })),
-    [filteredAccounts],
+    () => buildAccountSelectOptions(
+      filteredAccounts.map((a) => ({
+        id: Number(a.id),
+        name: String(a.name),
+        code: a.code,
+      })),
+      customers,
+      suppliers,
+    ),
+    [filteredAccounts, customers, suppliers],
   );
 
   function handleCategoryChange(id: string) {
@@ -3119,6 +3151,8 @@ export function FinancialYearLedgerReportPage() {
   const [yearMeta, setYearMeta] = useState<FinancialYearRow | null>(null);
   const [categories, setCategories] = useState<Row[]>([]);
   const [accounts, setAccounts] = useState<Row[]>([]);
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -3137,10 +3171,14 @@ export function FinancialYearLedgerReportPage() {
     Promise.all([
       branchApi.accountingCategories(branchId),
       branchApi.accounts(branchId),
+      branchApi.branchCustomers(branchId, { limit: '100' }),
+      branchApi.branchSuppliers(branchId, { limit: '100' }),
     ])
-      .then(([cats, accts]) => {
+      .then(([cats, accts, custs, sups]) => {
         setCategories(cats as Row[]);
         setAccounts(accts as Row[]);
+        setCustomers(custs.data as Row[]);
+        setSuppliers(sups.data as Row[]);
       })
       .catch(console.error);
   }, [branchId, yearId, canManageFinancialYear]);
@@ -3156,11 +3194,16 @@ export function FinancialYearLedgerReportPage() {
   );
 
   const accountOptions: SearchSelectOption[] = useMemo(
-    () => filteredAccounts.map((a) => ({
-      value: String(a.id),
-      label: String(a.name),
-    })),
-    [filteredAccounts],
+    () => buildAccountSelectOptions(
+      filteredAccounts.map((a) => ({
+        id: Number(a.id),
+        name: String(a.name),
+        code: a.code,
+      })),
+      customers,
+      suppliers,
+    ),
+    [filteredAccounts, customers, suppliers],
   );
 
   async function loadLedger() {

@@ -853,8 +853,14 @@ export const branchApi = {
       `/accounting/${branchId}/financial-year/close`,
       { method: 'POST' },
     ),
-  branchSuppliers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/suppliers`),
-  branchCustomers: (branchId: number) => api<Paginated<unknown>>(`/accounting/${branchId}/customers`),
+  branchSuppliers: (branchId: number, params?: { limit?: string; page?: string }) => {
+    const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
+    return api<Paginated<unknown>>(`/accounting/${branchId}/suppliers${q}`);
+  },
+  branchCustomers: (branchId: number, params?: { limit?: string; page?: string }) => {
+    const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
+    return api<Paginated<unknown>>(`/accounting/${branchId}/customers${q}`);
+  },
   walkInCustomers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/walk-in/${branchId}/customers${q}`);
