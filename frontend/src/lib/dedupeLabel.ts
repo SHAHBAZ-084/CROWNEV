@@ -6,22 +6,11 @@ export function buildDedupedLabels<T extends NamedItem>(
   items: T[],
   extra: (item: T) => string[],
 ): Map<string | number, string> {
-  const counts = new Map<string, number>();
-  for (const it of items) {
-    const key = it.name.trim().toLowerCase();
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
   const labels = new Map<string | number, string>();
   for (const it of items) {
-    const key = it.name.trim().toLowerCase();
-    const isDup = (counts.get(key) ?? 0) > 1;
-    if (!isDup) {
-      labels.set(it.id, it.name);
-      continue;
-    }
     const parts = extra(it).filter(Boolean);
     if (!parts.length) {
-      labels.set(it.id, `${it.name} #${it.id}`);
+      labels.set(it.id, it.name);
       continue;
     }
     const suffix = parts[0].startsWith('(') ? ` ${parts.join(' ')}` : ` — ${parts.join(' ')}`;
@@ -39,7 +28,7 @@ export function parseAccountCode(code: string): { kind: 'customer' | 'supplier';
 type LinkedRow = Record<string, unknown>;
 
 export function buildAccountSelectOptions(
-  accounts: Array<{ id: number | string; name: string; code?: unknown }>,
+  accounts: Array<{ id: number | string; name: string; code?: unknown; category?: string }>,
   customers: LinkedRow[],
   suppliers: LinkedRow[],
 ): SearchSelectOption[] {
@@ -71,7 +60,13 @@ export function buildAccountSelectOptions(
   return accounts.map((a) => {
     const parsed = parseAccountCode(String(a.code ?? ''));
     if (!parsed) {
-      return { value: String(a.id), label: String(a.name) };
+      const name = String(a.name);
+      const category = a.category?.trim() || 'Account';
+      const code = String(a.code ?? '').trim();
+      return {
+        value: String(a.id),
+        label: code ? `${name} — (${category} · ${code})` : `${name} — (${category})`,
+      };
     }
     const labelMap = parsed.kind === 'customer' ? customerLabels : supplierLabels;
     return {

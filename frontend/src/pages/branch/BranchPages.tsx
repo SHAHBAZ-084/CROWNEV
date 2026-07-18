@@ -13,6 +13,7 @@ import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud
 import { OrderStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime, orderListReference } from '../../lib/format';
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
+import { buildAccountSelectOptions } from '../../lib/dedupeLabel';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -1012,6 +1013,8 @@ export function BranchAccountingPage() {
   const [banks, setBanks] = useState<Row[]>([]);
   const [trial, setTrial] = useState<Row | null>(null);
   const [categories, setCategories] = useState<Row[]>([]);
+  const [customers, setCustomers] = useState<Row[]>([]);
+  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -1026,6 +1029,8 @@ export function BranchAccountingPage() {
     branchApi.vouchers(branchId).then((r) => setVouchers(r as Row[])).catch(console.error);
     branchApi.banks(branchId).then((r) => setBanks(r as Row[])).catch(console.error);
     branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
+    branchApi.branchCustomers(branchId, { limit: '500' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
+    branchApi.branchSuppliers(branchId, { limit: '500' }).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
     branchApi.trialBalance(branchId).then((r) => {
       const data = r as Row & { accounts?: Row[] };
       setTrial(Array.isArray(data) ? (data as unknown as Row) : data);
@@ -1033,6 +1038,20 @@ export function BranchAccountingPage() {
   }, [branchId]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  const accountOptions = useMemo(
+    () => buildAccountSelectOptions(
+      accounts.map((a) => ({
+        id: Number(a.id),
+        name: String(a.name),
+        code: a.code,
+        category: String((a.category as { name?: string } | undefined)?.name ?? ''),
+      })),
+      customers,
+      suppliers,
+    ),
+    [accounts, customers, suppliers],
+  );
 
   async function handleAccount(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1205,11 +1224,11 @@ export function BranchAccountingPage() {
           </Select>
           <Select name="debitAccountId" label="Debit Account" required>
             <option value="">Select</option>
-            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.name)}</option>)}
+            {accountOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           <Select name="creditAccountId" label="Credit Account" required>
             <option value="">Select</option>
-            {accounts.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.name)}</option>)}
+            {accountOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           <Input name="amount" label="Amount" type="number" step="0.01" required />
           <Input name="description" label="Description" />

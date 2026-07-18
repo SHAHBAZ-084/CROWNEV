@@ -155,7 +155,7 @@ export function SearchSelect({
               }
             }
           }}
-          className={fieldClass}
+          className={`${fieldClass} truncate`}
         />
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-placeholder" />
         {open && (
@@ -182,9 +182,10 @@ export function SearchSelect({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pick(option)}
-                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle ${
+                    className={`w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle ${
                       option.value === value ? 'bg-subtle font-medium text-ink' : 'text-ink'
                     }`}
+                    title={option.label}
                   >
                     {option.label}
                   </button>
