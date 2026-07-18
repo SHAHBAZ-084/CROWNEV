@@ -1,4 +1,4 @@
-import { OrderStatus, OrderType, Prisma } from '@prisma/client';
+import { OrderStatus, OrderType, Prisma, ChassisStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
@@ -334,4 +334,75 @@ export async function exportInventory(branchId?: number, pagination?: ExportPagi
     alertAt: i.part.alertAt,
     lowStock: i.quantity <= i.part.alertAt ? 'YES' : 'NO',
   }));
+}
+
+export async function getProfitLossReport(
+  branchId: number,
+  revenueType: 'sale' | 'service',
+  range: { from?: string; to?: string },
+) {
+  const fromDate = range.from ? new Date(range.from) : undefined;
+  const toDate = range.to ? new Date(`${range.to}T23:59:59.999`) : undefined;
+
+  if (revenueType === 'sale') {
+    const chassisRows = await prisma.bikeChassisNumber.findMany({
+      where: {
+        branchId,
+        status: ChassisStatus.SOLD,
+        saleOrderItem: {
+          order: {
+            status: { not: OrderStatus.CANCELLED },
+            ...(fromDate || toDate
+              ? {
+                  createdAt: {
+                    ...(fromDate && { gte: fromDate }),
+                    ...(toDate && { lte: toDate }),
+                  },
+                }
+              : {}),
+          },
+        },
+      },
+      include: {
+        product: { select: { name: true, model: true } },
+        saleOrderItem: { select: { unitPrice: true, order: { select: { createdAt: true } } } },
+      },
+    });
+
+    const items = chassisRows.map((c) => {
+      const salePrice = Number(c.saleOrderItem?.unitPrice ?? 0);
+      const purchasePrice = Number(c.purchasePrice ?? 0);
+      return {
+        modelName: c.product.model ? `${c.product.name} (${c.product.model})` : c.product.name,
+        chassisNumber: c.chassisNumber,
+        salePrice,
+        purchasePrice,
+        profit: salePrice - purchasePrice,
+        date: c.saleOrderItem?.order.createdAt,
+      };
+    });
+
+    const totalRevenue = items.reduce((s, i) => s + i.salePrice, 0);
+    const totalProfit = items.reduce((s, i) => s + i.profit, 0);
+
+    return { revenueType, items, totalRevenue, totalProfit };
+  }
+
+  const invoices = await prisma.serviceInvoice.findMany({
+    where: {
+      branchId,
+      ...(fromDate || toDate
+        ? {
+            createdAt: {
+              ...(fromDate && { gte: fromDate }),
+              ...(toDate && { lte: toDate }),
+            },
+          }
+        : {}),
+    },
+    select: { total: true },
+  });
+  const totalRevenue = invoices.reduce((s, i) => s + Number(i.total), 0);
+
+  return { revenueType, items: [], totalRevenue, totalProfit: totalRevenue, count: invoices.length };
 }

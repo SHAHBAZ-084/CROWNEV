@@ -20,7 +20,7 @@ import { SearchSelect, type SearchSelectOption } from '../../components/ui/Searc
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
 import { buildAccountSelectOptions, buildDedupedLabels } from '../../lib/dedupeLabel';
 import { ProductItemMetaLines, productItemMetaFromProduct } from '../../lib/productItemMeta';
-import { exportLedgerReport, exportTrialBalanceReport } from '../../lib/reportExport';
+import { exportLedgerReport, exportTrialBalanceReport, exportProfitLossReport } from '../../lib/reportExport';
 import {
   filterManualAccountCategories,
   isCustomersCategory,
@@ -3400,6 +3400,169 @@ export function FinancialYearLedgerReportPage() {
           ← Back to Financial Year
         </Link>
       </div>
+    </div>
+  );
+}
+
+type ProfitLossItem = {
+  modelName: string;
+  chassisNumber: string;
+  salePrice: number;
+  purchasePrice: number;
+  profit: number;
+};
+
+type ProfitLossReport = {
+  revenueType: 'sale' | 'service';
+  items: ProfitLossItem[];
+  totalRevenue: number;
+  totalProfit: number;
+  count?: number;
+};
+
+export function PosProfitLossPage() {
+  const branchId = useBranchId();
+  const { toast } = useToast();
+  const [revenueType, setRevenueType] = useState<'sale' | 'service'>('sale');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [expense, setExpense] = useState('');
+  const [report, setReport] = useState<ProfitLossReport | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const expenseAmount = parseFloat(expense) || 0;
+  const netProfit = report
+    ? (revenueType === 'sale' ? report.totalProfit : report.totalRevenue) - expenseAmount
+    : 0;
+
+  async function generateReport() {
+    if (!branchId) return;
+    setLoading(true);
+    try {
+      const data = await branchApi.profitLossReport(branchId, {
+        type: revenueType,
+        ...(fromDate ? { from: fromDate } : {}),
+        ...(toDate ? { to: toDate } : {}),
+      });
+      setReport(data as ProfitLossReport);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to generate report', 'error');
+      setReport(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    if (!report) return;
+    await exportProfitLossReport(
+      revenueType,
+      report.items,
+      {
+        totalRevenue: report.totalRevenue,
+        totalProfit: report.totalProfit,
+        expense: expenseAmount,
+        netProfit,
+      },
+      { from: fromDate || undefined, to: toDate || undefined },
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader title="Profit & Loss Statement" subtitle="Sale or service revenue with optional expense adjustment" />
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_auto_auto_auto_auto_auto] lg:items-end">
+        <Select
+          label="Revenue Type"
+          value={revenueType}
+          onChange={(e) => {
+            setRevenueType(e.target.value as 'sale' | 'service');
+            setReport(null);
+          }}
+        >
+          <option value="sale">Sale Revenue</option>
+          <option value="service">Service Revenue</option>
+        </Select>
+        <Input label="From date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <Input label="To date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        <Input
+          label="Expense (PKR)"
+          type="number"
+          step="0.01"
+          min="0"
+          value={expense}
+          onChange={(e) => setExpense(e.target.value)}
+          placeholder="0"
+        />
+        <Button type="button" variant="accent" size="sm" loading={loading} onClick={generateReport}>
+          Generate Report
+        </Button>
+      </div>
+
+      {report && (
+        <>
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={handleExportPdf}>
+              <FileText className="h-3.5 w-3.5" />
+              Download PDF
+            </Button>
+          </div>
+
+          {revenueType === 'sale' ? (
+            <>
+              <DataTable
+                columns={[
+                  { key: 'modelName', header: 'Model' },
+                  { key: 'chassisNumber', header: 'Chassis Number' },
+                  { key: 'salePrice', header: 'Sale Price', render: (r) => formatPKR(Number(r.salePrice)) },
+                  { key: 'purchasePrice', header: 'Purchase Price', render: (r) => formatPKR(Number(r.purchasePrice)) },
+                  { key: 'profit', header: 'Profit', render: (r) => formatPKR(Number(r.profit)) },
+                ]}
+                data={report.items as unknown as Row[]}
+                emptyMessage="No sold bikes in this period"
+              />
+              <div className="mt-6 grid gap-3 rounded-xl border border-border bg-surface-alt/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="text-xs text-text-muted">Total Revenue</p>
+                  <p className="text-lg font-semibold tabular-nums text-brand">{formatPKR(report.totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-muted">Total Profit</p>
+                  <p className="text-lg font-semibold tabular-nums text-brand">{formatPKR(report.totalProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-muted">Expense</p>
+                  <p className="text-lg font-semibold tabular-nums">{formatPKR(expenseAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-muted">Net Profit</p>
+                  <p className="text-lg font-semibold tabular-nums text-brand">{formatPKR(netProfit)}</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-3 rounded-xl border border-border bg-surface-alt/40 p-6 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-text-muted">Total Revenue</p>
+                <p className="text-xl font-semibold tabular-nums text-brand">{formatPKR(report.totalRevenue)}</p>
+                {report.count != null && (
+                  <p className="mt-1 text-xs text-text-muted">{report.count} service invoice{report.count === 1 ? '' : 's'}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Expense</p>
+                <p className="text-xl font-semibold tabular-nums">{formatPKR(expenseAmount)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Net Profit</p>
+                <p className="text-xl font-semibold tabular-nums text-brand">{formatPKR(netProfit)}</p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <WorkspaceCloseBar className="mt-8" />
     </div>
   );
 }

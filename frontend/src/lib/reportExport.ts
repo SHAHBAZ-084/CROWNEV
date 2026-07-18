@@ -1,4 +1,4 @@
-import { formatDate, formatLedgerBalance } from './format';
+import { formatDate, formatLedgerBalance, formatPKR } from './format';
 
 export type ReportColumn<T> = {
   header: string;
@@ -248,4 +248,69 @@ export async function exportSalesSummaryPdf(
     { header: 'Value', value: (r) => r.value },
   ];
   await exportToPdf(filename, columns, rows, meta);
+}
+
+export type ProfitLossItemRow = {
+  modelName: string;
+  chassisNumber: string;
+  salePrice: number;
+  purchasePrice: number;
+  profit: number;
+};
+
+type ProfitLossSaleExportRow = {
+  modelName: string;
+  chassisNumber: string;
+  salePrice: string;
+  purchasePrice: string;
+  profit: string;
+};
+
+const PROFIT_LOSS_SALE_COLUMNS: ReportColumn<ProfitLossSaleExportRow>[] = [
+  { header: 'Model', value: (r) => r.modelName },
+  { header: 'Chassis Number', value: (r) => r.chassisNumber },
+  { header: 'Sale Price', value: (r) => r.salePrice },
+  { header: 'Purchase Price', value: (r) => r.purchasePrice },
+  { header: 'Profit', value: (r) => r.profit },
+];
+
+export async function exportProfitLossReport(
+  revenueType: 'sale' | 'service',
+  items: ProfitLossItemRow[],
+  summary: { totalRevenue: number; totalProfit: number; expense: number; netProfit: number },
+  dateRange?: { from?: string; to?: string },
+) {
+  const rangeText = [
+    dateRange?.from ? `From ${formatDate(dateRange.from)}` : null,
+    dateRange?.to ? `To ${formatDate(dateRange.to)}` : null,
+  ].filter(Boolean).join(' · ');
+
+  const title = revenueType === 'sale' ? 'Profit & Loss — Sale Revenue' : 'Profit & Loss — Service Revenue';
+  const meta = { title, subtitle: rangeText || 'All dates' };
+  const filename = `profit_loss_${revenueType}${rangeText ? `_${dateRange?.from ?? ''}_${dateRange?.to ?? ''}` : ''}`;
+
+  if (revenueType === 'sale') {
+    const exportRows: ProfitLossSaleExportRow[] = [
+      ...items.map((i) => ({
+        modelName: i.modelName,
+        chassisNumber: i.chassisNumber,
+        salePrice: formatPKR(i.salePrice),
+        purchasePrice: formatPKR(i.purchasePrice),
+        profit: formatPKR(i.profit),
+      })),
+      { modelName: 'Total Revenue', chassisNumber: '', salePrice: formatPKR(summary.totalRevenue), purchasePrice: '', profit: '' },
+      { modelName: 'Total Profit', chassisNumber: '', salePrice: '', purchasePrice: '', profit: formatPKR(summary.totalProfit) },
+      { modelName: 'Expense', chassisNumber: '', salePrice: formatPKR(summary.expense), purchasePrice: '', profit: '' },
+      { modelName: 'Net Profit', chassisNumber: '', salePrice: '', purchasePrice: '', profit: formatPKR(summary.netProfit) },
+    ];
+    await exportToPdf(filename, PROFIT_LOSS_SALE_COLUMNS, exportRows, meta);
+    return;
+  }
+
+  const summaryRows: SalesSummaryExportRow[] = [
+    { metric: 'Total Revenue', value: formatPKR(summary.totalRevenue) },
+    { metric: 'Expense', value: formatPKR(summary.expense) },
+    { metric: 'Net Profit', value: formatPKR(summary.netProfit) },
+  ];
+  await exportSalesSummaryPdf(filename, summaryRows, meta);
 }

@@ -12,6 +12,7 @@ import {
   Handshake,
   Wrench,
   CalendarClock,
+  TrendingUp,
 } from 'lucide-react';
 import type { SidebarNavSection } from '../components/layout/DashboardSidebar';
 
@@ -46,6 +47,7 @@ export const posSections: SidebarNavSection[] = [
     items: [
       { to: '/branch/workspace/reports/ledger', label: 'Account Ledger', icon: ScrollText },
       { to: '/branch/workspace/reports/trial-balance', label: 'Detail Trial Balance', icon: BarChart3 },
+      { to: '/branch/workspace/reports/profit-loss', label: 'Profit & Loss', icon: TrendingUp },
     ],
   },
   {

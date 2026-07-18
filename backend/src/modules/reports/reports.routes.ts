@@ -146,3 +146,25 @@ reportsRouter.get(
     res.json(trialBalance);
   })
 );
+
+reportsRouter.get(
+  '/profit-loss/:branchId',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(req.params.branchId as string, 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const revenueType = req.query.type as 'sale' | 'service';
+    if (!['sale', 'service'].includes(revenueType)) {
+      res.status(400).json({ error: 'type must be sale or service' });
+      return;
+    }
+    const report = await reportsService.getProfitLossReport(branchId, revenueType, {
+      from: req.query.from as string | undefined,
+      to: req.query.to as string | undefined,
+    });
+    res.json(report);
+  }),
+);

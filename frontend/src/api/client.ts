@@ -893,6 +893,10 @@ export const branchApi = {
     return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
   },
   exportInventory: () => api<Record<string, unknown>[]>('/reports/export/inventory'),
+  profitLossReport: (branchId: number, params: { type: 'sale' | 'service'; from?: string; to?: string }) =>
+    api<unknown>(`/reports/profit-loss/${branchId}?${new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v) as [string, string][],
+    )}`),
   bikeDocuments: (branchId: number, params?: { search?: string; status?: string }) => {
     const q = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v));
     const qs = q.toString() ? `?${q}` : '';

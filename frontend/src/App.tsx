@@ -100,6 +100,7 @@ const PosPurchaseInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'P
 const PosServiceInvoice = lazyNamed(() => import('./pages/branch/PosPages'), 'PosServiceInvoicePage');
 const PosAccountLedger = lazyNamed(() => import('./pages/branch/PosPages'), 'PosAccountLedgerPage');
 const PosDetailTrialBalance = lazyNamed(() => import('./pages/branch/PosPages'), 'PosDetailTrialBalancePage');
+const PosProfitLoss = lazyNamed(() => import('./pages/branch/PosPages'), 'PosProfitLossPage');
 const FinancialYearPage = lazyNamed(() => import('./pages/branch/PosPages'), 'FinancialYearPage');
 const FinancialYearLedgerReportPage = lazyNamed(() => import('./pages/branch/PosPages'), 'FinancialYearLedgerReportPage');
 const PosBikeDocumentsPage = lazy(() => import('./pages/branch/PosBikeDocumentsPage'));
@@ -208,6 +209,7 @@ export default function App() {
                   <Route path="/branch/workspace/invoices/service" element={<DashWrap><PosServiceInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />
                   <Route path="/branch/workspace/reports/trial-balance" element={<DashWrap><PosDetailTrialBalance /></DashWrap>} />
+                  <Route path="/branch/workspace/reports/profit-loss" element={<DashWrap><PosProfitLoss /></DashWrap>} />
                   <Route path="/branch/workspace/financial-year" element={<DashWrap><FinancialYearPage /></DashWrap>} />
                   <Route path="/branch/workspace/financial-year/:financialYearId/ledger" element={<DashWrap><FinancialYearLedgerReportPage /></DashWrap>} />
                 </Route>
