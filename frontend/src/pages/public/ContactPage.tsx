@@ -79,7 +79,7 @@ export default function ContactPage() {
 
   useEffect(() => {
     Promise.all([
-      publicApi.branches(),
+      publicApi.branches({ visibleOnly: true }),
       publicApi.footerContact()
     ])
       .then(([branchesData, contactData]) => {

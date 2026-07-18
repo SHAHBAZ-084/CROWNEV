@@ -19,7 +19,7 @@ export default function BookServicePage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    publicApi.branches().then(setBranches).catch(console.error);
+    publicApi.branches({ visibleOnly: true }).then(setBranches).catch(console.error);
   }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
