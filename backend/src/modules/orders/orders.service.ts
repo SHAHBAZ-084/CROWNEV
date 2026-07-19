@@ -1086,14 +1086,33 @@ export async function getWalkInCustomer(id: number, branchId: number) {
 export async function updateWalkInCustomer(
   id: number,
   branchId: number,
-  data: Partial<{ name: string; fatherName: string; phone: string; email: string; address: string }>
+  data: Partial<{ name: string; fatherName: string; phone: string; email: string; address: string; cnic: string }>
 ) {
+  const updateData = { ...data };
+
+  if (data.cnic !== undefined) {
+    const cnic = normalizeCnic(data.cnic);
+    if (cnic.length !== 13 || !/^\d+$/.test(cnic)) {
+      throw new AppError(400, 'CNIC must be 13 digits');
+    }
+
+    const existing = await prisma.customer.findFirst({
+      where: { cnic, NOT: { id } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new AppError(409, 'A customer with this CNIC already exists.');
+    }
+
+    updateData.cnic = cnic;
+  }
+
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findFirst({
       where: { id, branchId },
     });
     if (!customer) throw new AppError(404, 'Customer not found');
-    const updated = await tx.customer.update({ where: { id }, data });
+    const updated = await tx.customer.update({ where: { id }, data: updateData });
     if (data.name) {
       await ensureCustomerAccount(tx, branchId, { id: updated.id, name: updated.name });
     }

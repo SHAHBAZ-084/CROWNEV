@@ -677,7 +677,7 @@ export function PosSuppliersPage() {
         address: String(fd.get('address') || '') || undefined,
       };
       if (editing) {
-        await branchApi.updateSupplier(Number(editing.id), data);
+        await branchApi.updateSupplier(Number(editing.id), { ...data, branchId });
         toast('Supplier updated', 'success');
       } else {
         await branchApi.createSupplier({ branchId, ...data });

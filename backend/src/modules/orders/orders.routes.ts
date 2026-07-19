@@ -404,6 +404,12 @@ walkInRouter.patch(
       phone: z.string().optional(),
       email: z.string().email().optional(),
       address: z.string().optional(),
+      cnic: z
+        .string()
+        .min(1)
+        .transform((value) => value.replace(/\D/g, ''))
+        .pipe(z.string().regex(/^\d{13}$/, 'CNIC must be 13 digits'))
+        .optional(),
     })
   ),
   asyncHandler(async (req, res) => {
