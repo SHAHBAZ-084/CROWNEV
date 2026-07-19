@@ -644,6 +644,13 @@ export async function updatePurchaseInvoice(
   let newSupplier: Awaited<ReturnType<typeof prisma.supplier.findFirst>> = null;
   const supplierChanged = data.supplierId != null && data.supplierId !== purchase.supplierId;
   if (supplierChanged) {
+    const hasNonStockChassis = purchase.chassis.some((c) => c.status !== ChassisStatus.IN_STOCK);
+    if (hasNonStockChassis) {
+      throw new AppError(
+        400,
+        'Cannot change supplier: this purchase invoice only allows a supplier change while all bikes from it are still in stock (not sold or reserved).',
+      );
+    }
     newSupplier = await prisma.supplier.findFirst({
       where: { id: data.supplierId, branchId: purchase.branchId },
     });

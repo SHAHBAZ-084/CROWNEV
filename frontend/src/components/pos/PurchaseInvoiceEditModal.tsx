@@ -44,6 +44,7 @@ export function PurchaseInvoiceEditModal({
   const [saving, setSaving] = useState(false);
   const [supplierId, setSupplierId] = useState('');
   const [initialSupplierId, setInitialSupplierId] = useState('');
+  const [supplierLocked, setSupplierLocked] = useState(false);
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [bikeUnits, setBikeUnits] = useState<BikeUnitEdit[]>([]);
   const [partLines, setPartLines] = useState<PartLineEdit[]>([]);
@@ -80,10 +81,15 @@ export function PurchaseInvoiceEditModal({
       branchApi.purchase(purchaseId),
     ])
       .then(async ([inv, rawPurchase]) => {
-        const purchase = rawPurchase as { supplierId: number; branchId: number };
+        const purchase = rawPurchase as {
+          supplierId: number;
+          branchId: number;
+          chassis?: Array<{ status: string }>;
+        };
         const currentSupplierId = String(purchase.supplierId);
         setSupplierId(currentSupplierId);
         setInitialSupplierId(currentSupplierId);
+        setSupplierLocked(Boolean(purchase.chassis?.some((c) => c.status !== 'IN_STOCK')));
 
         const supplierResult = await branchApi.branchSuppliers(purchase.branchId, { limit: '500' });
         setSuppliers(supplierResult.data as Row[]);
@@ -159,7 +165,7 @@ export function PurchaseInvoiceEditModal({
     }
 
     const payload: Parameters<typeof branchApi.updatePurchaseInvoice>[1] = { items };
-    if (Number(supplierId) !== Number(initialSupplierId)) {
+    if (!supplierLocked && Number(supplierId) !== Number(initialSupplierId)) {
       payload.supplierId = Number(supplierId);
     }
 
@@ -190,7 +196,14 @@ export function PurchaseInvoiceEditModal({
             onChange={setSupplierId}
             options={supplierOptions}
             placeholder="Search supplier…"
+            disabled={supplierLocked}
           />
+          {supplierLocked && (
+            <p className="text-xs text-warning">
+              Supplier can&apos;t be changed — this invoice has bikes that are no longer in stock
+              (sold or reserved).
+            </p>
+          )}
 
           {bikeUnits.map((unit) => (
             <div key={unit.chassisId} className="space-y-3 rounded-lg border border-border bg-surface-alt/40 p-4">
