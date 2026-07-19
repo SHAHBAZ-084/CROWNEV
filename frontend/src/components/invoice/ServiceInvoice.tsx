@@ -8,6 +8,8 @@ import { Logo } from '../brand/Logo';
 import {
   invoiceFieldLabel,
   invoiceFieldValue,
+  invoiceFooterClass,
+  invoiceFooterLinkClass,
   invoiceLogoClass,
   invoiceLogoSize,
   invoiceMetaText,
@@ -161,9 +163,9 @@ export function ServiceInvoice({
           </div>
         </div>
 
-        <div className="mt-4 border-t border-slate-200 pt-3 text-center text-xs">
+        <div className={invoiceFooterClass}>
           Visit us on{' '}
-          <a href="https://www.crownevcenter.com" className="font-semibold text-accent">
+          <a href="https://www.crownevcenter.com" className={invoiceFooterLinkClass}>
             www.crownevcenter.com
           </a>
         </div>

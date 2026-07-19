@@ -16,3 +16,6 @@ export const invoiceTableHead =
 export const invoiceSubtext = 'text-xs font-semibold text-black';
 export const invoiceTotalsLabel = 'font-semibold text-black';
 export const invoiceTableCell = 'font-semibold text-black';
+export const invoiceFooterClass =
+  'mt-4 border-t border-slate-200 pt-3 text-center text-sm text-black';
+export const invoiceFooterLinkClass = 'text-base font-semibold text-black no-underline';
