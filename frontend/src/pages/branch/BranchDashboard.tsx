@@ -14,6 +14,11 @@ export default function BranchDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [today, setToday] = useState<Record<string, unknown>[]>([]);
+  const [inventorySummary, setInventorySummary] = useState<{
+    bikeModels: { name: string; quantity: number }[];
+    totalBikeUnits: number;
+    totalPartUnits: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!user?.branchId) return;
@@ -21,6 +26,7 @@ export default function BranchDashboard() {
       branchApi.dashboard(user.branchId),
       branchApi.todayBookings(user.branchId),
     ]).then(([d, t]) => { setData(d); setToday(t as unknown as Record<string, unknown>[]); }).catch(console.error);
+    branchApi.inventorySummary(user.branchId).then(setInventorySummary).catch(console.error);
   }, [user?.branchId]);
 
   const recentOrders = (data?.recentOrders as Record<string, unknown>[]) ?? [];
@@ -87,6 +93,32 @@ export default function BranchDashboard() {
               />
             </div>
           </div>
+
+          {inventorySummary && (
+            <div className="mt-8">
+              <h3 className="mb-4 font-display font-semibold text-ink">Stock Summary</h3>
+              <div className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {inventorySummary.bikeModels.map((model) => (
+                    <span
+                      key={model.name}
+                      className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold text-brand"
+                    >
+                      {model.name} · {model.quantity}
+                    </span>
+                  ))}
+                  {inventorySummary.bikeModels.length === 0 && (
+                    <span className="text-sm text-ink-muted">No bikes in stock</span>
+                  )}
+                </div>
+                <p className="text-sm text-ink-muted">
+                  Bike units: <strong className="text-ink">{inventorySummary.totalBikeUnits}</strong>
+                  {' · '}
+                  Part units: <strong className="text-ink">{inventorySummary.totalPartUnits}</strong>
+                </p>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

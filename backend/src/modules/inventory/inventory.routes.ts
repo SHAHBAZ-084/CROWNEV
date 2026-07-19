@@ -25,6 +25,15 @@ inventoryRouter.get(
 );
 
 inventoryRouter.get(
+  '/summary/all',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (_req, res) => {
+    const summary = await inventoryService.getAdminInventorySummary();
+    res.json(summary);
+  })
+);
+
+inventoryRouter.get(
   '/:branchId/stock',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   asyncHandler(async (req, res) => {
@@ -32,6 +41,17 @@ inventoryRouter.get(
     assertBranchAccess(req, branchId);
     const stock = await inventoryService.getBranchStock(branchId);
     res.json(stock);
+  })
+);
+
+inventoryRouter.get(
+  '/:branchId/summary',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranchAccess(req, branchId);
+    const summary = await inventoryService.getInventorySummary(branchId);
+    res.json(summary);
   })
 );
 

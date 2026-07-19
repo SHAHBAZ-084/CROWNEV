@@ -390,6 +390,18 @@ export const adminApi = {
     return api<Paginated<Booking>>(`/bookings${q}`);
   },
   revenue: (days = 30) => api<{ date: string; revenue: number }[]>(`/reports/revenue?days=${days}`),
+  inventorySummary: () =>
+    api<{
+      branches: {
+        branchId: number;
+        branchName: string;
+        bikeModels: { name: string; quantity: number }[];
+        totalBikeUnits: number;
+        totalPartUnits: number;
+      }[];
+      grandTotalBikeUnits: number;
+      grandTotalPartUnits: number;
+    }>('/inventory/summary/all'),
   testimonials: () => api<unknown[]>('/testimonials/pending'),
   testimonialsAll: () => api<unknown[]>('/testimonials/all'),
   createTestimonial: (data: Record<string, unknown>) =>
@@ -537,6 +549,13 @@ export const branchApi = {
       model?: string | null;
     }[];
   }>(`/inventory/${branchId}/stock`),
+  inventorySummary: (branchId: number) =>
+    api<{
+      branchId: number;
+      bikeModels: { name: string; quantity: number }[];
+      totalBikeUnits: number;
+      totalPartUnits: number;
+    }>(`/inventory/${branchId}/summary`),
   searchBranchCatalog: (branchId: number, q: string, limit = 10) =>
     api<
       {

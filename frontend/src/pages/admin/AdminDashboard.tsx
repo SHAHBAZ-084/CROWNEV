@@ -15,6 +15,17 @@ export default function AdminDashboard() {
   const [revenue, setRevenue] = useState<{ date: string; revenue: number }[]>([]);
   const [revenueLoading, setRevenueLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [inventorySummary, setInventorySummary] = useState<{
+    branches: {
+      branchId: number;
+      branchName: string;
+      bikeModels: { name: string; quantity: number }[];
+      totalBikeUnits: number;
+      totalPartUnits: number;
+    }[];
+    grandTotalBikeUnits: number;
+    grandTotalPartUnits: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!user || user.role !== 'ADMIN') return;
@@ -33,6 +44,7 @@ export default function AdminDashboard() {
         setLoadError(err instanceof Error ? err.message : 'Failed to load revenue');
       })
       .finally(() => setRevenueLoading(false));
+    adminApi.inventorySummary().then(setInventorySummary).catch(console.error);
   }, [user]);
 
   const recentOrders = (data?.recentOrders as Record<string, unknown>[]) ?? [];
@@ -114,6 +126,48 @@ export default function AdminDashboard() {
               data={recentOrders}
             />
           </div>
+
+          {inventorySummary && (
+            <div className="mt-8">
+              <h3 className="mb-4 font-display font-semibold text-ink">Stock Summary</h3>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {inventorySummary.branches.map((branch) => (
+                  <div
+                    key={branch.branchId}
+                    className="rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]"
+                  >
+                    <h4 className="mb-3 font-display font-semibold text-ink">{branch.branchName}</h4>
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {branch.bikeModels.map((model) => (
+                        <span
+                          key={model.name}
+                          className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-xs font-semibold text-brand"
+                        >
+                          {model.name} · {model.quantity}
+                        </span>
+                      ))}
+                      {branch.bikeModels.length === 0 && (
+                        <span className="text-sm text-ink-muted">No bikes in stock</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-ink-muted">
+                      Bike units: <strong className="text-ink">{branch.totalBikeUnits}</strong>
+                      {' · '}
+                      Part units: <strong className="text-ink">{branch.totalPartUnits}</strong>
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-[var(--radius-card)] border border-border-light bg-elevated p-6 shadow-[var(--shadow-elevated)]">
+                <h4 className="mb-2 font-display font-semibold text-ink">All Branches Total</h4>
+                <p className="text-sm text-ink-muted">
+                  Bike units: <strong className="text-ink">{inventorySummary.grandTotalBikeUnits}</strong>
+                  {' · '}
+                  Part units: <strong className="text-ink">{inventorySummary.grandTotalPartUnits}</strong>
+                </p>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

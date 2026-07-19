@@ -258,6 +258,46 @@ export async function getBranchStock(branchId: number) {
   };
 }
 
+export type BikeModelSummary = { name: string; quantity: number };
+
+export type BranchInventorySummary = {
+  branchId: number;
+  branchName?: string;
+  bikeModels: BikeModelSummary[];
+  totalBikeUnits: number;
+  totalPartUnits: number;
+};
+
+export async function getInventorySummary(branchId: number): Promise<BranchInventorySummary> {
+  const stock = await getBranchStock(branchId);
+  const bikeModels: BikeModelSummary[] = stock.items
+    .filter((i) => i.type === 'BIKE' && i.quantity > 0)
+    .map((i) => ({ name: i.model ? `${i.name} (${i.model})` : i.name, quantity: i.quantity }))
+    .sort((a, b) => b.quantity - a.quantity);
+  const totalBikeUnits = bikeModels.reduce((sum, m) => sum + m.quantity, 0);
+  const totalPartUnits = stock.items
+    .filter((i) => i.type === 'PART')
+    .reduce((sum, i) => sum + i.quantity, 0);
+  return { branchId, bikeModels, totalBikeUnits, totalPartUnits };
+}
+
+export async function getAdminInventorySummary() {
+  const branches = await prisma.branch.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+  const perBranch = await Promise.all(
+    branches.map(async (b) => ({
+      branchName: b.name,
+      ...(await getInventorySummary(b.id)),
+    }))
+  );
+  const grandTotalBikeUnits = perBranch.reduce((sum, b) => sum + b.totalBikeUnits, 0);
+  const grandTotalPartUnits = perBranch.reduce((sum, b) => sum + b.totalPartUnits, 0);
+  return { branches: perBranch, grandTotalBikeUnits, grandTotalPartUnits };
+}
+
 /** Search global catalog for products/parts not yet selected at this branch. */
 export async function searchBranchCatalog(branchId: number, search: string, limit = 10) {
   const q = search.trim();
