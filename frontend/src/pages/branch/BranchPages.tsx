@@ -1365,10 +1365,12 @@ export function BranchReportsPage() {
       const data = await branchApi.exportInventory();
       const exportRows: InventoryExportRow[] = data.map((row) => ({
         branch: String(row.branch ?? ''),
+        type: String(row.type ?? ''),
         itemCode: String(row.itemCode ?? ''),
-        partName: String(row.partName ?? ''),
+        name: String(row.name ?? ''),
+        color: String(row.color ?? ''),
         quantity: Number(row.quantity ?? 0),
-        alertAt: Number(row.alertAt ?? 0),
+        alertAt: String(row.alertAt ?? ''),
         lowStock: String(row.lowStock ?? ''),
       }));
       await exportToPdf('inventory_report', INVENTORY_EXPORT_COLUMNS, exportRows, {

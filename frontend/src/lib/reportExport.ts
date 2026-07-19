@@ -245,17 +245,21 @@ export const ORDER_EXPORT_COLUMNS: ReportColumn<OrderExportRow>[] = [
 
 export type InventoryExportRow = {
   branch: string;
+  type: string;
   itemCode: string;
-  partName: string;
+  name: string;
+  color: string;
   quantity: number;
-  alertAt: number;
+  alertAt: string;
   lowStock: string;
 };
 
 export const INVENTORY_EXPORT_COLUMNS: ReportColumn<InventoryExportRow>[] = [
   { header: 'Branch', value: (r) => r.branch },
-  { header: 'Item Code', value: (r) => r.itemCode },
-  { header: 'Part Name', value: (r) => r.partName },
+  { header: 'Type', value: (r) => r.type },
+  { header: 'Item Code / Chassis #', value: (r) => r.itemCode },
+  { header: 'Name', value: (r) => r.name },
+  { header: 'Color', value: (r) => r.color },
   { header: 'Quantity', value: (r) => r.quantity },
   { header: 'Alert At', value: (r) => r.alertAt },
   { header: 'Low Stock', value: (r) => r.lowStock },

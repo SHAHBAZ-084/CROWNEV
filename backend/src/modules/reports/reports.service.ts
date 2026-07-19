@@ -318,22 +318,46 @@ export async function exportBookings(
 export async function exportInventory(branchId?: number, pagination?: ExportPagination) {
   const { take, skip } = exportPagination(pagination);
 
-  const inventories = await prisma.inventory.findMany({
-    where: branchId ? { branchId } : undefined,
-    include: { part: true, branch: { select: { name: true } } },
-    orderBy: [{ branchId: 'asc' }, { partId: 'asc' }],
-    take,
-    skip,
-  });
+  const [inventories, bikes] = await Promise.all([
+    prisma.inventory.findMany({
+      where: branchId ? { branchId } : undefined,
+      include: { part: true, branch: { select: { name: true } } },
+      orderBy: [{ branchId: 'asc' }, { partId: 'asc' }],
+    }),
+    prisma.bikeChassisNumber.findMany({
+      where: { status: ChassisStatus.IN_STOCK, ...(branchId ? { branchId } : {}) },
+      include: {
+        product: { select: { name: true, model: true } },
+        branch: { select: { name: true } },
+      },
+      orderBy: [{ branchId: 'asc' }, { chassisNumber: 'asc' }],
+    }),
+  ]);
 
-  return inventories.map((i) => ({
+  const partRows = inventories.map((i) => ({
     branch: i.branch.name,
+    type: 'Part',
     itemCode: i.part.itemCode,
-    partName: i.part.name,
+    name: i.part.name,
+    color: '',
     quantity: i.quantity,
-    alertAt: i.part.alertAt,
+    alertAt: String(i.part.alertAt),
     lowStock: i.quantity <= i.part.alertAt ? 'YES' : 'NO',
   }));
+
+  const bikeRows = bikes.map((b) => ({
+    branch: b.branch.name,
+    type: 'Bike',
+    itemCode: b.chassisNumber,
+    name: b.product.model ? `${b.product.name} (${b.product.model})` : b.product.name,
+    color: b.color ?? '',
+    quantity: 1,
+    alertAt: 'N/A',
+    lowStock: 'N/A',
+  }));
+
+  const rows = [...partRows, ...bikeRows];
+  return pagination ? rows.slice(skip, skip + take) : rows;
 }
 
 export async function getProfitLossReport(
