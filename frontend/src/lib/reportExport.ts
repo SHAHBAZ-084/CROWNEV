@@ -265,6 +265,40 @@ export const INVENTORY_EXPORT_COLUMNS: ReportColumn<InventoryExportRow>[] = [
   { header: 'Low Stock', value: (r) => r.lowStock },
 ];
 
+export type StockSummaryExportRow = {
+  branch: string;
+  model: string;
+  quantity: number | string;
+};
+
+const STOCK_SUMMARY_COLUMNS: ReportColumn<StockSummaryExportRow>[] = [
+  { header: 'Branch', value: (r) => r.branch },
+  { header: 'Model', value: (r) => r.model },
+  { header: 'Quantity', value: (r) => r.quantity },
+];
+
+export async function exportStockSummaryReport(
+  branches: { branchName: string; bikeModels: { name: string; quantity: number }[]; totalBikeUnits: number; totalPartUnits: number }[],
+  totals: { totalBikeUnits: number; totalPartUnits: number },
+) {
+  const rows: StockSummaryExportRow[] = branches.flatMap((b) =>
+    b.bikeModels.length
+      ? b.bikeModels.map((m): StockSummaryExportRow => ({ branch: b.branchName, model: m.name, quantity: m.quantity }))
+      : [{ branch: b.branchName, model: 'No bikes in stock', quantity: '' }]
+  );
+  const boldRows: number[] = [];
+  const summaryTable = [
+    { label: 'Total Bikes', value: String(totals.totalBikeUnits) },
+    { label: 'Total Parts', value: String(totals.totalPartUnits) },
+  ];
+  await exportToPdf('stock_summary', STOCK_SUMMARY_COLUMNS, rows, {
+    title: 'Stock Summary Report',
+    subtitle: `Generated ${new Date().toLocaleDateString()}`,
+    boldRows,
+    summaryTable,
+  });
+}
+
 export type SalesSummaryExportRow = {
   metric: string;
   value: string;

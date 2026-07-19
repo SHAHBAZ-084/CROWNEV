@@ -22,6 +22,7 @@ import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
 import {
   exportSalesSummaryPdf,
+  exportStockSummaryReport,
   exportToPdf,
   INVENTORY_EXPORT_COLUMNS,
   ORDER_EXPORT_COLUMNS,
@@ -1283,6 +1284,7 @@ export function BranchReportsPage() {
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [stockSummary, setStockSummary] = useState<Awaited<ReturnType<typeof branchApi.inventorySummary>> | null>(null);
 
   useEffect(() => {
     setLoadingSummary(true);
@@ -1295,6 +1297,11 @@ export function BranchReportsPage() {
       })
       .finally(() => setLoadingSummary(false));
   }, [period, toast]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    branchApi.inventorySummary(branchId).then(setStockSummary).catch(console.error);
+  }, [branchId]);
 
   const periodSubtitle = summary
     ? `${summary.label} · ${formatDate(summary.from)} – ${formatDate(summary.to)}`
@@ -1377,6 +1384,22 @@ export function BranchReportsPage() {
         title: 'Inventory Report',
         subtitle: formatDate(new Date()),
       });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadStockSummaryPdf() {
+    if (!stockSummary) return;
+    setDownloading('pdf-stock-summary');
+    try {
+      await exportStockSummaryReport(
+        [{ branchName: `Branch #${branchId}`, bikeModels: stockSummary.bikeModels, totalBikeUnits: stockSummary.totalBikeUnits, totalPartUnits: stockSummary.totalPartUnits }],
+        { totalBikeUnits: stockSummary.totalBikeUnits, totalPartUnits: stockSummary.totalPartUnits },
+      );
       toast('PDF downloaded', 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
@@ -1533,6 +1556,22 @@ export function BranchReportsPage() {
               size="sm"
               loading={downloading === 'pdf-inventory'}
               onClick={downloadInventoryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-slate-900">Stock Summary</p>
+          <p className="mt-1 text-sm text-text-muted">Bike models in stock per branch, plus totals</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-stock-summary'}
+              disabled={!stockSummary}
+              onClick={downloadStockSummaryPdf}
             >
               PDF
             </Button>

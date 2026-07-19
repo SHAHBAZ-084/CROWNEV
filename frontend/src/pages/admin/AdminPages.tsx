@@ -25,6 +25,7 @@ import {
 } from '../../lib/evSpecs';
 import {
   exportSalesSummaryPdf,
+  exportStockSummaryReport,
   exportToPdf,
   INVENTORY_EXPORT_COLUMNS,
   ORDER_EXPORT_COLUMNS,
@@ -2769,6 +2770,7 @@ export function AdminReportsPage() {
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [stockSummary, setStockSummary] = useState<Awaited<ReturnType<typeof adminApi.inventorySummary>> | null>(null);
 
   const selectedBranchName = branchFilter
     ? String(branches.find((b) => String(b.id) === branchFilter)?.name ?? '')
@@ -2776,6 +2778,10 @@ export function AdminReportsPage() {
 
   useEffect(() => {
     adminApi.branches().then((b) => setBranches(b as Row[])).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    adminApi.inventorySummary().then(setStockSummary).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -2905,6 +2911,22 @@ export function AdminReportsPage() {
       await exportToPdf('inventory_report', INVENTORY_EXPORT_COLUMNS, exportRows, {
         title: 'Inventory Report',
         subtitle: `${selectedBranchName} · ${formatDate(new Date())}`,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  async function downloadStockSummaryPdf() {
+    if (!stockSummary) return;
+    setDownloading('pdf-stock-summary');
+    try {
+      await exportStockSummaryReport(stockSummary.branches, {
+        totalBikeUnits: stockSummary.grandTotalBikeUnits,
+        totalPartUnits: stockSummary.grandTotalPartUnits,
       });
       toast('PDF downloaded', 'success');
     } catch (err) {
@@ -3099,6 +3121,22 @@ export function AdminReportsPage() {
               size="sm"
               loading={downloading === 'pdf-inventory'}
               onClick={downloadInventoryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-slate-900">Stock Summary</p>
+          <p className="mt-1 text-sm text-text-muted">Bike models in stock per branch, plus totals</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-stock-summary'}
+              disabled={!stockSummary}
+              onClick={downloadStockSummaryPdf}
             >
               PDF
             </Button>
