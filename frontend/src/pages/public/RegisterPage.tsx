@@ -102,9 +102,6 @@ export default function RegisterPage() {
         ) : (
           <>
             <h1 className="mt-6 text-center font-display text-2xl font-bold text-ink">Create Account</h1>
-            <p className="mt-2 text-center text-xs text-ink-muted sm:text-sm">
-              Closed an account before? Register again with the same email — previous orders and bookings stay on the old account.
-            </p>
             <div className="mt-6">
               {error && <p className="mb-4 text-sm text-warning">{error}</p>}
               <GoogleSignInButton
