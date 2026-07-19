@@ -5,6 +5,7 @@ import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { LegacyVoucherScreen } from '../../components/pos/LegacyVoucherForm';
 import { ViewVoucherPanel } from '../../components/pos/ViewVoucherPanel';
+import { ViewInvoicePanel } from '../../components/pos/ViewInvoicePanel';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { WorkspaceCloseBar } from '../../components/layout/WorkspaceCloseButton';
 import { Button } from '../../components/ui/Button';
@@ -79,6 +80,23 @@ export function PosViewVoucherPage() {
           <p className="mt-0.5 text-sm text-text-muted">Search by voucher number and category</p>
         </div>
         <ViewVoucherPanel branchId={branchId} defaultType={defaultType} />
+        <WorkspaceCloseBar className="mt-6" />
+      </div>
+    </div>
+  );
+}
+
+export function PosViewInvoicePage() {
+  const branchId = useBranchId();
+
+  return (
+    <div className="w-full max-w-5xl">
+      <div className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm lg:p-8">
+        <div className="mb-6 border-b border-border/60 pb-5">
+          <h1 className="font-display text-xl font-bold text-brand">View Invoice</h1>
+          <p className="mt-0.5 text-sm text-text-muted">Search by invoice number and category</p>
+        </div>
+        <ViewInvoicePanel branchId={branchId} />
         <WorkspaceCloseBar className="mt-6" />
       </div>
     </div>

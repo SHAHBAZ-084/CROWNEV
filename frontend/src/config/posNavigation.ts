@@ -40,6 +40,7 @@ export const posSections: SidebarNavSection[] = [
       { to: '/branch/workspace/invoices/sale', label: 'Sale Invoice', icon: FileText },
       { to: '/branch/workspace/invoices/purchase', label: 'Purchase Invoice', icon: ShoppingBag },
       { to: '/branch/workspace/invoices/service', label: 'Service Invoice', icon: Wrench },
+      { to: '/branch/workspace/invoices/view', label: 'View Invoice', icon: Search },
     ],
   },
   {
