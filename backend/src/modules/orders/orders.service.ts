@@ -18,9 +18,12 @@ import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import {
   createVoucherInTx,
+  customerAccountCode,
   ensureCustomerAccount,
   ensureSaleRevenueAccount,
   formatPurchaseItemsDescription,
+  getAccountLedgerBalance,
+  getLedgerBalancesByAccountCodes,
   updateVoucherAmount,
   cancelActiveVouchersByReferenceInTx,
   getActiveFinancialYearId,
@@ -741,18 +744,24 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
     });
   }
 
+  const closingBalance = await getAccountLedgerBalance(
+    branchId,
+    customerAccountCode(customer.id),
+    Number(customer.balance),
+  );
+
   return {
     customer: {
       id: customer.id,
       name: customer.name,
-      code: `C${String(customer.id).padStart(4, '0')}`,
-      balance: Number(customer.balance),
+      code: customerAccountCode(customer.id),
+      balance: closingBalance,
     },
     rows,
     summary: {
       totalDebit,
       totalCredit,
-      closingBalance: Number(customer.balance),
+      closingBalance,
     },
   };
 }
@@ -1171,10 +1180,17 @@ export async function listBranchCustomers(branchId: number, query: { page?: stri
     prisma.customer.count({ where }),
   ]);
 
-  const customers = rows.map((c) => ({
-    ...c,
-    balance: Number(c.balance),
-  }));
+  const accountCodes = rows.map((c) => customerAccountCode(c.id));
+  const ledgerByCode = await getLedgerBalancesByAccountCodes(branchId, accountCodes);
+
+  const customers = rows.map((c) => {
+    const code = customerAccountCode(c.id);
+    const ledgerBalance = ledgerByCode.get(code);
+    return {
+      ...c,
+      balance: ledgerBalance ?? Number(c.balance),
+    };
+  });
 
   return paginatedResponse(customers, total, page, limit);
 }
@@ -1198,10 +1214,17 @@ export async function listWalkInCustomers(branchId: number, query: { page?: stri
     prisma.customer.count({ where }),
   ]);
 
-  const customers = rows.map((c) => ({
-    ...c,
-    balance: Number(c.balance),
-  }));
+  const accountCodes = rows.map((c) => customerAccountCode(c.id));
+  const ledgerByCode = await getLedgerBalancesByAccountCodes(branchId, accountCodes);
+
+  const customers = rows.map((c) => {
+    const code = customerAccountCode(c.id);
+    const ledgerBalance = ledgerByCode.get(code);
+    return {
+      ...c,
+      balance: ledgerBalance ?? Number(c.balance),
+    };
+  });
 
   return paginatedResponse(customers, total, page, limit);
 }

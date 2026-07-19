@@ -18,6 +18,9 @@ import {
   ensureInventoryAccount,
   ensureSupplierAccount,
   formatPurchaseItemsDescription,
+  getAccountLedgerBalance,
+  getLedgerBalancesByAccountCodes,
+  supplierAccountCode,
   updateVoucherAmount,
   cancelActiveVouchersByReferenceInTx,
   getActiveFinancialYearId,
@@ -35,11 +38,28 @@ export async function listBranchSuppliers(branchId: number, query?: { page?: str
   ]);
 
   return paginatedResponse(
-    suppliers.map((s) => ({ ...s, balance: Number(s.balance) })),
+    await attachSupplierLedgerBalances(branchId, suppliers),
     total,
     page,
     limit,
   );
+}
+
+async function attachSupplierLedgerBalances<T extends { id: number; balance: unknown }>(
+  branchId: number | undefined,
+  rows: T[],
+) {
+  const accountCodes = rows.map((s) => supplierAccountCode(s.id));
+  const ledgerByCode = await getLedgerBalancesByAccountCodes(branchId, accountCodes);
+
+  return rows.map((s) => {
+    const code = supplierAccountCode(s.id);
+    const ledgerBalance = ledgerByCode.get(code);
+    return {
+      ...s,
+      balance: ledgerBalance ?? Number(s.balance),
+    };
+  });
 }
 
 export async function getSupplierLedgerFormatted(supplierId: number, branchId: number) {
@@ -107,18 +127,24 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
     });
   }
 
+  const closingBalance = await getAccountLedgerBalance(
+    branchId,
+    supplierAccountCode(supplier.id),
+    Number(supplier.balance),
+  );
+
   return {
     supplier: {
       id: supplier.id,
       name: supplier.name,
-      code: `S${String(supplier.id).padStart(4, '0')}`,
-      balance: Number(supplier.balance),
+      code: supplierAccountCode(supplier.id),
+      balance: closingBalance,
     },
     rows,
     summary: {
       totalDebit,
       totalCredit,
-      closingBalance: Number(supplier.balance),
+      closingBalance,
     },
   };
 }
@@ -147,7 +173,7 @@ export async function listSuppliers(
   ]);
 
   return paginatedResponse(
-    suppliers.map((s) => ({ ...s, balance: Number(s.balance) })),
+    await attachSupplierLedgerBalances(branchId, suppliers),
     total,
     page,
     limit,

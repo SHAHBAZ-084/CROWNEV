@@ -942,6 +942,42 @@ export async function ensureSupplierAccount(
   return tx.account.findUniqueOrThrow({ where: { id: account.id }, include: { ledger: true } });
 }
 
+export function customerAccountCode(id: number): string {
+  return `C${String(id).padStart(4, '0')}`;
+}
+
+export function supplierAccountCode(id: number): string {
+  return `S${String(id).padStart(4, '0')}`;
+}
+
+export async function getLedgerBalancesByAccountCodes(
+  branchId: number | undefined,
+  codes: string[],
+): Promise<Map<string, number>> {
+  if (codes.length === 0) return new Map();
+
+  const accounts = await prisma.account.findMany({
+    where: {
+      ...(branchId != null ? { branchId } : {}),
+      code: { in: codes },
+      isActive: true,
+    },
+    include: { ledger: true },
+  });
+
+  return new Map(accounts.map((a) => [a.code, Number(a.ledger?.balance ?? 0)]));
+}
+
+export async function getAccountLedgerBalance(
+  branchId: number,
+  code: string,
+  fallback = 0,
+): Promise<number> {
+  const ledgerByCode = await getLedgerBalancesByAccountCodes(branchId, [code]);
+  const ledgerBalance = ledgerByCode.get(code);
+  return ledgerBalance ?? fallback;
+}
+
 async function syncCustomerSupplierAccountsInTx(tx: Prisma.TransactionClient, branchId: number) {
   const [customers, suppliers] = await Promise.all([
     tx.customer.findMany({

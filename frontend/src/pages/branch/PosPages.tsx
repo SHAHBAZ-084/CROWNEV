@@ -407,7 +407,11 @@ const entityTableColumns = (
     header: 'Status',
     render: (r: Row) => entityStatusBadge(statusLabel(r)),
   },
-  { key: 'balance', header: 'Balance', render: (r: Row) => formatPKR(Number(r.balance ?? 0)) },
+  { key: 'balance', header: 'Balance', render: (r: Row) => {
+    const bal = Number(r.balance ?? 0);
+    const label = bal > 0 ? 'Dr' : bal < 0 ? 'Cr' : '';
+    return `${formatPKR(Math.abs(bal))}${label ? ` ${label}` : ''}`;
+  } },
   {
     key: 'actions',
     header: '',
