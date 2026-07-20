@@ -38,6 +38,7 @@ import {
   reserveChassisInTx,
   finalizeChassisReservationInTx,
   releaseChassisReservationInTx,
+  releaseChassisSaleInTx,
 } from '../chassis/chassis.service.js';
 import { deductBranchProductStockInTx } from '../inventory/inventory.service.js';
 import { getPartsFulfillmentBranch } from '../public/public.service.js';
@@ -815,6 +816,34 @@ export async function deductStockForOrder(
   }
 }
 
+export async function restoreStockForOrderInTx(
+  tx: Prisma.TransactionClient,
+  fallbackBranchId: number,
+  items: {
+    id: number;
+    productId: string;
+    quantity: number;
+    branchId?: number | null;
+    product: { type: ProductType };
+  }[],
+) {
+  for (const item of items) {
+    const effectiveBranchId = item.branchId ?? fallbackBranchId;
+    if (item.product.type === ProductType.BIKE) {
+      await releaseChassisSaleInTx(tx, item.id);
+    }
+    if (item.product.type === ProductType.BIKE || item.product.type === ProductType.PART) {
+      await restoreBranchProductStockInTx(
+        tx,
+        effectiveBranchId,
+        item.productId,
+        item.quantity,
+        item.product.type,
+      );
+    }
+  }
+}
+
 export async function updateOrderStatus(id: number, status: OrderStatus, branchId?: number) {
   const order = await getOrder(id, branchId);
 
@@ -1443,9 +1472,10 @@ async function restoreBranchProductStockInTx(
   productType: ProductType,
 ) {
   if (productType !== ProductType.BIKE && productType !== ProductType.PART) return;
-  await tx.branchProduct.updateMany({
-    where: { branchId, productId },
-    data: { stock: { increment: quantity } },
+  await tx.branchProduct.upsert({
+    where: { branchId_productId: { branchId, productId } },
+    create: { branchId, productId, stock: quantity, isListed: true },
+    update: { stock: { increment: quantity } },
   });
 }
 
@@ -1465,7 +1495,6 @@ export async function deleteSaleInvoice(
       items: {
         include: {
           product: true,
-          soldChassis: true,
         },
       },
       customer: true,
@@ -1479,24 +1508,7 @@ export async function deleteSaleInvoice(
   const reference = order.saleReference?.trim();
 
   await prisma.$transaction(async (tx) => {
-    for (const item of order.items) {
-      if (item.soldChassis) {
-        await tx.bikeChassisNumber.update({
-          where: { id: item.soldChassis.id },
-          data: {
-            status: ChassisStatus.IN_STOCK,
-            saleOrderItemId: null,
-          },
-        });
-      }
-      await restoreBranchProductStockInTx(
-        tx,
-        item.branchId ?? order.branchId,
-        item.productId,
-        item.quantity,
-        item.product.type,
-      );
-    }
+    await restoreStockForOrderInTx(tx, order.branchId, order.items);
 
     if (reference) {
       await cancelActiveVouchersByReferenceInTx(tx, order.branchId, reference, userId);

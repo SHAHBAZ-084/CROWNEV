@@ -430,6 +430,14 @@ export async function finalizeChassisReservationInTx(tx: Prisma.TransactionClien
   });
 }
 
+/** SOLD → IN_STOCK when a confirmed sale is cancelled or deleted. */
+export async function releaseChassisSaleInTx(tx: Prisma.TransactionClient, saleOrderItemId: number) {
+  await tx.bikeChassisNumber.updateMany({
+    where: { saleOrderItemId, status: ChassisStatus.SOLD },
+    data: { status: ChassisStatus.IN_STOCK, saleOrderItemId: null },
+  });
+}
+
 /** RESERVED → IN_STOCK, if an online order is cancelled/rejected before payment completes. */
 export async function releaseChassisReservationInTx(tx: Prisma.TransactionClient, saleOrderItemId: number) {
   await tx.bikeChassisNumber.updateMany({
