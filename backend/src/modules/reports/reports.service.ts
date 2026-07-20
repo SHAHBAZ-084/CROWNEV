@@ -45,12 +45,12 @@ export async function getSalesSummary(period: ReportPeriod, branchId?: number) {
   const orderWhere = {
     ...(branchId !== undefined && { branchId }),
     status: { in: CONFIRMED_STATUSES },
-    createdAt: { gte: from, lte: to },
+    invoiceDate: { gte: from, lte: to },
   };
 
   const serviceWhere = {
     ...(branchId !== undefined && { branchId }),
-    createdAt: { gte: from, lte: to },
+    invoiceDate: { gte: from, lte: to },
   };
 
   const [
@@ -193,12 +193,12 @@ export async function getRevenueTrend(branchId?: number, days = 30) {
   since.setHours(0, 0, 0, 0);
 
   const rows = await prisma.$queryRaw<{ day: Date; revenue: string }[]>`
-    SELECT DATE("createdAt") AS day, SUM(total)::text AS revenue
+    SELECT DATE("invoiceDate") AS day, SUM(total)::text AS revenue
     FROM "Order"
     WHERE status = 'CONFIRMED'
-      AND "createdAt" >= ${since}
+      AND "invoiceDate" >= ${since}
       ${branchId ? Prisma.sql`AND "branchId" = ${branchId}` : Prisma.empty}
-    GROUP BY DATE("createdAt")
+    GROUP BY DATE("invoiceDate")
     ORDER BY day ASC
   `;
 
@@ -239,7 +239,7 @@ export async function exportOrders(
       ...(branchId && { branchId }),
       ...(fromDate || toDate
         ? {
-            createdAt: {
+            invoiceDate: {
               ...(fromDate && { gte: fromDate }),
               ...(toDate && { lte: toDate }),
             },
@@ -269,7 +269,7 @@ export async function exportOrders(
     total: o.total,
     paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
-    createdAt: o.createdAt.toISOString(),
+    createdAt: o.invoiceDate.toISOString(),
   }));
 }
 
@@ -378,7 +378,7 @@ export async function getProfitLossReport(
             status: { not: OrderStatus.CANCELLED },
             ...(fromDate || toDate
               ? {
-                  createdAt: {
+                  invoiceDate: {
                     ...(fromDate && { gte: fromDate }),
                     ...(toDate && { lte: toDate }),
                   },
@@ -389,7 +389,7 @@ export async function getProfitLossReport(
       },
       include: {
         product: { select: { name: true, model: true } },
-        saleOrderItem: { select: { unitPrice: true, order: { select: { createdAt: true } } } },
+        saleOrderItem: { select: { unitPrice: true, order: { select: { invoiceDate: true } } } },
         purchase: { select: { items: { select: { productId: true, unitCost: true } } } },
       },
     });
@@ -405,7 +405,7 @@ export async function getProfitLossReport(
         salePrice,
         purchasePrice,
         profit: salePrice - purchasePrice,
-        date: c.saleOrderItem?.order.createdAt,
+        date: c.saleOrderItem?.order.invoiceDate,
       };
     });
 
@@ -420,7 +420,7 @@ export async function getProfitLossReport(
       branchId,
       ...(fromDate || toDate
         ? {
-            createdAt: {
+            invoiceDate: {
               ...(fromDate && { gte: fromDate }),
               ...(toDate && { lte: toDate }),
             },

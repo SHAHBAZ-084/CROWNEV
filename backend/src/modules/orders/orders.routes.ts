@@ -177,6 +177,7 @@ ordersRouter.post(
       notes: z.string().optional(),
       receivedAmount: z.number().positive().optional(),
       receivedAccountId: z.number().int().optional(),
+      invoiceDate: z.string().optional(),
     }),
   ),
   asyncHandler(async (req, res) => {

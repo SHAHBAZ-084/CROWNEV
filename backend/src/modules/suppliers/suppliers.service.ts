@@ -32,6 +32,7 @@ import {
   assertActiveFinancialYear,
 } from '../accounting/accounting.service.js';
 import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
+import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
 
 export async function listBranchSuppliers(branchId: number, query?: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query ?? {});
@@ -116,7 +117,7 @@ export async function getSupplierLedgerFormatted(supplierId: number, branchId: n
       : '';
     const purchaseBase = `From ${supplier.name} to inventory`;
     rows.push({
-      date: e.createdAt.toISOString(),
+      date: (e.purchase?.invoiceDate ?? e.createdAt).toISOString(),
       voucherNo: purchaseRef ?? String(e.id),
       ref: purchaseRef,
       type: e.type === SupplierLedgerType.CREDIT ? 'Purchase' : 'Payment',
@@ -265,7 +266,7 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
       skip,
       take: limit,
       include: { supplier: true, items: { include: { part: true, product: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { invoiceDate: 'desc' },
     }),
     prisma.purchase.count({ where }),
   ]);
@@ -361,6 +362,7 @@ export async function createPurchaseInvoice(data: {
   reference?: string;
   notes?: string;
   createdById: string;
+  invoiceDate?: string;
   items: { productId: string; quantity: number; unitCost: number; bikeUnits?: BikeUnitInput[] }[];
 }) {
   const supplier = await prisma.supplier.findFirst({
@@ -386,6 +388,7 @@ export async function createPurchaseInvoice(data: {
     const reference =
       data.reference?.trim() || (await allocatePurchaseInvoiceNumber(tx, data.branchId));
     const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
+    const invoiceDate = parseOptionalInvoiceDate(data.invoiceDate);
 
     const purchase = await tx.purchase.create({
       data: {
@@ -395,6 +398,7 @@ export async function createPurchaseInvoice(data: {
         documentRef: reference,
         notes: data.notes,
         total,
+        invoiceDate,
         items: {
           create: pricedItems.map((i) => ({
             productId: i.productId,
@@ -465,6 +469,7 @@ export async function createPurchaseInvoice(data: {
         amount: total,
         balance: newBalance,
         notes: purchaseItems ? `${purchaseBase} — ${purchaseItems}` : purchaseBase,
+        createdAt: invoiceDate,
       },
     });
 
@@ -477,6 +482,7 @@ export async function createPurchaseInvoice(data: {
       reference,
       description: purchaseItems || undefined,
       createdById: data.createdById,
+      entryDate: invoiceDate,
     });
 
     return { purchase, voucher };
@@ -564,7 +570,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
     currency: 'PKR' as const,
     invoiceNumber: reference || String(purchase.id),
     reference,
-    date: purchase.createdAt,
+    date: purchase.invoiceDate,
     branch: {
       name: purchase.branch.name,
       location: purchase.branch.location,

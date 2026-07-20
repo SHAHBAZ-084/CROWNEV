@@ -121,6 +121,7 @@ purchasesRouter.post(
       supplierId: z.number().int(),
       reference: z.string().trim().min(1).max(64).optional(),
       notes: z.string().optional(),
+      invoiceDate: z.string().optional(),
       items: z
         .array(
           z.object({

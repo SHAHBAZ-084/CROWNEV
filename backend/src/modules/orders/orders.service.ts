@@ -17,6 +17,7 @@ import { assertNoCustomerLedgerHistory } from '../../utils/entityGuards.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
+import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
 import {
   createVoucherInTx,
   customerAccountCode,
@@ -97,7 +98,7 @@ export async function listOrders(query: {
         customer: { select: { name: true, cnic: true, phone: true, type: true } },
         branch: { select: { name: true, location: true, phone: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { invoiceDate: 'desc' },
     }),
     prisma.order.count({ where }),
   ]);
@@ -188,7 +189,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     biltyId: order.biltyId,
     shippingProvider: order.shippingProvider,
     biltyCharges,
-    date: order.createdAt,
+    date: order.invoiceDate,
     branch: {
       name: order.branch.name,
       location: order.branch.location,
@@ -463,6 +464,7 @@ export async function createSaleInvoice(data: {
   createdById: string;
   receivedAmount?: number;      // NEW
   receivedAccountId?: number;   // NEW
+  invoiceDate?: string;
 }) {
   const customer = await prisma.customer.findFirst({
     where: {
@@ -550,6 +552,7 @@ export async function createSaleInvoice(data: {
     const reference =
       data.reference?.trim() || (await allocateSaleInvoiceNumber(tx, data.branchId));
     const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
+    const invoiceDate = parseOptionalInvoiceDate(data.invoiceDate);
 
     const order = await tx.order.create({
       data: {
@@ -564,7 +567,8 @@ export async function createSaleInvoice(data: {
         total: subtotal,
         saleReference: reference,
         notes: data.notes,
-        invoiceGeneratedAt: new Date(),
+        invoiceDate,
+        invoiceGeneratedAt: invoiceDate,
         items: {
           create: saleLines.map((i) => ({
             productId: i.productId,
@@ -628,6 +632,7 @@ export async function createSaleInvoice(data: {
         amount: subtotal,
         balance: newBalance,
         notes: `From sale revenue to ${customer.name}`,
+        createdAt: invoiceDate,
       },
     });
 
@@ -642,6 +647,7 @@ export async function createSaleInvoice(data: {
       amount: subtotal,
       reference,
       createdById: data.createdById,
+      entryDate: invoiceDate,
     });
 
     let receiptVoucher = null;
@@ -659,6 +665,7 @@ export async function createSaleInvoice(data: {
           amount: receivedAmount,
           balance: balanceAfterReceipt,
           notes: `Received against sale invoice #${reference}`,
+          createdAt: invoiceDate,
         },
       });
 
@@ -670,6 +677,7 @@ export async function createSaleInvoice(data: {
         amount: receivedAmount,
         reference,
         createdById: data.createdById,
+        entryDate: invoiceDate,
       });
     }
 
@@ -727,7 +735,7 @@ export async function getCustomerLedgerFormatted(customerId: number, branchId: n
         )
       : '';
     rows.push({
-      date: e.createdAt.toISOString(),
+      date: (e.order?.invoiceDate ?? e.serviceInvoice?.invoiceDate ?? e.createdAt).toISOString(),
       voucherNo: orderRef ?? serviceRef ?? String(e.id),
       ref,
       type: e.type === CustomerLedgerType.DEBIT ? (isService ? 'Service' : 'Sale') : 'Receipt',
@@ -1514,7 +1522,7 @@ export async function listPartOrders(branchId?: number) {
       user: { select: { firstName: true, lastName: true, email: true, phone: true } },
       branch: { select: { name: true } },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { invoiceDate: 'desc' },
     take: 200,
   });
 

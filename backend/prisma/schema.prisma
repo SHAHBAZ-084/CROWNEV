@@ -456,6 +456,7 @@ model Order {
   notes                  String?
   saleReference          String?
   financialYearId        Int?
+  invoiceDate            DateTime        @default(now())
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
 
@@ -470,6 +471,7 @@ model Order {
   @@index([branchId, financialYearId])
   @@index([status])
   @@index([createdAt])
+  @@index([invoiceDate])
   @@index([userId])
 }
 
@@ -627,6 +629,7 @@ model Purchase {
   total         Decimal  @db.Decimal(12, 2)
   notes         String?
   financialYearId Int?
+  invoiceDate   DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -640,6 +643,7 @@ model Purchase {
   @@index([branchId])
   @@index([branchId, financialYearId])
   @@index([createdAt])
+  @@index([invoiceDate])
 }
 
 // ─── 20. PurchaseItem ────────────────────────────────────────────────────────
@@ -778,6 +782,7 @@ model ServiceInvoice {
   notes       String?
   createdById String?
   financialYearId Int?
+  invoiceDate DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -791,6 +796,7 @@ model ServiceInvoice {
   @@index([branchId, financialYearId])
   @@index([customerId])
   @@index([createdAt])
+  @@index([invoiceDate])
 }
 
 model ServiceInvoiceItem {

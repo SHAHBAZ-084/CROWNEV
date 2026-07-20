@@ -33,6 +33,7 @@ import { InvoiceModalContent } from '../../components/invoice/SaleInvoice';
 import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseInvoice';
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
 import { PosInvoiceRowActions } from '../../components/pos/PosInvoiceRowActions';
+import { InvoiceDateField, formatInvoiceListDate } from '../../components/pos/InvoiceDateField';
 import { PurchaseInvoiceEditModal } from '../../components/pos/PurchaseInvoiceEditModal';
 import { SaleInvoiceEditModal } from '../../components/pos/SaleInvoiceEditModal';
 import {
@@ -875,6 +876,7 @@ export function PosSaleInvoicePage() {
   const [lines, setLines] = useState<SaleLine[]>([newSaleLine()]);
   const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [bankCashAccounts, setBankCashAccounts] = useState<Row[]>([]);
   const [receivedAmount, setReceivedAmount] = useState('');
@@ -1118,6 +1120,7 @@ export function PosSaleInvoicePage() {
         notes: notes.trim() || undefined,
         receivedAmount: receivedNum > 0 ? receivedNum : undefined,
         receivedAccountId: receivedNum > 0 ? Number(receivedAccountId) : undefined,
+        invoiceDate: invoiceDate || undefined,
       });
       const invoiceNo = String((result.order as { saleReference?: string }).saleReference ?? nextInvoiceNo);
       toast(
@@ -1128,6 +1131,7 @@ export function PosSaleInvoicePage() {
       );
       setLines([newSaleLine()]);
       setNotes('');
+      setInvoiceDate('');
       setReceivedAmount('');
       setReceivedAccountId('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
@@ -1171,7 +1175,7 @@ export function PosSaleInvoicePage() {
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SearchSelect
             label="Customer account"
             value={customerId}
@@ -1186,6 +1190,7 @@ export function PosSaleInvoicePage() {
             disabled
             title="Auto-assigned on save"
           />
+          <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
           <Input
             label="Notes (optional)"
             value={notes}
@@ -1385,7 +1390,7 @@ export function PosSaleInvoicePage() {
               render: (r) => String((r.customer as { name?: string })?.name ?? '—'),
             },
             { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
-            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            { key: 'invoiceDate', header: 'Date', render: (r) => formatInvoiceListDate(r) },
             {
               key: 'actions',
               header: '',
@@ -1438,6 +1443,7 @@ export function PosPurchaseInvoicePage() {
   const [lines, setLines] = useState<PurchaseLine[]>([newPurchaseLine()]);
   const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [purchaseType, setPurchaseType] = useState<'NEW' | 'OLD'>('NEW');
   const [supplierLedger, setSupplierLedger] = useState<{
@@ -1749,11 +1755,13 @@ export function PosPurchaseInvoicePage() {
         supplierId: parseInt(supplierId, 10),
         items,
         notes: notes.trim() || undefined,
+        invoiceDate: invoiceDate || undefined,
       });
       const invoiceNo = String((result.purchase as { documentRef?: string }).documentRef ?? nextInvoiceNo);
       toast(`Purchase saved. Invoice #${invoiceNo}`, 'success');
       setLines([newPurchaseLine()]);
       setNotes('');
+      setInvoiceDate('');
       setPurchaseType('NEW');
       branchApi.purchaseProducts(branchId).then(setProducts).catch(console.error);
       reloadPurchases();
@@ -1820,7 +1828,7 @@ export function PosPurchaseInvoicePage() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SearchSelect
             label="Supplier account"
             value={supplierId}
@@ -1835,6 +1843,7 @@ export function PosPurchaseInvoicePage() {
             disabled
             title="Auto-assigned on save"
           />
+          <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
           <Input
             label="Notes (optional)"
             value={notes}
@@ -2106,7 +2115,7 @@ export function PosPurchaseInvoicePage() {
             { key: 'documentRef', header: 'Invoice #', render: (r) => String(r.documentRef ?? r.invoiceNumber ?? '—') },
             { key: 'supplier', header: 'Supplier', render: (r) => (r.supplier as { name: string })?.name ?? '' },
             { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total ?? 0)) },
-            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            { key: 'invoiceDate', header: 'Date', render: (r) => formatInvoiceListDate(r) },
             {
               key: 'actions',
               header: '',
@@ -2160,6 +2169,7 @@ export function PosServiceInvoicePage() {
   const [labourCost, setLabourCost] = useState('');
   const [nextInvoiceNo, setNextInvoiceNo] = useState('…');
   const [notes, setNotes] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [customerLedger, setCustomerLedger] = useState<{
     customer: { name: string; code: string; balance: number };
@@ -2372,12 +2382,14 @@ export function PosServiceInvoicePage() {
         labourCost: labourAmount,
         items,
         notes: notes.trim() || undefined,
+        invoiceDate: invoiceDate || undefined,
       });
       const invoiceNo = String((result.invoice as { reference?: string }).reference ?? nextInvoiceNo);
       toast(`Service invoice saved. Invoice #${invoiceNo}`, 'success');
       setLines([newSaleLine()]);
       setLabourCost('');
       setNotes('');
+      setInvoiceDate('');
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadInvoices();
       reloadNextInvoiceNo();
@@ -2399,7 +2411,7 @@ export function PosServiceInvoicePage() {
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SearchSelect
             label="Customer account"
             value={customerId}
@@ -2414,6 +2426,7 @@ export function PosServiceInvoicePage() {
             disabled
             title="Auto-assigned on save"
           />
+          <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
           <Input
             label="Notes (optional)"
             value={notes}
@@ -2587,7 +2600,7 @@ export function PosServiceInvoicePage() {
               render: (r) => String((r.customer as { name?: string })?.name ?? '—'),
             },
             { key: 'total', header: 'Total', render: (r) => formatPKR(Number(r.total)) },
-            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            { key: 'invoiceDate', header: 'Date', render: (r) => formatInvoiceListDate(r) },
             {
               key: 'actions',
               header: '',

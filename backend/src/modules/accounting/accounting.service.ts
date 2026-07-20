@@ -1264,6 +1264,7 @@ export async function createVoucherInTx(
     description?: string;
     reference?: string;
     createdById: string;
+    entryDate?: Date;
   },
 ) {
   if (data.amount <= 0) {
@@ -1280,9 +1281,11 @@ export async function createVoucherInTx(
 
   const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
   const number = await nextVoucherNumber(tx, data.branchId, data.type, financialYearId);
+  const at = data.entryDate ?? new Date();
+  const { entryDate: _entryDate, ...voucherData } = data;
 
   const voucher = await tx.voucher.create({
-    data: { ...data, number, financialYearId, status: VoucherStatus.ACTIVE },
+    data: { ...voucherData, number, financialYearId, status: VoucherStatus.ACTIVE, createdAt: at },
   });
 
   await postVoucherLedgerEntries(
@@ -1293,6 +1296,7 @@ export async function createVoucherInTx(
     data.amount,
     data.description,
     false,
+    at,
   );
 
   return voucher;
@@ -1322,12 +1326,14 @@ async function postVoucherLedgerEntries(
   amount: number,
   notes: string | null | undefined,
   isReversal: boolean,
+  entryDate?: Date,
 ) {
   const debitLedger = await tx.ledger.findUniqueOrThrow({ where: { accountId: debitAccountId } });
   const creditLedger = await tx.ledger.findUniqueOrThrow({ where: { accountId: creditAccountId } });
 
   const debitBalance = Number(debitLedger.balance) + amount;
   const creditBalance = Number(creditLedger.balance) - amount;
+  const at = entryDate ?? new Date();
 
   await tx.ledgerEntry.createMany({
     data: [
@@ -1339,6 +1345,7 @@ async function postVoucherLedgerEntries(
         balance: debitBalance,
         notes: notes ?? undefined,
         isReversal,
+        createdAt: at,
       },
       {
         ledgerId: creditLedger.id,
@@ -1348,6 +1355,7 @@ async function postVoucherLedgerEntries(
         balance: creditBalance,
         notes: notes ?? undefined,
         isReversal,
+        createdAt: at,
       },
     ],
   });

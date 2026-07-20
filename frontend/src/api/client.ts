@@ -610,6 +610,7 @@ export const branchApi = {
     notes?: string;
     receivedAmount?: number;
     receivedAccountId?: number;
+    invoiceDate?: string;
   }) => api<{ order: Order; voucher: unknown; receiptVoucher?: unknown }>('/orders/sale-invoice', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -769,6 +770,7 @@ export const branchApi = {
       bikeUnits?: { chassisNumber: string; engineNumber?: string; motorNumber?: string; color?: string }[];
     }[];
     notes?: string;
+    invoiceDate?: string;
   }) => api<{ purchase: unknown; voucher: unknown }>('/purchases/invoice', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -818,6 +820,7 @@ export const branchApi = {
     labourCost: number;
     items: { productId: string; quantity: number; unitPrice?: number }[];
     notes?: string;
+    invoiceDate?: string;
   }) => api<{ invoice: unknown; voucher: unknown }>('/service-invoices/invoice', {
     method: 'POST',
     body: JSON.stringify(data),

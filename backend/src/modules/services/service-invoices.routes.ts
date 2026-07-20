@@ -19,6 +19,7 @@ serviceInvoicesRouter.post(
       reference: z.string().trim().min(1).max(64).optional(),
       labourCost: z.coerce.number().min(0),
       notes: z.string().optional(),
+      invoiceDate: z.string().optional(),
       items: z
         .array(
           z.object({
