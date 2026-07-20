@@ -12,6 +12,7 @@ import {
 import { deductStockForOrder, validateAndPriceItems } from '../orders/orders.service.js';
 import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
+import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 
 export async function listServiceInvoices(branchId: number, query: { page?: string; limit?: string }) {
   const { page, limit, skip } = getPagination(query);
@@ -185,7 +186,7 @@ export async function getServiceInvoiceFormatted(id: number, branchId?: number) 
       whatsapp: invoice.branch.whatsapp,
     },
     customer: {
-      name: invoice.customer.name,
+      name: formatCustomerNameWithFather(invoice.customer.name, invoice.customer.fatherName),
       phone: invoice.customer.phone ?? undefined,
       email: invoice.customer.email ?? undefined,
       address: invoice.customer.address ?? undefined,

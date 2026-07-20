@@ -18,6 +18,7 @@ import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
+import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 import {
   createVoucherInTx,
   customerAccountCode,
@@ -212,7 +213,7 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
         }
       : order.customer
         ? {
-            name: order.customer.name,
+            name: formatCustomerNameWithFather(order.customer.name, order.customer.fatherName),
             phone: order.customer.phone,
             address: order.customer.address,
           }
