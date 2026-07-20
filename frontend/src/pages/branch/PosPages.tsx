@@ -17,9 +17,10 @@ import { usePagination } from '../../hooks/usePagination';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
+import { AccountAsyncSearchSelect, CustomerAsyncSearchSelect } from '../../components/ui/EntityAsyncSearchSelect';
 import { SearchSelect, type SearchSelectOption } from '../../components/ui/SearchSelect';
 import { formatPKR, formatLedgerAmount, formatLedgerBalance, splitTrialBalanceAmount, formatDate } from '../../lib/format';
-import { buildAccountSelectOptions, buildDedupedLabels } from '../../lib/dedupeLabel';
+import { buildDedupedLabels } from '../../lib/dedupeLabel';
 import { ProductItemMetaLines, productItemMetaFromProduct } from '../../lib/productItemMeta';
 import { exportLedgerReport, exportTrialBalanceReport, exportProfitLossReport } from '../../lib/reportExport';
 import {
@@ -869,7 +870,6 @@ function isSaleReceiptAccount(account: Row) {
 export function PosSaleInvoicePage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Row[]>([]);
   const [products, setProducts] = useState<SaleProduct[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
   const [customerId, setCustomerId] = useState('');
@@ -911,7 +911,6 @@ export function PosSaleInvoicePage() {
 
   useEffect(() => {
     if (!branchId) return;
-    branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     branchApi.accounts(branchId)
       .then((accounts) => setBankCashAccounts((accounts as Row[]).filter(isSaleReceiptAccount)))
@@ -941,29 +940,6 @@ export function PosSaleInvoicePage() {
       });
     return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
-
-  const customerLabels = useMemo(
-    () => buildDedupedLabels(
-      customers.map((c) => ({
-        id: String(c.id),
-        name: String(c.name),
-        cnic: c.cnic,
-        fatherName: c.fatherName,
-      })),
-      (c) => [
-        c.cnic ? String(c.cnic) : '',
-        c.fatherName ? `(S/O ${c.fatherName})` : '',
-      ],
-    ),
-    [customers],
-  );
-  const customerOptions: SearchSelectOption[] = useMemo(
-    () => customers.map((c) => ({
-      value: String(c.id),
-      label: customerLabels.get(String(c.id)) ?? String(c.name),
-    })),
-    [customers, customerLabels],
-  );
 
   const productById = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
@@ -1176,11 +1152,11 @@ export function PosSaleInvoicePage() {
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SearchSelect
+          <CustomerAsyncSearchSelect
+            branchId={branchId}
             label="Customer account"
             value={customerId}
             onChange={setCustomerId}
-            options={customerOptions}
             placeholder="Search customer…"
           />
           <Input
@@ -2161,7 +2137,6 @@ export function PosPurchaseInvoicePage() {
 export function PosServiceInvoicePage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Row[]>([]);
   const [products, setProducts] = useState<SaleProduct[]>([]);
   const [invoices, setInvoices] = useState<Row[]>([]);
   const [customerId, setCustomerId] = useState('');
@@ -2197,7 +2172,6 @@ export function PosServiceInvoicePage() {
 
   useEffect(() => {
     if (!branchId) return;
-    branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     reloadInvoices();
     reloadNextInvoiceNo();
@@ -2224,29 +2198,6 @@ export function PosServiceInvoicePage() {
       });
     return () => { cancelled = true; };
   }, [branchId, customerId, toast]);
-
-  const customerLabels = useMemo(
-    () => buildDedupedLabels(
-      customers.map((c) => ({
-        id: String(c.id),
-        name: String(c.name),
-        cnic: c.cnic,
-        fatherName: c.fatherName,
-      })),
-      (c) => [
-        c.cnic ? String(c.cnic) : '',
-        c.fatherName ? `(S/O ${c.fatherName})` : '',
-      ],
-    ),
-    [customers],
-  );
-  const customerOptions: SearchSelectOption[] = useMemo(
-    () => customers.map((c) => ({
-      value: String(c.id),
-      label: customerLabels.get(String(c.id)) ?? String(c.name),
-    })),
-    [customers, customerLabels],
-  );
 
   const productById = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
@@ -2412,11 +2363,11 @@ export function PosServiceInvoicePage() {
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SearchSelect
+          <CustomerAsyncSearchSelect
+            branchId={branchId}
             label="Customer account"
             value={customerId}
             onChange={setCustomerId}
-            options={customerOptions}
             placeholder="Search customer…"
           />
           <Input
@@ -2654,8 +2605,6 @@ export function PosAccountLedgerPage() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Row[]>([]);
   const [accounts, setAccounts] = useState<Row[]>([]);
-  const [customers, setCustomers] = useState<Row[]>([]);
-  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -2668,14 +2617,10 @@ export function PosAccountLedgerPage() {
     Promise.all([
       branchApi.accountingCategories(branchId),
       branchApi.accounts(branchId),
-      branchApi.branchCustomers(branchId, { limit: '100' }),
-      branchApi.branchSuppliers(branchId, { limit: '100' }),
     ])
-      .then(([cats, accts, custs, sups]) => {
+      .then(([cats, accts]) => {
         setCategories(cats as Row[]);
         setAccounts(accts as Row[]);
-        setCustomers(custs.data as Row[]);
-        setSuppliers(sups.data as Row[]);
       })
       .catch(console.error);
   }, [branchId]);
@@ -2685,22 +2630,9 @@ export function PosAccountLedgerPage() {
     [categories],
   );
 
-  const filteredAccounts = useMemo(
-    () => (categoryId ? accounts.filter((a) => String(a.categoryId) === categoryId) : []),
-    [accounts, categoryId],
-  );
-
-  const accountOptions: SearchSelectOption[] = useMemo(
-    () => buildAccountSelectOptions(
-      filteredAccounts.map((a) => ({
-        id: Number(a.id),
-        name: String(a.name),
-        code: a.code,
-      })),
-      customers,
-      suppliers,
-    ),
-    [filteredAccounts, customers, suppliers],
+  const selectedCategoryName = useMemo(
+    () => String(categories.find((c) => String(c.id) === categoryId)?.name ?? ''),
+    [categories, categoryId],
   );
 
   function handleCategoryChange(id: string) {
@@ -2776,15 +2708,18 @@ export function PosAccountLedgerPage() {
           options={categoryOptions}
           placeholder="Search category…"
         />
-        <SearchSelect
+        <AccountAsyncSearchSelect
+          branchId={branchId}
           label="Account"
+          categoryId={categoryId}
+          categoryName={selectedCategoryName}
+          accounts={accounts}
           value={accountId}
           onChange={(id) => {
             if (id === accountId) return;
             setAccountId(id);
             setLedger(null);
           }}
-          options={accountOptions}
           placeholder={categoryId ? 'Search account…' : 'Choose category first'}
           disabled={!categoryId}
         />
@@ -3213,8 +3148,6 @@ export function FinancialYearLedgerReportPage() {
   const [yearMeta, setYearMeta] = useState<FinancialYearRow | null>(null);
   const [categories, setCategories] = useState<Row[]>([]);
   const [accounts, setAccounts] = useState<Row[]>([]);
-  const [customers, setCustomers] = useState<Row[]>([]);
-  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -3233,14 +3166,10 @@ export function FinancialYearLedgerReportPage() {
     Promise.all([
       branchApi.accountingCategories(branchId),
       branchApi.accounts(branchId),
-      branchApi.branchCustomers(branchId, { limit: '100' }),
-      branchApi.branchSuppliers(branchId, { limit: '100' }),
     ])
-      .then(([cats, accts, custs, sups]) => {
+      .then(([cats, accts]) => {
         setCategories(cats as Row[]);
         setAccounts(accts as Row[]);
-        setCustomers(custs.data as Row[]);
-        setSuppliers(sups.data as Row[]);
       })
       .catch(console.error);
   }, [branchId, yearId, canManageFinancialYear]);
@@ -3250,22 +3179,9 @@ export function FinancialYearLedgerReportPage() {
     [categories],
   );
 
-  const filteredAccounts = useMemo(
-    () => (categoryId ? accounts.filter((a) => String(a.categoryId) === categoryId) : []),
-    [accounts, categoryId],
-  );
-
-  const accountOptions: SearchSelectOption[] = useMemo(
-    () => buildAccountSelectOptions(
-      filteredAccounts.map((a) => ({
-        id: Number(a.id),
-        name: String(a.name),
-        code: a.code,
-      })),
-      customers,
-      suppliers,
-    ),
-    [filteredAccounts, customers, suppliers],
+  const selectedCategoryName = useMemo(
+    () => String(categories.find((c) => String(c.id) === categoryId)?.name ?? ''),
+    [categories, categoryId],
   );
 
   async function loadLedger() {
@@ -3353,14 +3269,17 @@ export function FinancialYearLedgerReportPage() {
           options={categoryOptions}
           placeholder="Search category…"
         />
-        <SearchSelect
+        <AccountAsyncSearchSelect
+          branchId={branchId}
           label="Account"
+          categoryId={categoryId}
+          categoryName={selectedCategoryName}
+          accounts={accounts}
           value={accountId}
           onChange={(id) => {
             setAccountId(id);
             setLedger(null);
           }}
-          options={accountOptions}
           placeholder={categoryId ? 'Search account…' : 'Choose category first'}
           disabled={!categoryId}
         />

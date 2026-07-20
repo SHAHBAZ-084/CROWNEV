@@ -14,8 +14,12 @@ import { allocateServiceInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
 import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 
-export async function listServiceInvoices(branchId: number, query: { page?: string; limit?: string }) {
+export async function listServiceInvoices(
+  branchId: number,
+  query: { page?: string; limit?: string; search?: string },
+) {
   const { page, limit, skip } = getPagination(query);
+  const search = query.search?.trim();
   let financialYearId: number | undefined;
   try {
     financialYearId = await getActiveFinancialYearId(prisma, branchId);
@@ -25,6 +29,9 @@ export async function listServiceInvoices(branchId: number, query: { page?: stri
   const where = {
     branchId,
     ...(financialYearId != null && { financialYearId }),
+    ...(search && {
+      reference: { contains: search, mode: 'insensitive' as const },
+    }),
   };
 
   const [invoices, total] = await Promise.all([

@@ -12,8 +12,8 @@ import { DataTable, StatusBadge } from '../../components/ui/DataTable';
 import { FormActions, RowActions, useDeleteConfirm } from '../../components/crud/CrudHelpers';
 import { OrderStatusBadge } from '../../lib/orderHelpers';
 import { formatPKR, formatLedgerBalance, formatDate, formatTime, orderListReference } from '../../lib/format';
+import { AllAccountsAsyncSearchSelect } from '../../components/ui/EntityAsyncSearchSelect';
 import { filterManualAccountCategories } from '../../lib/accountingCategories';
-import { buildAccountSelectOptions } from '../../lib/dedupeLabel';
 import { StatCard } from '../../components/ui/StatCard';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -1005,10 +1005,10 @@ export function BranchAccountingPage() {
   const [banks, setBanks] = useState<Row[]>([]);
   const [trial, setTrial] = useState<Row | null>(null);
   const [categories, setCategories] = useState<Row[]>([]);
-  const [customers, setCustomers] = useState<Row[]>([]);
-  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [voucherDebitAccountId, setVoucherDebitAccountId] = useState('');
+  const [voucherCreditAccountId, setVoucherCreditAccountId] = useState('');
 
   const manualAccountCategories = useMemo(
     () => filterManualAccountCategories(categories),
@@ -1021,8 +1021,6 @@ export function BranchAccountingPage() {
     branchApi.vouchers(branchId).then((r) => setVouchers(r as Row[])).catch(console.error);
     branchApi.banks(branchId).then((r) => setBanks(r as Row[])).catch(console.error);
     branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
-    branchApi.branchCustomers(branchId, { limit: '500' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
-    branchApi.branchSuppliers(branchId, { limit: '500' }).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
     branchApi.trialBalance(branchId).then((r) => {
       const data = r as Row & { accounts?: Row[] };
       setTrial(Array.isArray(data) ? (data as unknown as Row) : data);
@@ -1030,20 +1028,6 @@ export function BranchAccountingPage() {
   }, [branchId]);
 
   useEffect(() => { reload(); }, [reload]);
-
-  const accountOptions = useMemo(
-    () => buildAccountSelectOptions(
-      accounts.map((a) => ({
-        id: Number(a.id),
-        name: String(a.name),
-        code: a.code,
-        category: String((a.category as { name?: string } | undefined)?.name ?? ''),
-      })),
-      customers,
-      suppliers,
-    ),
-    [accounts, customers, suppliers],
-  );
 
   async function handleAccount(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1074,13 +1058,15 @@ export function BranchAccountingPage() {
     try {
       await branchApi.createVoucher(branchId, {
         type: String(fd.get('type')),
-        debitAccountId: parseInt(String(fd.get('debitAccountId')), 10),
-        creditAccountId: parseInt(String(fd.get('creditAccountId')), 10),
+        debitAccountId: parseInt(voucherDebitAccountId, 10),
+        creditAccountId: parseInt(voucherCreditAccountId, 10),
         amount: parseFloat(String(fd.get('amount'))),
         description: String(fd.get('description') || '') || undefined,
       });
       toast('Voucher created', 'success');
       setModal(null);
+      setVoucherDebitAccountId('');
+      setVoucherCreditAccountId('');
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed', 'error');
@@ -1212,14 +1198,22 @@ export function BranchAccountingPage() {
           <Select name="type" label="Type" required defaultValue="JOURNAL">
             {['PAYMENT', 'RECEIPT', 'JOURNAL'].map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>
-          <Select name="debitAccountId" label="Debit Account" required>
-            <option value="">Select</option>
-            {accountOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </Select>
-          <Select name="creditAccountId" label="Credit Account" required>
-            <option value="">Select</option>
-            {accountOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </Select>
+          <AllAccountsAsyncSearchSelect
+            branchId={branchId}
+            label="Debit Account"
+            value={voucherDebitAccountId}
+            onChange={setVoucherDebitAccountId}
+            placeholder="Search debit account…"
+            required
+          />
+          <AllAccountsAsyncSearchSelect
+            branchId={branchId}
+            label="Credit Account"
+            value={voucherCreditAccountId}
+            onChange={setVoucherCreditAccountId}
+            placeholder="Search credit account…"
+            required
+          />
           <Input name="amount" label="Amount" type="number" step="0.01" required />
           <Input name="description" label="Description" />
           <FormActions onCancel={() => setModal(null)} loading={saving} />

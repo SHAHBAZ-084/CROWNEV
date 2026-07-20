@@ -34,6 +34,7 @@ accountingRouter.get(
     const result = await listBranchSuppliers(branchId, {
       page: req.query.page as string,
       limit: req.query.limit as string,
+      search: req.query.search as string,
     });
     res.json(result);
   }),
@@ -48,6 +49,7 @@ accountingRouter.get(
     const result = await listBranchCustomers(branchId, {
       page: req.query.page as string,
       limit: req.query.limit as string,
+      search: req.query.search as string,
     });
     res.json(result);
   }),
@@ -93,9 +95,48 @@ accountingRouter.get(
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
+    const usePagination =
+      req.query.page != null
+      || req.query.limit != null
+      || req.query.search != null
+      || req.query.categoryId != null;
+    if (usePagination) {
+      const result = await accountingService.listAccountsPaginated(branchId, {
+        page: req.query.page as string,
+        limit: req.query.limit as string,
+        search: req.query.search as string,
+        categoryId: req.query.categoryId as string,
+      });
+      res.json(result);
+      return;
+    }
     const accounts = await accountingService.listAccounts(branchId);
     res.json(accounts);
   })
+);
+
+accountingRouter.get(
+  '/:branchId/accounts/:accountId',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const account = await accountingService.getAccount(
+      branchId,
+      parseInt(param(req.params.accountId), 10),
+    );
+    res.json(account);
+  }),
+);
+
+accountingRouter.get(
+  '/:branchId/suppliers/:supplierId',
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    assertBranch(req, branchId);
+    const { getBranchSupplier } = await import('../suppliers/suppliers.service.js');
+    const supplier = await getBranchSupplier(parseInt(param(req.params.supplierId), 10), branchId);
+    res.json(supplier);
+  }),
 );
 
 accountingRouter.post(

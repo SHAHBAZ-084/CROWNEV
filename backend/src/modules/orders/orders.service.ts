@@ -58,6 +58,7 @@ function normalizeCnic(cnic: string): string {
 export async function listOrders(query: {
   page?: string;
   limit?: string;
+  search?: string;
   branchId?: number;
   status?: OrderStatus;
   type?: OrderType;
@@ -66,6 +67,7 @@ export async function listOrders(query: {
   paymentMethod?: PaymentMethod;
 }) {
   const { page, limit, skip } = getPagination(query);
+  const search = query.search?.trim();
   let financialYearId: number | undefined;
   if (query.branchId) {
     try {
@@ -89,6 +91,9 @@ export async function listOrders(query: {
     ...(query.userId && { userId: query.userId }),
     ...(query.paymentStatus && { paymentStatus: query.paymentStatus }),
     ...(query.paymentMethod && { paymentMethod: query.paymentMethod }),
+    ...(search && {
+      saleReference: { contains: search, mode: 'insensitive' as const },
+    }),
   };
 
   const [orders, total] = await Promise.all([
@@ -1217,9 +1222,22 @@ export async function softDeleteWalkInCustomer(id: number, branchId: number) {
   });
 }
 
-export async function listBranchCustomers(branchId: number, query: { page?: string; limit?: string }) {
+export async function listBranchCustomers(
+  branchId: number,
+  query: { page?: string; limit?: string; search?: string },
+) {
   const { page, limit, skip } = getPagination(query);
-  const where = { branchId, isActive: true };
+  const search = query.search?.trim();
+  const where: Prisma.CustomerWhereInput = {
+    branchId,
+    isActive: true,
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { cnic: { contains: search.replace(/\D/g, '') } },
+      ],
+    }),
+  };
 
   const [rows, total] = await Promise.all([
     prisma.customer.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),

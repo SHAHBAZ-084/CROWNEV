@@ -775,8 +775,11 @@ export const branchApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  purchases: (branchId: number, params?: { limit?: string }) => {
-    const q = new URLSearchParams({ branchId: String(branchId), ...(params?.limit ? { limit: params.limit } : {}) });
+  purchases: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
+    const q = new URLSearchParams({
+      branchId: String(branchId),
+      ...Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v)),
+    });
     return api<Paginated<unknown>>(`/purchases?${q}`);
   },
   purchase: (id: number) => api<unknown>(`/purchases/${id}`),
@@ -825,8 +828,11 @@ export const branchApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  serviceInvoices: (branchId: number, params?: { limit?: string }) => {
-    const q = new URLSearchParams({ branchId: String(branchId), ...(params?.limit ? { limit: params.limit } : {}) });
+  serviceInvoices: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
+    const q = new URLSearchParams({
+      branchId: String(branchId),
+      ...Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v)),
+    });
     return api<Paginated<unknown>>(`/service-invoices?${q}`);
   },
   serviceInvoice: (id: number) => api<ServiceInvoiceData>(`/service-invoices/${id}/invoice`),
@@ -838,6 +844,13 @@ export const branchApi = {
   deleteAccountCategory: (branchId: number, id: number) =>
     api<unknown>(`/accounting/${branchId}/categories/${id}`, { method: 'DELETE' }),
   accounts: (branchId: number) => api<unknown[]>(`/accounting/${branchId}/accounts`),
+  accountsPaginated: (
+    branchId: number,
+    params?: { limit?: string; page?: string; search?: string; categoryId?: string },
+  ) => {
+    const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
+    return api<Paginated<unknown>>(`/accounting/${branchId}/accounts${q}`);
+  },
   createAccount: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/accounting/${branchId}/accounts`, { method: 'POST', body: JSON.stringify(data) }),
   updateAccount: (branchId: number, id: number, data: Record<string, unknown>) =>
@@ -880,11 +893,11 @@ export const branchApi = {
       `/accounting/${branchId}/financial-year/close`,
       { method: 'POST' },
     ),
-  branchSuppliers: (branchId: number, params?: { limit?: string; page?: string }) => {
+  branchSuppliers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/accounting/${branchId}/suppliers${q}`);
   },
-  branchCustomers: (branchId: number, params?: { limit?: string; page?: string }) => {
+  branchCustomers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/accounting/${branchId}/customers${q}`);
   },
@@ -892,6 +905,12 @@ export const branchApi = {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/walk-in/${branchId}/customers${q}`);
   },
+  walkInCustomer: (branchId: number, id: number) =>
+    api<unknown>(`/walk-in/${branchId}/customers/${id}`),
+  branchSupplier: (branchId: number, id: number) =>
+    api<unknown>(`/accounting/${branchId}/suppliers/${id}`),
+  account: (branchId: number, accountId: number) =>
+    api<unknown>(`/accounting/${branchId}/accounts/${accountId}`),
   createWalkInCustomer: (branchId: number, data: Record<string, unknown>) =>
     api<unknown>(`/walk-in/${branchId}/customers`, { method: 'POST', body: JSON.stringify(data) }),
   updateWalkInCustomer: (branchId: number, id: number, data: Record<string, unknown>) =>

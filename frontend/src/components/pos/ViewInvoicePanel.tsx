@@ -35,7 +35,6 @@ function rowInvoiceNumber(type: InvoiceSearchType, row: Row): string {
 export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
   const { toast } = useToast();
   const { canUpdate, canDelete } = useBranchPermission();
-  const [list, setList] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -52,22 +51,6 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
   const [editSaleId, setEditSaleId] = useState<number | null>(null);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
 
-  const loadList = useCallback(() => {
-    if (!branchId) return;
-    setLoading(true);
-    const request =
-      searchType === 'sale'
-        ? branchApi.orders({ type: 'POS', limit: '500' })
-        : searchType === 'purchase'
-          ? branchApi.purchases(branchId, { limit: '500' })
-          : branchApi.serviceInvoices(branchId, { limit: '500' });
-
-    request
-      .then((r) => setList(r.data as Row[]))
-      .catch(() => setList([]))
-      .finally(() => setLoading(false));
-  }, [branchId, searchType]);
-
   useEffect(() => {
     setSearchNo('');
     setMatchedRow(null);
@@ -76,8 +59,22 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
     setSaleInvoice(null);
     setPurchaseInvoice(null);
     setServiceInvoice(null);
-    loadList();
-  }, [loadList, searchType]);
+  }, [searchType]);
+
+  const searchInvoices = useCallback(async (query: string) => {
+    if (!branchId) return [] as Row[];
+    const params = { search: query, limit: '20', page: '1' };
+    if (searchType === 'sale') {
+      const result = await branchApi.orders({ type: 'POS', branchId: String(branchId), ...params });
+      return result.data as unknown as Row[];
+    }
+    if (searchType === 'purchase') {
+      const result = await branchApi.purchases(branchId, params);
+      return result.data as Row[];
+    }
+    const result = await branchApi.serviceInvoices(branchId, params);
+    return result.data as Row[];
+  }, [branchId, searchType]);
 
   async function loadInvoiceDetail(type: InvoiceSearchType, row: Row) {
     const id = Number(row.id);
@@ -102,26 +99,38 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
     }
   }
 
-  function handleSearch(e: FormEvent) {
+  async function handleSearch(e: FormEvent) {
     e.preventDefault();
-    const q = searchNo.trim().toLowerCase();
+    const q = searchNo.trim();
     if (!q) {
       setMatchedRow(null);
       setNotFound(true);
       setSearched(true);
       return;
     }
-    const found = list.find((row) => rowInvoiceNumber(searchType, row).toLowerCase() === q);
-    if (!found) {
+
+    setLoading(true);
+    try {
+      const rows = await searchInvoices(q);
+      const found = rows.find((row) => rowInvoiceNumber(searchType, row).toLowerCase() === q.toLowerCase())
+        ?? rows.find((row) => rowInvoiceNumber(searchType, row).toLowerCase().includes(q.toLowerCase()));
+      if (!found) {
+        setMatchedRow(null);
+        setNotFound(true);
+        setSearched(true);
+        return;
+      }
+      setMatchedRow(found);
+      setNotFound(false);
+      setSearched(true);
+      await loadInvoiceDetail(searchType, found);
+    } catch {
       setMatchedRow(null);
       setNotFound(true);
       setSearched(true);
-      return;
+    } finally {
+      setLoading(false);
     }
-    setMatchedRow(found);
-    setNotFound(false);
-    setSearched(true);
-    void loadInvoiceDetail(searchType, found);
   }
 
   function clearResult() {
@@ -151,7 +160,6 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
       toast('Invoice deleted', 'success');
       clearResult();
       setSearchNo('');
-      loadList();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to delete invoice', 'error');
     } finally {
@@ -160,7 +168,6 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
   }
 
   function handleEditSaved() {
-    loadList();
     if (matchedRow) {
       void loadInvoiceDetail(searchType, matchedRow);
     }

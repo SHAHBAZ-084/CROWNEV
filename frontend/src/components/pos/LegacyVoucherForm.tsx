@@ -3,7 +3,7 @@ import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { formatLedgerBalance, formatPKR } from '../../lib/format';
-import { buildAccountSelectOptions } from '../../lib/dedupeLabel';
+import { AccountAsyncSearchSelect } from '../ui/EntityAsyncSearchSelect';
 import { Button } from '../ui/Button';
 import { WorkspaceCloseBar, WorkspaceCloseButton } from '../layout/WorkspaceCloseButton';
 import { DataTable } from '../ui/DataTable';
@@ -55,25 +55,23 @@ function accountBalance(account: Row | undefined) {
 
 function SideFields({
   label,
+  branchId,
   categoryId,
   accountId,
   balance,
   categories,
   accounts,
-  customers,
-  suppliers,
   onCategoryChange,
   onAccountChange,
   accountRequired,
 }: {
   label: string;
+  branchId: number | null;
   categoryId: string;
   accountId: string;
   balance: string;
   categories: Row[];
   accounts: Row[];
-  customers: Row[];
-  suppliers: Row[];
   onCategoryChange: (id: string) => void;
   onAccountChange: (id: string) => void;
   accountRequired?: boolean;
@@ -83,17 +81,9 @@ function SideFields({
     [categories],
   );
 
-  const accountOptions: SearchSelectOption[] = useMemo(
-    () => buildAccountSelectOptions(
-      accounts.map((a) => ({
-        id: Number(a.id),
-        name: String(a.name),
-        code: a.code,
-      })),
-      customers,
-      suppliers,
-    ),
-    [accounts, customers, suppliers],
+  const categoryName = useMemo(
+    () => String(categories.find((c) => String(c.id) === categoryId)?.name ?? ''),
+    [categories, categoryId],
   );
 
   return (
@@ -106,13 +96,17 @@ function SideFields({
         options={categoryOptions}
         placeholder="Search category…"
       />
-      <SearchSelect
+      <AccountAsyncSearchSelect
+        branchId={branchId}
         label="Account"
+        categoryId={categoryId}
+        categoryName={categoryName}
+        accounts={accounts}
         value={accountId}
         onChange={onAccountChange}
-        options={accountOptions}
         placeholder="Search account…"
         required={accountRequired}
+        disabled={!categoryId}
       />
       {balance && (
         <p className="text-xs text-text-muted">
@@ -139,8 +133,6 @@ export function LegacyVoucherScreen({
 
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
-  const [customers, setCustomers] = useState<Row[]>([]);
-  const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
   const [viewVoucher, setViewVoucher] = useState<Row | null>(null);
@@ -161,8 +153,6 @@ export function LegacyVoucherScreen({
     branchApi.accounts(branchId).then((r) => setAccounts(r as Row[])).catch(console.error);
     branchApi.accountingCategories(branchId).then((r) => setCategories(r as Row[])).catch(console.error);
     branchApi.vouchers(branchId).then((r) => setVouchers(r as Row[])).catch(console.error);
-    branchApi.branchCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
-    branchApi.branchSuppliers(branchId, { limit: '100' }).then((r) => setSuppliers(r.data as Row[])).catch(console.error);
   }, [branchId]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -185,15 +175,6 @@ export function LegacyVoucherScreen({
   const creditCategories = useMemo(
     () => categoriesForSide(categories, variant, 'credit'),
     [categories, variant],
-  );
-
-  const debitAccounts = useMemo(
-    () => accounts.filter((a) => !debitCategoryId || String(a.categoryId) === debitCategoryId),
-    [accounts, debitCategoryId],
-  );
-  const creditAccounts = useMemo(
-    () => accounts.filter((a) => !creditCategoryId || String(a.categoryId) === creditCategoryId),
-    [accounts, creditCategoryId],
   );
 
   useEffect(() => {
@@ -325,6 +306,7 @@ export function LegacyVoucherScreen({
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-10">
             <SideFields
               label={leftLabel}
+              branchId={branchId}
               categoryId={variant === 'journal' ? debitCategoryId : creditCategoryId}
               accountId={variant === 'journal' ? debitAccountId : creditAccountId}
               balance={
@@ -333,9 +315,7 @@ export function LegacyVoucherScreen({
                   : (creditAccount ? formatLedgerBalance(accountBalance(creditAccount)) : '')
               }
               categories={variant === 'journal' ? debitCategories : creditCategories}
-              accounts={variant === 'journal' ? debitAccounts : creditAccounts}
-              customers={customers}
-              suppliers={suppliers}
+              accounts={accounts}
               onCategoryChange={(id) => {
                 if (variant === 'journal') { setDebitCategoryId(id); setDebitAccountId(''); }
                 else { setCreditCategoryId(id); setCreditAccountId(''); }
@@ -345,6 +325,7 @@ export function LegacyVoucherScreen({
             />
             <SideFields
               label={rightLabel}
+              branchId={branchId}
               categoryId={variant === 'journal' ? creditCategoryId : debitCategoryId}
               accountId={variant === 'journal' ? creditAccountId : debitAccountId}
               balance={
@@ -353,9 +334,7 @@ export function LegacyVoucherScreen({
                   : (debitAccount ? formatLedgerBalance(accountBalance(debitAccount)) : '')
               }
               categories={variant === 'journal' ? creditCategories : debitCategories}
-              accounts={variant === 'journal' ? creditAccounts : debitAccounts}
-              customers={customers}
-              suppliers={suppliers}
+              accounts={accounts}
               onCategoryChange={(id) => {
                 if (variant === 'journal') { setCreditCategoryId(id); setCreditAccountId(''); }
                 else { setDebitCategoryId(id); setDebitAccountId(''); }

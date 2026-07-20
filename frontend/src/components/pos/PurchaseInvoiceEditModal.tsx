@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { branchApi } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import type { PurchaseInvoiceData } from '../../types';
-import { buildDedupedLabels } from '../../lib/dedupeLabel';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
+import { SupplierAsyncSearchSelect } from '../ui/EntityAsyncSearchSelect';
 import { Loader2, Trash2 } from 'lucide-react';
-
-type Row = Record<string, unknown>;
 
 type BikeUnitEdit = {
   chassisId: number;
@@ -46,35 +43,11 @@ export function PurchaseInvoiceEditModal({
   const [supplierId, setSupplierId] = useState('');
   const [initialSupplierId, setInitialSupplierId] = useState('');
   const [supplierLocked, setSupplierLocked] = useState(false);
-  const [suppliers, setSuppliers] = useState<Row[]>([]);
+  const [purchaseBranchId, setPurchaseBranchId] = useState<number | null>(null);
   const [bikeUnits, setBikeUnits] = useState<BikeUnitEdit[]>([]);
   const [partLines, setPartLines] = useState<PartLineEdit[]>([]);
   const [removedChassisIds, setRemovedChassisIds] = useState<number[]>([]);
   const [removedPartItemIds, setRemovedPartItemIds] = useState<number[]>([]);
-
-  const supplierLabels = useMemo(
-    () => buildDedupedLabels(
-      suppliers.map((s) => ({
-        id: String(s.id),
-        name: String(s.name),
-        phone: s.phone,
-        contactPerson: s.contactPerson,
-      })),
-      (s) => [
-        s.phone ? String(s.phone) : '',
-        s.contactPerson ? `(${s.contactPerson})` : '',
-      ],
-    ),
-    [suppliers],
-  );
-
-  const supplierOptions: SearchSelectOption[] = useMemo(
-    () => suppliers.map((s) => ({
-      value: String(s.id),
-      label: supplierLabels.get(String(s.id)) ?? String(s.name),
-    })),
-    [suppliers, supplierLabels],
-  );
 
   useEffect(() => {
     if (!open || purchaseId == null) return;
@@ -94,10 +67,8 @@ export function PurchaseInvoiceEditModal({
         const currentSupplierId = String(purchase.supplierId);
         setSupplierId(currentSupplierId);
         setInitialSupplierId(currentSupplierId);
+        setPurchaseBranchId(purchase.branchId);
         setSupplierLocked(Boolean(purchase.chassis?.some((c) => c.status !== 'IN_STOCK')));
-
-        const supplierResult = await branchApi.branchSuppliers(purchase.branchId, { limit: '500' });
-        setSuppliers(supplierResult.data as Row[]);
 
         const bikes: BikeUnitEdit[] = [];
         const parts: PartLineEdit[] = [];
@@ -237,11 +208,11 @@ export function PurchaseInvoiceEditModal({
         </div>
       ) : (
         <div className="space-y-6">
-          <SearchSelect
+          <SupplierAsyncSearchSelect
+            branchId={purchaseBranchId}
             label="Supplier account"
             value={supplierId}
             onChange={setSupplierId}
-            options={supplierOptions}
             placeholder="Search supplier…"
             disabled={supplierLocked}
           />

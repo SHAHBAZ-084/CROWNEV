@@ -1,6 +1,6 @@
 import { AccountType, FinancialYearStatus, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
-import { AppError } from '../../utils/helpers.js';
+import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -828,6 +828,60 @@ export async function listAccounts(branchId: number) {
       ? { ...ledger, balance: Number(ledger.balance) }
       : null,
   }));
+}
+
+export async function listAccountsPaginated(
+  branchId: number,
+  query: { page?: string; limit?: string; search?: string; categoryId?: string },
+) {
+  const { page, limit, skip } = getPagination(query);
+  const search = query.search?.trim();
+  const categoryId = query.categoryId ? parseInt(query.categoryId, 10) : undefined;
+
+  const where: Prisma.AccountWhereInput = {
+    branchId,
+    isActive: true,
+    ...(Number.isFinite(categoryId) && { categoryId }),
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+  };
+
+  const [accounts, total] = await Promise.all([
+    prisma.account.findMany({
+      where,
+      skip,
+      take: limit,
+      include: { category: true, ledger: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.account.count({ where }),
+  ]);
+
+  const data = accounts.map(({ ledger, ...account }) => ({
+    ...account,
+    ledger: ledger
+      ? { ...ledger, balance: Number(ledger.balance) }
+      : null,
+  }));
+
+  return paginatedResponse(data, total, page, limit);
+}
+
+export async function getAccount(branchId: number, accountId: number) {
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, branchId, isActive: true },
+    include: { category: true, ledger: true },
+  });
+  if (!account) throw new AppError(404, 'Account not found');
+  const { ledger, ...rest } = account;
+  return {
+    ...rest,
+    ledger: ledger ? { ...ledger, balance: Number(ledger.balance) } : null,
+  };
 }
 
 async function ensureCustomersCategoryInTx(tx: Prisma.TransactionClient, branchId: number) {

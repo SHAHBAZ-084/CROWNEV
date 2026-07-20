@@ -34,9 +34,23 @@ import {
 import { allocatePurchaseInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
 
-export async function listBranchSuppliers(branchId: number, query?: { page?: string; limit?: string }) {
+export async function listBranchSuppliers(
+  branchId: number,
+  query?: { page?: string; limit?: string; search?: string },
+) {
   const { page, limit, skip } = getPagination(query ?? {});
-  const where = { branchId, isActive: true };
+  const search = query?.search?.trim();
+  const where = {
+    branchId,
+    isActive: true,
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { contactPerson: { contains: search, mode: 'insensitive' as const } },
+        { phone: { contains: search } },
+      ],
+    }),
+  };
 
   const [suppliers, total] = await Promise.all([
     prisma.supplier.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
@@ -49,6 +63,15 @@ export async function listBranchSuppliers(branchId: number, query?: { page?: str
     page,
     limit,
   );
+}
+
+export async function getBranchSupplier(id: number, branchId: number) {
+  const supplier = await prisma.supplier.findFirst({
+    where: { id, branchId, isActive: true },
+  });
+  if (!supplier) throw new AppError(404, 'Supplier not found');
+  const [withBalance] = await attachSupplierLedgerBalances(branchId, [supplier]);
+  return withBalance;
 }
 
 async function attachSupplierLedgerBalances<T extends { id: number; balance: unknown }>(
@@ -245,8 +268,12 @@ export async function softDeleteSupplier(id: number, branchId: number) {
   });
 }
 
-export async function listPurchases(branchId?: number, query?: { page?: string; limit?: string }) {
+export async function listPurchases(
+  branchId?: number,
+  query?: { page?: string; limit?: string; search?: string },
+) {
   const { page, limit, skip } = getPagination(query ?? {});
+  const search = query?.search?.trim();
   let financialYearId: number | undefined;
   if (branchId) {
     try {
@@ -258,6 +285,12 @@ export async function listPurchases(branchId?: number, query?: { page?: string; 
   const where = {
     ...(branchId ? { branchId } : {}),
     ...(financialYearId != null && { financialYearId }),
+    ...(search && {
+      OR: [
+        { documentRef: { contains: search, mode: 'insensitive' as const } },
+        { invoiceNumber: { contains: search, mode: 'insensitive' as const } },
+      ],
+    }),
   };
 
   const [purchases, total] = await Promise.all([

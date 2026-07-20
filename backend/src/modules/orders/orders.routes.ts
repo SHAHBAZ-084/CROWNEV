@@ -79,6 +79,7 @@ ordersRouter.get(
     const result = await ordersService.listOrders({
       page: req.query.page as string,
       limit: req.query.limit as string,
+      search: req.query.search as string,
       branchId,
       status: req.query.status as OrderStatus | undefined,
       type: req.query.type as OrderType | undefined,

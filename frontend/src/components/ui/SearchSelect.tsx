@@ -17,6 +17,16 @@ interface SearchSelectProps {
   /** Allow typing a value that is not in the options list */
   allowCustom?: boolean;
   autoFocus?: boolean;
+  /** Called as the user types; use with remoteSearch for server-backed lists */
+  onQueryChange?: (query: string) => void;
+  /** When true, options are pre-filtered by the server — skip local filtering */
+  remoteSearch?: boolean;
+  /** Show a Load more control at the bottom of the dropdown (explicit click only) */
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
+  /** Show loading state in the dropdown list */
+  loading?: boolean;
 }
 
 function filterOptions(options: SearchSelectOption[], query: string) {
@@ -35,6 +45,12 @@ export function SearchSelect({
   disabled,
   allowCustom = false,
   autoFocus,
+  onQueryChange,
+  remoteSearch = false,
+  hasMore = false,
+  onLoadMore,
+  loadingMore = false,
+  loading = false,
 }: SearchSelectProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -42,7 +58,7 @@ export function SearchSelect({
   const [query, setQuery] = useState('');
 
   const selected = options.find((o) => o.value === value);
-  const filtered = filterOptions(options, query);
+  const filtered = remoteSearch ? options : filterOptions(options, query);
   const trimmedQuery = query.trim();
   const displayValue = open ? query : (allowCustom ? value : (selected?.label ?? ''));
 
@@ -127,6 +143,7 @@ export function SearchSelect({
             const next = e.target.value;
             setQuery(next);
             setOpen(true);
+            onQueryChange?.(next);
             if (allowCustom) {
               onChange(next);
             } else if (!next.trim()) {
@@ -172,25 +189,45 @@ export function SearchSelect({
                     Use &ldquo;{trimmedQuery}&rdquo;
                   </button>
                 </li>
+              ) : loading ? (
+                <li className="px-4 py-2.5 text-sm text-ink-muted">Loading…</li>
               ) : (
                 <li className="px-4 py-2.5 text-sm text-ink-muted">No matches</li>
               )
             ) : (
-              filtered.map((option) => (
-                <li key={option.value || '__empty'}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pick(option)}
-                    className={`w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle ${
-                      option.value === value ? 'bg-subtle font-medium text-ink' : 'text-ink'
-                    }`}
-                    title={option.label}
-                  >
-                    {option.label}
-                  </button>
-                </li>
-              ))
+              <>
+                {filtered.map((option) => (
+                  <li key={option.value || '__empty'}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pick(option)}
+                      className={`w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle ${
+                        option.value === value ? 'bg-subtle font-medium text-ink' : 'text-ink'
+                      }`}
+                      title={option.label}
+                    >
+                      {option.label}
+                    </button>
+                  </li>
+                ))}
+                {loading && (
+                  <li className="px-4 py-2 text-center text-xs text-ink-muted">Loading…</li>
+                )}
+                {hasMore && onLoadMore && (
+                  <li className="border-t border-border-light">
+                    <button
+                      type="button"
+                      disabled={loadingMore}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onLoadMore()}
+                      className="w-full px-4 py-2.5 text-center text-sm font-medium text-accent transition-colors hover:bg-subtle disabled:opacity-60"
+                    >
+                      {loadingMore ? 'Loading…' : 'Load more'}
+                    </button>
+                  </li>
+                )}
+              </>
             )}
           </ul>
         )}
