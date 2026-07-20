@@ -680,6 +680,7 @@ export function AdminProductsPage() {
 
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
+  const [editDetailVersion, setEditDetailVersion] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
@@ -736,6 +737,7 @@ export function AdminProductsPage() {
     resetImageState();
     setModal(null);
     setEdit(null);
+    setEditDetailVersion(0);
   }
 
   function switchTab(next: CatalogTab) {
@@ -747,6 +749,7 @@ export function AdminProductsPage() {
   function openCreateModal() {
     resetImageState();
     setEdit(null);
+    setEditDetailVersion(0);
     setModal('create');
     setColorRows([]);
     setCompatibleModels([]);
@@ -765,6 +768,7 @@ export function AdminProductsPage() {
 
   function openEditModal(row: Row) {
     resetImageState();
+    setEditDetailVersion(0);
     setEdit(row);
     setModal('edit');
     setColorRows([]);
@@ -773,6 +777,7 @@ export function AdminProductsPage() {
       .getProduct(String(row.id))
       .then((full) => {
         setEdit(full as unknown as Row);
+        setEditDetailVersion((v) => v + 1);
         const imgs = (full.images as ExistingImage[] | undefined) ?? [];
         setExistingImages(imgs);
         setPrimarySelection(primaryFromImages(imgs, []));
@@ -1077,7 +1082,10 @@ export function AdminProductsPage() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="flex flex-col">
-          <div className="space-y-4">
+          <div
+            key={`${modal ?? 'closed'}-${edit?.id ?? 'new'}-v${editDetailVersion}`}
+            className="space-y-4"
+          >
             <ProductImageUpload
               label={tab === 'bikes' ? 'Bike Images' : 'Part Images'}
               pending={pendingImages}

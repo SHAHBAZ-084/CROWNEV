@@ -901,9 +901,13 @@ export const branchApi = {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
     return api<Paginated<unknown>>(`/accounting/${branchId}/customers${q}`);
   },
-  walkInCustomers: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
+  walkInCustomers: (
+    branchId: number,
+    params?: { limit?: string; page?: string; search?: string },
+    init?: RequestInit,
+  ) => {
     const q = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}` : '';
-    return api<Paginated<unknown>>(`/walk-in/${branchId}/customers${q}`);
+    return api<Paginated<unknown>>(`/walk-in/${branchId}/customers${q}`, init);
   },
   walkInCustomer: (branchId: number, id: number) =>
     api<unknown>(`/walk-in/${branchId}/customers/${id}`),

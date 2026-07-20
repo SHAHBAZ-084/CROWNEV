@@ -1222,6 +1222,16 @@ export async function softDeleteWalkInCustomer(id: number, branchId: number) {
   });
 }
 
+function buildCustomerSearchFilter(search: string): Prisma.CustomerWhereInput['OR'] {
+  const cnicDigits = search.replace(/\D/g, '');
+  return [
+    { name: { contains: search, mode: 'insensitive' } },
+    { fatherName: { contains: search, mode: 'insensitive' } },
+    { phone: { contains: search } },
+    ...(cnicDigits ? [{ cnic: { contains: cnicDigits } }] : []),
+  ];
+}
+
 export async function listBranchCustomers(
   branchId: number,
   query: { page?: string; limit?: string; search?: string },
@@ -1231,12 +1241,7 @@ export async function listBranchCustomers(
   const where: Prisma.CustomerWhereInput = {
     branchId,
     isActive: true,
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { cnic: { contains: search.replace(/\D/g, '') } },
-      ],
-    }),
+    ...(search && { OR: buildCustomerSearchFilter(search) }),
   };
 
   const [rows, total] = await Promise.all([
@@ -1265,12 +1270,7 @@ export async function listWalkInCustomers(branchId: number, query: { page?: stri
   const where: Prisma.CustomerWhereInput = {
     branchId,
     isActive: true,
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { cnic: { contains: search.replace(/\D/g, '') } },
-      ],
-    }),
+    ...(search && { OR: buildCustomerSearchFilter(search) }),
   };
 
   const [rows, total] = await Promise.all([

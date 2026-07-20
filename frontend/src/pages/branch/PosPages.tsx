@@ -443,19 +443,63 @@ export function PosCustomersPage() {
   const [fatherName, setFatherName] = useState('');
 
   const [searchInput, setSearchInput] = useState('');
-  const search = useDebounce(searchInput.trim(), 300);
+  const debouncedSearch = useDebounce(searchInput.trim(), 300);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 25;
+
+  useEffect(() => {
+    setSearchQuery(debouncedSearch);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
 
   const reload = useCallback(() => {
-    if (!branchId) return;
-    branchApi.walkInCustomers(branchId, search ? { search } : undefined)
-      .then((r) => setCustomers(r.data as Row[]))
-      .catch(console.error);
-  }, [branchId, search]);
+    if (!branchId) return undefined;
+    const ac = new AbortController();
+    setLoading(true);
+    branchApi
+      .walkInCustomers(
+        branchId,
+        {
+          page: String(page),
+          limit: String(pageSize),
+          ...(searchQuery ? { search: searchQuery } : {}),
+        },
+        { signal: ac.signal },
+      )
+      .then((r) => {
+        setCustomers(r.data as Row[]);
+        setTotalItems(r.pagination.total);
+        setTotalPages(r.pagination.totalPages);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error(err);
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
+      });
+    return () => ac.abort();
+  }, [branchId, searchQuery, page, pageSize]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    return reload();
+  }, [reload]);
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
+    setSearchQuery(searchInput.trim());
+  }
+
+  function clearSearch() {
+    setSearchInput('');
+    setSearchQuery('');
   }
 
   function normalizeCnic(value: string) {
@@ -566,11 +610,11 @@ export function PosCustomersPage() {
           placeholder="Search by CNIC or name…"
           className="max-w-xs"
         />
-        <Button type="submit" variant="secondary">
+        <Button type="submit" variant="secondary" aria-label="Search">
           <Search className="h-4 w-4" />
         </Button>
-        {search && (
-          <Button type="button" variant="ghost" onClick={() => setSearchInput('')}>
+        {searchQuery && (
+          <Button type="button" variant="ghost" onClick={clearSearch}>
             Clear
           </Button>
         )}
@@ -591,7 +635,15 @@ export function PosCustomersPage() {
           !canUpdate,
         )}
         data={customers}
-        emptyMessage="No customers yet"
+        emptyMessage={loading ? 'Searching customers…' : searchQuery ? 'No customers match your search' : 'No customers yet'}
+      />
+      <TablePagination
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        rangeStart={totalItems === 0 ? 0 : (page - 1) * pageSize + 1}
+        rangeEnd={Math.min(page * pageSize, totalItems)}
+        onPageChange={setPage}
       />
       {customerDelete.modal}
       <Modal open={modal} onClose={closeModal} title={editing ? 'Edit Customer' : 'Add Customer'}>

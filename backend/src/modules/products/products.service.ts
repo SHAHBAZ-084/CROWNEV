@@ -114,6 +114,7 @@ export async function listProducts(query: {
     type: true,
     price: true,
     salePrice: true,
+    listingOrder: true,
     specs: true,
     isActive: true,
     createdAt: true,
