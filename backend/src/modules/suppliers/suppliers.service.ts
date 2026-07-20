@@ -3,7 +3,11 @@ import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { assertNoSupplierLedgerHistory } from '../../utils/entityGuards.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
-import { addStockInTx, deductPartInventoryInTx } from '../inventory/inventory.service.js';
+import {
+  addStockInTx,
+  deductBranchProductStockInTx,
+  deductPartInventoryInTx,
+} from '../inventory/inventory.service.js';
 import {
   createChassisRecordsInTx,
   findExistingBikeUnitNumbers,
@@ -532,6 +536,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       condition: string | null;
       comments: string | null;
       identityLocked: boolean;
+      removable: boolean;
     }[]
   >();
   for (const c of purchase.chassis) {
@@ -548,6 +553,7 @@ export async function getPurchaseInvoice(id: number, branchId?: number) {
       condition: c.condition,
       comments: c.comments,
       identityLocked: c.status === 'SOLD' || c.saleOrderItemId != null,
+      removable: c.status === ChassisStatus.IN_STOCK && c.saleOrderItemId == null,
     });
     unitsByProduct.set(c.productId, list);
   }
@@ -608,6 +614,18 @@ type PurchaseItemEditInput = {
   motorNumber?: string | null;
   chassisNumber?: string;
 };
+
+type PurchaseItemRemovalInput = {
+  chassisId?: number;
+  purchaseItemId?: number;
+};
+
+const PURCHASE_ZERO_ITEMS_MESSAGE =
+  'Purchase invoice must have at least one item. Use Delete Invoice to remove the whole purchase.';
+
+function isChassisRemovable(chassis: { status: ChassisStatus; saleOrderItemId: number | null }) {
+  return chassis.status === ChassisStatus.IN_STOCK && chassis.saleOrderItemId == null;
+}
 
 async function shiftSupplierPurchaseLedgerAmount(
   tx: Prisma.TransactionClient,
@@ -674,9 +692,17 @@ export async function updatePurchaseInvoice(
   id: number,
   branchId: number | undefined,
   userId: string,
-  data: { supplierId?: number; items: PurchaseItemEditInput[] },
+  data: {
+    supplierId?: number;
+    items?: PurchaseItemEditInput[];
+    removals?: PurchaseItemRemovalInput[];
+  },
 ) {
-  if (!data.items.length) throw new AppError(400, 'No items to update');
+  const edits = data.items ?? [];
+  const removals = data.removals ?? [];
+  if (!edits.length && !removals.length) {
+    throw new AppError(400, 'No items to update');
+  }
 
   const purchase = await prisma.purchase.findFirst({
     where: { id, ...(branchId != null ? { branchId } : {}) },
@@ -707,9 +733,77 @@ export async function updatePurchaseInvoice(
 
   const chassisById = new Map(purchase.chassis.map((c) => [c.id, c]));
   const itemById = new Map(purchase.items.map((i) => [i.id, i]));
+  const removedChassisIds = new Set<number>();
+  const removedPartItemIds = new Set<number>();
 
-  for (const edit of data.items) {
+  for (const removal of removals) {
+    const hasChassis = removal.chassisId != null;
+    const hasItem = removal.purchaseItemId != null;
+    if (hasChassis === hasItem) {
+      throw new AppError(400, 'Each removal must include either chassisId or purchaseItemId');
+    }
+
+    if (hasChassis) {
+      const chassisId = removal.chassisId!;
+      if (removedChassisIds.has(chassisId)) {
+        throw new AppError(400, 'Duplicate chassis removal requested');
+      }
+      const chassis = chassisById.get(chassisId);
+      if (!chassis || chassis.purchaseId !== purchase.id) {
+        throw new AppError(400, 'Chassis unit not found on this purchase');
+      }
+      if (!isChassisRemovable(chassis)) {
+        throw new AppError(
+          409,
+          'This unit is sold/reserved and cannot be removed from the invoice',
+        );
+      }
+      removedChassisIds.add(chassisId);
+    } else {
+      const purchaseItemId = removal.purchaseItemId!;
+      if (removedPartItemIds.has(purchaseItemId)) {
+        throw new AppError(400, 'Duplicate purchase line removal requested');
+      }
+      const item = itemById.get(purchaseItemId);
+      if (!item || item.purchaseId !== purchase.id) {
+        throw new AppError(400, 'Purchase line not found on this invoice');
+      }
+      if (item.product?.type === ProductType.BIKE) {
+        throw new AppError(400, 'Use chassisId to remove bike units on this purchase');
+      }
+      if (item.product?.type !== ProductType.PART) {
+        throw new AppError(400, 'Only part purchase lines can be removed by purchaseItemId');
+      }
+      removedPartItemIds.add(purchaseItemId);
+    }
+  }
+
+  const chassisCountAfterRemoval = new Map<string, number>();
+  for (const chassis of purchase.chassis) {
+    if (removedChassisIds.has(chassis.id)) continue;
+    chassisCountAfterRemoval.set(
+      chassis.productId,
+      (chassisCountAfterRemoval.get(chassis.productId) ?? 0) + 1,
+    );
+  }
+
+  let remainingLines = 0;
+  for (const item of purchase.items) {
+    if (item.product?.type === ProductType.BIKE && item.productId) {
+      if ((chassisCountAfterRemoval.get(item.productId) ?? 0) > 0) remainingLines += 1;
+    } else if (item.product?.type === ProductType.PART && !removedPartItemIds.has(item.id)) {
+      remainingLines += 1;
+    }
+  }
+  if (remainingLines === 0) {
+    throw new AppError(400, PURCHASE_ZERO_ITEMS_MESSAGE);
+  }
+
+  for (const edit of edits) {
     if (edit.chassisId != null) {
+      if (removedChassisIds.has(edit.chassisId)) {
+        throw new AppError(400, 'Cannot edit a bike unit that is marked for removal');
+      }
       const chassis = chassisById.get(edit.chassisId);
       if (!chassis || chassis.purchaseId !== purchase.id) {
         throw new AppError(400, 'Chassis unit not found on this purchase');
@@ -744,6 +838,9 @@ export async function updatePurchaseInvoice(
         if (edit.unitCost <= 0) throw new AppError(400, 'Unit cost must be greater than zero');
       }
     } else if (edit.purchaseItemId != null) {
+      if (removedPartItemIds.has(edit.purchaseItemId)) {
+        throw new AppError(400, 'Cannot edit a purchase line that is marked for removal');
+      }
       const item = itemById.get(edit.purchaseItemId);
       if (!item || item.purchaseId !== purchase.id) {
         throw new AppError(400, 'Purchase line not found on this invoice');
@@ -772,7 +869,49 @@ export async function updatePurchaseInvoice(
   let voucherId: number | null = null;
 
   const updated = await prisma.$transaction(async (tx) => {
-    for (const edit of data.items) {
+    for (const removal of removals) {
+      if (removal.chassisId != null) {
+        const chassis = chassisById.get(removal.chassisId)!;
+        await tx.bikeChassisNumber.delete({ where: { id: chassis.id } });
+        await deductBranchProductStockInTx(
+          tx,
+          purchase.branchId,
+          chassis.productId,
+          1,
+          ProductType.BIKE,
+        );
+
+        const lineItem = purchase.items.find(
+          (i) => i.productId === chassis.productId && i.product?.type === ProductType.BIKE,
+        );
+        if (lineItem) {
+          const updatedLine = await tx.purchaseItem.update({
+            where: { id: lineItem.id },
+            data: { quantity: { decrement: 1 } },
+          });
+          if (updatedLine.quantity <= 0) {
+            await tx.purchaseItem.delete({ where: { id: lineItem.id } });
+          }
+        }
+      } else if (removal.purchaseItemId != null) {
+        const item = itemById.get(removal.purchaseItemId)!;
+        if (item.partId) {
+          await deductPartInventoryInTx(tx, purchase.branchId, item.partId, item.quantity);
+        }
+        if (item.productId && item.product?.type === ProductType.PART) {
+          await deductBranchProductStockInTx(
+            tx,
+            purchase.branchId,
+            item.productId,
+            item.quantity,
+            ProductType.PART,
+          );
+        }
+        await tx.purchaseItem.delete({ where: { id: item.id } });
+      }
+    }
+
+    for (const edit of edits) {
       if (edit.chassisId != null) {
         const chassis = chassisById.get(edit.chassisId)!;
         const identityLocked = isChassisIdentityLocked(chassis);
@@ -815,14 +954,22 @@ export async function updatePurchaseInvoice(
       },
     });
 
+    if (refreshed.items.length === 0) {
+      throw new AppError(400, PURCHASE_ZERO_ITEMS_MESSAGE);
+    }
+
     for (const item of refreshed.items) {
       if (item.product?.type !== ProductType.BIKE || !item.productId) continue;
       const units = refreshed.chassis.filter((c) => c.productId === item.productId);
-      const lineTotal = computeBikeLineTotal(units, Number(item.unitCost), item.quantity);
-      const effectiveUnitCost = lineTotal / item.quantity;
+      if (units.length === 0) {
+        await tx.purchaseItem.delete({ where: { id: item.id } });
+        continue;
+      }
+      const lineTotal = computeBikeLineTotal(units, Number(item.unitCost), units.length);
+      const effectiveUnitCost = lineTotal / units.length;
       await tx.purchaseItem.update({
         where: { id: item.id },
-        data: { unitCost: effectiveUnitCost },
+        data: { quantity: units.length, unitCost: effectiveUnitCost },
       });
     }
 
@@ -831,11 +978,15 @@ export async function updatePurchaseInvoice(
       include: { items: { include: { product: true } }, chassis: true },
     });
 
+    if (finalPurchase.items.length === 0) {
+      throw new AppError(400, PURCHASE_ZERO_ITEMS_MESSAGE);
+    }
+
     let newTotal = 0;
     for (const item of finalPurchase.items) {
       if (item.product?.type === ProductType.BIKE && item.productId) {
         const units = finalPurchase.chassis.filter((c) => c.productId === item.productId);
-        newTotal += computeBikeLineTotal(units, Number(item.unitCost), item.quantity);
+        newTotal += computeBikeLineTotal(units, Number(item.unitCost), units.length);
       } else {
         newTotal += Number(item.unitCost) * item.quantity;
       }

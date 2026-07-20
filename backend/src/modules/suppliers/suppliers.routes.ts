@@ -201,12 +201,24 @@ const purchaseItemEditSchema = z.object({
   chassisNumber: z.string().trim().min(1).optional(),
 });
 
+const purchaseItemRemovalSchema = z
+  .object({
+    purchaseItemId: z.number().int().positive().optional(),
+    chassisId: z.number().int().positive().optional(),
+  })
+  .refine((row) => (row.chassisId != null) !== (row.purchaseItemId != null), {
+    message: 'Each removal must include either chassisId or purchaseItemId',
+  });
+
 purchasesRouter.patch(
   '/:id',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   validateBody(z.object({
     supplierId: z.number().int().positive().optional(),
-    items: z.array(purchaseItemEditSchema).min(1),
+    items: z.array(purchaseItemEditSchema).optional().default([]),
+    removals: z.array(purchaseItemRemovalSchema).optional().default([]),
+  }).refine((body) => body.items.length > 0 || body.removals.length > 0, {
+    message: 'No items to update',
   })),
   asyncHandler(async (req, res) => {
     const branchId = req.user!.role === Role.BRANCH_OWNER ? req.user!.branchId ?? undefined : undefined;

@@ -783,7 +783,7 @@ export const branchApi = {
     id: number,
     data: {
       supplierId?: number;
-      items: {
+      items?: {
         purchaseItemId?: number;
         chassisId?: number;
         unitCost?: number;
@@ -791,6 +791,10 @@ export const branchApi = {
         engineNumber?: string | null;
         motorNumber?: string | null;
         chassisNumber?: string;
+      }[];
+      removals?: {
+        purchaseItemId?: number;
+        chassisId?: number;
       }[];
     },
   ) => api<unknown>(`/purchases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

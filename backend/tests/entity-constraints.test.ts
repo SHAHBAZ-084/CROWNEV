@@ -103,7 +103,7 @@ describe.skipIf(!process.env.DATABASE_URL)('branch-scoped entity constraints', (
 
     await expect(softDeleteWalkInCustomer(customer.id, branchAId)).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Customer has transaction history and cannot be deleted',
+      message: 'Cannot delete customer — 1 ledger entry on record.',
     });
   });
 
@@ -146,7 +146,7 @@ describe.skipIf(!process.env.DATABASE_URL)('branch-scoped entity constraints', (
 
     await expect(softDeleteSupplier(supplier.id, branchAId)).rejects.toMatchObject({
       statusCode: 409,
-      message: 'Supplier has transaction history and cannot be deleted',
+      message: 'Cannot delete supplier — 1 ledger entry on record.',
     });
   });
 

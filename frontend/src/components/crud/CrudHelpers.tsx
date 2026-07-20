@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { useToast } from '../../contexts/ToastContext';
 
 export function RowActions({
   onEdit,
@@ -84,6 +85,7 @@ export function useDeleteConfirm<T extends { id?: string | number; name?: string
 ) {
   const [target, setTarget] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   async function confirm() {
     if (!target) return;
@@ -91,6 +93,8 @@ export function useDeleteConfirm<T extends { id?: string | number; name?: string
     try {
       await onDelete(target);
       setTarget(null);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Delete failed', 'error');
     } finally {
       setLoading(false);
     }

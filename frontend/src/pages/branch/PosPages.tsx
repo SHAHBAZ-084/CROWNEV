@@ -552,7 +552,7 @@ export function PosCustomersPage() {
     },
     {
       message: (row) =>
-        `Remove customer "${String(row.name)}"? Their ledger history will be kept.`,
+        `Remove customer "${String(row.name)}"? Customers with ledger history cannot be deleted.`,
     },
   );
 
@@ -705,7 +705,7 @@ export function PosSuppliersPage() {
     },
     {
       message: (row) =>
-        `Remove supplier "${String(row.name)}"? Their ledger history will be kept.`,
+        `Remove supplier "${String(row.name)}"? Suppliers with ledger history cannot be deleted.`,
     },
   );
 

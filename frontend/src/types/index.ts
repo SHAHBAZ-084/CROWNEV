@@ -193,6 +193,7 @@ export interface PurchaseInvoiceData {
       comments?: string | null;
       purchasePrice?: number | null;
       identityLocked?: boolean;
+      removable?: boolean;
     }[];
     brand?: string;
     category?: string;

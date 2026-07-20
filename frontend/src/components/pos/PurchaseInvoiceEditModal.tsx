@@ -7,7 +7,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 type Row = Record<string, unknown>;
 
@@ -20,6 +20,7 @@ type BikeUnitEdit = {
   engineNumber: string;
   motorNumber: string;
   identityLocked: boolean;
+  removable: boolean;
 };
 
 type PartLineEdit = {
@@ -48,6 +49,8 @@ export function PurchaseInvoiceEditModal({
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [bikeUnits, setBikeUnits] = useState<BikeUnitEdit[]>([]);
   const [partLines, setPartLines] = useState<PartLineEdit[]>([]);
+  const [removedChassisIds, setRemovedChassisIds] = useState<number[]>([]);
+  const [removedPartItemIds, setRemovedPartItemIds] = useState<number[]>([]);
 
   const supplierLabels = useMemo(
     () => buildDedupedLabels(
@@ -75,6 +78,8 @@ export function PurchaseInvoiceEditModal({
 
   useEffect(() => {
     if (!open || purchaseId == null) return;
+    setRemovedChassisIds([]);
+    setRemovedPartItemIds([]);
     setLoading(true);
     Promise.all([
       branchApi.purchaseInvoice(purchaseId),
@@ -108,6 +113,7 @@ export function PurchaseInvoiceEditModal({
                 engineNumber: unit.engineNumber ?? '',
                 motorNumber: unit.motorNumber ?? '',
                 identityLocked: !!unit.identityLocked,
+                removable: unit.removable ?? false,
               });
             }
           } else if (item.type === 'PART' && item.purchaseItemId != null) {
@@ -128,6 +134,40 @@ export function PurchaseInvoiceEditModal({
       .finally(() => setLoading(false));
   }, [open, purchaseId, onClose, toast]);
 
+  function removeBikeUnit(chassisId: number) {
+    const unit = bikeUnits.find((u) => u.chassisId === chassisId);
+    if (!unit) return;
+    if (!unit.removable) {
+      toast('This unit is sold/reserved and cannot be removed from the invoice', 'error');
+      return;
+    }
+    const remainingUnits = bikeUnits.length - 1 - removedChassisIds.filter((id) => id !== chassisId).length;
+    const remainingParts = partLines.length - removedPartItemIds.length;
+    if (remainingUnits + remainingParts <= 0) {
+      toast(
+        'Purchase invoice must have at least one item. Use Delete Invoice to remove the whole purchase.',
+        'error',
+      );
+      return;
+    }
+    setRemovedChassisIds((ids) => (ids.includes(chassisId) ? ids : [...ids, chassisId]));
+    setBikeUnits((rows) => rows.filter((r) => r.chassisId !== chassisId));
+  }
+
+  function removePartLine(purchaseItemId: number) {
+    const remainingUnits = bikeUnits.length;
+    const remainingParts = partLines.length - 1 - removedPartItemIds.filter((id) => id !== purchaseItemId).length;
+    if (remainingUnits + remainingParts <= 0) {
+      toast(
+        'Purchase invoice must have at least one item. Use Delete Invoice to remove the whole purchase.',
+        'error',
+      );
+      return;
+    }
+    setRemovedPartItemIds((ids) => (ids.includes(purchaseItemId) ? ids : [...ids, purchaseItemId]));
+    setPartLines((rows) => rows.filter((r) => r.purchaseItemId !== purchaseItemId));
+  }
+
   async function handleSave() {
     if (purchaseId == null) return;
     if (!supplierId) {
@@ -135,7 +175,7 @@ export function PurchaseInvoiceEditModal({
       return;
     }
 
-    const items: Parameters<typeof branchApi.updatePurchaseInvoice>[1]['items'] = [];
+    const items: NonNullable<Parameters<typeof branchApi.updatePurchaseInvoice>[1]['items']> = [];
 
     for (const unit of bikeUnits) {
       const payload: (typeof items)[number] = { chassisId: unit.chassisId };
@@ -159,12 +199,19 @@ export function PurchaseInvoiceEditModal({
       items.push({ purchaseItemId: line.purchaseItemId, unitCost: cost });
     }
 
-    if (!items.length) {
+    const removals: NonNullable<Parameters<typeof branchApi.updatePurchaseInvoice>[1]['removals']> = [
+      ...removedChassisIds.map((chassisId) => ({ chassisId })),
+      ...removedPartItemIds.map((purchaseItemId) => ({ purchaseItemId })),
+    ];
+
+    if (!items.length && !removals.length) {
       toast('Nothing to update', 'error');
       return;
     }
 
-    const payload: Parameters<typeof branchApi.updatePurchaseInvoice>[1] = { items };
+    const payload: Parameters<typeof branchApi.updatePurchaseInvoice>[1] = {};
+    if (items.length) payload.items = items;
+    if (removals.length) payload.removals = removals;
     if (!supplierLocked && Number(supplierId) !== Number(initialSupplierId)) {
       payload.supplierId = Number(supplierId);
     }
@@ -207,10 +254,32 @@ export function PurchaseInvoiceEditModal({
 
           {bikeUnits.map((unit) => (
             <div key={unit.chassisId} className="space-y-3 rounded-lg border border-border bg-surface-alt/40 p-4">
-              <p className="font-semibold text-ink">{unit.label}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-ink">{unit.label}</p>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={!unit.removable}
+                  title={
+                    unit.removable
+                      ? 'Remove this unit from the invoice'
+                      : 'This unit is sold/reserved and cannot be removed'
+                  }
+                  onClick={() => removeBikeUnit(unit.chassisId)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove
+                </Button>
+              </div>
               {unit.identityLocked && (
                 <p className="text-xs text-warning">
                   This unit is sold or invoiced — only price and color can be changed.
+                </p>
+              )}
+              {!unit.removable && !unit.identityLocked && (
+                <p className="text-xs text-warning">
+                  This unit is reserved and cannot be removed from the invoice.
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -270,9 +339,22 @@ export function PurchaseInvoiceEditModal({
           ))}
 
           {partLines.map((line) => (
-            <div key={line.purchaseItemId} className="rounded-lg border border-border bg-surface-alt/40 p-4">
+            <div key={line.purchaseItemId} className="space-y-3 rounded-lg border border-border bg-surface-alt/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-ink">{line.label}</p>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  title="Remove this line from the invoice"
+                  onClick={() => removePartLine(line.purchaseItemId)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove
+                </Button>
+              </div>
               <Input
-                label={`${line.label} — unit cost (PKR)`}
+                label={`Unit cost (PKR)`}
                 type="number"
                 min={0}
                 step={0.01}

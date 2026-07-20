@@ -7,7 +7,11 @@ export async function assertNoCustomerLedgerHistory(
 ) {
   const count = await tx.customerLedger.count({ where: { customerId } });
   if (count > 0) {
-    throw new AppError(409, 'Customer has transaction history and cannot be deleted');
+    const entryLabel = count === 1 ? 'entry' : 'entries';
+    throw new AppError(
+      409,
+      `Cannot delete customer — ${count} ledger ${entryLabel} on record.`,
+    );
   }
 }
 
@@ -17,6 +21,10 @@ export async function assertNoSupplierLedgerHistory(
 ) {
   const count = await tx.supplierLedger.count({ where: { supplierId } });
   if (count > 0) {
-    throw new AppError(409, 'Supplier has transaction history and cannot be deleted');
+    const entryLabel = count === 1 ? 'entry' : 'entries';
+    throw new AppError(
+      409,
+      `Cannot delete supplier — ${count} ledger ${entryLabel} on record.`,
+    );
   }
 }
