@@ -22,6 +22,74 @@ function sanitizePublicSpecs(
 }
 
 /** Treat listingOrder 0 as unset — explicitly ordered products first, then by createdAt. */
+export function applyShopListingPositions<T extends { listingOrder?: number | null; createdAt?: Date }>(
+  products: T[],
+): (T & { shopPosition: number })[] {
+  const numbered: T[] = [];
+  const unnumbered: T[] = [];
+
+  for (const product of products) {
+    if ((product.listingOrder ?? 0) > 0) numbered.push(product);
+    else unnumbered.push(product);
+  }
+
+  unnumbered.sort((a, b) => {
+    const aTime = a.createdAt?.getTime?.() ?? 0;
+    const bTime = b.createdAt?.getTime?.() ?? 0;
+    return bTime - aTime;
+  });
+
+  if (numbered.length === 0) {
+    return unnumbered.map((product, index) => ({
+      ...product,
+      shopPosition: index + 1,
+    }));
+  }
+
+  const maxSlot = Math.max(...numbered.map((p) => p.listingOrder ?? 0));
+  const positioned = [
+    ...numbered.map((product) => ({
+      ...product,
+      shopPosition: product.listingOrder!,
+    })),
+    ...unnumbered.map((product, index) => ({
+      ...product,
+      shopPosition: maxSlot + 1 + index,
+    })),
+  ];
+
+  return positioned.sort((a, b) => a.shopPosition - b.shopPosition);
+}
+
+async function findShopProductsWithSlotOrder(
+  where: Prisma.ProductWhereInput,
+  select: Prisma.ProductSelect,
+  skip: number,
+  take: number,
+) {
+  const all = await prisma.product.findMany({
+    where,
+    select: { ...select, listingOrder: true, createdAt: true },
+  });
+  const ordered = applyShopListingPositions(all);
+  return {
+    products: ordered.slice(skip, skip + take),
+    total: ordered.length,
+  };
+}
+
+async function fetchAllShopProductsWithSlotOrder(
+  where: Prisma.ProductWhereInput,
+  select: Prisma.ProductSelect,
+) {
+  const all = await prisma.product.findMany({
+    where,
+    select: { ...select, listingOrder: true, createdAt: true },
+  });
+  return applyShopListingPositions(all);
+}
+
+/** @deprecated Prefer findShopProductsWithSlotOrder for public shop display. */
 export async function findManyWithListingOrder<T extends Omit<Prisma.ProductFindManyArgs, 'orderBy'>>(
   args: T,
 ): Promise<Prisma.ProductGetPayload<T>[]> {
@@ -164,6 +232,7 @@ function shopProductSelect(branchId?: number) {
     type: true,
     price: true,
     salePrice: true,
+    listingOrder: true,
     specs: true,
     colorOptions: true,
     brand: { select: { id: true, name: true, slug: true } },
@@ -188,18 +257,23 @@ function shopProductSelect(branchId?: number) {
 function mapShopListItem<T extends {
   branchProducts?: { stock: number }[];
   specs?: Prisma.JsonValue | null;
+  shopPosition?: number;
 }>(
   product: T,
   branchId?: number,
 ) {
   const specs = sanitizePublicSpecs(product.specs);
-  if (!branchId) return { ...product, specs };
-  const { branchProducts, ...rest } = product;
-  return {
+  const { shopPosition, ...restBase } = product;
+  if (!branchId) {
+    return shopPosition !== undefined ? { ...restBase, specs, shopPosition } : { ...restBase, specs };
+  }
+  const { branchProducts, ...rest } = restBase as T & { branchProducts?: { stock: number }[] };
+  const mapped = {
     ...rest,
     specs,
     stockAtBranch: branchProducts?.[0]?.stock ?? 0,
   };
+  return shopPosition !== undefined ? { ...mapped, shopPosition } : mapped;
 }
 
 export async function listShopProducts(query: {
@@ -228,10 +302,12 @@ export async function listShopProducts(query: {
   const select = shopProductSelect(query.branchId);
 
   if (query.type) {
-    const [products, total] = await Promise.all([
-      findManyWithListingOrder({ where, skip, take: limit, select }),
-      prisma.product.count({ where }),
-    ]);
+    const { products, total } = await findShopProductsWithSlotOrder(
+      where,
+      select,
+      skip,
+      limit,
+    );
     return paginatedResponse(
       products.map((product) => mapShopListItem(product, query.branchId)),
       total,
@@ -243,42 +319,17 @@ export async function listShopProducts(query: {
   const bikeWhere = { ...where, type: ProductType.BIKE };
   const partWhere = { ...where, type: ProductType.PART };
 
-  const [bikeCount, partCount] = await Promise.all([
-    prisma.product.count({ where: bikeWhere }),
-    prisma.product.count({ where: partWhere }),
+  const [{ products: allBikes }, { products: allParts }] = await Promise.all([
+    fetchAllShopProductsWithSlotOrder(bikeWhere, select).then((products) => ({
+      products,
+    })),
+    fetchAllShopProductsWithSlotOrder(partWhere, select).then((products) => ({
+      products,
+    })),
   ]);
-  const total = bikeCount + partCount;
-
-  type ShopListProduct = Awaited<
-    ReturnType<typeof prisma.product.findMany<{ select: typeof select }>>
-  >[number];
-  const rows: ShopListProduct[] = [];
-  let remaining = limit;
-  let offset = skip;
-
-  if (offset < bikeCount && remaining > 0) {
-    const bikes = await findManyWithListingOrder({
-      where: bikeWhere,
-      skip: offset,
-      take: Math.min(remaining, bikeCount - offset),
-      select,
-    });
-    rows.push(...bikes);
-    remaining -= bikes.length;
-    offset = 0;
-  } else {
-    offset -= bikeCount;
-  }
-
-  if (remaining > 0) {
-    const parts = await findManyWithListingOrder({
-      where: partWhere,
-      skip: offset,
-      take: remaining,
-      select,
-    });
-    rows.push(...parts);
-  }
+  const combined = [...allBikes, ...allParts];
+  const total = combined.length;
+  const rows = combined.slice(skip, skip + limit);
 
   return paginatedResponse(
     rows.map((product) => mapShopListItem(product, query.branchId)),

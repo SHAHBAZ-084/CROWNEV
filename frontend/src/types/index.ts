@@ -37,6 +37,7 @@ export interface Product {
   stockAtBranch?: number;
   model?: string | null;
   listingOrder?: number;
+  shopPosition?: number;
 }
 
 export interface Branch {

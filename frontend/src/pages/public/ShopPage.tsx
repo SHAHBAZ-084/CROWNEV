@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/layout/PageTransition';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProductGridSkeleton } from '../../components/ui/Skeleton';
 import { useDebounce } from '../../hooks/useDebounce';
+import { buildShopGridItems } from '../../lib/shopListing';
 
 const TYPE_FILTERS = [
   { value: '', label: 'All', icon: Package },
@@ -28,6 +29,7 @@ export default function ShopPage() {
 
   const type = params.get('type') ?? '';
   const onSale = params.get('sale') === 'true';
+  const gridItems = useMemo(() => buildShopGridItems(products), [products]);
 
   const activeFilters = useMemo(() => {
     const filters: { key: string; label: string }[] = [];
@@ -39,7 +41,7 @@ export default function ShopPage() {
 
   useEffect(() => {
     setLoading(true);
-    const q: Record<string, string> = {};
+    const q: Record<string, string> = { limit: '100' };
     if (debouncedSearch) q.search = debouncedSearch;
     if (type) q.type = type;
     if (onSale) q.onSale = 'true';
@@ -47,14 +49,7 @@ export default function ShopPage() {
     publicApi
       .shop(q)
       .then((result) => {
-        const data =
-          type === ''
-            ? [...result.data].sort((a, b) => {
-                if (a.type === b.type) return 0;
-                return a.type === 'BIKE' ? -1 : 1;
-              })
-            : result.data;
-        setProducts(data);
+        setProducts(result.data);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -203,7 +198,7 @@ export default function ShopPage() {
         <div className="mt-6 min-h-[28rem] sm:min-h-[32rem]">
           {loading ? (
             <ProductGridSkeleton />
-          ) : products.length === 0 ? (
+          ) : gridItems.length === 0 ? (
             <div className="rounded-[var(--radius-card)] border border-dashed border-border-light bg-elevated px-6 py-16 text-center">
               <Package className="mx-auto h-12 w-12 text-brand/30" />
               <p className="mt-4 font-display text-lg font-semibold text-ink">No products found</p>
@@ -224,9 +219,19 @@ export default function ShopPage() {
             <>
               <h2 className="sr-only">Product catalog</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {products.map((p, i) => (
-                  <ProductCard key={p.id} product={p} index={i} animate={false} />
-                ))}
+                {gridItems.map((item, i) =>
+                  item.kind === 'spacer' ? (
+                    <div
+                      key={`shop-slot-${item.position}`}
+                      aria-hidden
+                      className="pointer-events-none invisible"
+                    >
+                      <div className="aspect-[4/5] w-full" />
+                    </div>
+                  ) : (
+                    <ProductCard key={item.product.id} product={item.product} index={i} animate={false} />
+                  ),
+                )}
               </div>
             </>
           )}

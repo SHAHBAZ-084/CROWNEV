@@ -1,6 +1,6 @@
 import { prisma } from '../../config/database.js';
 import { ChassisStatus, ProductType } from '@prisma/client';
-import { findManyWithListingOrder } from '../products/products.service.js';
+import { applyShopListingPositions } from '../products/products.service.js';
 import { AppError } from '../../utils/helpers.js';
 import { modelCompatibilityFilter } from '../../utils/modelCompatibility.js';
 export async function getLandingData() {
@@ -37,15 +37,16 @@ export async function getLandingData() {
     }),
     prisma.brand.findMany({ where: { isActive: true }, take: 12 }),
     fulfillmentBranchId
-      ? findManyWithListingOrder({
-          where: {
-            isActive: true,
-            type: 'BIKE',
-            branchProducts: { some: { branchId: fulfillmentBranchId, isListed: true } },
-          },
-          include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
-          take: 8,
-        })
+      ? prisma.product
+          .findMany({
+            where: {
+              isActive: true,
+              type: 'BIKE',
+              branchProducts: { some: { branchId: fulfillmentBranchId, isListed: true } },
+            },
+            include: { images: { where: { isPrimary: true }, take: 1 }, brand: true },
+          })
+          .then((bikes) => applyShopListingPositions(bikes).slice(0, 8))
       : Promise.resolve([]),
     Promise.all([
       prisma.branch.count({
