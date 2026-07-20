@@ -855,9 +855,14 @@ function isBankOrCashCategory(name: string) {
   return n.includes('bank') || n.includes('cash');
 }
 
+function isExpensesCategory(name: string) {
+  const n = name.trim().toLowerCase();
+  return n.includes('expense');
+}
+
 function isSaleReceiptAccount(account: Row) {
   const categoryName = String((account.category as Row | undefined)?.name ?? '');
-  return isBankOrCashCategory(categoryName) || account.type === 'EXPENSE';
+  return isBankOrCashCategory(categoryName) || isExpensesCategory(categoryName);
 }
 
 export function PosSaleInvoicePage() {

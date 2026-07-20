@@ -145,8 +145,13 @@ function isBankOrCashCategory(name: string) {
   return n.includes('bank') || n.includes('cash');
 }
 
-function isReceiptDebitAccount(account: { category: { name: string }; type: AccountType }) {
-  return isBankOrCashCategory(account.category.name) || account.type === AccountType.EXPENSE;
+function isExpensesCategory(name: string) {
+  const n = name.trim().toLowerCase();
+  return n.includes('expense');
+}
+
+function isReceiptDebitAccount(account: { category: { name: string } }) {
+  return isBankOrCashCategory(account.category.name) || isExpensesCategory(account.category.name);
 }
 
 async function loadBranchAccounts(
@@ -179,8 +184,8 @@ async function loadBranchAccounts(
 
 function assertVoucherAccountRules(
   type: VoucherType,
-  debitAccount: { category: { name: string }; type: AccountType },
-  creditAccount: { category: { name: string }; type: AccountType },
+  debitAccount: { category: { name: string } },
+  creditAccount: { category: { name: string } },
 ) {
   if (type === 'RECEIPT' && !isReceiptDebitAccount(debitAccount)) {
     throw new AppError(400, 'Receipt must debit a Bank, Cash, or Expense account (To side)');
