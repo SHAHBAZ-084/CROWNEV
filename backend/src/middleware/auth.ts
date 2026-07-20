@@ -144,3 +144,16 @@ export function requireBranchDeletePermission(req: Request, res: Response, next:
   }
   next();
 }
+
+export function requireBranchReportPermission(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== Role.BRANCH_OWNER) {
+    next();
+    return;
+  }
+  const perm = req.user.branchPermission ?? BranchPermission.WRITE_UPDATE_DELETE;
+  if (perm === BranchPermission.WRITE_ONLY) {
+    res.status(403).json({ error: `${RESTRICTED_MSG}. You cannot view reports.` });
+    return;
+  }
+  next();
+}

@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   LayoutDashboard, Building2, Package, ShoppingCart, Users, BarChart3,
   Calendar, CreditCard, MessageSquare, Truck, Boxes, Store, Wrench, SlidersHorizontal, UserCog,
@@ -10,6 +10,7 @@ import { DashboardShell } from './DashboardShell';
 import { CartDrawer } from '../cart/CartDrawer';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { useBranchPermission } from '../../hooks/useBranchPermission';
 import type { Role } from '../../types';
 
 const adminNav: SidebarNavItem[] = [
@@ -66,8 +67,15 @@ const navByRole: Record<Role, SidebarNavItem[]> = {
 
 export function DashboardLayout({ role, children }: { role: Role; children?: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { canViewReports } = useBranchPermission();
   const navigate = useNavigate();
-  const nav = navByRole[role];
+  const nav = useMemo(() => {
+    const items = navByRole[role];
+    if (role === 'BRANCH_OWNER' && !canViewReports) {
+      return items.filter((item) => item.to !== '/branch/reports');
+    }
+    return items;
+  }, [role, canViewReports]);
 
   return (
     <DashboardShell

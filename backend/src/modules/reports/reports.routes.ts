@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { asyncHandler } from '../../utils/helpers.js';
 import { csvResponse, toCsv } from '../../utils/export.js';
-import { authenticate, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchReportPermission, requireRoles } from '../../middleware/auth.js';
 import * as reportsService from './reports.service.js';
 import * as accountingService from '../accounting/accounting.service.js';
 
@@ -38,6 +38,7 @@ reportsRouter.get(
 reportsRouter.get(
   '/branch/summary',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId =
       req.user!.role === Role.BRANCH_OWNER
@@ -62,6 +63,7 @@ reportsRouter.get(
 reportsRouter.get(
   '/export/orders',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId =
       req.user!.role === Role.BRANCH_OWNER
@@ -110,6 +112,7 @@ reportsRouter.get(
 reportsRouter.get(
   '/export/inventory',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId =
       req.user!.role === Role.BRANCH_OWNER
@@ -132,6 +135,7 @@ reportsRouter.get(
 reportsRouter.get(
   '/export/trial-balance/:branchId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(req.params.branchId as string, 10);
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
@@ -150,6 +154,7 @@ reportsRouter.get(
 reportsRouter.get(
   '/profit-loss/:branchId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(req.params.branchId as string, 10);
     if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {

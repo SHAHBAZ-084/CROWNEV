@@ -194,7 +194,9 @@ export default function App() {
                   <Route path="/branch/suppliers" element={<Navigate to="/branch/workspace/suppliers" replace />} />
                   <Route path="/branch/payments" element={<DashWrap><BranchPayments /></DashWrap>} />
                   <Route path="/branch/bike-documents" element={<DashWrap><PosBikeDocumentsPage /></DashWrap>} />
-                  <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
+                  <Route element={<RequireBranchPermission reports />}>
+                    <Route path="/branch/reports" element={<DashWrap><BranchReports /></DashWrap>} />
+                  </Route>
                 </Route>
                 <Route element={<LazyBranchWorkspaceLayout />}>
                   <Route path="/branch/workspace" element={<Navigate to="/branch/workspace/pos" replace />} />

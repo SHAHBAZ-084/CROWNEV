@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AccountType, BranchPermission, Role, VoucherType } from '@prisma/client';
 import { z } from 'zod';
 import { asyncHandler, param, validateBody, AppError } from '../../utils/helpers.js';
-import { authenticate, requireBranchDeletePermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
+import { authenticate, requireBranchDeletePermission, requireBranchReportPermission, requireBranchUpdatePermission, requireRoles } from '../../middleware/auth.js';
 import * as accountingService from './accounting.service.js';
 
 export const accountingRouter = Router();
@@ -186,6 +186,7 @@ accountingRouter.delete(
 
 accountingRouter.get(
   '/:branchId/trial-balance',
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
@@ -223,6 +224,7 @@ accountingRouter.post(
 
 accountingRouter.get(
   '/:branchId/ledger/:accountId',
+  requireBranchReportPermission,
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
