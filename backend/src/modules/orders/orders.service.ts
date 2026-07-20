@@ -475,8 +475,9 @@ export async function createSaleInvoice(data: {
   reference?: string;
   notes?: string;
   createdById: string;
-  receivedAmount?: number;      // NEW
-  receivedAccountId?: number;   // NEW
+  receipts?: { amount: number; accountId: number }[];
+  receivedAmount?: number;
+  receivedAccountId?: number;
   invoiceDate?: string;
 }) {
   const customer = await prisma.customer.findFirst({
@@ -492,14 +493,26 @@ export async function createSaleInvoice(data: {
   const subtotal = pricedItems.reduce((sum, i) => sum + i.total, 0);
   if (subtotal <= 0) throw new AppError(400, 'Sale total must be greater than zero');
 
-  const receivedAmount = data.receivedAmount && data.receivedAmount > 0 ? data.receivedAmount : 0;
+  const receipts =
+    data.receipts && data.receipts.length > 0
+      ? data.receipts.filter((entry) => entry.amount > 0)
+      : data.receivedAmount && data.receivedAmount > 0 && data.receivedAccountId
+        ? [{ amount: data.receivedAmount, accountId: data.receivedAccountId }]
+        : [];
 
-  if (receivedAmount > 0) {
-    if (!data.receivedAccountId) {
-      throw new AppError(400, 'Select the account the payment was received into');
+  const totalReceived = receipts.reduce((sum, entry) => sum + entry.amount, 0);
+  if (totalReceived > subtotal) {
+    throw new AppError(400, 'Total received amount cannot exceed the invoice total');
+  }
+  for (const entry of receipts) {
+    if (!entry.accountId) {
+      throw new AppError(400, 'Select the account for each received amount');
     }
-    if (receivedAmount > subtotal) {
-      throw new AppError(400, 'Received amount cannot exceed the invoice total');
+    const account = await prisma.account.findFirst({
+      where: { id: entry.accountId, branchId: data.branchId, isActive: true },
+    });
+    if (!account) {
+      throw new AppError(400, 'Invalid receipt account selected');
     }
   }
 
@@ -663,38 +676,46 @@ export async function createSaleInvoice(data: {
       entryDate: invoiceDate,
     });
 
-    let receiptVoucher = null;
-    if (receivedAmount > 0) {
-      const balanceAfterReceipt = newBalance - receivedAmount;
+    let runningBalance = newBalance;
+    const receiptVouchers = [];
+    for (const receipt of receipts) {
+      runningBalance -= receipt.amount;
       await tx.customer.update({
         where: { id: data.customerId },
-        data: { balance: balanceAfterReceipt },
+        data: { balance: runningBalance },
       });
       await tx.customerLedger.create({
         data: {
           customerId: data.customerId,
           orderId: order.id,
           type: CustomerLedgerType.CREDIT,
-          amount: receivedAmount,
-          balance: balanceAfterReceipt,
+          amount: receipt.amount,
+          balance: runningBalance,
           notes: `Received against sale invoice #${reference}`,
           createdAt: invoiceDate,
         },
       });
 
-      receiptVoucher = await createVoucherInTx(tx, {
-        branchId: data.branchId,
-        type: VoucherType.RECEIPT,
-        debitAccountId: data.receivedAccountId!,
-        creditAccountId: customerAccount.id,
-        amount: receivedAmount,
-        reference,
-        createdById: data.createdById,
-        entryDate: invoiceDate,
-      });
+      receiptVouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.RECEIPT,
+          debitAccountId: receipt.accountId,
+          creditAccountId: customerAccount.id,
+          amount: receipt.amount,
+          reference,
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
     }
 
-    return { order: orderWithChassis, voucher, receiptVoucher };
+    return {
+      order: orderWithChassis,
+      voucher,
+      receiptVoucher: receiptVouchers[0] ?? null,
+      receiptVouchers,
+    };
   });
 }
 

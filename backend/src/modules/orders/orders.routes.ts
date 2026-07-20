@@ -176,6 +176,14 @@ ordersRouter.post(
       items: z.array(saleInvoiceItemSchema).min(1),
       reference: z.string().trim().min(1).max(64).optional(),
       notes: z.string().optional(),
+      receipts: z
+        .array(
+          z.object({
+            amount: z.number().positive(),
+            accountId: z.number().int(),
+          }),
+        )
+        .optional(),
       receivedAmount: z.number().positive().optional(),
       receivedAccountId: z.number().int().optional(),
       invoiceDate: z.string().optional(),

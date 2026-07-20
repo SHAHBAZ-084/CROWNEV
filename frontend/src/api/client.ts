@@ -608,10 +608,11 @@ export const branchApi = {
     items: { productId: string; quantity: number; unitPrice?: number; bikeChassisNumberId?: number }[];
     reference?: string;
     notes?: string;
+    receipts?: { amount: number; accountId: number }[];
     receivedAmount?: number;
     receivedAccountId?: number;
     invoiceDate?: string;
-  }) => api<{ order: Order; voucher: unknown; receiptVoucher?: unknown }>('/orders/sale-invoice', {
+  }) => api<{ order: Order; voucher: unknown; receiptVoucher?: unknown; receiptVouchers?: unknown[] }>('/orders/sale-invoice', {
     method: 'POST',
     body: JSON.stringify(data),
   }),

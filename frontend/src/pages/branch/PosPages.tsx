@@ -850,8 +850,18 @@ type SaleLine = {
   bikeChassisNumberId?: number;
 };
 
+type ReceiptLine = {
+  key: string;
+  amount: string;
+  accountId: string;
+};
+
 function newSaleLine(): SaleLine {
   return { key: `${Date.now()}-${Math.random()}`, productId: '', quantity: 1 };
+}
+
+function newReceiptLine(): ReceiptLine {
+  return { key: `${Date.now()}-${Math.random()}`, amount: '', accountId: '' };
 }
 
 /** One bike unit on a purchase invoice line: chassis number is always required,
@@ -931,8 +941,7 @@ export function PosSaleInvoicePage() {
   const [invoiceDate, setInvoiceDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [bankCashAccounts, setBankCashAccounts] = useState<Row[]>([]);
-  const [receivedAmount, setReceivedAmount] = useState('');
-  const [receivedAccountId, setReceivedAccountId] = useState('');
+  const [receiptLines, setReceiptLines] = useState<ReceiptLine[]>([newReceiptLine()]);
   const [customerLedger, setCustomerLedger] = useState<{
     customer: { name: string; code: string; balance: number };
     rows: LedgerRow[];
@@ -1020,6 +1029,19 @@ export function PosSaleInvoicePage() {
     () => lineDetails.reduce((sum, l) => sum + (l.product ? l.lineTotal : 0), 0),
     [lineDetails],
   );
+
+  const receiptAccountOptions = useMemo(
+    () => bankCashAccounts.map((a) => ({ value: String(a.id), label: String(a.name) })),
+    [bankCashAccounts],
+  );
+
+  function updateReceiptLine(key: string, patch: Partial<ReceiptLine>) {
+    setReceiptLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function removeReceiptLine(key: string) {
+    setReceiptLines((prev) => (prev.length <= 1 ? prev : prev.filter((row) => row.key !== key)));
+  }
 
   function selectProductForLine(lineKey: string, productId: string) {
     if (!productId) {
@@ -1127,16 +1149,20 @@ export function PosSaleInvoicePage() {
       toast('Duplicate chassis number selection', 'error');
       return;
     }
-    const receivedNum = receivedAmount ? Number(receivedAmount) : 0;
-    if (receivedNum > 0) {
-      if (receivedNum > grandTotal) {
-        toast('Received amount cannot exceed the invoice total', 'error');
-        return;
-      }
-      if (!receivedAccountId) {
-        toast('Select the account the payment was received into', 'error');
-        return;
-      }
+    const receiptEntries = receiptLines
+      .map((row) => ({
+        amount: row.amount ? Number(row.amount) : 0,
+        accountId: row.accountId ? Number(row.accountId) : 0,
+      }))
+      .filter((row) => row.amount > 0);
+    const totalReceived = receiptEntries.reduce((sum, row) => sum + row.amount, 0);
+    if (totalReceived > grandTotal) {
+      toast('Total received amount cannot exceed the invoice total', 'error');
+      return;
+    }
+    if (receiptEntries.some((row) => !row.accountId)) {
+      toast('Select the account for each received amount', 'error');
+      return;
     }
 
     setSaving(true);
@@ -1146,22 +1172,22 @@ export function PosSaleInvoicePage() {
         customerId: parseInt(customerId, 10),
         items,
         notes: notes.trim() || undefined,
-        receivedAmount: receivedNum > 0 ? receivedNum : undefined,
-        receivedAccountId: receivedNum > 0 ? Number(receivedAccountId) : undefined,
+        receipts: receiptEntries.length > 0
+          ? receiptEntries.map(({ amount, accountId }) => ({ amount, accountId }))
+          : undefined,
         invoiceDate: invoiceDate || undefined,
       });
       const invoiceNo = String((result.order as { saleReference?: string }).saleReference ?? nextInvoiceNo);
       toast(
-        receivedNum > 0
-          ? `Sale saved. Invoice #${invoiceNo} — Rs. ${receivedNum.toLocaleString()} received`
+        totalReceived > 0
+          ? `Sale saved. Invoice #${invoiceNo} — Rs. ${totalReceived.toLocaleString()} received`
           : `Sale saved. Invoice #${invoiceNo}`,
         'success',
       );
       setLines([newSaleLine()]);
       setNotes('');
       setInvoiceDate('');
-      setReceivedAmount('');
-      setReceivedAccountId('');
+      setReceiptLines([newReceiptLine()]);
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadOrders();
       reloadNextInvoiceNo();
@@ -1227,25 +1253,59 @@ export function PosSaleInvoicePage() {
           />
         </div>
 
-        <div className="mb-6 grid gap-4 lg:grid-cols-2">
-          <Input
-            label="Received amount (optional)"
-            type="number"
-            min={0}
-            max={grandTotal || undefined}
-            step={1}
-            value={receivedAmount}
-            onChange={(e) => setReceivedAmount(e.target.value)}
-            placeholder="Leave blank if not paid now"
-          />
-          <SearchSelect
-            label="Received into (Bank/Cash/Expense account)"
-            value={receivedAccountId}
-            onChange={setReceivedAccountId}
-            options={bankCashAccounts.map((a) => ({ value: String(a.id), label: String(a.name) }))}
-            placeholder="Select account"
-            disabled={!receivedAmount || Number(receivedAmount) <= 0}
-          />
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-brand">Received amount</h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setReceiptLines((prev) => [...prev, newReceiptLine()])}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Add line
+          </Button>
+        </div>
+
+        <div className="mb-6 space-y-3">
+          {receiptLines.map((row) => {
+            const amountNum = row.amount ? Number(row.amount) : 0;
+            return (
+              <div
+                key={row.key}
+                className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end"
+              >
+                <Input
+                  label="Received amount (optional)"
+                  type="number"
+                  min={0}
+                  max={grandTotal || undefined}
+                  step={1}
+                  value={row.amount}
+                  onChange={(e) => updateReceiptLine(row.key, { amount: e.target.value })}
+                  placeholder="Leave blank if not paid now"
+                />
+                <SearchSelect
+                  label="Received into (Bank/Cash/Expense account)"
+                  value={row.accountId}
+                  onChange={(accountId) => updateReceiptLine(row.key, { accountId })}
+                  options={receiptAccountOptions}
+                  placeholder="Select account"
+                  disabled={!row.amount || amountNum <= 0}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="self-end"
+                  disabled={receiptLines.length <= 1}
+                  onClick={() => removeReceiptLine(row.key)}
+                  aria-label="Remove receipt line"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
 
         <div className="mb-4 flex items-center justify-between">
