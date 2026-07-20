@@ -65,6 +65,9 @@ enum VoucherType {
   PAYMENT
   RECEIPT
   JOURNAL
+  SALE
+  PURCHASE
+  SERVICE
 }
 
 enum VoucherStatus {

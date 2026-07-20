@@ -475,7 +475,7 @@ export async function createPurchaseInvoice(data: {
 
     const voucher = await createVoucherInTx(tx, {
       branchId: data.branchId,
-      type: VoucherType.JOURNAL,
+      type: VoucherType.PURCHASE,
       debitAccountId: inventoryAccount.id,
       creditAccountId: supplierAccount.id,
       amount: total,
@@ -1048,7 +1048,7 @@ export async function updatePurchaseInvoice(
       });
       await createVoucherInTx(tx, {
         branchId: purchase.branchId,
-        type: VoucherType.JOURNAL,
+        type: VoucherType.PURCHASE,
         debitAccountId: inventoryAccount.id,
         creditAccountId: supplierAccount.id,
         amount: total,

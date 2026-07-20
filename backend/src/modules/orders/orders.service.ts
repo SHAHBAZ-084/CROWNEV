@@ -649,7 +649,7 @@ export async function createSaleInvoice(data: {
 
     const voucher = await createVoucherInTx(tx, {
       branchId: data.branchId,
-      type: VoucherType.JOURNAL,
+      type: VoucherType.SALE,
       debitAccountId: customerAccount.id,
       creditAccountId: revenueAccount.id,
       amount: subtotal,

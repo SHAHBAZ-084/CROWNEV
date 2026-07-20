@@ -142,7 +142,7 @@ export async function createServiceInvoice(data: {
 
     const voucher = await createVoucherInTx(tx, {
       branchId: data.branchId,
-      type: VoucherType.JOURNAL,
+      type: VoucherType.SERVICE,
       debitAccountId: customerAccount.id,
       creditAccountId: revenueAccount.id,
       amount: total,

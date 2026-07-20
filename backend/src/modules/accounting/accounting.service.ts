@@ -580,26 +580,45 @@ function isInventoryAccountName(name?: string | null) {
   return name?.trim().toLowerCase() === INVENTORY_ACCOUNT_NAME.toLowerCase();
 }
 
-function isSaleVoucher(voucher: {
+function isServiceRevenueAccountName(name?: string | null) {
+  return name?.trim().toLowerCase() === SERVICE_REVENUE_ACCOUNT_NAME.toLowerCase();
+}
+
+export function isSaleVoucher(voucher: {
   type?: VoucherType | null;
   creditAccount?: { name: string } | null;
   debitAccount?: { name: string } | null;
 } | null) {
-  if (!voucher || voucher.type !== VoucherType.JOURNAL) return false;
+  if (!voucher) return false;
+  if (voucher.type === VoucherType.SALE) return true;
+  if (voucher.type !== VoucherType.JOURNAL) return false;
   return isSaleRevenueAccountName(voucher.creditAccount?.name) && !!voucher.debitAccount?.name;
 }
 
-function isPurchaseVoucher(voucher: {
+export function isPurchaseVoucher(voucher: {
   type?: VoucherType | null;
   creditAccount?: { name: string } | null;
   debitAccount?: { name: string } | null;
 } | null) {
-  if (!voucher || voucher.type !== VoucherType.JOURNAL) return false;
+  if (!voucher) return false;
+  if (voucher.type === VoucherType.PURCHASE) return true;
+  if (voucher.type !== VoucherType.JOURNAL) return false;
   return (
     isInventoryAccountName(voucher.debitAccount?.name)
     && !!voucher.creditAccount?.name
     && !isSaleRevenueAccountName(voucher.creditAccount?.name)
   );
+}
+
+export function isServiceVoucher(voucher: {
+  type?: VoucherType | null;
+  creditAccount?: { name: string } | null;
+  debitAccount?: { name: string } | null;
+} | null) {
+  if (!voucher) return false;
+  if (voucher.type === VoucherType.SERVICE) return true;
+  if (voucher.type !== VoucherType.JOURNAL) return false;
+  return isServiceRevenueAccountName(voucher.creditAccount?.name) && !!voucher.debitAccount?.name;
 }
 
 function voucherTypeLabel(
@@ -616,12 +635,18 @@ function voucherTypeLabel(
   if (isPurchaseVoucher(voucher)) {
     return isReversal ? 'Purchase (Reversal)' : 'Purchase';
   }
+  if (isServiceVoucher(voucher)) {
+    return isReversal ? 'Service (Reversal)' : 'Service';
+  }
   const type = voucher?.type;
   if (!type) return isReversal ? 'Journal (Reversal)' : 'Journal';
   const base =
     type === 'PAYMENT' ? 'Payment'
       : type === 'RECEIPT' ? 'Receipt'
-        : 'Journal';
+        : type === 'SALE' ? 'Sale'
+          : type === 'PURCHASE' ? 'Purchase'
+            : type === 'SERVICE' ? 'Service'
+              : 'Journal';
   return isReversal ? `${base} (Reversal)` : base;
 }
 
@@ -723,6 +748,10 @@ function buildLedgerEntryDescription(
   if (isPurchaseVoucher(voucher)) {
     const base = `From ${voucher.creditAccount.name} to inventory`;
     return purchaseSummary ? `${base} — ${purchaseSummary}` : base;
+  }
+
+  if (isServiceVoucher(voucher)) {
+    return `From service revenue to ${voucher.debitAccount.name}`;
   }
 
   const auto = `From ${voucher.creditAccount.name} to ${voucher.debitAccount.name}`;
