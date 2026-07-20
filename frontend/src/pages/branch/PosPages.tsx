@@ -855,6 +855,11 @@ function isBankOrCashCategory(name: string) {
   return n.includes('bank') || n.includes('cash');
 }
 
+function isSaleReceiptAccount(account: Row) {
+  const categoryName = String((account.category as Row | undefined)?.name ?? '');
+  return isBankOrCashCategory(categoryName) || account.type === 'EXPENSE';
+}
+
 export function PosSaleInvoicePage() {
   const branchId = useBranchId();
   const { toast } = useToast();
@@ -902,7 +907,7 @@ export function PosSaleInvoicePage() {
     branchApi.walkInCustomers(branchId, { limit: '100' }).then((r) => setCustomers(r.data as Row[])).catch(console.error);
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
     branchApi.accounts(branchId)
-      .then((accounts) => setBankCashAccounts((accounts as Row[]).filter((a) => isBankOrCashCategory(String((a.category as Row | undefined)?.name ?? '')))))
+      .then((accounts) => setBankCashAccounts((accounts as Row[]).filter(isSaleReceiptAccount)))
       .catch(console.error);
     reloadOrders();
     reloadNextInvoiceNo();
@@ -1094,7 +1099,7 @@ export function PosSaleInvoicePage() {
         return;
       }
       if (!receivedAccountId) {
-        toast('Select the bank or cash account the payment was received into', 'error');
+        toast('Select the account the payment was received into', 'error');
         return;
       }
     }
@@ -1196,7 +1201,7 @@ export function PosSaleInvoicePage() {
             placeholder="Leave blank if not paid now"
           />
           <SearchSelect
-            label="Received into (Bank/Cash account)"
+            label="Received into (Bank/Cash/Expense account)"
             value={receivedAccountId}
             onChange={setReceivedAccountId}
             options={bankCashAccounts.map((a) => ({ value: String(a.id), label: String(a.name) }))}

@@ -145,6 +145,10 @@ function isBankOrCashCategory(name: string) {
   return n.includes('bank') || n.includes('cash');
 }
 
+function isReceiptDebitAccount(account: { category: { name: string }; type: AccountType }) {
+  return isBankOrCashCategory(account.category.name) || account.type === AccountType.EXPENSE;
+}
+
 async function loadBranchAccounts(
   tx: Prisma.TransactionClient,
   branchId: number,
@@ -175,11 +179,11 @@ async function loadBranchAccounts(
 
 function assertVoucherAccountRules(
   type: VoucherType,
-  debitAccount: { category: { name: string } },
-  creditAccount: { category: { name: string } },
+  debitAccount: { category: { name: string }; type: AccountType },
+  creditAccount: { category: { name: string }; type: AccountType },
 ) {
-  if (type === 'RECEIPT' && !isBankOrCashCategory(debitAccount.category.name)) {
-    throw new AppError(400, 'Receipt must debit a Bank or Cash account (To side)');
+  if (type === 'RECEIPT' && !isReceiptDebitAccount(debitAccount)) {
+    throw new AppError(400, 'Receipt must debit a Bank, Cash, or Expense account (To side)');
   }
   if (type === 'PAYMENT' && !isBankOrCashCategory(creditAccount.category.name)) {
     throw new AppError(400, 'Payment must credit a Bank or Cash account (From side)');

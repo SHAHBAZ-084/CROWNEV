@@ -481,7 +481,7 @@ export async function createSaleInvoice(data: {
 
   if (receivedAmount > 0) {
     if (!data.receivedAccountId) {
-      throw new AppError(400, 'Select the bank or cash account the payment was received into');
+      throw new AppError(400, 'Select the account the payment was received into');
     }
     if (receivedAmount > subtotal) {
       throw new AppError(400, 'Received amount cannot exceed the invoice total');
