@@ -34,7 +34,7 @@ function rowInvoiceNumber(type: InvoiceSearchType, row: Row): string {
 
 export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [list, setList] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -214,13 +214,12 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {canEdit && (
+              {canEdit && canUpdate && (
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  disabled={!canUpdate || detailLoading}
-                  title={!canUpdate ? restrictedTitle : undefined}
+                  disabled={detailLoading}
                   onClick={() => {
                     const id = Number(matchedRow.id);
                     if (searchType === 'sale') setEditSaleId(id);
@@ -231,18 +230,20 @@ export function ViewInvoicePanel({ branchId }: { branchId: number | null }) {
                   Edit
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                loading={deleting}
-                disabled={!canDelete || detailLoading}
-                title={!canDelete ? restrictedTitle : 'Permanently delete invoice'}
-                onClick={handleDelete}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </Button>
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  loading={deleting}
+                  disabled={detailLoading}
+                  title="Permanently delete invoice"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
 

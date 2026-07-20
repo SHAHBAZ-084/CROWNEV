@@ -22,7 +22,7 @@ export function PosInvoiceRowActions({
   onChanged,
 }: Props) {
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -44,29 +44,28 @@ export function PosInvoiceRowActions({
       <Button size="sm" variant="secondary" onClick={onView}>
         View
       </Button>
-      {canEdit && onEdit && (
+      {canEdit && onEdit && canUpdate && (
         <Button
           size="sm"
           variant="secondary"
           onClick={onEdit}
-          disabled={!canUpdate}
-          title={!canUpdate ? restrictedTitle : undefined}
         >
           <Pencil className="mr-1 h-3.5 w-3.5" />
           Edit
         </Button>
       )}
-      <Button
-        size="sm"
-        variant="danger"
-        loading={deleting}
-        onClick={handleDelete}
-        disabled={!canDelete}
-        title={!canDelete ? restrictedTitle : 'Permanently delete invoice'}
-      >
-        <Trash2 className="mr-1 h-3.5 w-3.5" />
-        Delete
-      </Button>
+      {canDelete && (
+        <Button
+          size="sm"
+          variant="danger"
+          loading={deleting}
+          onClick={handleDelete}
+          title="Permanently delete invoice"
+        >
+          <Trash2 className="mr-1 h-3.5 w-3.5" />
+          Delete
+        </Button>
+      )}
     </div>
   );
 }

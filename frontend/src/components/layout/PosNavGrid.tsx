@@ -3,19 +3,15 @@ import { ChevronRight } from 'lucide-react';
 import { useMemo } from 'react';
 import { posSections } from '../../config/posNavigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { useBranchPermission } from '../../hooks/useBranchPermission';
+import { filterPosSections, useBranchPermission } from '../../hooks/useBranchPermission';
 
 export function PosNavGrid() {
   const { user } = useAuth();
-  const { canDelete } = useBranchPermission();
-  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const { permission } = useBranchPermission();
 
   const sections = useMemo(
-    () =>
-      canManageFinancialYear
-        ? posSections
-        : posSections.filter((section) => section.title !== 'Financial Year'),
-    [canManageFinancialYear],
+    () => filterPosSections(posSections, permission, user?.role),
+    [permission, user?.role],
   );
 
   return (

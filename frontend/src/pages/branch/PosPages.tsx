@@ -106,7 +106,7 @@ export function PosViewInvoicePage() {
 export function PosAccountsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canDelete, restrictedTitle } = useBranchPermission();
+  const { canDelete } = useBranchPermission();
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
   const [modal, setModal] = useState<'account' | 'category' | null>(null);
@@ -272,15 +272,17 @@ export function PosAccountsPage() {
                   </button>
                   <RowActions
                     deleteLabel="Delete"
-                    onDelete={() => {
-                      if (isProtectedCategory(r)) {
-                        toast(`The ${String(r.name)} category cannot be deleted`, 'error');
-                        return;
-                      }
-                      categoryDelete.setTarget(r);
-                    }}
-                    deleteDisabled={!canDelete}
-                    disabledTitle={restrictedTitle}
+                    onDelete={
+                      canDelete
+                        ? () => {
+                            if (isProtectedCategory(r)) {
+                              toast(`The ${String(r.name)} category cannot be deleted`, 'error');
+                              return;
+                            }
+                            categoryDelete.setTarget(r);
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               ),
@@ -329,9 +331,7 @@ export function PosAccountsPage() {
                   render: (r: Row) => (
                     <RowActions
                       deleteLabel="Delete"
-                      onDelete={() => accountDelete.setTarget(r)}
-                      deleteDisabled={!canDelete}
-                      disabledTitle={restrictedTitle}
+                      onDelete={canDelete ? () => accountDelete.setTarget(r) : undefined}
                     />
                   ),
                 }]
@@ -395,7 +395,7 @@ const entityTableColumns = (
   statusLabel: (r: Row) => string,
   onDelete: (r: Row) => void,
   deleteDisabled?: boolean,
-  disabledTitle?: string,
+  _disabledTitle?: string,
   onEdit?: (r: Row) => void,
   editDisabled?: boolean,
 ) => [
@@ -417,12 +417,9 @@ const entityTableColumns = (
     header: '',
     render: (r: Row) => (
       <RowActions
-        onEdit={onEdit ? () => onEdit(r) : undefined}
-        editDisabled={editDisabled}
+        onEdit={onEdit && !editDisabled ? () => onEdit(r) : undefined}
         deleteLabel="Delete"
-        onDelete={() => onDelete(r)}
-        deleteDisabled={deleteDisabled}
-        disabledTitle={disabledTitle}
+        onDelete={!deleteDisabled ? () => onDelete(r) : undefined}
       />
     ),
   },
@@ -3022,9 +3019,7 @@ function nextFiscalYearLabel(label: string): string {
 }
 
 export function FinancialYearPage() {
-  const { user } = useAuth();
-  const { canDelete, restrictedTitle } = useBranchPermission();
-  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const { canManageFinancialYear, restrictedTitle } = useBranchPermission();
   const branchId = useBranchId();
   const { toast } = useToast();
   const [years, setYears] = useState<FinancialYearRow[]>([]);
@@ -3188,9 +3183,7 @@ export function FinancialYearPage() {
 }
 
 export function FinancialYearLedgerReportPage() {
-  const { user } = useAuth();
-  const { canDelete, restrictedTitle } = useBranchPermission();
-  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const { canManageFinancialYear, restrictedTitle } = useBranchPermission();
   const branchId = useBranchId();
   const { financialYearId } = useParams<{ financialYearId: string }>();
   const { toast } = useToast();

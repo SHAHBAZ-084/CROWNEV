@@ -111,7 +111,7 @@ function orderRowCustomer(r: Row): string {
 
 export function BranchOrdersPage() {
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [orders, setOrders] = useState<Row[]>([]);
   const [detail, setDetail] = useState<Row | null>(null);
 
@@ -158,26 +158,25 @@ export function BranchOrdersPage() {
             render: (r) => (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>View</Button>
-                {r.status === 'AWAITING_PAYMENT' && (
+                {r.status === 'AWAITING_PAYMENT' && canUpdate && (
                   <Button
                     size="sm"
                     variant="accent"
-                    disabled={!canUpdate}
-                    title={!canUpdate ? restrictedTitle : undefined}
                     onClick={() => handleApproveOrder(Number(r.id))}
                   >
                     Approve
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="danger"
-                  disabled={!canDelete}
-                  title={!canDelete ? restrictedTitle : 'Permanently delete order'}
-                  onClick={() => orderDelete.setTarget(r)}
-                >
-                  Delete
-                </Button>
+                {canDelete && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    title="Permanently delete order"
+                    onClick={() => orderDelete.setTarget(r)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             ),
           },
@@ -258,7 +257,7 @@ type StockFilter = 'ALL' | 'BIKE' | 'PART' | 'LOW';
 export function BranchInventoryPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canDelete, restrictedTitle } = useBranchPermission();
+  const { canDelete } = useBranchPermission();
   const [items, setItems] = useState<StockRow[]>([]);
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [filter, setFilter] = useState<StockFilter>('ALL');
@@ -564,16 +563,16 @@ export function BranchInventoryPage() {
                         View
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!canDelete}
-                      title={!canDelete ? restrictedTitle : undefined}
-                      loading={togglingId === key}
-                      onClick={() => handleToggleSelect(row)}
-                    >
-                      Remove
-                    </Button>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        loading={togglingId === key}
+                        onClick={() => handleToggleSelect(row)}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
                 );
               },
@@ -665,7 +664,7 @@ function bookingRowCustomer(r: Row): string {
 export function BranchBookingsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [bookings, setBookings] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -783,11 +782,8 @@ export function BranchBookingsPage() {
             className: 'w-28',
             render: (r) => (
               <RowActions
-                onEdit={() => setEdit(r)}
-                editDisabled={!canUpdate}
-                onDelete={() => bookingDelete.setTarget(r)}
-                deleteDisabled={!canDelete}
-                disabledTitle={restrictedTitle}
+                onEdit={canUpdate ? () => setEdit(r) : undefined}
+                onDelete={canDelete ? () => bookingDelete.setTarget(r) : undefined}
               />
             ),
           },
@@ -833,7 +829,7 @@ export function BranchBookingsPage() {
 export function BranchServicesPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [services, setServices] = useState<Row[]>([]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -895,11 +891,8 @@ export function BranchServicesPage() {
             header: '',
             render: (r) => (
               <RowActions
-                onEdit={() => { setEdit(r); setModal('edit'); }}
-                editDisabled={!canUpdate}
-                onDelete={() => deactivate(Number(r.id))}
-                deleteDisabled={!canDelete}
-                disabledTitle={restrictedTitle}
+                onEdit={canUpdate ? () => { setEdit(r); setModal('edit'); } : undefined}
+                onDelete={canDelete ? () => deactivate(Number(r.id)) : undefined}
               />
             ),
           },
@@ -932,7 +925,7 @@ export function BranchServicesPage() {
 export function BranchSuppliersPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canUpdate, restrictedTitle } = useBranchPermission();
+  const { canUpdate } = useBranchPermission();
   const [suppliers, setSuppliers] = useState<Row[]>([]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [edit, setEdit] = useState<Row | null>(null);
@@ -980,9 +973,7 @@ export function BranchSuppliersPage() {
           { key: 'phone', header: 'Phone' },
           { key: 'actions', header: '', render: (r) => (
             <RowActions
-              onEdit={() => { setEdit(r); setModal('edit'); }}
-              editDisabled={!canUpdate}
-              disabledTitle={restrictedTitle}
+              onEdit={canUpdate ? () => { setEdit(r); setModal('edit'); } : undefined}
             />
           ) },
         ]}
@@ -1007,7 +998,7 @@ export function BranchSuppliersPage() {
 export function BranchAccountingPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canDelete, restrictedTitle } = useBranchPermission();
+  const { canDelete } = useBranchPermission();
   const [tab, setTab] = useState<'accounts' | 'vouchers' | 'banks' | 'trial'>('accounts');
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [vouchers, setVouchers] = useState<Row[]>([]);
@@ -1166,9 +1157,7 @@ export function BranchAccountingPage() {
               render: (r) => (
                 <RowActions
                   deleteLabel="Delete"
-                  onDelete={() => accountDelete.setTarget(r)}
-                  deleteDisabled={!canDelete}
-                  disabledTitle={restrictedTitle}
+                  onDelete={canDelete ? () => accountDelete.setTarget(r) : undefined}
                 />
               ),
             },
@@ -1587,7 +1576,7 @@ export function BranchReportsPage() {
 export function BranchPaymentsPage() {
   const branchId = useBranchId();
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [channels, setChannels] = useState<Row[]>([]);
   const [channelModal, setChannelModal] = useState<'create' | 'edit' | null>(null);
   const [editChannel, setEditChannel] = useState<Row | null>(null);
@@ -1661,11 +1650,8 @@ export function BranchPaymentsPage() {
               header: '',
               render: (r) => (
                 <RowActions
-                  onEdit={() => { setEditChannel(r); setChannelModal('edit'); }}
-                  editDisabled={!canUpdate}
-                  onDelete={() => handleDeleteChannel(Number(r.id))}
-                  deleteDisabled={!canDelete}
-                  disabledTitle={restrictedTitle}
+                  onEdit={canUpdate ? () => { setEditChannel(r); setChannelModal('edit'); } : undefined}
+                  onDelete={canDelete ? () => handleDeleteChannel(Number(r.id)) : undefined}
                 />
               ),
             },

@@ -5,7 +5,7 @@ import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardShell } from './DashboardShell';
 import { useAuth } from '../../contexts/AuthContext';
 import { posSections } from '../../config/posNavigation';
-import { useBranchPermission } from '../../hooks/useBranchPermission';
+import { filterPosSections, useBranchPermission } from '../../hooks/useBranchPermission';
 
 export { posSections };
 
@@ -20,15 +20,11 @@ export function openBranchWorkspace(path = '/branch/workspace/pos') {
 
 export function BranchWorkspaceLayout() {
   const { user, logout } = useAuth();
-  const { canDelete } = useBranchPermission();
-  const canManageFinancialYear = user?.role === 'ADMIN' || canDelete;
+  const { permission } = useBranchPermission();
 
   const sections = useMemo(
-    () =>
-      canManageFinancialYear
-        ? posSections
-        : posSections.filter((section) => section.title !== 'Financial Year'),
-    [canManageFinancialYear],
+    () => filterPosSections(posSections, permission, user?.role),
+    [permission, user?.role],
   );
 
   return (

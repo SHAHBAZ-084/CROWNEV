@@ -34,7 +34,6 @@ export function VoucherDetailCard({
   onUpdateAmount,
   cancelDisabled,
   updateDisabled,
-  disabledTitle,
 }: {
   voucher: Row;
   deleting: boolean;
@@ -43,7 +42,6 @@ export function VoucherDetailCard({
   onUpdateAmount?: (amount: number) => void | Promise<void>;
   cancelDisabled?: boolean;
   updateDisabled?: boolean;
-  disabledTitle?: string;
 }) {
   const voucherType = voucher.type as VoucherType;
   const status = String(voucher.status ?? 'ACTIVE');
@@ -129,31 +127,30 @@ export function VoucherDetailCard({
         </div>
         {!isCancelled && (
           <div className="flex flex-wrap items-center gap-2">
-            {onUpdateAmount && !editingAmount ? (
+            {onUpdateAmount && !editingAmount && !updateDisabled ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                disabled={updateDisabled}
-                title={updateDisabled ? disabledTitle : undefined}
                 onClick={startEditAmount}
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Update
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              loading={deleting}
-              disabled={cancelDisabled || editingAmount}
-              title={cancelDisabled ? disabledTitle : undefined}
-              onClick={onCancel}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Cancel
-            </Button>
+            {!cancelDisabled ? (
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                loading={deleting}
+                disabled={editingAmount}
+                onClick={onCancel}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Cancel
+              </Button>
+            ) : null}
           </div>
         )}
       </div>
@@ -230,7 +227,7 @@ export function ViewVoucherPanel({
   defaultType?: VoucherType | '';
 }) {
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
   const [vouchers, setVouchers] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -365,7 +362,6 @@ export function ViewVoucherPanel({
           onUpdateAmount={handleUpdateAmount}
           cancelDisabled={!canDelete}
           updateDisabled={!canUpdate}
-          disabledTitle={restrictedTitle}
         />
       )}
     </div>

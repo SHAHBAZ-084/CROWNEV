@@ -135,7 +135,7 @@ export function LegacyVoucherScreen({
   branchId: number | null;
 }) {
   const { toast } = useToast();
-  const { canUpdate, canDelete, restrictedTitle } = useBranchPermission();
+  const { canUpdate, canDelete } = useBranchPermission();
 
   const [accounts, setAccounts] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
@@ -442,7 +442,6 @@ export function LegacyVoucherScreen({
             onUpdateAmount={handleUpdateVoucherAmount}
             cancelDisabled={!canDelete}
             updateDisabled={!canUpdate}
-            disabledTitle={restrictedTitle}
           />
         )}
       </Modal>

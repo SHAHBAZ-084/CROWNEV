@@ -10,6 +10,7 @@ import { PublicLayout } from './components/layout/PublicLayout';
 import { CustomerOrPublicWrap } from './components/layout/CustomerOrPublicWrap';
 import { PageTransition, PageSuspense } from './components/layout/PageTransition';
 import { ProtectedRoute, GuestRoute } from './components/ProtectedRoute';
+import { RequireBranchPermission } from './components/RequireBranchPermission';
 import { ProductGridSkeleton } from './components/ui/Skeleton';
 import LoginPage from './pages/public/LoginPage';
 import RegisterPage from './pages/public/RegisterPage';
@@ -209,11 +210,15 @@ export default function App() {
                   <Route path="/branch/workspace/invoices/purchase" element={<DashWrap><PosPurchaseInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/service" element={<DashWrap><PosServiceInvoice /></DashWrap>} />
                   <Route path="/branch/workspace/invoices/view" element={<DashWrap><PosViewInvoice /></DashWrap>} />
-                  <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />
-                  <Route path="/branch/workspace/reports/trial-balance" element={<DashWrap><PosDetailTrialBalance /></DashWrap>} />
-                  <Route path="/branch/workspace/reports/profit-loss" element={<DashWrap><PosProfitLoss /></DashWrap>} />
-                  <Route path="/branch/workspace/financial-year" element={<DashWrap><FinancialYearPage /></DashWrap>} />
-                  <Route path="/branch/workspace/financial-year/:financialYearId/ledger" element={<DashWrap><FinancialYearLedgerReportPage /></DashWrap>} />
+                  <Route element={<RequireBranchPermission reports />}>
+                    <Route path="/branch/workspace/reports/ledger" element={<DashWrap><PosAccountLedger /></DashWrap>} />
+                    <Route path="/branch/workspace/reports/trial-balance" element={<DashWrap><PosDetailTrialBalance /></DashWrap>} />
+                    <Route path="/branch/workspace/reports/profit-loss" element={<DashWrap><PosProfitLoss /></DashWrap>} />
+                  </Route>
+                  <Route element={<RequireBranchPermission financialYear />}>
+                    <Route path="/branch/workspace/financial-year" element={<DashWrap><FinancialYearPage /></DashWrap>} />
+                    <Route path="/branch/workspace/financial-year/:financialYearId/ledger" element={<DashWrap><FinancialYearLedgerReportPage /></DashWrap>} />
+                  </Route>
                 </Route>
                 <Route path="/branch/pos" element={<Navigate to="/branch/workspace/pos" replace />} />
                 <Route path="/branch/workspace/orders" element={<Navigate to="/branch/orders" replace />} />
