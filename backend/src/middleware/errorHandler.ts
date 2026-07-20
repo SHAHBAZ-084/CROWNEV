@@ -16,6 +16,14 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
         res.status(409).json({ error: 'A customer with this CNIC already exists.' });
         return;
       }
+      if (fields.includes('branchId') && fields.includes('phone')) {
+        res.status(409).json({ error: 'A supplier with this phone number already exists.' });
+        return;
+      }
+      if (fields.includes('branchId') && fields.includes('name') && !fields.includes('code')) {
+        res.status(409).json({ error: 'A bank account with this name already exists in this branch.' });
+        return;
+      }
       if (fields.some((field) => String(field).includes('chassisNumber'))) {
         res.status(409).json({ error: 'Chassis number(s) already exist' });
         return;

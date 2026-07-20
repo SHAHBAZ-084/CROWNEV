@@ -593,6 +593,7 @@ model Supplier {
   purchases Purchase[]
   ledger    SupplierLedger[]
 
+  @@unique([branchId, phone])
   @@index([branchId])
 }
 
@@ -723,7 +724,7 @@ model Customer {
   type      CustomerType
   name      String
   fatherName String?
-  cnic      String?      @unique
+  cnic      String?
   phone     String?
   email     String?
   address   String?
@@ -738,6 +739,7 @@ model Customer {
   serviceInvoices ServiceInvoice[]
   ledger          CustomerLedger[]
 
+  @@unique([branchId, cnic])
   @@index([branchId])
   @@index([type])
 }
@@ -820,6 +822,7 @@ model BankAccount {
 
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
+  @@unique([branchId, name])
   @@index([branchId])
 }
 

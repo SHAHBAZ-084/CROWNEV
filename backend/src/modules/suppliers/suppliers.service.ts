@@ -1,6 +1,7 @@
 import { ChassisStatus, Prisma, ProductType, SupplierLedgerType, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { assertNoSupplierLedgerHistory } from '../../utils/entityGuards.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { addStockInTx, deductPartInventoryInTx } from '../inventory/inventory.service.js';
 import {
@@ -188,6 +189,16 @@ export async function createSupplier(data: {
   email?: string;
   address?: string;
 }) {
+  if (data.phone) {
+    const existing = await prisma.supplier.findFirst({
+      where: { branchId: data.branchId, phone: data.phone, isActive: true },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new AppError(409, 'A supplier with this phone number already exists.');
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.create({ data });
     await ensureSupplierAccount(tx, data.branchId, { id: supplier.id, name: supplier.name });
@@ -196,6 +207,16 @@ export async function createSupplier(data: {
 }
 
 export async function updateSupplier(id: number, branchId: number, data: Record<string, unknown>) {
+  if (typeof data.phone === 'string' && data.phone) {
+    const existing = await prisma.supplier.findFirst({
+      where: { branchId, phone: data.phone, isActive: true, NOT: { id } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new AppError(409, 'A supplier with this phone number already exists.');
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({ where: { id, branchId } });
     if (!supplier) throw new AppError(404, 'Supplier not found');
@@ -212,9 +233,10 @@ export async function softDeleteSupplier(id: number, branchId: number) {
     where: { id, branchId, isActive: true },
   });
   if (!supplier) throw new AppError(404, 'Supplier not found');
+  await assertNoSupplierLedgerHistory(id);
   return prisma.supplier.update({
     where: { id },
-    data: { isActive: false },
+    data: { isActive: false, phone: null },
   });
 }
 

@@ -1610,6 +1610,14 @@ export async function createBankAccount(data: {
   accountNumber?: string;
   openingBalance?: number;
 }) {
+  const existing = await prisma.bankAccount.findFirst({
+    where: { branchId: data.branchId, name: data.name },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new AppError(409, 'A bank account with this name already exists in this branch.');
+  }
+
   return prisma.bankAccount.create({
     data: {
       branchId: data.branchId,
@@ -1856,6 +1864,15 @@ export async function updateBankAccount(
 ) {
   const bank = await prisma.bankAccount.findFirst({ where: { id, branchId } });
   if (!bank) throw new AppError(404, 'Bank account not found');
+  if (data.name && data.name !== bank.name) {
+    const existing = await prisma.bankAccount.findFirst({
+      where: { branchId, name: data.name, NOT: { id } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new AppError(409, 'A bank account with this name already exists in this branch.');
+    }
+  }
   return prisma.bankAccount.update({ where: { id }, data });
 }
 

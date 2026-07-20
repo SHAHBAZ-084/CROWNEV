@@ -17,6 +17,8 @@
     "db:fix-firefly-name": "tsx scripts/fix-firefly-name.ts",
     "db:backfill-financial-years": "tsx scripts/backfill-financial-years.ts",
     "db:studio": "prisma studio",
+    "check:uniques": "tsx scripts/check-composite-uniques.ts",
+    "test": "vitest run",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -53,6 +55,7 @@
     "@types/uuid": "^10.0.0",
     "prisma": "^6.9.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

@@ -13,6 +13,7 @@ import {
   VoucherType,
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { assertNoCustomerLedgerHistory } from '../../utils/entityGuards.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
@@ -1058,7 +1059,7 @@ export async function createWalkInCustomer(data: {
   }
 
   const existing = await prisma.customer.findFirst({
-    where: { cnic },
+    where: { branchId: data.branchId, cnic, isActive: true },
     select: { id: true },
   });
   if (existing) {
@@ -1106,7 +1107,7 @@ export async function updateWalkInCustomer(
     }
 
     const existing = await prisma.customer.findFirst({
-      where: { cnic, NOT: { id } },
+      where: { branchId, cnic, isActive: true, NOT: { id } },
       select: { id: true },
     });
     if (existing) {
@@ -1165,9 +1166,10 @@ export async function softDeleteWalkInCustomer(id: number, branchId: number) {
     where: { id, branchId, isActive: true },
   });
   if (!customer) throw new AppError(404, 'Customer not found');
+  await assertNoCustomerLedgerHistory(id);
   return prisma.customer.update({
     where: { id },
-    data: { isActive: false },
+    data: { isActive: false, cnic: null },
   });
 }
 
