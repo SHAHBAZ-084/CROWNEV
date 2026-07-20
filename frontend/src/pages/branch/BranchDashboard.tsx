@@ -33,10 +33,35 @@ export default function BranchDashboard() {
 
   useEffect(() => {
     if (!user?.branchId) return;
-    Promise.all([
-      branchApi.dashboard(user.branchId),
-      branchApi.todayBookings(user.branchId),
-    ]).then(([d, t]) => { setData(d); setToday(t as unknown as Record<string, unknown>[]); }).catch(console.error);
+
+    const branchId = user.branchId;
+    const loadDashboard = () => {
+      Promise.all([
+        branchApi.dashboard(branchId),
+        branchApi.todayBookings(branchId),
+      ])
+        .then(([d, t]) => {
+          setData(d);
+          setToday(t as unknown as Record<string, unknown>[]);
+        })
+        .catch(console.error);
+    };
+
+    loadDashboard();
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadDashboard();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [user?.branchId]);
+
+  useEffect(() => {
+    if (!user?.branchId) return;
     branchApi.inventorySummary(user.branchId).then(setInventorySummary).catch(console.error);
   }, [user?.branchId]);
 

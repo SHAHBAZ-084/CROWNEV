@@ -133,12 +133,13 @@ export async function getAdminDashboard() {
           where: { status: 'CONFIRMED' },
           _sum: { total: true },
         }),
-        prisma.order.count(),
+        prisma.order.count({ where: { status: { not: OrderStatus.CANCELLED } } }),
         prisma.branch.count({ where: { isActive: true } }),
         countLowStockAlerts(),
         prisma.order.findMany({
+          where: { status: { not: OrderStatus.CANCELLED } },
           take: 10,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { invoiceDate: 'desc' },
           select: {
             id: true,
             publicId: true,

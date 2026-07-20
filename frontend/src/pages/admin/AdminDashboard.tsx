@@ -41,12 +41,31 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user || user.role !== 'ADMIN') return;
 
-    setLoadError('');
+    const loadDashboard = () => {
+      setLoadError('');
+      adminApi.dashboard().then(setData).catch((err) => {
+        console.error(err);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard');
+      });
+    };
+
+    loadDashboard();
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadDashboard();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'ADMIN') return;
+
     setRevenueLoading(true);
-    adminApi.dashboard().then(setData).catch((err) => {
-      console.error(err);
-      setLoadError(err instanceof Error ? err.message : 'Failed to load dashboard');
-    });
     adminApi
       .revenue(30)
       .then(setRevenue)

@@ -80,7 +80,9 @@ export async function listOrders(query: {
       ],
     }),
     ...(financialYearId != null && { financialYearId }),
-    ...(query.status && { status: query.status }),
+    ...(query.status
+      ? { status: query.status }
+      : { status: { not: OrderStatus.CANCELLED } }),
     ...(query.type && { type: query.type }),
     ...(query.userId && { userId: query.userId }),
     ...(query.paymentStatus && { paymentStatus: query.paymentStatus }),
@@ -168,6 +170,10 @@ export async function getOrderInvoice(id: number, userId?: string, branchId?: nu
     },
   });
   if (!order) throw new AppError(404, 'Order not found');
+
+  if (order.type === OrderType.POS && order.status === OrderStatus.CANCELLED) {
+    throw new AppError(404, 'Sale invoice not found');
+  }
 
   if (userId && order.userId !== userId) throw new AppError(403, 'Access denied');
 
@@ -1466,6 +1472,7 @@ export async function deleteSaleInvoice(
     },
   });
   if (!order) throw new AppError(404, 'Sale invoice not found');
+  if (order.status === OrderStatus.CANCELLED) throw new AppError(404, 'Sale invoice not found');
   if (!order.customerId) throw new AppError(400, 'Order has no customer ledger to update');
   await assertActiveFinancialYear(prisma, order.branchId, order.financialYearId);
 
@@ -1497,7 +1504,13 @@ export async function deleteSaleInvoice(
 
     await removeCustomerLedgerForOrderInTx(tx, order.id, order.customerId!);
 
-    await tx.order.delete({ where: { id: order.id } });
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatus.CANCELLED,
+        invoiceGeneratedAt: null,
+      },
+    });
   });
 }
 
