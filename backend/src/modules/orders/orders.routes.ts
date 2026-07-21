@@ -80,6 +80,7 @@ ordersRouter.get(
       page: req.query.page as string,
       limit: req.query.limit as string,
       search: req.query.search as string,
+      sort: req.query.sort as 'invoiceDate' | 'recent' | undefined,
       branchId,
       status: req.query.status as OrderStatus | undefined,
       type: req.query.type as OrderType | undefined,

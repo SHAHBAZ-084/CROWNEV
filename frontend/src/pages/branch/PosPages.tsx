@@ -46,6 +46,9 @@ import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData } from '../..
 
 type Row = Record<string, unknown>;
 
+/** Recent invoice tables on POS sale/purchase/service screens. */
+const RECENT_POS_INVOICES_LIMIT = '15';
+
 function useBranchId() {
   const { user } = useAuth();
   return user?.branchId ?? null;
@@ -958,7 +961,7 @@ export function PosSaleInvoicePage() {
 
   const reloadOrders = useCallback(() => {
     if (!branchId) return;
-    branchApi.orders({ type: 'POS', limit: '2' })
+    branchApi.orders({ type: 'POS', limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
       .then((r) => setOrders(r.data as unknown as Row[]))
       .catch(console.error);
   }, [branchId]);
@@ -1548,7 +1551,7 @@ export function PosPurchaseInvoicePage() {
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
-    branchApi.purchases(branchId, { limit: '2' })
+    branchApi.purchases(branchId, { limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
       .then((r) => setPurchases(r.data as Row[]))
       .catch(console.error);
   }, [branchId]);
@@ -2270,7 +2273,7 @@ export function PosServiceInvoicePage() {
 
   const reloadInvoices = useCallback(() => {
     if (!branchId) return;
-    branchApi.serviceInvoices(branchId, { limit: '5' })
+    branchApi.serviceInvoices(branchId, { limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
       .then((r) => setInvoices(r.data as unknown as Row[]))
       .catch(console.error);
   }, [branchId]);

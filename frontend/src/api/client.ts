@@ -776,7 +776,7 @@ export const branchApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  purchases: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
+  purchases: (branchId: number, params?: { limit?: string; page?: string; search?: string; sort?: string }) => {
     const q = new URLSearchParams({
       branchId: String(branchId),
       ...Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v)),
@@ -829,7 +829,7 @@ export const branchApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  serviceInvoices: (branchId: number, params?: { limit?: string; page?: string; search?: string }) => {
+  serviceInvoices: (branchId: number, params?: { limit?: string; page?: string; search?: string; sort?: string }) => {
     const q = new URLSearchParams({
       branchId: String(branchId),
       ...Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v)),

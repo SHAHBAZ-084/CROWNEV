@@ -14,7 +14,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { assertNoCustomerLedgerHistory } from '../../utils/entityGuards.js';
-import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { AppError, getInvoiceListOrderBy, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
@@ -59,6 +59,7 @@ export async function listOrders(query: {
   page?: string;
   limit?: string;
   search?: string;
+  sort?: 'invoiceDate' | 'recent';
   branchId?: number;
   status?: OrderStatus;
   type?: OrderType;
@@ -107,7 +108,7 @@ export async function listOrders(query: {
         customer: { select: { name: true, cnic: true, phone: true, type: true } },
         branch: { select: { name: true, location: true, phone: true } },
       },
-      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
+      orderBy: getInvoiceListOrderBy(query.sort),
     }),
     prisma.order.count({ where }),
   ]);

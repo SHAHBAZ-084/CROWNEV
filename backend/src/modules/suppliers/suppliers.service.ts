@@ -1,6 +1,6 @@
 import { ChassisStatus, Prisma, ProductType, SupplierLedgerType, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
-import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { AppError, getInvoiceListOrderBy, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import { assertNoSupplierLedgerHistory } from '../../utils/entityGuards.js';
 import { batterySpecsFromProduct } from '../../utils/productSpecs.js';
 import {
@@ -270,7 +270,7 @@ export async function softDeleteSupplier(id: number, branchId: number) {
 
 export async function listPurchases(
   branchId?: number,
-  query?: { page?: string; limit?: string; search?: string },
+  query?: { page?: string; limit?: string; search?: string; sort?: 'invoiceDate' | 'recent' },
 ) {
   const { page, limit, skip } = getPagination(query ?? {});
   const search = query?.search?.trim();
@@ -299,7 +299,7 @@ export async function listPurchases(
       skip,
       take: limit,
       include: { supplier: true, items: { include: { part: true, product: true } } },
-      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
+      orderBy: getInvoiceListOrderBy(query?.sort),
     }),
     prisma.purchase.count({ where }),
   ]);

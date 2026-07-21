@@ -1,6 +1,6 @@
 import { CustomerLedgerType, CustomerType, Prisma, ProductType, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
-import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
+import { AppError, getInvoiceListOrderBy, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import {
   createVoucherInTx,
   ensureCustomerAccount,
@@ -16,7 +16,7 @@ import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 
 export async function listServiceInvoices(
   branchId: number,
-  query: { page?: string; limit?: string; search?: string },
+  query: { page?: string; limit?: string; search?: string; sort?: 'invoiceDate' | 'recent' },
 ) {
   const { page, limit, skip } = getPagination(query);
   const search = query.search?.trim();
@@ -40,7 +40,7 @@ export async function listServiceInvoices(
       skip,
       take: limit,
       include: { customer: { select: { name: true } } },
-      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
+      orderBy: getInvoiceListOrderBy(query.sort),
     }),
     prisma.serviceInvoice.count({ where }),
   ]);
