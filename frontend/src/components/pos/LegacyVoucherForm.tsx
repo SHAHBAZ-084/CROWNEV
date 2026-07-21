@@ -11,6 +11,7 @@ import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
 import { TYPE_LABELS, VoucherDetailCard } from './ViewVoucherPanel';
+import { formatInvoiceListDate } from './InvoiceDateField';
 
 type Row = Record<string, unknown>;
 type VoucherType = 'RECEIPT' | 'PAYMENT' | 'JOURNAL';
@@ -390,7 +391,7 @@ export function LegacyVoucherScreen({
               render: (r) => voucherPartyLabel(r, variant),
             },
             { key: 'amount', header: 'Amount', render: (r) => formatPKR(Number(r.amount)) },
-            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            { key: 'createdAt', header: 'Date', render: (r) => formatInvoiceListDate(r) },
             {
               key: 'actions',
               header: '',

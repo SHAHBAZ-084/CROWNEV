@@ -17,8 +17,13 @@ export function InvoiceDateField({ value, onChange }: InvoiceDateFieldProps) {
   );
 }
 
-function formatInvoiceListDate(row: Record<string, unknown>) {
-  return String(row.invoiceDate ?? row.createdAt).slice(0, 10);
+export function formatIsoDateList(iso: string) {
+  const raw = iso.slice(0, 10);
+  const [y, m, d] = raw.split('-');
+  if (!y || !m || !d) return raw;
+  return `${d}-${m}-${y}`;
 }
 
-export { formatInvoiceListDate };
+export function formatInvoiceListDate(row: Record<string, unknown>) {
+  return formatIsoDateList(String(row.invoiceDate ?? row.createdAt));
+}

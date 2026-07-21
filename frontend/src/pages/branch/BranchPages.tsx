@@ -20,6 +20,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { formatProductMetaLine } from '../../lib/productMeta';
 import { useBranchPermission } from '../../hooks/useBranchPermission';
 import { PosNavGrid } from '../../components/layout/PosNavGrid';
+import { formatInvoiceListDate } from '../../components/pos/InvoiceDateField';
 import {
   exportSalesSummaryPdf,
   exportStockSummaryReport,
@@ -1159,7 +1160,7 @@ export function BranchAccountingPage() {
             { key: 'type', header: 'Type' },
             { key: 'amount', header: 'Amount', render: (r) => formatPKR(Number(r.amount)) },
             { key: 'description', header: 'Description' },
-            { key: 'createdAt', header: 'Date', render: (r) => String(r.createdAt).slice(0, 10) },
+            { key: 'createdAt', header: 'Date', render: (r) => formatInvoiceListDate(r) },
           ]} data={vouchers} />
         </>
       )}

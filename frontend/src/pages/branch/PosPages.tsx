@@ -151,10 +151,18 @@ export function PosAccountsPage() {
     setModal('account');
   }
 
-  function closeAccountModal() {
+  const closeAccountModal = useCallback(() => {
     setModal(null);
     setPresetCategoryId(null);
-  }
+  }, []);
+
+  const closeViewCategoryModal = useCallback(() => {
+    setViewCategory(null);
+  }, []);
+
+  const closeCategoryModal = useCallback(() => {
+    setModal(null);
+  }, []);
 
   const reload = useCallback(() => {
     if (!branchId) return;
@@ -301,7 +309,7 @@ export function PosAccountsPage() {
 
       <Modal
         open={!!viewCategory}
-        onClose={() => setViewCategory(null)}
+        onClose={closeViewCategoryModal}
         title={viewCategory ? `Accounts: ${String(viewCategory.name)}` : 'Accounts'}
         size="lg"
       >
@@ -378,7 +386,7 @@ export function PosAccountsPage() {
         </form>
       </Modal>
 
-      <Modal open={modal === 'category'} onClose={() => setModal(null)} title="Add Category">
+      <Modal open={modal === 'category'} onClose={closeCategoryModal} title="Add Category">
         <form onSubmit={handleCategory} className="space-y-4">
           <Input name="name" label="Category Name" required placeholder="e.g. Current Assets" />
           <FormActions onCancel={() => setModal(null)} loading={saving} />
@@ -537,7 +545,7 @@ export function PosCustomersPage() {
     setModal(true);
   }
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setModal(false);
     setEditing(null);
     setFirstName('');
@@ -545,7 +553,7 @@ export function PosCustomersPage() {
     setFatherName('');
     setCnic('');
     setCnicError('');
-  }
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -716,10 +724,10 @@ export function PosSuppliersPage() {
     setModal(true);
   }
 
-  function closeModal() {
+  const closeModal = useCallback(() => {
     setModal(false);
     setEditing(null);
-  }
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1224,6 +1232,15 @@ export function PosSaleInvoicePage() {
     }
   }
 
+  const closeInvoiceModal = useCallback(() => {
+    setInvoiceModal(null);
+    setInvoiceData(null);
+  }, []);
+
+  const closeEditOrderModal = useCallback(() => {
+    setEditOrderId(null);
+  }, []);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -1506,7 +1523,7 @@ export function PosSaleInvoicePage() {
 
       <Modal
         open={invoiceModal !== null}
-        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        onClose={closeInvoiceModal}
         title="Sale Invoice"
         size="lg"
         tallContent
@@ -1516,7 +1533,7 @@ export function PosSaleInvoicePage() {
       <SaleInvoiceEditModal
         open={editOrderId !== null}
         orderId={editOrderId}
-        onClose={() => setEditOrderId(null)}
+        onClose={closeEditOrderModal}
         onSaved={bumpInvoiceLists}
       />
       <WorkspaceCloseBar className="mt-8" />
@@ -1887,6 +1904,15 @@ export function PosPurchaseInvoicePage() {
     }
   }
 
+  const closeInvoiceModal = useCallback(() => {
+    setInvoiceModal(null);
+    setInvoiceData(null);
+  }, []);
+
+  const closeEditPurchaseModal = useCallback(() => {
+    setEditPurchaseId(null);
+  }, []);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -2231,7 +2257,7 @@ export function PosPurchaseInvoicePage() {
 
       <Modal
         open={invoiceModal !== null}
-        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        onClose={closeInvoiceModal}
         title="Purchase Invoice"
         size="lg"
         tallContent
@@ -2241,7 +2267,7 @@ export function PosPurchaseInvoicePage() {
       <PurchaseInvoiceEditModal
         open={editPurchaseId !== null}
         purchaseId={editPurchaseId}
-        onClose={() => setEditPurchaseId(null)}
+        onClose={closeEditPurchaseModal}
         onSaved={bumpInvoiceLists}
       />
       <WorkspaceCloseBar className="mt-8" />
@@ -2402,6 +2428,11 @@ export function PosServiceInvoicePage() {
       branchApi.customerLedger(branchId, parseInt(customerId, 10)).then(setCustomerLedger).catch(console.error);
     }
   }
+
+  const closeInvoiceModal = useCallback(() => {
+    setInvoiceModal(null);
+    setInvoiceData(null);
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -2691,7 +2722,7 @@ export function PosServiceInvoicePage() {
 
       <Modal
         open={invoiceModal !== null}
-        onClose={() => { setInvoiceModal(null); setInvoiceData(null); }}
+        onClose={closeInvoiceModal}
         title="Service Invoice"
         size="lg"
         tallContent
@@ -3149,6 +3180,10 @@ export function FinancialYearPage() {
 
   const nextLabel = activeYear ? nextFiscalYearLabel(activeYear.label) : '';
 
+  const closeConfirmModal = useCallback(() => {
+    if (!closing) setConfirmOpen(false);
+  }, [closing]);
+
   return (
     <div>
       <PageHeader
@@ -3231,7 +3266,7 @@ export function FinancialYearPage() {
 
       <Modal
         open={confirmOpen}
-        onClose={() => !closing && setConfirmOpen(false)}
+        onClose={closeConfirmModal}
         title="Save Financial Year"
       >
         <p className="text-sm text-text-muted leading-relaxed">

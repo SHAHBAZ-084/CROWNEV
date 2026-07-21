@@ -144,9 +144,11 @@ export function SearchSelect({
     const isHighlighted = index === highlightedIndex;
     const isSelected = option.value === value;
     return [
-      'w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle',
-      isHighlighted ? 'bg-subtle' : '',
-      isSelected ? 'font-medium text-ink' : 'text-ink',
+      'w-full truncate border-l-2 py-2.5 pl-3 pr-4 text-left text-sm transition-colors',
+      isHighlighted
+        ? 'border-accent bg-accent/15 font-medium text-accent'
+        : 'border-transparent hover:bg-subtle',
+      isSelected && !isHighlighted ? 'font-medium text-ink' : !isHighlighted ? 'text-ink' : '',
     ].join(' ');
   }
 

@@ -33,9 +33,17 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const hasFocusedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasFocusedRef.current = false;
+      return;
+    }
+    if (hasFocusedRef.current) return;
+    hasFocusedRef.current = true;
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
 
@@ -51,13 +59,22 @@ export function Modal({
       getFocusableElements(panel)[0]?.focus();
     });
 
+    return () => window.cancelAnimationFrame(focusTimer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
     function handleKeyDown(event: KeyboardEvent) {
       const trapPanel = panelRef.current;
       if (!trapPanel) return;
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -87,11 +104,14 @@ export function Modal({
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.cancelAnimationFrame(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocusedRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    previouslyFocusedRef.current?.focus?.();
+  }, [open]);
 
   return (
     <AnimatePresence>
