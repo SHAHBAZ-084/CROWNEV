@@ -221,7 +221,7 @@ export async function getBranchDashboard(branchId: number) {
     prisma.order.findMany({
       where: { branchId, status: { not: OrderStatus.CANCELLED } },
       take: 10,
-      orderBy: { invoiceDate: 'desc' },
+      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
       include: { user: { select: { firstName: true, lastName: true } } },
     }),
   ]);

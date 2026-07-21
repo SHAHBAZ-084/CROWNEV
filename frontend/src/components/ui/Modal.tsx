@@ -1,5 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useEffect, useId, useRef } from 'react';
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute('disabled') && el.offsetParent !== null,
+  );
+}
 
 export function Modal({
   open,
@@ -19,6 +29,66 @@ export function Modal({
 }) {
   const widths = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
   const shellMaxH = tallContent ? 'max-h-[95vh]' : 'max-h-[min(92vh,900px)]';
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const focusTimer = window.requestAnimationFrame(() => {
+      if (closeButtonRef.current) {
+        closeButtonRef.current.focus();
+        return;
+      }
+
+      getFocusableElements(panel)[0]?.focus();
+    });
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      const focusable = getFocusableElements(panel);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement;
+
+      if (event.shiftKey) {
+        if (active === first || !panel.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panel.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(focusTimer);
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
@@ -32,6 +102,10 @@ export function Modal({
             onClick={onClose}
           />
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -40,8 +114,16 @@ export function Modal({
           >
             {title && (
               <div className="flex shrink-0 items-center justify-between border-b border-border-light bg-elevated px-4 py-3 sm:px-6 sm:py-4">
-                <h2 className="font-display text-lg font-semibold text-ink sm:text-xl">{title}</h2>
-                <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-subtle">
+                <h2 id={titleId} className="font-display text-lg font-semibold text-ink sm:text-xl">
+                  {title}
+                </h2>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="rounded-lg p-1 hover:bg-subtle"
+                >
                   <X className="h-5 w-5 text-ink-muted" />
                 </button>
               </div>

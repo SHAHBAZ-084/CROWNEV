@@ -107,7 +107,7 @@ export async function listOrders(query: {
         customer: { select: { name: true, cnic: true, phone: true, type: true } },
         branch: { select: { name: true, location: true, phone: true } },
       },
-      orderBy: { invoiceDate: 'desc' },
+      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
     }),
     prisma.order.count({ where }),
   ]);
@@ -1587,7 +1587,7 @@ export async function listPartOrders(branchId?: number) {
       user: { select: { firstName: true, lastName: true, email: true, phone: true } },
       branch: { select: { name: true } },
     },
-    orderBy: { invoiceDate: 'desc' },
+    orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
     take: 200,
   });
 

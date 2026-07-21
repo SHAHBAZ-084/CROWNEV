@@ -299,7 +299,7 @@ export async function listPurchases(
       skip,
       take: limit,
       include: { supplier: true, items: { include: { part: true, product: true } } },
-      orderBy: { invoiceDate: 'desc' },
+      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
     }),
     prisma.purchase.count({ where }),
   ]);

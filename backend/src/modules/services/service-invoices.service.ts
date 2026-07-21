@@ -40,7 +40,7 @@ export async function listServiceInvoices(
       skip,
       take: limit,
       include: { customer: { select: { name: true } } },
-      orderBy: { invoiceDate: 'desc' },
+      orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
     }),
     prisma.serviceInvoice.count({ where }),
   ]);

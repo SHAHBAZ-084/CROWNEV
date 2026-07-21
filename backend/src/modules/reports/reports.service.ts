@@ -139,7 +139,7 @@ export async function getAdminDashboard() {
         prisma.order.findMany({
           where: { status: { not: OrderStatus.CANCELLED } },
           take: 10,
-          orderBy: { invoiceDate: 'desc' },
+          orderBy: [{ invoiceDate: 'desc' }, { id: 'desc' }],
           select: {
             id: true,
             publicId: true,

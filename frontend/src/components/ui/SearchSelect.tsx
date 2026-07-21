@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export interface SearchSelectOption {
@@ -54,13 +54,47 @@ export function SearchSelect({
 }: SearchSelectProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const wasOpenRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const selected = options.find((o) => o.value === value);
   const filtered = remoteSearch ? options : filterOptions(options, query);
   const trimmedQuery = query.trim();
   const displayValue = open ? query : (allowCustom ? value : (selected?.label ?? ''));
+
+  const navigableOptions = useMemo(() => {
+    if (filtered.length > 0) return filtered;
+    if (allowCustom && trimmedQuery) {
+      return [{ value: trimmedQuery, label: trimmedQuery }];
+    }
+    return [];
+  }, [filtered, allowCustom, trimmedQuery]);
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      const idx = navigableOptions.findIndex((o) => o.value === value);
+      setHighlightedIndex(idx >= 0 ? idx : 0);
+    }
+    wasOpenRef.current = open;
+  }, [open, navigableOptions, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    setHighlightedIndex((prev) => {
+      const max = navigableOptions.length - 1;
+      if (max < 0) return 0;
+      return Math.min(prev, max);
+    });
+  }, [navigableOptions.length, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = listRef.current?.querySelector(`[data-highlight-index="${highlightedIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex, open]);
 
   useEffect(() => {
     if (!open) {
@@ -97,6 +131,24 @@ export function SearchSelect({
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [query, commitValue]);
+
+  function moveHighlight(delta: number) {
+    if (navigableOptions.length === 0) return;
+    setHighlightedIndex((prev) => {
+      const next = prev + delta;
+      return Math.max(0, Math.min(next, navigableOptions.length - 1));
+    });
+  }
+
+  function optionButtonClass(option: SearchSelectOption, index: number) {
+    const isHighlighted = index === highlightedIndex;
+    const isSelected = option.value === value;
+    return [
+      'w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle',
+      isHighlighted ? 'bg-subtle' : '',
+      isSelected ? 'font-medium text-ink' : 'text-ink',
+    ].join(' ');
+  }
 
   function pick(option: SearchSelectOption) {
     if (option.value !== value) onChange(option.value);
@@ -142,6 +194,7 @@ export function SearchSelect({
             if (disabled) return;
             const next = e.target.value;
             setQuery(next);
+            setHighlightedIndex(0);
             setOpen(true);
             onQueryChange?.(next);
             if (allowCustom) {
@@ -156,12 +209,28 @@ export function SearchSelect({
               setOpen(false);
               setQuery(allowCustom ? value : (selected?.label ?? ''));
             }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+              moveHighlight(1);
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              if (!open) {
+                setOpen(true);
+                return;
+              }
+              moveHighlight(-1);
+            }
             if (e.key === 'Enter') {
               e.preventDefault();
               if (open) {
                 e.stopPropagation();
-                if (filtered.length > 0) {
-                  pick(filtered[0]);
+                if (navigableOptions.length > 0) {
+                  pick(navigableOptions[highlightedIndex]);
                   return;
                 }
                 if (allowCustom && trimmedQuery) {
@@ -176,15 +245,17 @@ export function SearchSelect({
         />
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-placeholder" />
         {open && (
-          <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border-light bg-elevated py-1 shadow-lg">
+          <ul ref={listRef} className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-border-light bg-elevated py-1 shadow-lg">
             {filtered.length === 0 ? (
               allowCustom && trimmedQuery ? (
                 <li>
                   <button
                     type="button"
+                    data-highlight-index={0}
                     onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setHighlightedIndex(0)}
                     onClick={() => pick({ value: trimmedQuery, label: trimmedQuery })}
-                    className="w-full px-4 py-2.5 text-left text-sm text-ink transition-colors hover:bg-subtle"
+                    className={optionButtonClass({ value: trimmedQuery, label: trimmedQuery }, 0)}
                   >
                     Use &ldquo;{trimmedQuery}&rdquo;
                   </button>
@@ -196,15 +267,15 @@ export function SearchSelect({
               )
             ) : (
               <>
-                {filtered.map((option) => (
+                {filtered.map((option, index) => (
                   <li key={option.value || '__empty'}>
                     <button
                       type="button"
+                      data-highlight-index={index}
                       onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setHighlightedIndex(index)}
                       onClick={() => pick(option)}
-                      className={`w-full truncate px-4 py-2.5 text-left text-sm transition-colors hover:bg-subtle ${
-                        option.value === value ? 'bg-subtle font-medium text-ink' : 'text-ink'
-                      }`}
+                      className={optionButtonClass(option, index)}
                       title={option.label}
                     >
                       {option.label}
