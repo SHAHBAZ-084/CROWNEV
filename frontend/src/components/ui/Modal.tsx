@@ -52,6 +52,9 @@ export function Modal({
     });
 
     function handleKeyDown(event: KeyboardEvent) {
+      const trapPanel = panelRef.current;
+      if (!trapPanel) return;
+
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
@@ -60,7 +63,7 @@ export function Modal({
 
       if (event.key !== 'Tab') return;
 
-      const focusable = getFocusableElements(panel);
+      const focusable = getFocusableElements(trapPanel);
       if (focusable.length === 0) {
         event.preventDefault();
         return;
@@ -71,11 +74,11 @@ export function Modal({
       const active = document.activeElement as HTMLElement;
 
       if (event.shiftKey) {
-        if (active === first || !panel.contains(active)) {
+        if (active === first || !trapPanel.contains(active)) {
           event.preventDefault();
           last.focus();
         }
-      } else if (active === last || !panel.contains(active)) {
+      } else if (active === last || !trapPanel.contains(active)) {
         event.preventDefault();
         first.focus();
       }
