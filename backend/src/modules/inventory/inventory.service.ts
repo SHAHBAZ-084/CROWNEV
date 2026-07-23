@@ -1,6 +1,10 @@
 import { Prisma, ProductType, StockAdjustmentReason } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { countInStockChassis } from '../chassis/chassis.service.js';
+import {
+  partItemCodeFromSpecs,
+  partModelFromSpecs,
+} from '../products/products.service.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
 export async function getBranchInventory(branchId: number, query: { page?: string; limit?: string; lowStock?: boolean }) {
@@ -211,14 +215,14 @@ export async function getBranchStock(branchId: number) {
       source: 'PRODUCT',
       id: product.id,
       name: product.name,
-      code: product.slug,
+      code: partItemCodeFromSpecs(product.specs) ?? product.slug,
       quantity,
       alertAt,
       isLowStock: quantity <= alertAt,
       isSelected: true,
       brand: product.brand?.name ?? null,
       category: product.category?.name ?? null,
-      model: product.model ?? null,
+      model: product.model ?? partModelFromSpecs(product.specs),
     });
   }
 
@@ -298,10 +302,25 @@ export async function getAdminInventorySummary() {
   return { branches: perBranch, grandTotalBikeUnits, grandTotalPartUnits };
 }
 
+async function findProductIdsByPartSpecsSearch(q: string): Promise<string[]> {
+  const pattern = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Product"
+    WHERE specs IS NOT NULL
+      AND (
+        specs->>'item_code' ILIKE ${pattern}
+        OR specs->>'model' ILIKE ${pattern}
+      )
+  `;
+  return rows.map((row) => row.id);
+}
+
 /** Search global catalog for products/parts not yet selected at this branch. */
 export async function searchBranchCatalog(branchId: number, search: string, limit = 10) {
   const q = search.trim();
   if (!q) return [] as BranchStockItem[];
+
+  const specMatchIds = await findProductIdsByPartSpecsSearch(q);
 
   const [products, serviceParts] = await Promise.all([
     prisma.product.findMany({
@@ -313,6 +332,8 @@ export async function searchBranchCatalog(branchId: number, search: string, limi
           { name: { contains: q, mode: 'insensitive' } },
           { description: { contains: q, mode: 'insensitive' } },
           { slug: { contains: q, mode: 'insensitive' } },
+          { model: { contains: q, mode: 'insensitive' } },
+          ...(specMatchIds.length ? [{ id: { in: specMatchIds } }] : []),
         ],
       },
       take: limit,
@@ -323,6 +344,7 @@ export async function searchBranchCatalog(branchId: number, search: string, limi
         slug: true,
         type: true,
         model: true,
+        specs: true,
         brand: { select: { name: true } },
         category: { select: { name: true } },
       },
@@ -348,14 +370,14 @@ export async function searchBranchCatalog(branchId: number, search: string, limi
     source: 'PRODUCT',
     id: p.id,
     name: p.name,
-    code: p.slug,
+    code: partItemCodeFromSpecs(p.specs) ?? p.slug,
     quantity: 0,
     alertAt: p.type === 'BIKE' ? BIKE_LOW_STOCK_THRESHOLD : 5,
     isLowStock: false,
     isSelected: false,
     brand: p.brand?.name ?? null,
     category: p.category?.name ?? null,
-    model: p.model ?? null,
+    model: p.model ?? partModelFromSpecs(p.specs),
   }));
 
   const serviceRows: BranchStockItem[] = serviceParts.map((part) => ({

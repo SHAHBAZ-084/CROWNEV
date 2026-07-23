@@ -10,6 +10,37 @@ import {
 
 const PUBLIC_HIDDEN_SPEC_KEYS = ['cp_price'] as const;
 
+export function partSpecString(specs: unknown, key: 'item_code' | 'model'): string | null {
+  if (!specs || typeof specs !== 'object' || Array.isArray(specs)) return null;
+  const value = (specs as Record<string, unknown>)[key];
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+export function partItemCodeFromSpecs(specs: unknown): string | null {
+  return partSpecString(specs, 'item_code');
+}
+
+export function partModelFromSpecs(specs: unknown): string | null {
+  return partSpecString(specs, 'model');
+}
+
+function resolveProductSlug(data: { name: string; type: ProductType; specs?: object }) {
+  if (data.type === ProductType.PART) {
+    const itemCode = partItemCodeFromSpecs(data.specs);
+    if (itemCode) return slugify(itemCode);
+  }
+  return slugify(data.name);
+}
+
+function resolveProductModel(data: { type: ProductType; model?: string; specs?: object }) {
+  if (data.type === ProductType.PART) {
+    return partModelFromSpecs(data.specs) ?? data.model ?? null;
+  }
+  return data.model ?? null;
+}
+
 function sanitizePublicSpecs(
   specs: Prisma.JsonValue | Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
@@ -404,9 +435,9 @@ export async function createProduct(
   },
   linkBranchId?: number
 ) {
-  const slug = slugify(data.name);
-  const existing = await prisma.product.findUnique({ where: { slug } });
-  const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
+  const slugBase = resolveProductSlug(data);
+  const existing = await prisma.product.findUnique({ where: { slug: slugBase } });
+  const finalSlug = existing ? `${slugBase}-${Date.now()}` : slugBase;
   const brandId = await resolveBrandId(data);
   const categoryId = await resolveCategoryId(data);
 
@@ -417,7 +448,7 @@ export async function createProduct(
       type: data.type,
       brandId,
       categoryId,
-      model: data.model,
+      model: resolveProductModel(data),
       listingOrder: data.listingOrder ?? 0,
       price: data.price,
       salePrice: data.salePrice,
