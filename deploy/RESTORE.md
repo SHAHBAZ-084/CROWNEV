@@ -45,12 +45,13 @@ Load `DATABASE_URL` from production env (or your target database):
 ```bash
 cd /var/www/crownev/backend
 set -a && source .env && set +a
+PG_URL="${DATABASE_URL%%\?*}"   # strip Prisma ?schema= param for psql/pg_dump
 ```
 
 **Full restore into the database pointed to by `DATABASE_URL`:**
 
 ```bash
-gunzip -c /tmp/crownev-restore/crownev_YYYY-MM-DD_HHMM.sql.gz | psql "${DATABASE_URL}"
+gunzip -c /tmp/crownev-restore/crownev_YYYY-MM-DD_HHMM.sql.gz | psql "${PG_URL}"
 ```
 
 This replaces all data in that database with the dump contents. Use only when you intend a full rollback.
@@ -74,9 +75,9 @@ dropdb crown_eve_restore_test
 ## 5. Verify restore worked
 
 ```bash
-psql "${DATABASE_URL}" -c "SELECT COUNT(*) AS orders FROM \"Order\";"
-psql "${DATABASE_URL}" -c "SELECT COUNT(*) AS products FROM \"Product\";"
-psql "${DATABASE_URL}" -c "SELECT id, email FROM \"User\" LIMIT 5;"
+psql "${PG_URL}" -c "SELECT COUNT(*) AS orders FROM \"Order\";"
+psql "${PG_URL}" -c "SELECT COUNT(*) AS products FROM \"Product\";"
+psql "${PG_URL}" -c "SELECT id, email FROM \"User\" LIMIT 5;"
 ```
 
 Compare row counts to expectations or to a pre-incident snapshot.

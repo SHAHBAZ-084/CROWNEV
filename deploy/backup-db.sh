@@ -24,13 +24,16 @@ set +a
 
 [[ -n "${DATABASE_URL:-}" ]] || die "DATABASE_URL not set in ${ENV_FILE}"
 
+# pg_dump does not accept Prisma's ?schema= query param
+PG_URL="${DATABASE_URL%%\?*}"
+
 mkdir -p "${BACKUP_DIR}"
 
 STAMP="$(date +%F_%H%M)"
 OUTFILE="${BACKUP_DIR}/crownev_${STAMP}.sql.gz"
 
 echo "${LOG_TAG} Dumping database to ${OUTFILE}"
-if ! pg_dump "${DATABASE_URL}" | gzip -c > "${OUTFILE}"; then
+if ! pg_dump "${PG_URL}" | gzip -c > "${OUTFILE}"; then
   rm -f "${OUTFILE}"
   die "pg_dump failed"
 fi
