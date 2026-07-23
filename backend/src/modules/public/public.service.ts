@@ -764,6 +764,25 @@ export const DEFAULT_FAQ_ITEMS: FaqItem[] = [
   },
 ];
 
+async function findPartIdsByModelFieldMatch(branchId: number, modelName: string): Promise<string[]> {
+  const normalized = modelName.trim();
+  if (!normalized) return [];
+
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT p.id FROM "Product" p
+    INNER JOIN "BranchProduct" bp ON bp."productId" = p.id
+    WHERE p.type = 'PART'::"ProductType"
+      AND p."isActive" = true
+      AND bp."branchId" = ${branchId}
+      AND bp."isListed" = true
+      AND (
+        lower(trim(p.model)) = lower(trim(${normalized}))
+        OR lower(trim(p.specs->>'model')) = lower(trim(${normalized}))
+      )
+  `;
+  return rows.map((row) => row.id);
+}
+
 export async function listPartsByModel(modelName: string) {
   const name = modelName.trim();
   if (!name) throw new AppError(400, 'model query parameter is required');
@@ -771,12 +790,17 @@ export async function listPartsByModel(modelName: string) {
   const { branchId } = await getPartsFulfillmentBranch();
   if (!branchId) return [];
 
+  const autoMatchIds = await findPartIdsByModelFieldMatch(branchId, name);
+
   const products = await prisma.product.findMany({
     where: {
       type: ProductType.PART,
       isActive: true,
       branchProducts: { some: { branchId, isListed: true } },
-      bikePartDetails: { some: modelCompatibilityFilter(name) },
+      OR: [
+        { bikePartDetails: { some: modelCompatibilityFilter(name) } },
+        ...(autoMatchIds.length ? [{ id: { in: autoMatchIds } }] : []),
+      ],
     },
     select: {
       id: true,
