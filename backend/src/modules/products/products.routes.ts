@@ -43,6 +43,7 @@ const productCreateSchema = z.object({
 
 const productUpdateSchema = productCreateSchema.partial().extend({
   isActive: z.boolean().optional(),
+  salePrice: priceField.nullable().optional(),
 });
 
 productsRouter.get(

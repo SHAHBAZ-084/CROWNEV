@@ -876,7 +876,10 @@ export function AdminProductsPage() {
 
     let body: Record<string, unknown>;
     try {
-      const salePrice = parseOptionalFormPrice(fd.get('salePrice'), 'Sale price');
+      const salePriceRaw = String(fd.get('salePrice') ?? '').trim();
+      const salePrice = salePriceRaw
+        ? parseOptionalFormPrice(fd.get('salePrice'), 'Sale price')
+        : null;
 
       // Upload newly added color-option images
       let updatedColorRows = [...colorRows];
@@ -921,7 +924,7 @@ export function AdminProductsPage() {
         type: productType,
         price: parseFormPrice(fd.get('price'), 'Price'),
         description: String(fd.get('description') || '').trim() || undefined,
-        ...(salePrice !== undefined && { salePrice }),
+        ...(modal === 'edit' ? { salePrice } : salePrice !== null ? { salePrice } : {}),
         ...(tab === 'bikes' && {
           specs: parseEvSpecsFromForm(fd),
           colorOptions: colorOptionsPayload,
