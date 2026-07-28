@@ -35,6 +35,7 @@ import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseIn
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
 import { PosInvoiceRowActions } from '../../components/pos/PosInvoiceRowActions';
 import { InvoiceDateField, formatInvoiceListDate } from '../../components/pos/InvoiceDateField';
+import { INVOICE_ACCOUNT_CELL_CLASS, INVOICE_HEADER_ROW_CLASS } from '../../components/pos/invoiceFormLayout';
 import { PurchaseInvoiceEditModal } from '../../components/pos/PurchaseInvoiceEditModal';
 import { SaleInvoiceEditModal } from '../../components/pos/SaleInvoiceEditModal';
 import {
@@ -1249,14 +1250,16 @@ export function PosSaleInvoicePage() {
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <CustomerAsyncSearchSelect
-            branchId={branchId}
-            label="Customer account"
-            value={customerId}
-            onChange={setCustomerId}
-            placeholder="Search customer…"
-          />
+        <div className={INVOICE_HEADER_ROW_CLASS}>
+          <div className={INVOICE_ACCOUNT_CELL_CLASS}>
+            <CustomerAsyncSearchSelect
+              branchId={branchId}
+              label="Customer account"
+              value={customerId}
+              onChange={setCustomerId}
+              placeholder="Search customer…"
+            />
+          </div>
           <Input
             label="Invoice #"
             value={nextInvoiceNo}
@@ -1945,14 +1948,16 @@ export function PosPurchaseInvoicePage() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SearchSelect
-            label="Supplier account"
-            value={supplierId}
-            onChange={setSupplierId}
-            options={supplierOptions}
-            placeholder="Search supplier…"
-          />
+        <div className={INVOICE_HEADER_ROW_CLASS}>
+          <div className={INVOICE_ACCOUNT_CELL_CLASS}>
+            <SearchSelect
+              label="Supplier account"
+              value={supplierId}
+              onChange={setSupplierId}
+              options={supplierOptions}
+              placeholder="Search supplier…"
+            />
+          </div>
           <Input
             label="Invoice #"
             value={nextInvoiceNo}
@@ -2508,14 +2513,16 @@ export function PosServiceInvoicePage() {
       />
 
       <form onSubmit={handleSubmit} className="rounded-[var(--radius-card)] border border-border bg-white p-6 shadow-sm">
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <CustomerAsyncSearchSelect
-            branchId={branchId}
-            label="Customer account"
-            value={customerId}
-            onChange={setCustomerId}
-            placeholder="Search customer…"
-          />
+        <div className={INVOICE_HEADER_ROW_CLASS}>
+          <div className={INVOICE_ACCOUNT_CELL_CLASS}>
+            <CustomerAsyncSearchSelect
+              branchId={branchId}
+              label="Customer account"
+              value={customerId}
+              onChange={setCustomerId}
+              placeholder="Search customer…"
+            />
+          </div>
           <Input
             label="Invoice #"
             value={nextInvoiceNo}
