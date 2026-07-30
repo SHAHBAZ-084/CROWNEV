@@ -387,13 +387,20 @@ accountingRouter.patch(
 accountingRouter.delete(
   '/:branchId/accounts/:id',
   requireBranchDeletePermission,
+  validateBody(
+    z.object({
+      password: z.string().min(1, 'Password is required to delete an account'),
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const branchId = parseInt(param(req.params.branchId), 10);
     assertBranch(req, branchId);
-    const account = await accountingService.softDeleteAccount(
+    const result = await accountingService.hardDeleteAccount(
       parseInt(param(req.params.id), 10),
       branchId,
+      req.user!.userId,
+      req.body.password,
     );
-    res.json(account);
+    res.json(result);
   })
 );

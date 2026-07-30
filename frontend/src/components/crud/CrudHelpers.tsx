@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { useToast } from '../../contexts/ToastContext';
 
 export function RowActions({
@@ -54,40 +55,74 @@ export function DeleteConfirm({
   onClose,
   onConfirm,
   loading,
+  requirePassword,
 }: {
   open: boolean;
   label: string;
   message?: string;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (password?: string) => void;
   loading?: boolean;
+  requirePassword?: boolean;
 }) {
+  const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (!open) setPassword('');
+  }, [open]);
+
+  const canConfirm = !requirePassword || password.trim().length > 0;
+
   return (
     <Modal open={open} onClose={onClose} title="Confirm delete" size="sm">
       <p className="text-sm text-ink-muted">
         {message ?? <>Delete <strong>{label}</strong>? This cannot be undone.</>}
       </p>
+      {requirePassword && (
+        <div className="mt-4">
+          <Input
+            label="Your password"
+            type="password"
+            passwordToggle
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            placeholder="Enter your password to confirm"
+          />
+        </div>
+      )}
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button variant="danger" loading={loading} onClick={onConfirm}>Delete</Button>
+        <Button
+          variant="danger"
+          loading={loading}
+          disabled={!canConfirm}
+          onClick={() => onConfirm(requirePassword ? password : undefined)}
+        >
+          Delete
+        </Button>
       </div>
     </Modal>
   );
 }
 
 export function useDeleteConfirm<T extends { id?: string | number; name?: string; email?: string }>(
-  onDelete: (item: T) => Promise<void>,
-  options?: { message?: (item: T) => string }
+  onDelete: (item: T, password?: string) => Promise<void>,
+  options?: { message?: (item: T) => string; requirePassword?: boolean }
 ) {
   const [target, setTarget] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  async function confirm() {
+  async function confirm(password?: string) {
     if (!target) return;
+    if (options?.requirePassword && !password?.trim()) {
+      toast('Password is required', 'error');
+      return;
+    }
     setLoading(true);
     try {
-      await onDelete(target);
+      await onDelete(target, password);
       setTarget(null);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Delete failed', 'error');
@@ -106,6 +141,7 @@ export function useDeleteConfirm<T extends { id?: string | number; name?: string
         open
         label={String((target as Record<string, unknown>).name ?? (target as Record<string, unknown>).email ?? target.id)}
         message={options?.message?.(target)}
+        requirePassword={options?.requirePassword}
         onClose={() => setTarget(null)}
         onConfirm={confirm}
         loading={loading}

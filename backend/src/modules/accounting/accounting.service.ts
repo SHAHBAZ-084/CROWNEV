@@ -1,5 +1,6 @@
 import { AccountType, FinancialYearStatus, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { comparePassword } from '../../utils/crypto.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
@@ -551,7 +552,7 @@ async function assertUniqueAccountName(branchId: number, name: string) {
   if (!trimmed) throw new AppError(400, 'Account name is required');
 
   const existing = await prisma.account.findFirst({
-    where: { branchId, name: { equals: trimmed, mode: 'insensitive' } },
+    where: { branchId, isActive: true, name: { equals: trimmed, mode: 'insensitive' } },
   });
   if (existing) {
     throw new AppError(400, `Account "${existing.name}" already exists`);
@@ -564,7 +565,7 @@ async function assertUniqueAccountCode(branchId: number, code: string) {
   if (!trimmed) throw new AppError(400, 'Account code is required');
 
   const existing = await prisma.account.findFirst({
-    where: { branchId, code: { equals: trimmed, mode: 'insensitive' } },
+    where: { branchId, isActive: true, code: { equals: trimmed, mode: 'insensitive' } },
   });
   if (existing) {
     throw new AppError(400, `Account code "${existing.code}" already exists`);
@@ -1671,7 +1672,7 @@ export async function deleteVoucher(branchId: number, voucherId: number, userId:
 
 export async function getTrialBalance(branchId: number) {
   const ledgers = await prisma.ledger.findMany({
-    where: { branchId },
+    where: { branchId, account: { isActive: true } },
     include: { account: true },
     orderBy: [{ account: { type: 'asc' } }, { account: { code: 'asc' } }],
   });
@@ -1986,16 +1987,100 @@ export async function updateAccount(
   return prisma.account.update({ where: { id }, data });
 }
 
-/** Soft-delete: hides account from lists; ledger entries are kept until vouchers are cancelled. */
-export async function softDeleteAccount(id: number, branchId: number) {
-  const account = await prisma.account.findFirst({ where: { id, branchId, isActive: true } });
+/**
+ * Permanently delete an account after password confirmation.
+ * Reverses opening-balance equity offsets, then removes ledger + account.
+ * Blocked when the account is referenced by vouchers.
+ */
+export async function hardDeleteAccount(
+  id: number,
+  branchId: number,
+  userId: string,
+  password: string,
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, 'Password verification is not available for this account');
+  }
+  const valid = await comparePassword(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
+  const account = await prisma.account.findFirst({
+    where: { id, branchId },
+    include: {
+      ledger: true,
+      _count: {
+        select: { debitVouchers: true, creditVouchers: true, closingBalances: true },
+      },
+    },
+  });
   if (!account) throw new AppError(404, 'Account not found');
   if (isInventoryAccountName(account.name)) {
     throw new AppError(400, 'The Inventory account cannot be deleted');
   }
-  return prisma.account.update({
-    where: { id },
-    data: { isActive: false },
-    include: { category: true, ledger: true },
+  if (account.name.trim().toLowerCase() === 'opening balance equity') {
+    throw new AppError(400, 'The Opening Balance Equity account cannot be deleted directly');
+  }
+  if (account._count.debitVouchers > 0 || account._count.creditVouchers > 0) {
+    throw new AppError(
+      400,
+      'This account has vouchers and cannot be deleted. Cancel related vouchers first.',
+    );
+  }
+  if (account._count.closingBalances > 0) {
+    throw new AppError(
+      400,
+      'This account has year-end closing balances and cannot be deleted.',
+    );
+  }
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const equity = await tx.account.findFirst({
+      where: {
+        branchId,
+        name: { equals: 'Opening Balance Equity', mode: 'insensitive' },
+      },
+      include: { ledger: true },
+    });
+
+    if (equity?.ledger) {
+      const offsetEntries = await tx.ledgerEntry.findMany({
+        where: {
+          ledgerId: equity.ledger.id,
+          notes: { contains: `offset for ${account.name}`, mode: 'insensitive' },
+        },
+      });
+
+      let equityBalance = Number(equity.ledger.balance);
+      for (const entry of offsetEntries) {
+        const amount = Number(entry.amount);
+        // Reverse the signed effect of the offset entry on equity balance
+        equityBalance += entry.type === LedgerEntryType.CREDIT ? amount : -amount;
+        await tx.ledgerEntry.delete({ where: { id: entry.id } });
+      }
+      if (offsetEntries.length > 0) {
+        await tx.ledger.update({
+          where: { id: equity.ledger.id },
+          data: { balance: equityBalance },
+        });
+      }
+
+      const remainingEquityEntries = await tx.ledgerEntry.count({
+        where: { ledgerId: equity.ledger.id },
+      });
+      if (remainingEquityEntries === 0 && !equity.isActive) {
+        await tx.ledger.delete({ where: { id: equity.ledger.id } });
+        await tx.account.delete({ where: { id: equity.id } });
+      }
+    }
+
+    if (account.ledger) {
+      await tx.ledgerEntry.deleteMany({ where: { ledgerId: account.ledger.id } });
+      await tx.ledger.delete({ where: { id: account.ledger.id } });
+    }
+    await tx.financialYearClosingBalance.deleteMany({ where: { accountId: id } });
+    await tx.account.delete({ where: { id } });
   });
+
+  return { id, deleted: true };
 }

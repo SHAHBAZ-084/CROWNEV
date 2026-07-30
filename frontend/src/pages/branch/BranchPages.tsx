@@ -1098,15 +1098,16 @@ export function BranchAccountingPage() {
   }
 
   const accountDelete = useDeleteConfirm<Row>(
-    async (row) => {
+    async (row, password) => {
       if (!branchId) return;
-      await branchApi.deleteAccount(branchId, Number(row.id));
-      toast('Account removed', 'success');
+      await branchApi.deleteAccount(branchId, Number(row.id), password ?? '');
+      toast('Account permanently deleted', 'success');
       reload();
     },
     {
+      requirePassword: true,
       message: (row) =>
-        `Remove account "${String(row.name)}" from the chart? Ledger entries will be kept; only voucher cancellation removes entries.`,
+        `Permanently delete account "${String(row.name)}"? This cannot be undone. Enter your password to confirm.`,
     },
   );
 
