@@ -14,12 +14,14 @@ import {
   getProfitLossReport,
   setChassisProfitSettled,
 } from '../src/modules/reports/reports.service.js';
+import { hashPassword } from '../src/utils/crypto.js';
 import { AppError } from '../src/utils/helpers.js';
 
 describe.skipIf(!process.env.DATABASE_URL)('chassis profit settled P&L', () => {
   const suffix = Date.now();
   const chassisA = `SETTLE-A-${suffix}`;
   const chassisB = `SETTLE-B-${suffix}`;
+  const correctPassword = `SettlePass-${suffix}!`;
 
   let branchAId: number;
   let branchBId: number;
@@ -64,7 +66,7 @@ describe.skipIf(!process.env.DATABASE_URL)('chassis profit settled P&L', () => {
         role: Role.BRANCH_OWNER,
         branchId: branchAId,
         isVerified: true,
-        passwordHash: 'unused',
+        passwordHash: await hashPassword(correctPassword),
       },
     });
     userId = user.id;
@@ -192,13 +194,19 @@ describe.skipIf(!process.env.DATABASE_URL)('chassis profit settled P&L', () => {
     await prisma.$disconnect();
   });
 
-  it('settles a chassis and excludes it from totalProfit while keeping it in items', async () => {
+  it('settles a chassis with correct password and excludes it from totalProfit', async () => {
     const before = await getProfitLossReport(branchAId, 'sale', {});
     const beforeItem = before.items.find((i) => i.chassisNumber === chassisA);
     expect(beforeItem?.settled).toBe(false);
     expect(before.totalProfit).toBeGreaterThanOrEqual(50000);
 
-    const updated = await setChassisProfitSettled(branchAId, [chassisA], true, userId);
+    const updated = await setChassisProfitSettled(
+      branchAId,
+      [chassisA],
+      true,
+      userId,
+      correctPassword,
+    );
     expect(updated).toBe(1);
 
     const after = await getProfitLossReport(branchAId, 'sale', {});
@@ -209,12 +217,29 @@ describe.skipIf(!process.env.DATABASE_URL)('chassis profit settled P&L', () => {
     expect(after.settledProfit).toBeGreaterThanOrEqual(afterItem!.profit);
   });
 
+  it('rejects wrong password with 401 and leaves chassis unsettled', async () => {
+    await setChassisProfitSettled(branchAId, [chassisA], false, userId, correctPassword);
+
+    await expect(
+      setChassisProfitSettled(branchAId, [chassisA], true, userId, 'wrong-password'),
+    ).rejects.toMatchObject({ statusCode: 401, message: 'Current password is incorrect' });
+
+    const after = await getProfitLossReport(branchAId, 'sale', {});
+    expect(after.items.find((i) => i.chassisNumber === chassisA)?.settled).toBe(false);
+  });
+
   it('unsettles a chassis and includes it in totalProfit again', async () => {
-    await setChassisProfitSettled(branchAId, [chassisA], true, userId);
+    await setChassisProfitSettled(branchAId, [chassisA], true, userId, correctPassword);
     const settled = await getProfitLossReport(branchAId, 'sale', {});
     const settledProfit = settled.totalProfit;
 
-    const updated = await setChassisProfitSettled(branchAId, [chassisA], false, userId);
+    const updated = await setChassisProfitSettled(
+      branchAId,
+      [chassisA],
+      false,
+      userId,
+      correctPassword,
+    );
     expect(updated).toBe(1);
 
     const unsettled = await getProfitLossReport(branchAId, 'sale', {});
@@ -224,10 +249,12 @@ describe.skipIf(!process.env.DATABASE_URL)('chassis profit settled P&L', () => {
   });
 
   it('rejects settling a chassis from another branch', async () => {
-    await expect(setChassisProfitSettled(branchAId, [chassisB], true, userId)).rejects.toBeInstanceOf(
-      AppError,
-    );
-    await expect(setChassisProfitSettled(branchAId, [chassisB], true, userId)).rejects.toMatchObject({
+    await expect(
+      setChassisProfitSettled(branchAId, [chassisB], true, userId, correctPassword),
+    ).rejects.toBeInstanceOf(AppError);
+    await expect(
+      setChassisProfitSettled(branchAId, [chassisB], true, userId, correctPassword),
+    ).rejects.toMatchObject({
       statusCode: 400,
     });
   });

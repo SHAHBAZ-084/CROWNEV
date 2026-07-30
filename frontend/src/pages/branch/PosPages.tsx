@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { branchApi } from '../../api/client';
+import { branchApi, ApiError } from '../../api/client';
 import { useToast } from '../../contexts/ToastContext';
 import { LegacyVoucherScreen } from '../../components/pos/LegacyVoucherForm';
 import { ViewVoucherPanel } from '../../components/pos/ViewVoucherPanel';
@@ -3573,6 +3573,9 @@ export function PosProfitLossPage() {
   const [loading, setLoading] = useState(false);
   const [selectedSettled, setSelectedSettled] = useState<Set<string>>(new Set());
   const [savingSettled, setSavingSettled] = useState(false);
+  const [settleModalOpen, setSettleModalOpen] = useState(false);
+  const [settlePassword, setSettlePassword] = useState('');
+  const [settlePasswordError, setSettlePasswordError] = useState('');
 
   const canManageSettled = user?.role === 'ADMIN' || user?.role === 'BRANCH_OWNER';
 
@@ -3615,8 +3618,8 @@ export function PosProfitLossPage() {
     });
   }
 
-  async function saveSettledStatus() {
-    if (!branchId || !report || report.revenueType !== 'sale') return;
+  function getSettledDiff() {
+    if (!report || report.revenueType !== 'sale') return { toSettle: [] as string[], toUnsettle: [] as string[] };
     const toSettle: string[] = [];
     const toUnsettle: string[] = [];
     for (const item of report.items) {
@@ -3624,18 +3627,60 @@ export function PosProfitLossPage() {
       if (checked && !item.settled) toSettle.push(item.chassisNumber);
       if (!checked && item.settled) toUnsettle.push(item.chassisNumber);
     }
+    return { toSettle, toUnsettle };
+  }
+
+  function openSettleModal() {
+    const { toSettle, toUnsettle } = getSettledDiff();
     if (!toSettle.length && !toUnsettle.length) {
       toast('No changes to save', 'info');
       return;
     }
+    setSettlePassword('');
+    setSettlePasswordError('');
+    setSettleModalOpen(true);
+  }
+
+  function closeSettleModal() {
+    if (savingSettled) return;
+    setSettleModalOpen(false);
+    setSettlePassword('');
+    setSettlePasswordError('');
+  }
+
+  async function confirmSettleWithPassword(e?: FormEvent) {
+    e?.preventDefault();
+    if (!branchId || !report || report.revenueType !== 'sale') return;
+    const password = settlePassword;
+    if (!password.trim()) {
+      setSettlePasswordError('Enter your account password to confirm');
+      return;
+    }
+    const { toSettle, toUnsettle } = getSettledDiff();
+    if (!toSettle.length && !toUnsettle.length) {
+      closeSettleModal();
+      toast('No changes to save', 'info');
+      return;
+    }
+
     setSavingSettled(true);
+    setSettlePasswordError('');
     try {
-      if (toSettle.length) await branchApi.setProfitSettled(branchId, toSettle, true);
-      if (toUnsettle.length) await branchApi.setProfitSettled(branchId, toUnsettle, false);
+      if (toSettle.length) await branchApi.setProfitSettled(branchId, toSettle, true, password);
+      if (toUnsettle.length) await branchApi.setProfitSettled(branchId, toUnsettle, false, password);
+      setSettleModalOpen(false);
+      setSettlePassword('');
       toast('Settled status saved', 'success');
       await generateReport();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to save settled status', 'error');
+      const message = err instanceof Error ? err.message : 'Failed to save settled status';
+      const status = err instanceof ApiError ? err.status : 0;
+      if (status === 401) {
+        setSettlePasswordError(message || 'Current password is incorrect');
+        setSettlePassword('');
+      } else {
+        toast(message, 'error');
+      }
     } finally {
       setSavingSettled(false);
     }
@@ -3692,7 +3737,7 @@ export function PosProfitLossPage() {
         <>
           <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
             {canManageSettled && revenueType === 'sale' && (
-              <Button type="button" variant="accent" size="sm" loading={savingSettled} onClick={saveSettledStatus}>
+              <Button type="button" variant="accent" size="sm" onClick={openSettleModal}>
                 Save settled status
               </Button>
             )}
@@ -3816,6 +3861,37 @@ export function PosProfitLossPage() {
             </div>
           )}
         </>
+      )}
+
+      {canManageSettled && (
+        <Modal open={settleModalOpen} onClose={closeSettleModal} title="Confirm settled status" size="sm">
+          <form onSubmit={confirmSettleWithPassword} className="space-y-4">
+            <p className="text-sm text-text-muted">
+              Enter your account password to save profit settled changes. Sale records stay intact;
+              only P&amp;L totals are updated.
+            </p>
+            <Input
+              label="Your password"
+              type="password"
+              passwordToggle
+              value={settlePassword}
+              onChange={(e) => {
+                setSettlePassword(e.target.value);
+                if (settlePasswordError) setSettlePasswordError('');
+              }}
+              autoComplete="current-password"
+              error={settlePasswordError || undefined}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={closeSettleModal} disabled={savingSettled}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="accent" loading={savingSettled}>
+                Confirm &amp; save
+              </Button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       <WorkspaceCloseBar className="mt-8" />

@@ -28,11 +28,32 @@ const AUTH_401_SKIP = [
   '/auth/reset-password',
   '/auth/verify-otp',
   '/auth/me',
+  '/auth/change-password',
+  '/auth/delete-account',
 ];
+
+/** Password re-confirm endpoints return 401 for wrong password without ending the session. */
+const PASSWORD_CONFIRM_401_SKIP = [
+  '/reports/profit-loss/settle',
+];
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 function shouldForceLogoutOn401(path: string, hadToken: boolean) {
   if (!hadToken) return false;
-  return !AUTH_401_SKIP.some((prefix) => path.startsWith(prefix));
+  const pathname = path.split('?')[0] ?? path;
+  if (AUTH_401_SKIP.some((prefix) => pathname.startsWith(prefix))) return false;
+  if (PASSWORD_CONFIRM_401_SKIP.some((prefix) => pathname.startsWith(prefix))) return false;
+  if (/^\/branches\/\d+\/clear-data$/.test(pathname)) return false;
+  if (/^\/branches\/\d+$/.test(pathname)) return false; // delete branch password confirm
+  return true;
 }
 
 function notifyUnauthorized() {
@@ -71,9 +92,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       const message = err.error ?? err.message ?? 'Request failed';
       if (Array.isArray(err.details)) {
-        throw new Error(err.details.join(', ') || message);
+        throw new ApiError(err.details.join(', ') || message, res.status);
       }
-      throw new Error(typeof message === 'string' ? message : 'Request failed');
+      throw new ApiError(typeof message === 'string' ? message : 'Request failed', res.status);
     }
     if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
@@ -951,10 +972,10 @@ export const branchApi = {
     api<unknown>(`/reports/profit-loss/${branchId}?${new URLSearchParams(
       Object.entries(params).filter(([, v]) => v) as [string, string][],
     )}`),
-  setProfitSettled: (branchId: number, chassisNumbers: string[], settled: boolean) =>
+  setProfitSettled: (branchId: number, chassisNumbers: string[], settled: boolean, password: string) =>
     api<{ updated: number }>(`/reports/profit-loss/settle?branchId=${branchId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ chassisNumbers, settled }),
+      body: JSON.stringify({ chassisNumbers, settled, password }),
     }),
   bikeDocuments: (branchId: number, params?: { search?: string; status?: string }) => {
     const q = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v));

@@ -191,6 +191,7 @@ reportsRouter.patch(
     z.object({
       chassisNumbers: z.array(z.string().min(1)).min(1),
       settled: z.boolean(),
+      password: z.string().min(1, 'Password is required'),
     }),
   ),
   asyncHandler(async (req, res) => {
@@ -204,6 +205,7 @@ reportsRouter.patch(
       req.body.chassisNumbers,
       req.body.settled,
       req.user!.userId,
+      req.body.password,
     );
     res.json({ updated });
   }),

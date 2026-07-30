@@ -1,5 +1,6 @@
 import { OrderStatus, OrderType, Prisma, ChassisStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { comparePassword } from '../../utils/crypto.js';
 import { AppError } from '../../utils/helpers.js';
 import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
@@ -445,7 +446,15 @@ export async function setChassisProfitSettled(
   chassisNumbers: string[],
   settled: boolean,
   userId: string,
+  password: string,
 ) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, 'Password verification is not available for this account');
+  }
+  const valid = await comparePassword(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
   const uniqueNumbers = [...new Set(chassisNumbers.map((n) => n.trim()).filter(Boolean))];
   if (uniqueNumbers.length === 0) {
     throw new AppError(400, 'At least one chassis number is required');
