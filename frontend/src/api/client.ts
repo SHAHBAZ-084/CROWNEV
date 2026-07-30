@@ -951,6 +951,11 @@ export const branchApi = {
     api<unknown>(`/reports/profit-loss/${branchId}?${new URLSearchParams(
       Object.entries(params).filter(([, v]) => v) as [string, string][],
     )}`),
+  setProfitSettled: (branchId: number, chassisNumbers: string[], settled: boolean) =>
+    api<{ updated: number }>(`/reports/profit-loss/settle?branchId=${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ chassisNumbers, settled }),
+    }),
   bikeDocuments: (branchId: number, params?: { search?: string; status?: string }) => {
     const q = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v));
     const qs = q.toString() ? `?${q}` : '';

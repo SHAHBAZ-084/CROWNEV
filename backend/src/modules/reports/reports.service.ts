@@ -1,5 +1,6 @@
 import { OrderStatus, OrderType, Prisma, ChassisStatus } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { AppError } from '../../utils/helpers.js';
 import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -407,13 +408,17 @@ export async function getProfitLossReport(
         purchasePrice,
         profit: salePrice - purchasePrice,
         date: c.saleOrderItem?.order.invoiceDate,
+        settled: c.profitSettledAt !== null,
       };
     });
 
-    const totalRevenue = items.reduce((s, i) => s + i.salePrice, 0);
-    const totalProfit = items.reduce((s, i) => s + i.profit, 0);
+    const unsettled = items.filter((i) => !i.settled);
+    const settledItems = items.filter((i) => i.settled);
+    const totalRevenue = unsettled.reduce((s, i) => s + i.salePrice, 0);
+    const totalProfit = unsettled.reduce((s, i) => s + i.profit, 0);
+    const settledProfit = settledItems.reduce((s, i) => s + i.profit, 0);
 
-    return { revenueType, items, totalRevenue, totalProfit };
+    return { revenueType, items, totalRevenue, totalProfit, settledProfit };
   }
 
   const invoices = await prisma.serviceInvoice.findMany({
@@ -433,4 +438,43 @@ export async function getProfitLossReport(
   const totalRevenue = invoices.reduce((s, i) => s + Number(i.total), 0);
 
   return { revenueType, items: [], totalRevenue, totalProfit: totalRevenue, count: invoices.length };
+}
+
+export async function setChassisProfitSettled(
+  branchId: number,
+  chassisNumbers: string[],
+  settled: boolean,
+  userId: string,
+) {
+  const uniqueNumbers = [...new Set(chassisNumbers.map((n) => n.trim()).filter(Boolean))];
+  if (uniqueNumbers.length === 0) {
+    throw new AppError(400, 'At least one chassis number is required');
+  }
+
+  const rows = await prisma.bikeChassisNumber.findMany({
+    where: {
+      chassisNumber: { in: uniqueNumbers },
+      branchId,
+      status: ChassisStatus.SOLD,
+    },
+    select: { id: true, chassisNumber: true },
+  });
+
+  if (rows.length !== uniqueNumbers.length) {
+    const found = new Set(rows.map((r) => r.chassisNumber));
+    const missing = uniqueNumbers.filter((n) => !found.has(n));
+    throw new AppError(
+      400,
+      `Chassis not found as sold in this branch: ${missing.join(', ')}`,
+    );
+  }
+
+  const result = await prisma.bikeChassisNumber.updateMany({
+    where: { id: { in: rows.map((r) => r.id) } },
+    data: settled
+      ? { profitSettledAt: new Date(), profitSettledById: userId }
+      : { profitSettledAt: null, profitSettledById: null },
+  });
+
+  return result.count;
 }

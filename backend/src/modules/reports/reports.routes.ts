@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
-import { asyncHandler } from '../../utils/helpers.js';
+import { z } from 'zod';
+import { asyncHandler, validateBody } from '../../utils/helpers.js';
 import { csvResponse, toCsv } from '../../utils/export.js';
 import { authenticate, requireBranchReportPermission, requireRoles } from '../../middleware/auth.js';
 import * as reportsService from './reports.service.js';
@@ -9,6 +10,14 @@ import * as accountingService from '../accounting/accounting.service.js';
 export const reportsRouter = Router();
 
 reportsRouter.use(authenticate);
+
+function resolveBranchId(req: import('express').Request): number | undefined {
+  return req.user!.role === Role.BRANCH_OWNER
+    ? req.user!.branchId ?? undefined
+    : req.query.branchId
+      ? parseInt(req.query.branchId as string, 10)
+      : undefined;
+}
 
 reportsRouter.get(
   '/admin/dashboard',
@@ -171,5 +180,31 @@ reportsRouter.get(
       to: req.query.to as string | undefined,
     });
     res.json(report);
+  }),
+);
+
+reportsRouter.patch(
+  '/profit-loss/settle',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  requireBranchReportPermission,
+  validateBody(
+    z.object({
+      chassisNumbers: z.array(z.string().min(1)).min(1),
+      settled: z.boolean(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const branchId = resolveBranchId(req);
+    if (branchId === undefined || !Number.isFinite(branchId)) {
+      res.status(400).json({ error: 'Branch required' });
+      return;
+    }
+    const updated = await reportsService.setChassisProfitSettled(
+      branchId,
+      req.body.chassisNumbers,
+      req.body.settled,
+      req.user!.userId,
+    );
+    res.json({ updated });
   }),
 );

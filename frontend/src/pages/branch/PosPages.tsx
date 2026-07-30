@@ -3549,6 +3549,7 @@ type ProfitLossItem = {
   salePrice: number;
   purchasePrice: number;
   profit: number;
+  settled: boolean;
 };
 
 type ProfitLossReport = {
@@ -3556,11 +3557,13 @@ type ProfitLossReport = {
   items: ProfitLossItem[];
   totalRevenue: number;
   totalProfit: number;
+  settledProfit?: number;
   count?: number;
 };
 
 export function PosProfitLossPage() {
   const branchId = useBranchId();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [revenueType, setRevenueType] = useState<'sale' | 'service'>('sale');
   const [fromDate, setFromDate] = useState('');
@@ -3568,6 +3571,10 @@ export function PosProfitLossPage() {
   const [expense, setExpense] = useState('');
   const [report, setReport] = useState<ProfitLossReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedSettled, setSelectedSettled] = useState<Set<string>>(new Set());
+  const [savingSettled, setSavingSettled] = useState(false);
+
+  const canManageSettled = user?.role === 'ADMIN' || user?.role === 'BRANCH_OWNER';
 
   const expenseAmount = parseFloat(expense) || 0;
   const netProfit = report
@@ -3583,12 +3590,54 @@ export function PosProfitLossPage() {
         ...(fromDate ? { from: fromDate } : {}),
         ...(toDate ? { to: toDate } : {}),
       });
-      setReport(data as ProfitLossReport);
+      const next = data as ProfitLossReport;
+      setReport(next);
+      if (next.revenueType === 'sale') {
+        setSelectedSettled(new Set(next.items.filter((i) => i.settled).map((i) => i.chassisNumber)));
+      } else {
+        setSelectedSettled(new Set());
+      }
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to generate report', 'error');
       setReport(null);
+      setSelectedSettled(new Set());
     } finally {
       setLoading(false);
+    }
+  }
+
+  function toggleSettledSelection(chassisNumber: string) {
+    setSelectedSettled((prev) => {
+      const next = new Set(prev);
+      if (next.has(chassisNumber)) next.delete(chassisNumber);
+      else next.add(chassisNumber);
+      return next;
+    });
+  }
+
+  async function saveSettledStatus() {
+    if (!branchId || !report || report.revenueType !== 'sale') return;
+    const toSettle: string[] = [];
+    const toUnsettle: string[] = [];
+    for (const item of report.items) {
+      const checked = selectedSettled.has(item.chassisNumber);
+      if (checked && !item.settled) toSettle.push(item.chassisNumber);
+      if (!checked && item.settled) toUnsettle.push(item.chassisNumber);
+    }
+    if (!toSettle.length && !toUnsettle.length) {
+      toast('No changes to save', 'info');
+      return;
+    }
+    setSavingSettled(true);
+    try {
+      if (toSettle.length) await branchApi.setProfitSettled(branchId, toSettle, true);
+      if (toUnsettle.length) await branchApi.setProfitSettled(branchId, toUnsettle, false);
+      toast('Settled status saved', 'success');
+      await generateReport();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to save settled status', 'error');
+    } finally {
+      setSavingSettled(false);
     }
   }
 
@@ -3617,6 +3666,7 @@ export function PosProfitLossPage() {
           onChange={(e) => {
             setRevenueType(e.target.value as 'sale' | 'service');
             setReport(null);
+            setSelectedSettled(new Set());
           }}
         >
           <option value="sale">Sale Revenue</option>
@@ -3641,6 +3691,11 @@ export function PosProfitLossPage() {
       {report && (
         <>
           <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+            {canManageSettled && revenueType === 'sale' && (
+              <Button type="button" variant="accent" size="sm" loading={savingSettled} onClick={saveSettledStatus}>
+                Save settled status
+              </Button>
+            )}
             <Button type="button" variant="secondary" size="sm" onClick={handleExportPdf}>
               <FileText className="h-3.5 w-3.5" />
               Download PDF
@@ -3651,16 +3706,72 @@ export function PosProfitLossPage() {
             <>
               <DataTable
                 columns={[
-                  { key: 'modelName', header: 'Model' },
-                  { key: 'chassisNumber', header: 'Chassis Number' },
-                  { key: 'salePrice', header: 'Sale Price', render: (r) => formatPKR(Number(r.salePrice)) },
-                  { key: 'purchasePrice', header: 'Purchase Price', render: (r) => formatPKR(Number(r.purchasePrice)) },
-                  { key: 'profit', header: 'Profit', render: (r) => formatPKR(Number(r.profit)) },
+                  ...(canManageSettled
+                    ? [
+                        {
+                          key: 'settledSelect',
+                          header: 'Settled',
+                          render: (r: Row) => (
+                            <input
+                              type="checkbox"
+                              checked={selectedSettled.has(String(r.chassisNumber))}
+                              onChange={() => toggleSettledSelection(String(r.chassisNumber))}
+                              className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                              aria-label={`Mark ${String(r.chassisNumber)} profit settled`}
+                            />
+                          ),
+                        },
+                      ]
+                    : []),
+                  {
+                    key: 'modelName',
+                    header: 'Model',
+                    render: (r) => (
+                      <span className={r.settled ? 'text-text-muted' : undefined}>{String(r.modelName)}</span>
+                    ),
+                  },
+                  {
+                    key: 'chassisNumber',
+                    header: 'Chassis Number',
+                    render: (r) => (
+                      <span className={`inline-flex items-center gap-2 ${r.settled ? 'text-text-muted' : ''}`}>
+                        <span className="font-mono text-sm">{String(r.chassisNumber)}</span>
+                        {Boolean(r.settled) && (
+                          <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                            Settled
+                          </span>
+                        )}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'salePrice',
+                    header: 'Sale Price',
+                    render: (r) => (
+                      <span className={r.settled ? 'text-text-muted' : undefined}>{formatPKR(Number(r.salePrice))}</span>
+                    ),
+                  },
+                  {
+                    key: 'purchasePrice',
+                    header: 'Purchase Price',
+                    render: (r) => (
+                      <span className={r.settled ? 'text-text-muted' : undefined}>
+                        {formatPKR(Number(r.purchasePrice))}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'profit',
+                    header: 'Profit',
+                    render: (r) => (
+                      <span className={r.settled ? 'text-text-muted' : undefined}>{formatPKR(Number(r.profit))}</span>
+                    ),
+                  },
                 ]}
                 data={report.items as unknown as Row[]}
                 emptyMessage="No sold bikes in this period"
               />
-              <div className="mt-6 grid gap-3 rounded-xl border border-border bg-surface-alt/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid gap-3 rounded-xl border border-border bg-surface-alt/40 p-4 sm:grid-cols-2 lg:grid-cols-5">
                 <div>
                   <p className="text-xs text-text-muted">Total Revenue</p>
                   <p className="text-lg font-semibold tabular-nums text-brand">{formatPKR(report.totalRevenue)}</p>
@@ -3668,6 +3779,12 @@ export function PosProfitLossPage() {
                 <div>
                   <p className="text-xs text-text-muted">Total Profit</p>
                   <p className="text-lg font-semibold tabular-nums text-brand">{formatPKR(report.totalProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-muted">Previously settled</p>
+                  <p className="text-lg font-semibold tabular-nums text-text-muted">
+                    {formatPKR(Number(report.settledProfit ?? 0))}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Expense</p>
