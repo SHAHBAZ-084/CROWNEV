@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
+          <label htmlFor={id} className="block whitespace-nowrap text-sm font-medium text-ink-muted">
             {label}
           </label>
         )}
@@ -82,7 +82,7 @@ export function Select({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
+        <label htmlFor={id} className="block whitespace-nowrap text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}
@@ -115,7 +115,7 @@ export function Textarea({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
+        <label htmlFor={id} className="block whitespace-nowrap text-sm font-medium text-ink-muted">
           {label}
         </label>
       )}

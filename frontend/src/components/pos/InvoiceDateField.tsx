@@ -8,7 +8,7 @@ type InvoiceDateFieldProps = {
 export function InvoiceDateField({ value, onChange }: InvoiceDateFieldProps) {
   return (
     <Input
-      label="Invoice date (optional)"
+      label="Invoice date"
       type="date"
       value={value}
       onChange={(e) => onChange(e.target.value)}
