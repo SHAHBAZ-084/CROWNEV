@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.js';
 import { comparePassword } from '../../utils/crypto.js';
 import { AppError } from '../../utils/helpers.js';
 import { EXPORT_MAX_ROWS, withTimeout } from '../../utils/timeout.js';
+import { getPartsFulfillmentBranch } from '../public/public.service.js';
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -364,8 +365,20 @@ export async function exportInventory(branchId?: number, pagination?: ExportPagi
 }
 
 export async function exportPartsPriceList() {
+  const { branchId: fulfillmentBranchId } = await getPartsFulfillmentBranch();
+  if (!fulfillmentBranchId) return [];
+
   const parts = await prisma.product.findMany({
-    where: { type: ProductType.PART, isActive: true },
+    where: {
+      type: ProductType.PART,
+      isActive: true,
+      branchProducts: {
+        some: {
+          isListed: true,
+          branchId: fulfillmentBranchId,
+        },
+      },
+    },
     select: {
       id: true,
       name: true,
