@@ -1,6 +1,6 @@
 /** Shared top-row layout for POS sale, purchase, and service invoice forms. */
 export const INVOICE_HEADER_ROW_CLASS =
-  'mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)]';
+  'mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,4fr)_minmax(0,0.7fr)_minmax(0,0.7fr)]';
 
 /** Full-width notes row below the account / invoice # / date header. */
 export const INVOICE_NOTES_ROW_CLASS = 'mb-6';
