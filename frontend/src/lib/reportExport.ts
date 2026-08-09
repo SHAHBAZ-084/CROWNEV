@@ -265,6 +265,24 @@ export const INVENTORY_EXPORT_COLUMNS: ReportColumn<InventoryExportRow>[] = [
   { header: 'Low Stock', value: (r) => r.lowStock },
 ];
 
+export type PartsPriceListExportRow = {
+  name: string;
+  model: string;
+  brand: string;
+  category: string;
+  price: string;
+  salePrice: string;
+};
+
+export const PARTS_PRICE_LIST_COLUMNS: ReportColumn<PartsPriceListExportRow>[] = [
+  { header: 'Part Name', value: (r) => r.name },
+  { header: 'Model', value: (r) => r.model },
+  { header: 'Brand', value: (r) => r.brand },
+  { header: 'Category', value: (r) => r.category },
+  { header: 'List Price (PKR)', value: (r) => r.price },
+  { header: 'Website Sale Price (PKR)', value: (r) => r.salePrice },
+];
+
 export type StockSummaryExportRow = {
   branch: string;
   model: string;

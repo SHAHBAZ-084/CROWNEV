@@ -57,6 +57,7 @@ export async function createServiceInvoice(data: {
   notes?: string;
   createdById: string;
   invoiceDate?: string;
+  receipts?: { amount: number; accountId: number }[];
 }) {
   const customer = await prisma.customer.findFirst({
     where: {
@@ -87,6 +88,27 @@ export async function createServiceInvoice(data: {
   const total = partsTotal + labourCost;
   if (total <= 0) {
     throw new AppError(400, 'Invoice total must be greater than zero — add parts or labour cost');
+  }
+
+  const receipts =
+    data.receipts && data.receipts.length > 0
+      ? data.receipts.filter((entry) => entry.amount > 0)
+      : [];
+
+  const totalReceived = receipts.reduce((sum, entry) => sum + entry.amount, 0);
+  if (totalReceived > total) {
+    throw new AppError(400, 'Total received amount cannot exceed the invoice total');
+  }
+  for (const entry of receipts) {
+    if (!entry.accountId) {
+      throw new AppError(400, 'Select the account for each received amount');
+    }
+    const account = await prisma.account.findFirst({
+      where: { id: entry.accountId, branchId: data.branchId, isActive: true },
+    });
+    if (!account) {
+      throw new AppError(400, 'Invalid receipt account selected');
+    }
   }
 
   return prisma.$transaction(async (tx) => {
@@ -158,7 +180,46 @@ export async function createServiceInvoice(data: {
       entryDate: invoiceDate,
     });
 
-    return { invoice, voucher };
+    let runningBalance = newBalance;
+    const receiptVouchers = [];
+    for (const receipt of receipts) {
+      runningBalance -= receipt.amount;
+      await tx.customer.update({
+        where: { id: data.customerId },
+        data: { balance: runningBalance },
+      });
+      await tx.customerLedger.create({
+        data: {
+          customerId: data.customerId,
+          serviceInvoiceId: invoice.id,
+          type: CustomerLedgerType.CREDIT,
+          amount: receipt.amount,
+          balance: runningBalance,
+          notes: `Received against service invoice #${reference}`,
+          createdAt: invoiceDate,
+        },
+      });
+
+      receiptVouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.RECEIPT,
+          debitAccountId: receipt.accountId,
+          creditAccountId: customerAccount.id,
+          amount: receipt.amount,
+          reference,
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
+    }
+
+    return {
+      invoice,
+      voucher,
+      receiptVoucher: receiptVouchers[0] ?? null,
+      receiptVouchers,
+    };
   });
 }
 

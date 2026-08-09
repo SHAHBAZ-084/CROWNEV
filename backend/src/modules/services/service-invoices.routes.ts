@@ -20,6 +20,14 @@ serviceInvoicesRouter.post(
       labourCost: z.coerce.number().min(0),
       notes: z.string().optional(),
       invoiceDate: z.string().optional(),
+      receipts: z
+        .array(
+          z.object({
+            amount: z.number().positive(),
+            accountId: z.number().int(),
+          }),
+        )
+        .optional(),
       items: z
         .array(
           z.object({

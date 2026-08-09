@@ -386,6 +386,7 @@ export const adminApi = {
     const q = params?.branchId ? `?branchId=${params.branchId}` : '';
     return api<Record<string, unknown>[]>(`/reports/export/inventory${q}`);
   },
+  exportPartsPriceList: () => api<Record<string, unknown>[]>('/reports/export/parts-price-list'),
   salesSummary: (period: 'daily' | 'weekly' | 'monthly' | 'yearly', branchId?: string) => {
     const params = new URLSearchParams({ period });
     if (branchId) params.set('branchId', branchId);
@@ -846,7 +847,8 @@ export const branchApi = {
     items: { productId: string; quantity: number; unitPrice?: number }[];
     notes?: string;
     invoiceDate?: string;
-  }) => api<{ invoice: unknown; voucher: unknown }>('/service-invoices/invoice', {
+    receipts?: { amount: number; accountId: number }[];
+  }) => api<{ invoice: unknown; voucher: unknown; receiptVoucher?: unknown; receiptVouchers?: unknown[] }>('/service-invoices/invoice', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -968,6 +970,7 @@ export const branchApi = {
     return api<Record<string, unknown>[]>(`/reports/export/orders${q}`);
   },
   exportInventory: () => api<Record<string, unknown>[]>('/reports/export/inventory'),
+  exportPartsPriceList: () => api<Record<string, unknown>[]>('/reports/export/parts-price-list'),
   profitLossReport: (branchId: number, params: { type: 'sale' | 'service'; from?: string; to?: string }) =>
     api<unknown>(`/reports/profit-loss/${branchId}?${new URLSearchParams(
       Object.entries(params).filter(([, v]) => v) as [string, string][],

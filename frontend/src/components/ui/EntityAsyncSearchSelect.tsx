@@ -31,6 +31,7 @@ export function CustomerAsyncSearchSelect({
   required,
   disabled,
   useWalkInApi = true,
+  size,
 }: {
   branchId: number | null;
   value: string;
@@ -41,6 +42,7 @@ export function CustomerAsyncSearchSelect({
   disabled?: boolean;
   /** Sale/service POS forms use walk-in API; accounting contexts use branch customers API */
   useWalkInApi?: boolean;
+  size?: 'md' | 'lg';
 }) {
   const fetchPage = useMemo(
     () => (useWalkInApi ? createWalkInCustomerFetch(branchId) : createBranchCustomerFetch(branchId)),
@@ -66,6 +68,7 @@ export function CustomerAsyncSearchSelect({
       required={required}
       disabled={disabled}
       enabled={branchId != null}
+      size={size}
     />
   );
 }
@@ -78,6 +81,7 @@ export function SupplierAsyncSearchSelect({
   placeholder = 'Search supplier…',
   required,
   disabled,
+  size,
 }: {
   branchId: number | null;
   value: string;
@@ -86,6 +90,7 @@ export function SupplierAsyncSearchSelect({
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
+  size?: 'md' | 'lg';
 }) {
   const fetchPage = useMemo(() => createBranchSupplierFetch(branchId), [branchId]);
 
@@ -108,6 +113,7 @@ export function SupplierAsyncSearchSelect({
       required={required}
       disabled={disabled}
       enabled={branchId != null}
+      size={size}
     />
   );
 }

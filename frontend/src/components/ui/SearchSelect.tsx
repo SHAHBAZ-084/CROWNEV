@@ -27,6 +27,8 @@ interface SearchSelectProps {
   loadingMore?: boolean;
   /** Show loading state in the dropdown list */
   loading?: boolean;
+  /** Field padding/font size; `lg` for invoice account selects */
+  size?: 'md' | 'lg';
 }
 
 function filterOptions(options: SearchSelectOption[], query: string) {
@@ -51,6 +53,7 @@ export function SearchSelect({
   onLoadMore,
   loadingMore = false,
   loading = false,
+  size = 'md',
 }: SearchSelectProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -159,7 +162,9 @@ export function SearchSelect({
   }
 
   const fieldClass =
-    'w-full rounded-xl border border-border-light bg-subtle py-2.5 pl-4 pr-10 text-sm text-ink placeholder:text-placeholder placeholder:opacity-100 outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-subtle/50 disabled:opacity-60';
+    size === 'lg'
+      ? 'w-full rounded-xl border border-border-light bg-subtle py-3.5 pl-4 pr-10 text-base text-ink placeholder:text-placeholder placeholder:opacity-100 outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-subtle/50 disabled:opacity-60'
+      : 'w-full rounded-xl border border-border-light bg-subtle py-2.5 pl-4 pr-10 text-sm text-ink placeholder:text-placeholder placeholder:opacity-100 outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-subtle/50 disabled:opacity-60';
 
   return (
     <div ref={rootRef} className="space-y-1.5">

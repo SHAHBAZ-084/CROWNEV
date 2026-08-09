@@ -1,4 +1,4 @@
-import { OrderStatus, OrderType, Prisma, ChassisStatus } from '@prisma/client';
+import { OrderStatus, OrderType, Prisma, ChassisStatus, ProductType } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { comparePassword } from '../../utils/crypto.js';
 import { AppError } from '../../utils/helpers.js';
@@ -361,6 +361,31 @@ export async function exportInventory(branchId?: number, pagination?: ExportPagi
 
   const rows = [...partRows, ...bikeRows];
   return pagination ? rows.slice(skip, skip + take) : rows;
+}
+
+export async function exportPartsPriceList() {
+  const parts = await prisma.product.findMany({
+    where: { type: ProductType.PART, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      model: true,
+      price: true,
+      salePrice: true,
+      brand: { select: { name: true } },
+      category: { select: { name: true } },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  return parts.map((p) => ({
+    name: p.name,
+    model: p.model ?? '',
+    brand: p.brand?.name ?? '',
+    category: p.category?.name ?? '',
+    price: Number(p.price),
+    salePrice: p.salePrice != null ? Number(p.salePrice) : Number(p.price),
+  }));
 }
 
 export async function getProfitLossReport(

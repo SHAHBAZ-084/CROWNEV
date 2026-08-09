@@ -10,7 +10,7 @@ import { PageHeader } from '../../components/layout/PageTransition';
 import { WorkspaceCloseBar } from '../../components/layout/WorkspaceCloseButton';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input, Select } from '../../components/ui/Input';
+import { Input, Select, Textarea } from '../../components/ui/Input';
 import { DataTable } from '../../components/ui/DataTable';
 import { TablePagination } from '../../components/ui/TablePagination';
 import { usePagination } from '../../hooks/usePagination';
@@ -35,7 +35,11 @@ import { PurchaseInvoiceModalContent } from '../../components/invoice/PurchaseIn
 import { ServiceInvoiceModalContent } from '../../components/invoice/ServiceInvoice';
 import { PosInvoiceRowActions } from '../../components/pos/PosInvoiceRowActions';
 import { InvoiceDateField, formatInvoiceListDate } from '../../components/pos/InvoiceDateField';
-import { INVOICE_ACCOUNT_CELL_CLASS, INVOICE_HEADER_ROW_CLASS } from '../../components/pos/invoiceFormLayout';
+import {
+  INVOICE_ACCOUNT_CELL_CLASS,
+  INVOICE_HEADER_ROW_CLASS,
+  INVOICE_NOTES_ROW_CLASS,
+} from '../../components/pos/invoiceFormLayout';
 import { PurchaseInvoiceEditModal } from '../../components/pos/PurchaseInvoiceEditModal';
 import { SaleInvoiceEditModal } from '../../components/pos/SaleInvoiceEditModal';
 import {
@@ -955,6 +959,7 @@ export function PosSaleInvoicePage() {
   const [saving, setSaving] = useState(false);
   const [bankCashAccounts, setBankCashAccounts] = useState<Row[]>([]);
   const [receiptLines, setReceiptLines] = useState<ReceiptLine[]>([newReceiptLine()]);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
   const [customerLedger, setCustomerLedger] = useState<{
     customer: { name: string; code: string; balance: number };
     rows: LedgerRow[];
@@ -1116,6 +1121,30 @@ export function PosSaleInvoicePage() {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
   }
 
+  function insertLineAfter(key: string) {
+    const newLine = newSaleLine();
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => l.key === key);
+      if (idx === -1) return [...prev, newLine];
+      const next = [...prev];
+      next.splice(idx + 1, 0, newLine);
+      return next;
+    });
+    setFocusKey(newLine.key);
+  }
+
+  function appendSaleLine() {
+    const newLine = newSaleLine();
+    setLines((p) => [...p, newLine]);
+    setFocusKey(newLine.key);
+  }
+
+  useEffect(() => {
+    if (focusKey == null) return;
+    const id = window.requestAnimationFrame(() => setFocusKey(null));
+    return () => cancelAnimationFrame(id);
+  }, [focusKey]);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!branchId) return;
@@ -1259,6 +1288,7 @@ export function PosSaleInvoicePage() {
               value={customerId}
               onChange={setCustomerId}
               placeholder="Search customer…"
+              size="lg"
             />
           </div>
           <Input
@@ -1269,11 +1299,15 @@ export function PosSaleInvoicePage() {
             title="Auto-assigned on save"
           />
           <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
-          <Input
+        </div>
+
+        <div className={INVOICE_NOTES_ROW_CLASS}>
+          <Textarea
             label="Notes (optional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Invoice notes"
+            rows={3}
           />
         </div>
 
@@ -1334,14 +1368,14 @@ export function PosSaleInvoicePage() {
 
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold text-brand">Line items</h2>
-          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newSaleLine()])}>
+          <Button type="button" size="sm" variant="secondary" onClick={appendSaleLine}>
             <Plus className="mr-1 h-4 w-4" />
             Add line
           </Button>
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line, idx) => (
+          {lineDetails.map((line) => (
             <div
               key={line.key}
               className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4"
@@ -1350,7 +1384,7 @@ export function PosSaleInvoicePage() {
                   const target = e.target as HTMLElement;
                   if (target.tagName !== 'TEXTAREA') {
                     e.preventDefault();
-                    setLines((p) => [...p, newSaleLine()]);
+                    appendSaleLine();
                   }
                 }
               }}
@@ -1363,7 +1397,7 @@ export function PosSaleInvoicePage() {
                   onChange={(id) => selectProductForLine(line.key, id)}
                   options={productOptionsForLine(line.key)}
                   placeholder="Search bike or part…"
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                  autoFocus={line.key === focusKey}
                 />
                 <ProductMetaHint product={line.product} />
               </div>
@@ -1394,17 +1428,27 @@ export function PosSaleInvoicePage() {
                   <p className="text-xs text-text-muted">Stock: {line.maxQty}</p>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="self-end"
-                disabled={lines.length <= 1}
-                onClick={() => removeLine(line.key)}
-                aria-label="Remove line"
-              >
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
+              <div className="flex items-center gap-1 self-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => insertLineAfter(line.key)}
+                  aria-label="Add line after this one"
+                >
+                  <Plus className="h-4 w-4 text-brand" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={lines.length <= 1}
+                  onClick={() => removeLine(line.key)}
+                  aria-label="Remove line"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
               </div>
               {line.product?.type === 'BIKE' && (
                 <SearchSelect
@@ -1569,6 +1613,7 @@ export function PosPurchaseInvoicePage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [colorOptions, setColorOptions] = useState<{ id: number; name: string }[]>([]);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
@@ -1719,6 +1764,30 @@ export function PosPurchaseInvoicePage() {
   function removeLine(key: string) {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
   }
+
+  function insertLineAfter(key: string) {
+    const newLine = newPurchaseLine();
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => l.key === key);
+      if (idx === -1) return [...prev, newLine];
+      const next = [...prev];
+      next.splice(idx + 1, 0, newLine);
+      return next;
+    });
+    setFocusKey(newLine.key);
+  }
+
+  function appendPurchaseLine() {
+    const newLine = newPurchaseLine();
+    setLines((p) => [...p, newLine]);
+    setFocusKey(newLine.key);
+  }
+
+  useEffect(() => {
+    if (focusKey == null) return;
+    const id = window.requestAnimationFrame(() => setFocusKey(null));
+    return () => cancelAnimationFrame(id);
+  }, [focusKey]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -1957,6 +2026,7 @@ export function PosPurchaseInvoicePage() {
               onChange={setSupplierId}
               options={supplierOptions}
               placeholder="Search supplier…"
+              size="lg"
             />
           </div>
           <Input
@@ -1967,24 +2037,28 @@ export function PosPurchaseInvoicePage() {
             title="Auto-assigned on save"
           />
           <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
-          <Input
+        </div>
+
+        <div className={INVOICE_NOTES_ROW_CLASS}>
+          <Textarea
             label="Notes (optional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Invoice notes"
+            rows={3}
           />
         </div>
 
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold text-brand">Line items</h2>
-          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newPurchaseLine()])}>
+          <Button type="button" size="sm" variant="secondary" onClick={appendPurchaseLine}>
             <Plus className="mr-1 h-4 w-4" />
             Add line
           </Button>
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line, idx) => (
+          {lineDetails.map((line) => (
             <div
               key={line.key}
               className="space-y-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4"
@@ -1993,7 +2067,7 @@ export function PosPurchaseInvoicePage() {
                   const target = e.target as HTMLElement;
                   if (target.tagName !== 'TEXTAREA') {
                     e.preventDefault();
-                    setLines((p) => [...p, newPurchaseLine()]);
+                    appendPurchaseLine();
                   }
                 }
               }}
@@ -2006,7 +2080,7 @@ export function PosPurchaseInvoicePage() {
                   onChange={(id) => selectProductForLine(line.key, id)}
                   options={productOptionsForLine(line.key)}
                   placeholder="Search bike or part…"
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                  autoFocus={line.key === focusKey}
                 />
                 <ProductMetaHint product={line.product} />
               </div>
@@ -2037,17 +2111,27 @@ export function PosPurchaseInvoicePage() {
                   {line.product && line.lineTotal > 0 ? formatPKR(line.lineTotal) : '—'}
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="self-end"
-                disabled={lines.length <= 1}
-                onClick={() => removeLine(line.key)}
-                aria-label="Remove line"
-              >
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
+              <div className="flex items-center gap-1 self-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => insertLineAfter(line.key)}
+                  aria-label="Add line after this one"
+                >
+                  <Plus className="h-4 w-4 text-brand" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={lines.length <= 1}
+                  onClick={() => removeLine(line.key)}
+                  aria-label="Remove line"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
               </div>
               {line.product?.type === 'BIKE' && (
                 <div className="space-y-3">
@@ -2293,6 +2377,9 @@ export function PosServiceInvoicePage() {
   const [notes, setNotes] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [bankCashAccounts, setBankCashAccounts] = useState<Row[]>([]);
+  const [receiptLines, setReceiptLines] = useState<ReceiptLine[]>([newReceiptLine()]);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
   const [customerLedger, setCustomerLedger] = useState<{
     customer: { name: string; code: string; balance: number };
     rows: LedgerRow[];
@@ -2320,6 +2407,9 @@ export function PosServiceInvoicePage() {
   useEffect(() => {
     if (!branchId) return;
     branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
+    branchApi.accounts(branchId)
+      .then((accounts) => setBankCashAccounts((accounts as Row[]).filter(isSaleReceiptAccount)))
+      .catch(console.error);
     reloadInvoices();
     reloadNextInvoiceNo();
   }, [branchId, reloadInvoices, reloadNextInvoiceNo]);
@@ -2377,6 +2467,19 @@ export function PosServiceInvoicePage() {
   const labourAmount = parseFloat(labourCost) || 0;
   const grandTotal = partsTotal + labourAmount;
 
+  const receiptAccountOptions = useMemo(
+    () => bankCashAccounts.map((a) => ({ value: String(a.id), label: String(a.name) })),
+    [bankCashAccounts],
+  );
+
+  function updateReceiptLine(key: string, patch: Partial<ReceiptLine>) {
+    setReceiptLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function removeReceiptLine(key: string) {
+    setReceiptLines((prev) => (prev.length <= 1 ? prev : prev.filter((row) => row.key !== key)));
+  }
+
   function selectProductForLine(lineKey: string, productId: string) {
     if (!productId) {
       updateLine(lineKey, { productId: '', unitPrice: undefined });
@@ -2412,6 +2515,30 @@ export function PosServiceInvoicePage() {
   function removeLine(key: string) {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
   }
+
+  function insertLineAfter(key: string) {
+    const newLine = newSaleLine();
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => l.key === key);
+      if (idx === -1) return [...prev, newLine];
+      const next = [...prev];
+      next.splice(idx + 1, 0, newLine);
+      return next;
+    });
+    setFocusKey(newLine.key);
+  }
+
+  function appendServiceLine() {
+    const newLine = newSaleLine();
+    setLines((p) => [...p, newLine]);
+    setFocusKey(newLine.key);
+  }
+
+  useEffect(() => {
+    if (focusKey == null) return;
+    const id = window.requestAnimationFrame(() => setFocusKey(null));
+    return () => cancelAnimationFrame(id);
+  }, [focusKey]);
 
   async function openInvoice(id: number) {
     setInvoiceModal(id);
@@ -2477,6 +2604,21 @@ export function PosServiceInvoicePage() {
         return;
       }
     }
+    const receiptEntries = receiptLines
+      .map((row) => ({
+        amount: row.amount ? Number(row.amount) : 0,
+        accountId: row.accountId ? Number(row.accountId) : 0,
+      }))
+      .filter((row) => row.amount > 0);
+    const totalReceived = receiptEntries.reduce((sum, row) => sum + row.amount, 0);
+    if (totalReceived > grandTotal) {
+      toast('Total received amount cannot exceed the invoice total', 'error');
+      return;
+    }
+    if (receiptEntries.some((row) => !row.accountId)) {
+      toast('Select the account for each received amount', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const result = await branchApi.createServiceInvoice({
@@ -2486,13 +2628,22 @@ export function PosServiceInvoicePage() {
         items,
         notes: notes.trim() || undefined,
         invoiceDate: invoiceDate || undefined,
+        receipts: receiptEntries.length > 0
+          ? receiptEntries.map(({ amount, accountId }) => ({ amount, accountId }))
+          : undefined,
       });
       const invoiceNo = String((result.invoice as { reference?: string }).reference ?? nextInvoiceNo);
-      toast(`Service invoice saved. Invoice #${invoiceNo}`, 'success');
+      toast(
+        totalReceived > 0
+          ? `Service invoice saved. Invoice #${invoiceNo} — Rs. ${totalReceived.toLocaleString()} received`
+          : `Service invoice saved. Invoice #${invoiceNo}`,
+        'success',
+      );
       setLines([newSaleLine()]);
       setLabourCost('');
       setNotes('');
       setInvoiceDate('');
+      setReceiptLines([newReceiptLine()]);
       branchApi.saleProducts(branchId).then(setProducts).catch(console.error);
       reloadInvoices();
       reloadNextInvoiceNo();
@@ -2522,6 +2673,7 @@ export function PosServiceInvoicePage() {
               value={customerId}
               onChange={setCustomerId}
               placeholder="Search customer…"
+              size="lg"
             />
           </div>
           <Input
@@ -2532,11 +2684,15 @@ export function PosServiceInvoicePage() {
             title="Auto-assigned on save"
           />
           <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
-          <Input
+        </div>
+
+        <div className={INVOICE_NOTES_ROW_CLASS}>
+          <Textarea
             label="Notes (optional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Service notes"
+            rows={3}
           />
         </div>
 
@@ -2553,15 +2709,70 @@ export function PosServiceInvoicePage() {
         </div>
 
         <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-brand">Received amount</h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setReceiptLines((prev) => [...prev, newReceiptLine()])}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Add line
+          </Button>
+        </div>
+
+        <div className="mb-6 space-y-3">
+          {receiptLines.map((row) => {
+            const amountNum = row.amount ? Number(row.amount) : 0;
+            return (
+              <div
+                key={row.key}
+                className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end"
+              >
+                <Input
+                  label="Received amount (optional)"
+                  type="number"
+                  min={0}
+                  max={grandTotal || undefined}
+                  step={1}
+                  value={row.amount}
+                  onChange={(e) => updateReceiptLine(row.key, { amount: e.target.value })}
+                  placeholder="Leave blank if not paid now"
+                />
+                <SearchSelect
+                  label="Received into (Bank/Cash/Expense account)"
+                  value={row.accountId}
+                  onChange={(accountId) => updateReceiptLine(row.key, { accountId })}
+                  options={receiptAccountOptions}
+                  placeholder="Select account"
+                  disabled={!row.amount || amountNum <= 0}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="self-end"
+                  disabled={receiptLines.length <= 1}
+                  onClick={() => removeReceiptLine(row.key)}
+                  aria-label="Remove receipt line"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold text-brand">Parts used</h2>
-          <Button type="button" size="sm" variant="secondary" onClick={() => setLines((p) => [...p, newSaleLine()])}>
+          <Button type="button" size="sm" variant="secondary" onClick={appendServiceLine}>
             <Plus className="mr-1 h-4 w-4" />
             Add line
           </Button>
         </div>
 
         <div className="space-y-3">
-          {lineDetails.map((line, idx) => (
+          {lineDetails.map((line) => (
             <div
               key={line.key}
               className="grid gap-3 rounded-lg border border-border/60 bg-surface-alt/40 p-4 lg:grid-cols-[1fr_140px_100px_140px_auto] lg:items-end"
@@ -2570,7 +2781,7 @@ export function PosServiceInvoicePage() {
                   const target = e.target as HTMLElement;
                   if (target.tagName !== 'TEXTAREA') {
                     e.preventDefault();
-                    setLines((p) => [...p, newSaleLine()]);
+                    appendServiceLine();
                   }
                 }
               }}
@@ -2582,7 +2793,7 @@ export function PosServiceInvoicePage() {
                   onChange={(id) => selectProductForLine(line.key, id)}
                   options={productOptionsForLine(line.key)}
                   placeholder="Search bike or part…"
-                  autoFocus={idx === lines.length - 1 && lines.length > 1}
+                  autoFocus={line.key === focusKey}
                 />
                 <ProductMetaHint product={line.product} />
               </div>
@@ -2612,17 +2823,27 @@ export function PosServiceInvoicePage() {
                   <p className="text-xs text-text-muted">Stock: {line.maxQty}</p>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="self-end"
-                disabled={lines.length <= 1}
-                onClick={() => removeLine(line.key)}
-                aria-label="Remove line"
-              >
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
+              <div className="flex items-center gap-1 self-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => insertLineAfter(line.key)}
+                  aria-label="Add line after this one"
+                >
+                  <Plus className="h-4 w-4 text-brand" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={lines.length <= 1}
+                  onClick={() => removeLine(line.key)}
+                  aria-label="Remove line"
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

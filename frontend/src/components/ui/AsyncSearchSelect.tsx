@@ -20,6 +20,8 @@ export function AsyncSearchSelect<T>({
   disabled,
   enabled = true,
   pageSize = DEFAULT_PAGE_SIZE,
+  size,
+  autoFocus,
 }: {
   label?: string;
   value: string;
@@ -34,6 +36,8 @@ export function AsyncSearchSelect<T>({
   disabled?: boolean;
   enabled?: boolean;
   pageSize?: number;
+  size?: 'md' | 'lg';
+  autoFocus?: boolean;
 }) {
   const keyOf = getItemKey ?? ((item: T) => mapOption(item).value);
   const [resolvedPinned, setResolvedPinned] = useState<T | null>(null);
@@ -111,6 +115,8 @@ export function AsyncSearchSelect<T>({
       onLoadMore={loadNextPage}
       loadingMore={loadingMore}
       loading={loading}
+      size={size}
+      autoFocus={autoFocus}
     />
   );
 }

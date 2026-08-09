@@ -142,6 +142,19 @@ reportsRouter.get(
 );
 
 reportsRouter.get(
+  '/export/parts-price-list',
+  requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
+  asyncHandler(async (_req, res) => {
+    const rows = await reportsService.exportPartsPriceList();
+    if (_req.query.format === 'csv') {
+      csvResponse(res, 'parts_price_list.csv', toCsv(rows));
+      return;
+    }
+    res.json(rows);
+  })
+);
+
+reportsRouter.get(
   '/export/trial-balance/:branchId',
   requireRoles(Role.ADMIN, Role.BRANCH_OWNER),
   requireBranchReportPermission,

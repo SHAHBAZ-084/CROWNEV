@@ -26,8 +26,10 @@ import {
   exportStockSummaryReport,
   exportToPdf,
   INVENTORY_EXPORT_COLUMNS,
+  PARTS_PRICE_LIST_COLUMNS,
   ORDER_EXPORT_COLUMNS,
   type InventoryExportRow,
+  type PartsPriceListExportRow,
   type OrderExportRow,
 } from '../../lib/reportExport';
 
@@ -1377,6 +1379,30 @@ export function BranchReportsPage() {
     }
   }
 
+  async function downloadPartsPriceListPdf() {
+    setDownloading('pdf-parts-price-list');
+    try {
+      const data = await branchApi.exportPartsPriceList();
+      const exportRows: PartsPriceListExportRow[] = data.map((row) => ({
+        name: String(row.name ?? ''),
+        model: String(row.model ?? ''),
+        brand: String(row.brand ?? ''),
+        category: String(row.category ?? ''),
+        price: formatPKR(Number(row.price ?? 0)),
+        salePrice: formatPKR(Number(row.salePrice ?? 0)),
+      }));
+      await exportToPdf('parts_price_list', PARTS_PRICE_LIST_COLUMNS, exportRows, {
+        title: 'Parts Price List',
+        subtitle: `Website sale prices · ${formatDate(new Date())}`,
+      });
+      toast('PDF downloaded', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'PDF export failed', 'error');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   async function downloadStockSummaryPdf() {
     if (!stockSummary) return;
     setDownloading('pdf-stock-summary');
@@ -1541,6 +1567,34 @@ export function BranchReportsPage() {
               size="sm"
               loading={downloading === 'pdf-inventory'}
               onClick={downloadInventoryPdf}
+            >
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-border bg-white p-5 shadow-[var(--shadow-card)]">
+          <p className="font-semibold text-slate-900">Parts Price List</p>
+          <p className="mt-1 text-sm text-text-muted">All parts with the sale price shown on the website</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloading === 'csv-parts_price_list.csv'}
+              onClick={() =>
+                downloadCsv(
+                  '/api/reports/export/parts-price-list?format=csv',
+                  'parts_price_list.csv',
+                )
+              }
+            >
+              CSV
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              loading={downloading === 'pdf-parts-price-list'}
+              onClick={downloadPartsPriceListPdf}
             >
               PDF
             </Button>
