@@ -2943,7 +2943,6 @@ export function AdminReportsPage() {
         brand: String(row.brand ?? ''),
         category: String(row.category ?? ''),
         price: formatPKR(Number(row.price ?? 0)),
-        salePrice: formatPKR(Number(row.salePrice ?? 0)),
       }));
       await exportToPdf('parts_price_list', PARTS_PRICE_LIST_COLUMNS, exportRows, {
         title: 'Parts Price List',

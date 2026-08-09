@@ -80,6 +80,15 @@ export async function getBikeDocumentChecklist(chassisNumberId: number) {
   return chassis;
 }
 
+export async function updateBikeDocumentNotes(chassisNumberId: number, notes: string) {
+  const chassis = await prisma.bikeChassisNumber.findUnique({ where: { id: chassisNumberId } });
+  if (!chassis) throw new AppError(404, 'Bike not found');
+  return prisma.bikeChassisNumber.update({
+    where: { id: chassisNumberId },
+    data: { documentNotes: notes.trim() || null },
+  });
+}
+
 export async function updateBikeDocument(
   bikeDocumentId: number,
   data: {

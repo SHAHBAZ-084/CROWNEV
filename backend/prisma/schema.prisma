@@ -688,6 +688,7 @@ model BikeChassisNumber {
   meterReading    Int?
   condition       String?
   comments        String?
+  documentNotes   String?
 
   profitSettledAt   DateTime?
   profitSettledById String?

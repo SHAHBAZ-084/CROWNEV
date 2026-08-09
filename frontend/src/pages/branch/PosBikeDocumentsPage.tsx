@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageTransition';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input, Select } from '../../components/ui/Input';
+import { Input, Select, Textarea } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { DataTable } from '../../components/ui/DataTable';
 import { DocumentTypesManager } from '../../components/bike-documents/DocumentTypesManager';
@@ -37,6 +37,8 @@ export default function PosBikeDocumentsPage() {
   const [checklist, setChecklist] = useState<Row | null>(null);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Document Types manager modal (admin only)
   const [docTypesModalOpen, setDocTypesModalOpen] = useState(false);
@@ -82,6 +84,10 @@ export default function PosBikeDocumentsPage() {
     loadBikes();
   }, [loadBikes]);
 
+  useEffect(() => {
+    setNotesDraft(String(checklist?.documentNotes ?? ''));
+  }, [checklist]);
+
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
   }
@@ -104,6 +110,7 @@ export default function PosBikeDocumentsPage() {
   const closeChecklist = () => {
     setSelectedChassis(null);
     setChecklist(null);
+    setNotesDraft('');
   };
 
   // Toggle document checklist item
@@ -310,6 +317,41 @@ export default function PosBikeDocumentsPage() {
                 <strong className="text-ink">
                   {selectedChassis?.status === 'SOLD' ? 'Sold' : 'In Stock'}
                 </strong>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-ink-muted">Notes</label>
+              <Textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="Add a note about this bike's documents…"
+                rows={3}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={savingNotes}
+                  disabled={!selectedChassis || notesDraft === (checklist?.documentNotes ?? '')}
+                  onClick={async () => {
+                    if (!selectedChassis) return;
+                    setSavingNotes(true);
+                    try {
+                      await branchApi.updateBikeDocumentNotes(selectedChassis.branchId, selectedChassis.id, notesDraft);
+                      setChecklist((prev: Row | null) => (prev ? { ...prev, documentNotes: notesDraft } : prev));
+                      toast('Note saved', 'success');
+                      loadBikes();
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to save note', 'error');
+                    } finally {
+                      setSavingNotes(false);
+                    }
+                  }}
+                >
+                  Save note
+                </Button>
               </div>
             </div>
 

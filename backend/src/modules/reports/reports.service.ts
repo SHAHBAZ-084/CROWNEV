@@ -383,8 +383,7 @@ export async function exportPartsPriceList() {
     model: p.model ?? '',
     brand: p.brand?.name ?? '',
     category: p.category?.name ?? '',
-    price: Number(p.price),
-    salePrice: p.salePrice != null ? Number(p.salePrice) : Number(p.price),
+    price: p.salePrice != null ? Number(p.salePrice) : Number(p.price),
   }));
 }
 

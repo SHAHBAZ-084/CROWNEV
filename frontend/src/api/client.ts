@@ -989,4 +989,9 @@ export const branchApi = {
     api<Record<string, unknown>>(`/branches/${branchId}/bike-documents/${chassisId}`),
   updateBikeDocument: (branchId: number, chassisId: number, documentId: number, data: Record<string, unknown>) =>
     api<Record<string, unknown>>(`/branches/${branchId}/bike-documents/${chassisId}/${documentId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateBikeDocumentNotes: (branchId: number, chassisId: number, notes: string) =>
+    api<unknown>(`/branches/${branchId}/bike-documents/${chassisId}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes }),
+    }),
 };

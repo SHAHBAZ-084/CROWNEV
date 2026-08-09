@@ -271,7 +271,6 @@ export type PartsPriceListExportRow = {
   brand: string;
   category: string;
   price: string;
-  salePrice: string;
 };
 
 export const PARTS_PRICE_LIST_COLUMNS: ReportColumn<PartsPriceListExportRow>[] = [
@@ -279,8 +278,7 @@ export const PARTS_PRICE_LIST_COLUMNS: ReportColumn<PartsPriceListExportRow>[] =
   { header: 'Model', value: (r) => r.model },
   { header: 'Brand', value: (r) => r.brand },
   { header: 'Category', value: (r) => r.category },
-  { header: 'List Price (PKR)', value: (r) => r.price },
-  { header: 'Website Sale Price (PKR)', value: (r) => r.salePrice },
+  { header: 'Price (PKR)', value: (r) => r.price },
 ];
 
 export type StockSummaryExportRow = {

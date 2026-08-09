@@ -57,6 +57,23 @@ chassisRouter.get(
 );
 
 chassisRouter.patch(
+  '/:branchId/bike-documents/:chassisId/notes',
+  validateBody(z.object({ notes: z.string().max(2000).optional() })),
+  asyncHandler(async (req, res) => {
+    const branchId = parseInt(param(req.params.branchId), 10);
+    if (req.user!.role === Role.BRANCH_OWNER && req.user!.branchId !== branchId) {
+      res.status(403).json({ error: 'Cross-branch access denied' });
+      return;
+    }
+    const updated = await bikeDocumentsService.updateBikeDocumentNotes(
+      parseInt(param(req.params.chassisId), 10),
+      req.body.notes ?? '',
+    );
+    res.json(updated);
+  }),
+);
+
+chassisRouter.patch(
   '/:branchId/bike-documents/:chassisId/:documentId',
   validateBody(
     z.object({
