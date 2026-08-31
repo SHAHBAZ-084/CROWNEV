@@ -198,6 +198,15 @@ export function PublicFooter() {
 
         <p className="mt-8 border-t border-border pt-3 text-center text-xs text-white/90">
           © {new Date().getFullYear()} All rights reserved @ Crown Ev Center
+          {' · Built at '}
+          <a
+            href="https://asdigitalsolution.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white transition-colors hover:text-brand-light"
+          >
+            AS Digital Solution
+          </a>
         </p>
       </div>
     </footer>
