@@ -203,7 +203,7 @@ export function PublicFooter() {
             href="https://asdigitalsolution.online"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white transition-colors hover:text-brand-light"
+            className="text-accent transition-colors hover:text-white"
           >
             AS Digital Solution
           </a>
