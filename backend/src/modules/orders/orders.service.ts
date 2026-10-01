@@ -20,9 +20,11 @@ import { allocateSaleInvoiceNumber } from '../../utils/documentNumbers.js';
 import { parseOptionalInvoiceDate } from '../../utils/invoiceDate.js';
 import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 import {
+  computeLineCost,
   createVoucherInTx,
   customerAccountCode,
   ensureCustomerAccount,
+  ensureInventoryAccount,
   ensureSaleRevenueAccount,
   formatPurchaseItemsDescription,
   getAccountLedgerBalance,
@@ -675,17 +677,53 @@ export async function createSaleInvoice(data: {
 
     const customerAccount = await ensureCustomerAccount(tx, data.branchId, customer);
     const revenueAccount = await ensureSaleRevenueAccount(tx, data.branchId);
+    const inventoryAccount = await ensureInventoryAccount(tx, data.branchId);
 
-    const voucher = await createVoucherInTx(tx, {
-      branchId: data.branchId,
-      type: VoucherType.SALE,
-      debitAccountId: customerAccount.id,
-      creditAccountId: revenueAccount.id,
-      amount: subtotal,
-      reference,
-      createdById: data.createdById,
-      entryDate: invoiceDate,
-    });
+    let totalCost = 0;
+    for (let i = 0; i < saleLines.length; i++) {
+      const line = saleLines[i];
+      const orderItem = orderWithChassis.items[i];
+      totalCost += await computeLineCost(tx, data.branchId, {
+        productId: line.productId,
+        quantity: line.quantity,
+        chassisNumber: orderItem?.chassisNumber,
+        productType: orderItem?.product.type ?? ProductType.PART,
+      });
+    }
+    totalCost = Math.min(totalCost, subtotal);
+    const profit = subtotal - totalCost;
+
+    const vouchers = [];
+    if (totalCost > 0) {
+      vouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.SALE,
+          debitAccountId: customerAccount.id,
+          creditAccountId: inventoryAccount.id,
+          amount: totalCost,
+          reference,
+          description: 'Cost of goods sold',
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
+    }
+    if (profit > 0) {
+      vouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.SALE,
+          debitAccountId: customerAccount.id,
+          creditAccountId: revenueAccount.id,
+          amount: profit,
+          reference,
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
+    }
+    const voucher = vouchers[0];
 
     let runningBalance = newBalance;
     const receiptVouchers = [];
@@ -724,6 +762,7 @@ export async function createSaleInvoice(data: {
     return {
       order: orderWithChassis,
       voucher,
+      vouchers,
       receiptVoucher: receiptVouchers[0] ?? null,
       receiptVouchers,
     };

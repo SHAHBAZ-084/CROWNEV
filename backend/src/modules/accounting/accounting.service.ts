@@ -1,4 +1,13 @@
-import { AccountType, FinancialYearStatus, LedgerEntryType, OrderType, Prisma, VoucherStatus, VoucherType } from '@prisma/client';
+import {
+  AccountType,
+  FinancialYearStatus,
+  LedgerEntryType,
+  OrderType,
+  Prisma,
+  ProductType,
+  VoucherStatus,
+  VoucherType,
+} from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { comparePassword } from '../../utils/crypto.js';
 import { AppError, getPagination, paginatedResponse } from '../../utils/helpers.js';
@@ -1150,6 +1159,32 @@ export async function ensureInventoryAccount(tx: Prisma.TransactionClient, branc
   return canonical;
 }
 
+export async function computeLineCost(
+  tx: Prisma.TransactionClient,
+  branchId: number,
+  line: { productId: string; quantity: number; chassisNumber?: string | null; productType: ProductType },
+): Promise<number> {
+  if (line.productType === ProductType.BIKE && line.chassisNumber) {
+    const chassis = await tx.bikeChassisNumber.findFirst({
+      where: { branchId, chassisNumber: line.chassisNumber },
+      select: { purchasePrice: true },
+    });
+    if (!chassis?.purchasePrice) {
+      console.warn(`[cogs] Missing purchasePrice for chassis ${line.chassisNumber} — treating cost as 0`);
+      return 0;
+    }
+    return Number(chassis.purchasePrice);
+  }
+  if (line.productType === ProductType.PART) {
+    const branchProduct = await tx.branchProduct.findUnique({
+      where: { branchId_productId: { branchId, productId: line.productId } },
+      select: { avgCost: true },
+    });
+    return Number(branchProduct?.avgCost ?? 0) * line.quantity;
+  }
+  return 0;
+}
+
 async function mergeInventoryAccountIntoCanonical(
   tx: Prisma.TransactionClient,
   canonical: { id: number; ledger: { id: number } | null },
@@ -1349,6 +1384,7 @@ export async function createVoucherInTx(
     reference?: string;
     createdById: string;
     entryDate?: Date;
+    financialYearId?: number;
   },
 ) {
   if (data.amount <= 0) {
@@ -1363,10 +1399,11 @@ export async function createVoucherInTx(
   );
   assertVoucherAccountRules(data.type, debitAccount, creditAccount);
 
-  const financialYearId = await getActiveFinancialYearId(tx, data.branchId);
+  const financialYearId =
+    data.financialYearId ?? (await getActiveFinancialYearId(tx, data.branchId));
   const number = await nextVoucherNumber(tx, data.branchId, data.type, financialYearId);
   const at = data.entryDate ?? new Date();
-  const { entryDate: _entryDate, ...voucherData } = data;
+  const { entryDate: _entryDate, financialYearId: _financialYearId, ...voucherData } = data;
 
   const voucher = await tx.voucher.create({
     data: { ...voucherData, number, financialYearId, status: VoucherStatus.ACTIVE, createdAt: at },

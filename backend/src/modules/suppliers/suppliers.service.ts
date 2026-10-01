@@ -473,6 +473,37 @@ export async function createPurchaseInvoice(data: {
 
     for (const item of pricedItems) {
       if (item.product.type !== ProductType.BIKE && item.product.type !== ProductType.PART) continue;
+
+      if (item.product.type === ProductType.PART) {
+        const existing = await tx.branchProduct.findUnique({
+          where: {
+            branchId_productId: { branchId: data.branchId, productId: item.productId },
+          },
+        });
+        const oldStock = existing?.stock ?? 0;
+        const oldAvgCost = Number(existing?.avgCost ?? 0);
+        const newStock = oldStock + item.quantity;
+        const newAvgCost =
+          newStock > 0
+            ? (oldStock * oldAvgCost + item.quantity * item.unitCost) / newStock
+            : item.unitCost;
+
+        await tx.branchProduct.upsert({
+          where: {
+            branchId_productId: { branchId: data.branchId, productId: item.productId },
+          },
+          create: {
+            branchId: data.branchId,
+            productId: item.productId,
+            stock: item.quantity,
+            avgCost: newAvgCost,
+            isListed: true,
+          },
+          update: { stock: { increment: item.quantity }, avgCost: newAvgCost },
+        });
+        continue;
+      }
+
       await tx.branchProduct.upsert({
         where: {
           branchId_productId: { branchId: data.branchId, productId: item.productId },

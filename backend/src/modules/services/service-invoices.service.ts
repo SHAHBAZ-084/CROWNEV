@@ -2,8 +2,10 @@ import { CustomerLedgerType, CustomerType, Prisma, ProductType, VoucherType } fr
 import { prisma } from '../../config/database.js';
 import { AppError, getInvoiceListOrderBy, getPagination, paginatedResponse } from '../../utils/helpers.js';
 import {
+  computeLineCost,
   createVoucherInTx,
   ensureCustomerAccount,
+  ensureInventoryAccount,
   ensureServiceRevenueAccount,
   cancelActiveVouchersByReferenceInTx,
   getActiveFinancialYearId,
@@ -176,17 +178,50 @@ export async function createServiceInvoice(data: {
 
     const customerAccount = await ensureCustomerAccount(tx, data.branchId, customer);
     const revenueAccount = await ensureServiceRevenueAccount(tx, data.branchId);
+    const inventoryAccount = await ensureInventoryAccount(tx, data.branchId);
 
-    const voucher = await createVoucherInTx(tx, {
-      branchId: data.branchId,
-      type: VoucherType.SERVICE,
-      debitAccountId: customerAccount.id,
-      creditAccountId: revenueAccount.id,
-      amount: total,
-      reference,
-      createdById: data.createdById,
-      entryDate: invoiceDate,
-    });
+    let totalCost = 0;
+    for (const item of invoice.items) {
+      totalCost += await computeLineCost(tx, data.branchId, {
+        productId: item.productId,
+        quantity: item.quantity,
+        productType: item.product.type,
+      });
+    }
+    totalCost = Math.min(totalCost, total);
+    const profit = total - totalCost;
+
+    const vouchers = [];
+    if (totalCost > 0) {
+      vouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.SERVICE,
+          debitAccountId: customerAccount.id,
+          creditAccountId: inventoryAccount.id,
+          amount: totalCost,
+          reference,
+          description: 'Cost of goods sold',
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
+    }
+    if (profit > 0) {
+      vouchers.push(
+        await createVoucherInTx(tx, {
+          branchId: data.branchId,
+          type: VoucherType.SERVICE,
+          debitAccountId: customerAccount.id,
+          creditAccountId: revenueAccount.id,
+          amount: profit,
+          reference,
+          createdById: data.createdById,
+          entryDate: invoiceDate,
+        }),
+      );
+    }
+    const voucher = vouchers[0];
 
     let runningBalance = newBalance;
     const receiptVouchers = [];
@@ -225,6 +260,7 @@ export async function createServiceInvoice(data: {
     return {
       invoice,
       voucher,
+      vouchers,
       receiptVoucher: receiptVouchers[0] ?? null,
       receiptVouchers,
     };
