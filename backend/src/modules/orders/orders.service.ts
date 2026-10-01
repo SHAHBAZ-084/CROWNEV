@@ -66,6 +66,8 @@ export async function listOrders(query: {
   userId?: string;
   paymentStatus?: PaymentStatus;
   paymentMethod?: PaymentMethod;
+  from?: string;
+  to?: string;
 }) {
   const { page, limit, skip } = getPagination(query);
   const search = query.search?.trim();
@@ -95,6 +97,14 @@ export async function listOrders(query: {
     ...(search && {
       saleReference: { contains: search, mode: 'insensitive' as const },
     }),
+    ...(query.from || query.to
+      ? {
+          invoiceDate: {
+            ...(query.from && { gte: new Date(query.from) }),
+            ...(query.to && { lte: new Date(`${query.to}T23:59:59.999`) }),
+          },
+        }
+      : {}),
   };
 
   const [orders, total] = await Promise.all([

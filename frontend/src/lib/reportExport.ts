@@ -338,11 +338,13 @@ export type ProfitLossItemRow = {
   salePrice: number;
   purchasePrice: number;
   profit: number;
+  date: string;
 };
 
 type ProfitLossSaleExportRow = {
   modelName: string;
   chassisNumber: string;
+  date: string;
   salePrice: string;
   purchasePrice: string;
   profit: string;
@@ -351,6 +353,7 @@ type ProfitLossSaleExportRow = {
 const PROFIT_LOSS_SALE_COLUMNS: ReportColumn<ProfitLossSaleExportRow>[] = [
   { header: 'Model', value: (r) => r.modelName },
   { header: 'Chassis Number', value: (r) => r.chassisNumber },
+  { header: 'Sale Date', value: (r) => r.date },
   { header: 'Sale Price', value: (r) => r.salePrice },
   { header: 'Purchase Price', value: (r) => r.purchasePrice },
   { header: 'Profit', value: (r) => r.profit },
@@ -375,6 +378,7 @@ export async function exportProfitLossReport(
     const exportRows: ProfitLossSaleExportRow[] = items.map((i) => ({
       modelName: i.modelName,
       chassisNumber: i.chassisNumber,
+      date: i.date ? formatDate(i.date) : '—',
       salePrice: formatPKR(i.salePrice),
       purchasePrice: formatPKR(i.purchasePrice),
       profit: formatPKR(i.profit),

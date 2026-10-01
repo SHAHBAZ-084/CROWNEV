@@ -52,7 +52,7 @@ import type { InvoiceData, PurchaseInvoiceData, ServiceInvoiceData } from '../..
 type Row = Record<string, unknown>;
 
 /** Recent invoice tables on POS sale/purchase/service screens. */
-const RECENT_POS_INVOICES_LIMIT = '15';
+const INVOICE_LIST_PAGE_SIZE = '20';
 
 function useBranchId() {
   const { user } = useAuth();
@@ -970,16 +970,31 @@ export function PosSaleInvoicePage() {
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
+  const [invoicesPage, setInvoicesPage] = useState(1);
+  const [invoicesTotal, setInvoicesTotal] = useState(0);
+  const [invoiceFromDate, setInvoiceFromDate] = useState('');
+  const [invoiceToDate, setInvoiceToDate] = useState('');
   const [chassisOptions, setChassisOptions] = useState<
     Record<string, { id: number; chassisNumber: string; engineNumber?: string | null; motorNumber?: string | null; color?: string | null }[]>
   >({});
 
   const reloadOrders = useCallback(() => {
     if (!branchId) return;
-    branchApi.orders({ type: 'POS', limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
-      .then((r) => setOrders(r.data as unknown as Row[]))
+    branchApi.orders({
+      type: 'POS',
+      branchId: String(branchId),
+      limit: INVOICE_LIST_PAGE_SIZE,
+      page: String(invoicesPage),
+      sort: 'recent',
+      ...(invoiceFromDate ? { from: invoiceFromDate } : {}),
+      ...(invoiceToDate ? { to: invoiceToDate } : {}),
+    })
+      .then((r) => {
+        setOrders(r.data as unknown as Row[]);
+        setInvoicesTotal(r.pagination.total);
+      })
       .catch(console.error);
-  }, [branchId]);
+  }, [branchId, invoicesPage, invoiceFromDate, invoiceToDate]);
 
   const reloadNextInvoiceNo = useCallback(() => {
     if (!branchId) return;
@@ -1536,7 +1551,43 @@ export function PosSaleInvoicePage() {
       )}
 
       <div>
-        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent sale invoices</h2>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="font-display text-sm font-bold text-brand">Recent sale invoices</h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              label="From date"
+              type="date"
+              value={invoiceFromDate}
+              onChange={(e) => {
+                setInvoiceFromDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            <Input
+              label="To date"
+              type="date"
+              value={invoiceToDate}
+              onChange={(e) => {
+                setInvoiceToDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            {(invoiceFromDate || invoiceToDate) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInvoiceFromDate('');
+                  setInvoiceToDate('');
+                  setInvoicesPage(1);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
         <DataTable
           columns={[
             { key: 'saleReference', header: 'Invoice #', render: (r) => String(r.saleReference ?? '—') },
@@ -1567,6 +1618,32 @@ export function PosSaleInvoicePage() {
           data={orders}
           emptyMessage="No sale invoices yet"
         />
+        <div className="mt-3 flex items-center justify-between text-sm text-text-muted">
+          <span>
+            Showing {orders.length === 0 ? 0 : (invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + 1}
+            –{(invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + orders.length} of {invoicesTotal}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage <= 1}
+              onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage * Number(INVOICE_LIST_PAGE_SIZE) >= invoicesTotal}
+              onClick={() => setInvoicesPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Modal
@@ -1614,13 +1691,26 @@ export function PosPurchaseInvoicePage() {
   const [colorOptions, setColorOptions] = useState<{ id: number; name: string }[]>([]);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [invoicesPage, setInvoicesPage] = useState(1);
+  const [invoicesTotal, setInvoicesTotal] = useState(0);
+  const [invoiceFromDate, setInvoiceFromDate] = useState('');
+  const [invoiceToDate, setInvoiceToDate] = useState('');
 
   const reloadPurchases = useCallback(() => {
     if (!branchId) return;
-    branchApi.purchases(branchId, { limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
-      .then((r) => setPurchases(r.data as Row[]))
+    branchApi.purchases(branchId, {
+      limit: INVOICE_LIST_PAGE_SIZE,
+      page: String(invoicesPage),
+      sort: 'recent',
+      ...(invoiceFromDate ? { from: invoiceFromDate } : {}),
+      ...(invoiceToDate ? { to: invoiceToDate } : {}),
+    })
+      .then((r) => {
+        setPurchases(r.data as Row[]);
+        setInvoicesTotal(r.pagination.total);
+      })
       .catch(console.error);
-  }, [branchId]);
+  }, [branchId, invoicesPage, invoiceFromDate, invoiceToDate]);
 
   const reloadNextInvoiceNo = useCallback(() => {
     if (!branchId) return;
@@ -2316,7 +2406,43 @@ export function PosPurchaseInvoicePage() {
       )}
 
       <div>
-        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent purchase invoices</h2>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="font-display text-sm font-bold text-brand">Recent purchase invoices</h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              label="From date"
+              type="date"
+              value={invoiceFromDate}
+              onChange={(e) => {
+                setInvoiceFromDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            <Input
+              label="To date"
+              type="date"
+              value={invoiceToDate}
+              onChange={(e) => {
+                setInvoiceToDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            {(invoiceFromDate || invoiceToDate) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInvoiceFromDate('');
+                  setInvoiceToDate('');
+                  setInvoicesPage(1);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
         <DataTable
           columns={[
             { key: 'documentRef', header: 'Invoice #', render: (r) => String(r.documentRef ?? r.invoiceNumber ?? '—') },
@@ -2343,6 +2469,32 @@ export function PosPurchaseInvoicePage() {
           data={purchases}
           emptyMessage="No purchase invoices yet"
         />
+        <div className="mt-3 flex items-center justify-between text-sm text-text-muted">
+          <span>
+            Showing {purchases.length === 0 ? 0 : (invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + 1}
+            –{(invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + purchases.length} of {invoicesTotal}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage <= 1}
+              onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage * Number(INVOICE_LIST_PAGE_SIZE) >= invoicesTotal}
+              onClick={() => setInvoicesPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Modal
@@ -2389,13 +2541,26 @@ export function PosServiceInvoicePage() {
   const [invoiceModal, setInvoiceModal] = useState<number | null>(null);
   const [invoiceData, setInvoiceData] = useState<ServiceInvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoicesPage, setInvoicesPage] = useState(1);
+  const [invoicesTotal, setInvoicesTotal] = useState(0);
+  const [invoiceFromDate, setInvoiceFromDate] = useState('');
+  const [invoiceToDate, setInvoiceToDate] = useState('');
 
   const reloadInvoices = useCallback(() => {
     if (!branchId) return;
-    branchApi.serviceInvoices(branchId, { limit: RECENT_POS_INVOICES_LIMIT, sort: 'recent' })
-      .then((r) => setInvoices(r.data as unknown as Row[]))
+    branchApi.serviceInvoices(branchId, {
+      limit: INVOICE_LIST_PAGE_SIZE,
+      page: String(invoicesPage),
+      sort: 'recent',
+      ...(invoiceFromDate ? { from: invoiceFromDate } : {}),
+      ...(invoiceToDate ? { to: invoiceToDate } : {}),
+    })
+      .then((r) => {
+        setInvoices(r.data as unknown as Row[]);
+        setInvoicesTotal(r.pagination.total);
+      })
       .catch(console.error);
-  }, [branchId]);
+  }, [branchId, invoicesPage, invoiceFromDate, invoiceToDate]);
 
   const reloadNextInvoiceNo = useCallback(() => {
     if (!branchId) return;
@@ -2916,7 +3081,43 @@ export function PosServiceInvoicePage() {
       )}
 
       <div>
-        <h2 className="mb-4 font-display text-sm font-bold text-brand">Recent service invoices</h2>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="font-display text-sm font-bold text-brand">Recent service invoices</h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              label="From date"
+              type="date"
+              value={invoiceFromDate}
+              onChange={(e) => {
+                setInvoiceFromDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            <Input
+              label="To date"
+              type="date"
+              value={invoiceToDate}
+              onChange={(e) => {
+                setInvoiceToDate(e.target.value);
+                setInvoicesPage(1);
+              }}
+            />
+            {(invoiceFromDate || invoiceToDate) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInvoiceFromDate('');
+                  setInvoiceToDate('');
+                  setInvoicesPage(1);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
         <DataTable
           columns={[
             { key: 'reference', header: 'Invoice #' },
@@ -2947,6 +3148,32 @@ export function PosServiceInvoicePage() {
           data={invoices}
           emptyMessage="No service invoices yet"
         />
+        <div className="mt-3 flex items-center justify-between text-sm text-text-muted">
+          <span>
+            Showing {invoices.length === 0 ? 0 : (invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + 1}
+            –{(invoicesPage - 1) * Number(INVOICE_LIST_PAGE_SIZE) + invoices.length} of {invoicesTotal}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage <= 1}
+              onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={invoicesPage * Number(INVOICE_LIST_PAGE_SIZE) >= invoicesTotal}
+              onClick={() => setInvoicesPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Modal
@@ -3771,6 +3998,7 @@ type ProfitLossItem = {
   purchasePrice: number;
   profit: number;
   settled: boolean;
+  date: string;
 };
 
 type ProfitLossReport = {
@@ -4007,6 +4235,15 @@ export function PosProfitLossPage() {
                             Settled
                           </span>
                         )}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'date',
+                    header: 'Sale Date',
+                    render: (r) => (
+                      <span className={r.settled ? 'text-text-muted' : undefined}>
+                        {r.date ? formatDate(String(r.date)) : '—'}
                       </span>
                     ),
                   },

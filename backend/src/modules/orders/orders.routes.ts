@@ -87,6 +87,8 @@ ordersRouter.get(
       userId,
       paymentStatus: req.query.paymentStatus as PaymentStatus | undefined,
       paymentMethod: req.query.paymentMethod as PaymentMethod | undefined,
+      from: req.query.from as string | undefined,
+      to: req.query.to as string | undefined,
     });
     res.json(result);
   })

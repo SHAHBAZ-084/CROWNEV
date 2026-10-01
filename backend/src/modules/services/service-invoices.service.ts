@@ -16,7 +16,7 @@ import { formatCustomerNameWithFather } from '../../utils/customerName.js';
 
 export async function listServiceInvoices(
   branchId: number,
-  query: { page?: string; limit?: string; search?: string; sort?: 'invoiceDate' | 'recent' },
+  query: { page?: string; limit?: string; search?: string; sort?: 'invoiceDate' | 'recent'; from?: string; to?: string },
 ) {
   const { page, limit, skip } = getPagination(query);
   const search = query.search?.trim();
@@ -32,6 +32,14 @@ export async function listServiceInvoices(
     ...(search && {
       reference: { contains: search, mode: 'insensitive' as const },
     }),
+    ...(query.from || query.to
+      ? {
+          invoiceDate: {
+            ...(query.from && { gte: new Date(query.from) }),
+            ...(query.to && { lte: new Date(`${query.to}T23:59:59.999`) }),
+          },
+        }
+      : {}),
   };
 
   const [invoices, total] = await Promise.all([

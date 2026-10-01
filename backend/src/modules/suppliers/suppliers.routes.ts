@@ -176,6 +176,8 @@ purchasesRouter.get(
       limit: req.query.limit as string,
       search: req.query.search as string,
       sort: req.query.sort as 'invoiceDate' | 'recent' | undefined,
+      from: req.query.from as string | undefined,
+      to: req.query.to as string | undefined,
     });
     res.json(result);
   })
